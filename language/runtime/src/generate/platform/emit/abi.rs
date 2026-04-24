@@ -59,8 +59,8 @@ impl AbiRenderer<'_> {
         let newtypes = &self.types.newtypes;
         let enums = &self.types.enums;
         let tagged_unions = &self.types.tagged_unions;
-        let storage_type_registrations =
-            collect_named_storage_registrations(domain, structs, newtypes, tagged_unions);
+        let aggregate_type_registrations =
+            collect_named_aggregate_registrations(domain, structs, newtypes, tagged_unions);
         let has_named_types = !newtypes.is_empty()
             || !enums.is_empty()
             || !structs.is_empty()
@@ -489,20 +489,20 @@ impl AbiRenderer<'_> {
             output.push_str(
             "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
         );
-            output.push_str("        let component_count = value_ref.component_count();\n");
-            output.push_str("        if component_count != 2 {\n");
+            output.push_str("        let field_count = value_ref.field_count();\n");
+            output.push_str("        if field_count != 2 {\n");
             output.push_str(
             "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected 2 fields\")).boxed());\n",
         );
             output.push_str("        }\n");
             output.push_str(
-            "        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;\n",
+            "        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;\n",
         );
             output.push_str("        let decoded = match tag {\n");
             for (variant, tag) in variants.iter().zip(variant_tags.iter().copied()) {
                 let variant_type = codegen.vm_type_for_binding(&variant.binding_type);
                 output.push_str(&format!(
-                "            {tag}u32 => Self::{}(<{variant_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),\n",
+                "            {tag}u32 => Self::{}(<{variant_type} as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),\n",
                 variant.name
             ));
             }
@@ -529,11 +529,11 @@ impl AbiRenderer<'_> {
                 "                let payload_value = <{variant_type} as VmAggregateCodec>::encode_with_context(value, context)?;\n"
             ));
                 output.push_str(&format!(
-                    "                let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    "                let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
                     codegen.escape_rust_string(&union_metadata_name)
                 ));
-                output.push_str("                value_builder.write_component(0, tag_value).map_err(Box::<RuntimeError>::from)?;\n");
-                output.push_str("                value_builder.write_component(1, payload_value).map_err(Box::<RuntimeError>::from)?;\n");
+                output.push_str("                value_builder.write_field(0, tag_value).map_err(Box::<RuntimeError>::from)?;\n");
+                output.push_str("                value_builder.write_field(1, payload_value).map_err(Box::<RuntimeError>::from)?;\n");
                 output.push_str(
                     "                value_builder.finish().map_err(Box::<RuntimeError>::from)\n",
                 );
@@ -723,14 +723,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
             );
-                output.push_str("        let component_count = value_ref.component_count();\n");
+                output.push_str("        let field_count = value_ref.field_count();\n");
                 if fields.is_empty() {
-                    output.push_str("        if component_count != 0 {\n");
+                    output.push_str("        if field_count != 0 {\n");
                 } else {
-                    output.push_str(&format!(
-                        "        if component_count != {} {{\n",
-                        fields.len()
-                    ));
+                    output.push_str(&format!("        if field_count != {} {{\n", fields.len()));
                 }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
@@ -742,7 +739,7 @@ impl AbiRenderer<'_> {
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     let local_name = format!("field_{field_name}");
                     output.push_str(&format!(
-                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, {index})?;\n"
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_field_with_context(context, value_ref, {index})?;\n"
                 ));
                 }
                 output.push_str("        Ok(Self {\n");
@@ -757,17 +754,17 @@ impl AbiRenderer<'_> {
                 "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
             );
                 output.push_str(&format!(
-                    "        let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    "        let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
                     codegen.escape_rust_string(&struct_metadata_name)
                 ));
                 for (index, field) in fields.iter().enumerate() {
                     let field_name = codegen.to_snake_case(&field.name);
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     output.push_str(&format!(
-                    "        let component_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
+                    "        let field_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
                 ));
                     output.push_str(&format!(
-                    "        value_builder.write_component({index}, component_value).map_err(Box::<RuntimeError>::from)?;\n"
+                    "        value_builder.write_field({index}, field_value).map_err(Box::<RuntimeError>::from)?;\n"
                 ));
                 }
                 output.push_str(
@@ -828,6 +825,7 @@ impl AbiRenderer<'_> {
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
 
+                // FUGU #Performance: avoid eagerly materializing VM heap fields into owned values, see V8 Local handles
                 output.push_str(&format!("impl VmAbiCodec for {struct_name}Abi<VmAbi> {{\n"));
                 output.push_str(&format!("    type Value = {value_name};\n\n"));
                 output.push_str(
@@ -880,14 +878,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "    fn decode_value_ref_with_context(context: &vm::ExternalReadContext<'_, '_>, value_ref: &vm::VmValueRef<'_, '_>) -> RuntimeResult<Self> {\n",
             );
-                output.push_str("        let component_count = value_ref.component_count();\n");
+                output.push_str("        let field_count = value_ref.field_count();\n");
                 if fields.is_empty() {
-                    output.push_str("        if component_count != 0 {\n");
+                    output.push_str("        if field_count != 0 {\n");
                 } else {
-                    output.push_str(&format!(
-                        "        if component_count != {} {{\n",
-                        fields.len()
-                    ));
+                    output.push_str(&format!("        if field_count != {} {{\n", fields.len()));
                 }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
@@ -899,7 +894,7 @@ impl AbiRenderer<'_> {
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     let local_name = format!("field_{field_name}");
                     output.push_str(&format!(
-                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_component_with_context(context, value_ref, {index})?;\n"
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_field_with_context(context, value_ref, {index})?;\n"
                 ));
                 }
                 output.push_str("        Ok(Self {\n");
@@ -914,17 +909,17 @@ impl AbiRenderer<'_> {
                 "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
             );
                 output.push_str(&format!(
-                    "        let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
+                    "        let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
                     codegen.escape_rust_string(&struct_metadata_name)
                 ));
                 for (index, field) in fields.iter().enumerate() {
                     let field_name = codegen.to_snake_case(&field.name);
                     let field_type = codegen.vm_type_for_binding(&field.binding_type);
                     output.push_str(&format!(
-                    "        let component_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
+                    "        let field_value = <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?;\n"
                 ));
                     output.push_str(&format!(
-                    "        value_builder.write_component({index}, component_value).map_err(Box::<RuntimeError>::from)?;\n"
+                    "        value_builder.write_field({index}, field_value).map_err(Box::<RuntimeError>::from)?;\n"
                 ));
                 }
                 output.push_str(
@@ -1018,24 +1013,26 @@ impl AbiRenderer<'_> {
             }
         }
 
-        let register_storage_types_fn = codegen.register_storage_types_fn_name();
-        let isolate_name = if storage_type_registrations.is_empty() {
+        let register_aggregate_types_fn = codegen.register_aggregate_types_fn_name();
+        let isolate_name = if aggregate_type_registrations.is_empty() {
             "_isolate"
         } else {
             "isolate"
         };
-        output.push_str(&format!("/// Register VM storage schemas for {domain}.\n"));
         output.push_str(&format!(
-            "pub(crate) fn {register_storage_types_fn}({isolate_name}: &mut vm::Isolate) -> vm::Result<()> {{\n"
+            "/// Register VM aggregate schemas for {domain}.\n"
         ));
-        for (metadata_name, component_count) in storage_type_registrations {
+        output.push_str(&format!(
+            "pub(crate) fn {register_aggregate_types_fn}({isolate_name}: &mut vm::Isolate) -> vm::Result<()> {{\n"
+        ));
+        for (metadata_name, field_count) in aggregate_type_registrations {
             output.push_str(&format!(
-                "    isolate.register_named_storage_type(\"{}\", {})?;\n",
+                "    isolate.register_named_aggregate_type(\"{}\", {})?;\n",
                 codegen.escape_rust_string(&metadata_name),
-                component_count
+                field_count
             ));
         }
-        if !storage_type_registrations.is_empty() {
+        if !aggregate_type_registrations.is_empty() {
             output.push_str("\n");
         }
         output.push_str("    Ok(())\n");
@@ -1148,8 +1145,8 @@ impl AbiRenderer<'_> {
     }
 }
 
-/// Collect named storage registrations for one ABI module.
-fn collect_named_storage_registrations(
+/// Collect named aggregate registrations for one ABI module.
+fn collect_named_aggregate_registrations(
     module: &str,
     structs: &BTreeMap<String, BindingType>,
     newtypes: &BTreeMap<String, BindingType>,
@@ -1160,36 +1157,36 @@ fn collect_named_storage_registrations(
 
     // aggregate newtypes
     for (name, binding_type) in newtypes {
-        let Some(component_count) = named_storage_component_count(binding_type) else {
+        let Some(field_count) = named_aggregate_field_count(binding_type) else {
             continue;
         };
         let metadata_name = codegen.named_type_metadata_name(module, name);
-        registrations.push((metadata_name, component_count));
+        registrations.push((metadata_name, field_count));
     }
 
     // aggregate structs
     for (name, binding_type) in structs {
-        let Some(component_count) = named_storage_component_count(binding_type) else {
+        let Some(field_count) = named_aggregate_field_count(binding_type) else {
             continue;
         };
         let metadata_name = codegen.named_type_metadata_name(module, name);
-        registrations.push((metadata_name, component_count));
+        registrations.push((metadata_name, field_count));
     }
 
     // tagged unions
     for (name, binding_type) in tagged_unions {
-        let Some(component_count) = named_storage_component_count(binding_type) else {
+        let Some(field_count) = named_aggregate_field_count(binding_type) else {
             continue;
         };
         let metadata_name = codegen.named_type_metadata_name(module, name);
-        registrations.push((metadata_name, component_count));
+        registrations.push((metadata_name, field_count));
     }
 
     registrations
 }
 
-/// Return the semantic component count for one named storage binding type.
-fn named_storage_component_count(binding_type: &BindingType) -> Option<usize> {
+/// Return the semantic field count for one named storage binding type.
+fn named_aggregate_field_count(binding_type: &BindingType) -> Option<usize> {
     match binding_type {
         BindingType::Newtype { inner, .. } => binding_type_requires_abi(inner).then_some(1),
         BindingType::Struct { fields, .. } => Some(fields.len()),

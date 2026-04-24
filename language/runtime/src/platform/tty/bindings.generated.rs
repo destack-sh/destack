@@ -313,19 +313,19 @@ fn encode_destack_tty_mode_get_mode_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("tty::TtyMode")
+                .begin_named_aggregate_builder("tty::TtyMode")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -430,13 +430,13 @@ fn encode_destack_tty_pty_open_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.controller.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.worker.0.0, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("tty::PtyPair")
+                .begin_named_aggregate_builder("tty::PtyPair")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -470,19 +470,19 @@ fn encode_destack_tty_size_get_size_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.x_pixels as u64, 32));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.y_pixels as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("tty::TtySize")
+                .begin_named_aggregate_builder("tty::TtySize")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -640,28 +640,28 @@ fn encode_destack_tty_termios_get_attributes_result(
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.output_speed_code, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("tty::TtyTermiosAttributes")
+                .begin_named_aggregate_builder("tty::TtyTermiosAttributes")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4572,7 +4572,7 @@ pub(crate) fn install_tty_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_tty_vm_storage_types(isolate)?;
+    super::abi_generated::register_tty_vm_aggregate_types(isolate)?;
     register_tty_vm_bindings(registry, isolate);
 
     Ok(())

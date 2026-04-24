@@ -72,8 +72,8 @@ impl<T> NativeArray<T> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct VmArray<T> {
-    /// Pointer to the element storage in the VM heap.
-    pub data: vm::RawPointer,
+    /// Backing storage for the element payload.
+    pub data: vm::Value,
     /// Number of elements in the array.
     pub len: u32,
     /// Allocated capacity in elements.
@@ -90,7 +90,7 @@ pub(crate) struct VmArrayBuilder<T> {
 }
 
 impl<T> VmArray<T> {
-    /// Decode a VM array from one typed array value.
+    /// Decode a VM array from one array value.
     pub fn from_value(
         context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
@@ -102,66 +102,61 @@ impl<T> VmArray<T> {
         })?;
 
         // validate the aggregate arity first
-        let field_count = value_ref.component_count();
-        if field_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 name,
-                format!("expected {expected} with 3 fields"),
+                format!("expected {expected} with 2 fields"),
             ))
             .boxed());
         }
 
-        // decode length + capacity + pointer
-        let len_value = value_ref.component_value(0).map_err(|_error| {
+        // decode backing slice + capacity
+        let slice_value = value_ref.field_value(0).map_err(|_error| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
-        let capacity_value = value_ref.component_value(1).map_err(|_error| {
+        let capacity_value = value_ref.field_value(1).map_err(|_error| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
-        let data_value = value_ref.component_value(2).map_err(|_error| {
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
-        })?;
+        let slice = VmSlice::<T>::from_value(context, slice_value, name, expected)?;
 
-        let (len, len_width) = len_value.as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
-        })?;
-        if len_width != 32 {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-            );
-        }
         let (capacity, capacity_width) = capacity_value.as_uint_with_width().ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
-        if capacity_width != 32 {
+        if capacity_width != usize::BITS as u8 {
             return Err(
                 RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
             );
         }
-        let data = data_value.as_raw_pointer().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
-        })?;
-
         Ok(Self {
-            data,
-            len: vm_len_u32(len, name, expected)?,
+            data: slice.data,
+            len: slice.len,
             capacity: vm_len_u32(capacity, name, expected)?,
             _marker: PhantomData::<T>,
         })
     }
 
-    /// Encode this VM array into one typed array value.
+    /// Encode this VM array into one array value.
     pub fn to_value(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
+        let slice = VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<T>,
+        }
+        .to_value(context)?;
+
         context
-            .materialize_builtin_array_value(self.len, self.capacity, self.data)
+            .materialize_builtin_array_value(slice, self.capacity as usize)
             .map_err(|error| RuntimeError::from(error).boxed())
     }
+}
 
-    /// Read the raw VM values stored in this array.
-    pub fn raw_values(
+impl<T: VmCollectionElement> VmArray<T> {
+    /// Read the encoded VM values stored in this array.
+    pub fn values(
         &self,
         context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<Vec<vm::Value>> {
@@ -170,11 +165,9 @@ impl<T> VmArray<T> {
             len: self.len,
             _marker: PhantomData::<T>,
         }
-        .raw_values(context)
+        .values(context)
     }
-}
 
-impl<T: VmCollectionElement> VmArray<T> {
     /// Begin one exact-size VM array builder.
     pub(crate) fn builder(
         context: &mut vm::ExternalWriteContext<'_, '_>,
@@ -217,7 +210,7 @@ impl<T: VmCollectionElement> VmArray<T> {
     ) -> RuntimeResult<Self> {
         let mut builder = Self::builder(context, values.len())?;
 
-        // encode each element directly into the final raw storage
+        // encode each element directly into the final storage
         for value in values.iter().copied() {
             builder.push(context, value)?;
         }
@@ -290,23 +283,30 @@ impl<T: Copy> VmAggregateCodec for VmArray<T> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        if value_ref.component_count() != 3 {
+        if value_ref.field_count() != 2 {
             return Err(
                 RuntimeError::from(PlatformError::invalid_argument_type("value", "array")).boxed(),
             );
         }
 
-        let data = <vm::RawPointer as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let len = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let slice =
+            <VmSlice<T> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let capacity_value = value_ref
+            .field_value(1)
+            .map_err(Box::<RuntimeError>::from)?;
+        let (capacity, capacity_width) = capacity_value.as_uint_with_width().ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_type("value", "array")).boxed()
+        })?;
+        if capacity_width != usize::BITS as u8 {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("value", "array")).boxed(),
+            );
+        }
 
         Ok(Self {
-            data,
-            len,
-            capacity,
+            data: slice.data,
+            len: slice.len,
+            capacity: vm_len_u32(capacity, "value", "array")?,
             _marker: PhantomData,
         })
     }

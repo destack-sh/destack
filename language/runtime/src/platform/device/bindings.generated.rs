@@ -452,62 +452,58 @@ fn encode_destack_device_bluetooth_adapter_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterAttachedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -538,62 +534,58 @@ fn encode_destack_device_bluetooth_adapter_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterChangedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -624,62 +616,58 @@ fn encode_destack_device_bluetooth_adapter_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterDetachedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -740,62 +728,58 @@ fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterAttachedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -826,62 +810,58 @@ fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterChangedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -912,62 +892,58 @@ fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothAdapterDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothAdapterDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothAdapterEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothAdapterEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothAdapterDetachedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothAdapterDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdapterEvent")
+                    .begin_named_aggregate_builder("device::BluetoothAdapterEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1165,25 +1141,25 @@ fn encode_destack_device_bluetooth_gatt_read_event_result(
             let field_4: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
             let field_5: RuntimeResult<vm::Value> = value.value.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::BluetoothGattValueEvent")
+                .begin_named_aggregate_builder("device::BluetoothGattValueEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1282,25 +1258,25 @@ fn encode_destack_device_bluetooth_gatt_try_read_event_result(
             let field_4: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
             let field_5: RuntimeResult<vm::Value> = value.value.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::BluetoothGattValueEvent")
+                .begin_named_aggregate_builder("device::BluetoothGattValueEvent")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1587,94 +1563,92 @@ fn encode_destack_device_bluetooth_scan_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanDiscoveredEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanDiscoveredEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1752,94 +1726,92 @@ fn encode_destack_device_bluetooth_scan_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanLostEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanLostEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1917,94 +1889,92 @@ fn encode_destack_device_bluetooth_scan_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanUpdatedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanUpdatedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2109,94 +2079,92 @@ fn encode_destack_device_bluetooth_scan_try_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanDiscoveredEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanDiscoveredEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2274,94 +2242,92 @@ fn encode_destack_device_bluetooth_scan_try_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanLostEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanLostEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2439,94 +2405,92 @@ fn encode_destack_device_bluetooth_scan_try_read_event_result(
                                     .service_data
                                     .to_value(context);
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "device::BluetoothAdvertisementData",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder(
-                                    "device::BluetoothDeviceDescriptor",
-                                )
+                                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::BluetoothScanEventMetadata")
+                            .begin_named_aggregate_builder("device::BluetoothScanEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::BluetoothScanUpdatedEvent")
+                        .begin_named_aggregate_builder("device::BluetoothScanUpdatedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothScanEvent")
+                    .begin_named_aggregate_builder("device::BluetoothScanEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2622,54 +2586,54 @@ fn encode_destack_device_bluetooth_session_descriptor_result(
                 let field_4: RuntimeResult<vm::Value> =
                     value.advertisement.service_data.to_value(context);
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothAdvertisementData")
+                    .begin_named_aggregate_builder("device::BluetoothAdvertisementData")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::BluetoothDeviceDescriptor")
+                .begin_named_aggregate_builder("device::BluetoothDeviceDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2761,39 +2725,35 @@ fn encode_destack_device_bluetooth_session_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "device::BluetoothSessionDisconnectedEvent",
-                        )
+                        .begin_named_aggregate_builder("device::BluetoothSessionDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2807,39 +2767,37 @@ fn encode_destack_device_bluetooth_session_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "device::BluetoothSessionGattDatabaseChangedEvent",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2853,44 +2811,42 @@ fn encode_destack_device_bluetooth_session_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.pair_state as i32 as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "device::BluetoothSessionPairStateChangedEvent",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2958,39 +2914,35 @@ fn encode_destack_device_bluetooth_session_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "device::BluetoothSessionDisconnectedEvent",
-                        )
+                        .begin_named_aggregate_builder("device::BluetoothSessionDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3004,39 +2956,37 @@ fn encode_destack_device_bluetooth_session_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "device::BluetoothSessionGattDatabaseChangedEvent",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3050,44 +3000,42 @@ fn encode_destack_device_bluetooth_session_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::BluetoothSessionEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::BluetoothSessionEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.pair_state as i32 as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "device::BluetoothSessionPairStateChangedEvent",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::BluetoothSessionEvent")
+                    .begin_named_aggregate_builder("device::BluetoothSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3292,61 +3240,61 @@ fn encode_destack_device_camera_device_watch_read_result(
                             let field_5: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.metadata.device.depth_capable));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::CameraDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::CameraDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::CameraWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::CameraWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraAttachedEvent")
+                        .begin_named_aggregate_builder("device::CameraAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraWatchEvent")
+                    .begin_named_aggregate_builder("device::CameraWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3381,61 +3329,61 @@ fn encode_destack_device_camera_device_watch_read_result(
                             let field_5: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.metadata.device.depth_capable));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::CameraDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::CameraDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::CameraWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::CameraWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraDetachedEvent")
+                        .begin_named_aggregate_builder("device::CameraDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraWatchEvent")
+                    .begin_named_aggregate_builder("device::CameraWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3497,61 +3445,61 @@ fn encode_destack_device_camera_device_watch_try_read_result(
                             let field_5: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.metadata.device.depth_capable));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::CameraDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::CameraDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::CameraWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::CameraWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraAttachedEvent")
+                        .begin_named_aggregate_builder("device::CameraAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraWatchEvent")
+                    .begin_named_aggregate_builder("device::CameraWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3586,61 +3534,61 @@ fn encode_destack_device_camera_device_watch_try_read_result(
                             let field_5: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.metadata.device.depth_capable));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::CameraDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::CameraDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::CameraWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::CameraWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraDetachedEvent")
+                        .begin_named_aggregate_builder("device::CameraDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraWatchEvent")
+                    .begin_named_aggregate_builder("device::CameraWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3706,16 +3654,16 @@ fn encode_destack_device_camera_stream_config_result(
                 let field_2: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.pixel_format.compressed));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraPixelFormatDescriptor")
+                    .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -3728,25 +3676,25 @@ fn encode_destack_device_camera_stream_config_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraStreamConfig")
+                .begin_named_aggregate_builder("device::CameraStreamConfig")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3835,24 +3783,22 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_4: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.auto_supported));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "device::CameraExposureCompensationRange",
-                        )
+                        .begin_named_aggregate_builder("device::CameraExposureCompensationRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -3870,22 +3816,22 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_4: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.auto_supported));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraExposureTimeRange")
+                        .begin_named_aggregate_builder("device::CameraExposureTimeRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -3904,22 +3850,22 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_4: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.auto_supported));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraSensorIsoRange")
+                        .begin_named_aggregate_builder("device::CameraSensorIsoRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -3938,22 +3884,22 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_4: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.auto_supported));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraWhiteBalanceRange")
+                        .begin_named_aggregate_builder("device::CameraWhiteBalanceRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -3972,22 +3918,22 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_4: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.auto_supported));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFocusDistanceRange")
+                        .begin_named_aggregate_builder("device::CameraFocusDistanceRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4000,19 +3946,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFloatControlRange")
+                        .begin_named_aggregate_builder("device::CameraFloatControlRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4025,19 +3971,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFloatControlRange")
+                        .begin_named_aggregate_builder("device::CameraFloatControlRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4050,19 +3996,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFloatControlRange")
+                        .begin_named_aggregate_builder("device::CameraFloatControlRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4075,19 +4021,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFloatControlRange")
+                        .begin_named_aggregate_builder("device::CameraFloatControlRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4104,19 +4050,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::float64(value.step_degrees));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraPanAngleRange")
+                        .begin_named_aggregate_builder("device::CameraPanAngleRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4133,19 +4079,19 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::float64(value.step_degrees));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraTiltAngleRange")
+                        .begin_named_aggregate_builder("device::CameraTiltAngleRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4162,77 +4108,77 @@ fn encode_destack_device_camera_stream_control_capabilities_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::float64(value.step_ratio));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraZoomRatioRange")
+                        .begin_named_aggregate_builder("device::CameraZoomRatioRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraControlCapabilities")
+                .begin_named_aggregate_builder("device::CameraControlCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4331,58 +4277,58 @@ fn encode_destack_device_camera_stream_control_state_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraControlState")
+                .begin_named_aggregate_builder("device::CameraControlState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4472,19 +4418,19 @@ fn encode_destack_device_camera_stream_photo_capabilities_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraFloatControlRange")
+                        .begin_named_aggregate_builder("device::CameraFloatControlRange")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4499,19 +4445,19 @@ fn encode_destack_device_camera_stream_photo_capabilities_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraPhotoCapabilities")
+                .begin_named_aggregate_builder("device::CameraPhotoCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4555,18 +4501,16 @@ fn encode_destack_device_camera_stream_photo_state_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.pixel_format.compressed));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::CameraPixelFormatDescriptor",
-                            )
+                            .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4579,22 +4523,22 @@ fn encode_destack_device_camera_stream_photo_state_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraPhotoOptions")
+                        .begin_named_aggregate_builder("device::CameraPhotoOptions")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -4613,19 +4557,19 @@ fn encode_destack_device_camera_stream_photo_state_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraPhotoState")
+                .begin_named_aggregate_builder("device::CameraPhotoState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4669,16 +4613,16 @@ fn encode_destack_device_camera_stream_read_result(
                 let field_2: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.pixel_format.compressed));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraPixelFormatDescriptor")
+                    .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -4710,58 +4654,58 @@ fn encode_destack_device_camera_stream_read_result(
                     None => Ok(vm::Value::VOID),
                 };
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraFrameMetadata")
+                    .begin_named_aggregate_builder("device::CameraFrameMetadata")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_9: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraFrame")
+                .begin_named_aggregate_builder("device::CameraFrame")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4808,28 +4752,28 @@ fn encode_destack_device_camera_stream_recording_capabilities_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraRecordingCapabilities")
+                .begin_named_aggregate_builder("device::CameraRecordingCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4872,24 +4816,24 @@ fn encode_destack_device_camera_stream_recording_state_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.bytes.0.to_value(context);
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                                        .begin_named_aggregate_builder("fs::OsPathBytes")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .begin_named_aggregate_builder("fs::OsPath")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, tag_value)
+                                    .write_field(0, tag_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, payload_value)
+                                    .write_field(1, payload_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -4900,24 +4844,24 @@ fn encode_destack_device_camera_stream_recording_state_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.utf16.0.to_value(context);
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .begin_named_aggregate_builder("fs::OsPath")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, tag_value)
+                                    .write_field(0, tag_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, payload_value)
+                                    .write_field(1, payload_value)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -4961,37 +4905,37 @@ fn encode_destack_device_camera_stream_recording_state_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::CameraRecordingOptions")
+                        .begin_named_aggregate_builder("device::CameraRecordingOptions")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5002,19 +4946,19 @@ fn encode_destack_device_camera_stream_recording_state_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraRecordingState")
+                .begin_named_aggregate_builder("device::CameraRecordingState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5151,24 +5095,24 @@ fn encode_destack_device_camera_stream_stop_recording_result(
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                            .begin_named_aggregate_builder("fs::OsPathBytes")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPath")
+                        .begin_named_aggregate_builder("fs::OsPath")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5178,24 +5122,24 @@ fn encode_destack_device_camera_stream_stop_recording_result(
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPath")
+                        .begin_named_aggregate_builder("fs::OsPath")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5225,34 +5169,34 @@ fn encode_destack_device_camera_stream_stop_recording_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraRecording")
+                .begin_named_aggregate_builder("device::CameraRecording")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5299,16 +5243,16 @@ fn encode_destack_device_camera_stream_take_photo_result(
                 let field_2: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.pixel_format.compressed));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraPixelFormatDescriptor")
+                    .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -5340,55 +5284,55 @@ fn encode_destack_device_camera_stream_take_photo_result(
                     None => Ok(vm::Value::VOID),
                 };
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraFrameMetadata")
+                    .begin_named_aggregate_builder("device::CameraFrameMetadata")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraPhoto")
+                .begin_named_aggregate_builder("device::CameraPhoto")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5430,16 +5374,16 @@ fn encode_destack_device_camera_stream_try_read_result(
                 let field_2: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.pixel_format.compressed));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraPixelFormatDescriptor")
+                    .begin_named_aggregate_builder("device::CameraPixelFormatDescriptor")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -5471,58 +5415,58 @@ fn encode_destack_device_camera_stream_try_read_result(
                     None => Ok(vm::Value::VOID),
                 };
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::CameraFrameMetadata")
+                    .begin_named_aggregate_builder("device::CameraFrameMetadata")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_9: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::CameraFrame")
+                .begin_named_aggregate_builder("device::CameraFrame")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5629,49 +5573,49 @@ fn encode_destack_device_midi_event_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.flags as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiBackendDisconnectedEvent")
+                        .begin_named_aggregate_builder("device::MidiBackendDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5691,22 +5635,22 @@ fn encode_destack_device_midi_event_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -5765,80 +5709,80 @@ fn encode_destack_device_midi_event_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.descriptor.is_connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                            .begin_named_aggregate_builder("device::MidiPortDescriptor")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortAddedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortAddedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -5858,22 +5802,22 @@ fn encode_destack_device_midi_event_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -5932,80 +5876,80 @@ fn encode_destack_device_midi_event_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.descriptor.is_connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                            .begin_named_aggregate_builder("device::MidiPortDescriptor")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortChangedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6025,22 +5969,22 @@ fn encode_destack_device_midi_event_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6052,33 +5996,33 @@ fn encode_destack_device_midi_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortRemovedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortRemovedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6153,49 +6097,49 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.flags as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiBackendDisconnectedEvent")
+                        .begin_named_aggregate_builder("device::MidiBackendDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6215,22 +6159,22 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6289,80 +6233,80 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.descriptor.is_connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                            .begin_named_aggregate_builder("device::MidiPortDescriptor")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortAddedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortAddedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6382,22 +6326,22 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6456,80 +6400,80 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.descriptor.is_connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                            .begin_named_aggregate_builder("device::MidiPortDescriptor")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortChangedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6549,22 +6493,22 @@ fn encode_destack_device_midi_event_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::MidiEventMetadata")
+                            .begin_named_aggregate_builder("device::MidiEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6576,33 +6520,33 @@ fn encode_destack_device_midi_event_try_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::MidiPortRemovedEvent")
+                        .begin_named_aggregate_builder("device::MidiPortRemovedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::MidiEvent")
+                    .begin_named_aggregate_builder("device::MidiEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6726,52 +6670,52 @@ fn encode_destack_device_midi_input_port_descriptor_result(
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
             let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                .begin_named_aggregate_builder("device::MidiPortDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6871,25 +6815,25 @@ fn encode_destack_device_midi_input_read_result(
                 Ok(vm::Value::int(value.framing as i32 as i64, 32));
             let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::MidiInputRecord")
+                .begin_named_aggregate_builder("device::MidiInputRecord")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6964,25 +6908,25 @@ fn encode_destack_device_midi_input_try_read_result(
                 Ok(vm::Value::int(value.framing as i32 as i64, 32));
             let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::MidiInputRecord")
+                .begin_named_aggregate_builder("device::MidiInputRecord")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7132,52 +7076,52 @@ fn encode_destack_device_midi_output_port_descriptor_result(
             let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
             let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::MidiPortDescriptor")
+                .begin_named_aggregate_builder("device::MidiPortDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7359,36 +7303,36 @@ fn encode_destack_device_serial_config_result(
                 let field_2: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.flow_control.xon_xoff_enabled));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialFlowControl")
+                    .begin_named_aggregate_builder("device::SerialFlowControl")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::SerialPortConfig")
+                .begin_named_aggregate_builder("device::SerialPortConfig")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7466,24 +7410,24 @@ fn encode_destack_device_serial_descriptor_result(
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                            .begin_named_aggregate_builder("fs::OsPathBytes")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPath")
+                        .begin_named_aggregate_builder("fs::OsPath")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -7493,24 +7437,24 @@ fn encode_destack_device_serial_descriptor_result(
                         let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                         let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     }?;
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPath")
+                        .begin_named_aggregate_builder("fs::OsPath")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, tag_value)
+                        .write_field(0, tag_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, payload_value)
+                        .write_field(1, payload_value)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -7528,37 +7472,37 @@ fn encode_destack_device_serial_descriptor_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::SerialPortDescriptor")
+                .begin_named_aggregate_builder("device::SerialPortDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7658,19 +7602,19 @@ fn encode_destack_device_serial_get_signals_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.data_carrier_detect));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.ring_indicator));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::SerialInputSignals")
+                .begin_named_aggregate_builder("device::SerialInputSignals")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -7749,35 +7693,35 @@ fn encode_destack_device_serial_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialDisconnectedEvent")
+                        .begin_named_aggregate_builder("device::SerialDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7791,13 +7735,13 @@ fn encode_destack_device_serial_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -7812,33 +7756,33 @@ fn encode_destack_device_serial_read_event_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialErrorEvent")
+                        .begin_named_aggregate_builder("device::SerialErrorEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7852,13 +7796,13 @@ fn encode_destack_device_serial_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -7872,44 +7816,44 @@ fn encode_destack_device_serial_read_event_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.signals.ring_indicator));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialInputSignals")
+                            .begin_named_aggregate_builder("device::SerialInputSignals")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialModemStatusChangedEvent")
+                        .begin_named_aggregate_builder("device::SerialModemStatusChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7925,40 +7869,38 @@ fn encode_destack_device_serial_read_event_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::SerialOverflowEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::SerialOverflowEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialOverflowEvent")
+                        .begin_named_aggregate_builder("device::SerialOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7972,13 +7914,13 @@ fn encode_destack_device_serial_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -7987,27 +7929,27 @@ fn encode_destack_device_serial_read_event_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialReadReadyEvent")
+                        .begin_named_aggregate_builder("device::SerialReadReadyEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8102,35 +8044,35 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialDisconnectedEvent")
+                        .begin_named_aggregate_builder("device::SerialDisconnectedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8144,13 +8086,13 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -8165,33 +8107,33 @@ fn encode_destack_device_serial_try_read_event_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialErrorEvent")
+                        .begin_named_aggregate_builder("device::SerialErrorEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8205,13 +8147,13 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -8225,44 +8167,44 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.signals.ring_indicator));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialInputSignals")
+                            .begin_named_aggregate_builder("device::SerialInputSignals")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialModemStatusChangedEvent")
+                        .begin_named_aggregate_builder("device::SerialModemStatusChangedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8278,40 +8220,38 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "device::SerialOverflowEventMetadata",
-                            )
+                            .begin_named_aggregate_builder("device::SerialOverflowEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialOverflowEvent")
+                        .begin_named_aggregate_builder("device::SerialOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8325,13 +8265,13 @@ fn encode_destack_device_serial_try_read_event_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -8340,27 +8280,27 @@ fn encode_destack_device_serial_try_read_event_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialReadReadyEvent")
+                        .begin_named_aggregate_builder("device::SerialReadReadyEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialEvent")
+                    .begin_named_aggregate_builder("device::SerialEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8496,24 +8436,24 @@ fn encode_destack_device_serial_watch_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.bytes.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                                            .begin_named_aggregate_builder("fs::OsPathBytes")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8525,24 +8465,24 @@ fn encode_destack_device_serial_watch_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.utf16.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8563,73 +8503,73 @@ fn encode_destack_device_serial_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::SerialPortDescriptor")
+                                .begin_named_aggregate_builder("device::SerialPortDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialAttachedEvent")
+                        .begin_named_aggregate_builder("device::SerialAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8675,24 +8615,24 @@ fn encode_destack_device_serial_watch_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.bytes.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                                            .begin_named_aggregate_builder("fs::OsPathBytes")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8704,24 +8644,24 @@ fn encode_destack_device_serial_watch_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.utf16.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8742,73 +8682,73 @@ fn encode_destack_device_serial_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::SerialPortDescriptor")
+                                .begin_named_aggregate_builder("device::SerialPortDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialDetachedEvent")
+                        .begin_named_aggregate_builder("device::SerialDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8824,40 +8764,40 @@ fn encode_destack_device_serial_watch_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "device::SerialWatchOverflowEventMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialWatchOverflowEvent")
+                        .begin_named_aggregate_builder("device::SerialWatchOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -8930,24 +8870,24 @@ fn encode_destack_device_serial_watch_try_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.bytes.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                                            .begin_named_aggregate_builder("fs::OsPathBytes")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8959,24 +8899,24 @@ fn encode_destack_device_serial_watch_try_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.utf16.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -8997,73 +8937,73 @@ fn encode_destack_device_serial_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::SerialPortDescriptor")
+                                .begin_named_aggregate_builder("device::SerialPortDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialAttachedEvent")
+                        .begin_named_aggregate_builder("device::SerialAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -9109,24 +9049,24 @@ fn encode_destack_device_serial_watch_try_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.bytes.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathBytes")
+                                            .begin_named_aggregate_builder("fs::OsPathBytes")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -9138,24 +9078,24 @@ fn encode_destack_device_serial_watch_try_read_result(
                                         let field_1: RuntimeResult<vm::Value> =
                                             value.utf16.0.to_value(context);
                                         let mut value_builder = context
-                                            .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                            .begin_named_aggregate_builder("fs::OsPathUtf16")
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(0, field_0?)
+                                            .write_field(0, field_0?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder
-                                            .write_component(1, field_1?)
+                                            .write_field(1, field_1?)
                                             .map_err(Box::<RuntimeError>::from)?;
                                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder("fs::OsPath")
+                                        .begin_named_aggregate_builder("fs::OsPath")
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, tag_value)
+                                        .write_field(0, tag_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, payload_value)
+                                        .write_field(1, payload_value)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -9176,73 +9116,73 @@ fn encode_destack_device_serial_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::SerialPortDescriptor")
+                                .begin_named_aggregate_builder("device::SerialPortDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::SerialWatchEventMetadata")
+                            .begin_named_aggregate_builder("device::SerialWatchEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialDetachedEvent")
+                        .begin_named_aggregate_builder("device::SerialDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -9258,40 +9198,40 @@ fn encode_destack_device_serial_watch_try_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "device::SerialWatchOverflowEventMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::SerialWatchOverflowEvent")
+                        .begin_named_aggregate_builder("device::SerialWatchOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::SerialWatchEvent")
+                    .begin_named_aggregate_builder("device::SerialWatchEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -9387,13 +9327,13 @@ fn encode_destack_device_usb_bulk_read_result(
                 Ok(vm::Value::int(value.status as i32 as i64, 32));
             let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbInTransferResult")
+                .begin_named_aggregate_builder("device::UsbInTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9445,13 +9385,13 @@ fn encode_destack_device_usb_bulk_write_result(
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.bytes_written as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbOutTransferResult")
+                .begin_named_aggregate_builder("device::UsbOutTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9634,13 +9574,13 @@ fn encode_destack_device_usb_control_read_result(
                 Ok(vm::Value::int(value.status as i32 as i64, 32));
             let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbInTransferResult")
+                .begin_named_aggregate_builder("device::UsbInTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9691,13 +9631,13 @@ fn encode_destack_device_usb_control_write_result(
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.bytes_written as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbOutTransferResult")
+                .begin_named_aggregate_builder("device::UsbOutTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9768,49 +9708,49 @@ fn encode_destack_device_usb_descriptor_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbDeviceDescriptor")
+                .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9851,13 +9791,13 @@ fn encode_destack_device_usb_interrupt_read_result(
                 Ok(vm::Value::int(value.status as i32 as i64, 32));
             let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbInTransferResult")
+                .begin_named_aggregate_builder("device::UsbInTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9909,13 +9849,13 @@ fn encode_destack_device_usb_interrupt_write_result(
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.bytes_written as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbOutTransferResult")
+                .begin_named_aggregate_builder("device::UsbOutTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -9961,13 +9901,13 @@ fn encode_destack_device_usb_isochronous_read_result(
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbIsochronousTransferResult")
+                .begin_named_aggregate_builder("device::UsbIsochronousTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -10021,13 +9961,13 @@ fn encode_destack_device_usb_isochronous_write_result(
             let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbIsochronousTransferResult")
+                .begin_named_aggregate_builder("device::UsbIsochronousTransferResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -10180,19 +10120,19 @@ fn encode_destack_device_usb_string_descriptor_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("device::UsbStringDescriptor")
+                .begin_named_aggregate_builder("device::UsbStringDescriptor")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -10396,85 +10336,85 @@ fn encode_destack_device_usb_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::UsbDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(12, field_12?)
+                                .write_field(12, field_12?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(13, field_13?)
+                                .write_field(13, field_13?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::UsbHotplugEventMetadata")
+                            .begin_named_aggregate_builder("device::UsbHotplugEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugAttachedEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -10545,85 +10485,85 @@ fn encode_destack_device_usb_watch_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::UsbDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(12, field_12?)
+                                .write_field(12, field_12?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(13, field_13?)
+                                .write_field(13, field_13?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::UsbHotplugEventMetadata")
+                            .begin_named_aggregate_builder("device::UsbHotplugEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugDetachedEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -10639,40 +10579,40 @@ fn encode_destack_device_usb_watch_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "device::UsbHotplugOverflowEventMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugOverflowEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -10769,85 +10709,85 @@ fn encode_destack_device_usb_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::UsbDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(12, field_12?)
+                                .write_field(12, field_12?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(13, field_13?)
+                                .write_field(13, field_13?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::UsbHotplugEventMetadata")
+                            .begin_named_aggregate_builder("device::UsbHotplugEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugAttachedEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugAttachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -10918,85 +10858,85 @@ fn encode_destack_device_usb_watch_try_read_result(
                                     None => Ok(vm::Value::VOID),
                                 };
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("device::UsbDeviceDescriptor")
+                                .begin_named_aggregate_builder("device::UsbDeviceDescriptor")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(12, field_12?)
+                                .write_field(12, field_12?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(13, field_13?)
+                                .write_field(13, field_13?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("device::UsbHotplugEventMetadata")
+                            .begin_named_aggregate_builder("device::UsbHotplugEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugDetachedEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugDetachedEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -11012,40 +10952,40 @@ fn encode_destack_device_usb_watch_try_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "device::UsbHotplugOverflowEventMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("device::UsbHotplugOverflowEvent")
+                        .begin_named_aggregate_builder("device::UsbHotplugOverflowEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("device::UsbHotplugEvent")
+                    .begin_named_aggregate_builder("device::UsbHotplugEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -35348,7 +35288,7 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<BluetoothAdapterDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -36201,7 +36141,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<BluetoothGattCharacteristicVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <BluetoothGattCharacteristicVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -36344,7 +36284,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<BluetoothGattDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -36765,7 +36705,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<BluetoothGattServiceVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <BluetoothGattServiceVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -36778,7 +36718,7 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
                         result_recorded_item_recorded_uuid_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
-                    let result_recorded_item_recorded_included_service_ids_raw = result_recorded_item.included_service_ids.raw_values(context)?;
+                    let result_recorded_item_recorded_included_service_ids_raw = result_recorded_item.included_service_ids.values(context)?;
                     let mut result_recorded_item_recorded_included_service_ids = Vec::with_capacity(result_recorded_item_recorded_included_service_ids_raw.len());
                     for result_recorded_item_recorded_included_service_ids_item_value in result_recorded_item_recorded_included_service_ids_raw {
                         let result_recorded_item_recorded_included_service_ids_item = decode_string(context, result_recorded_item_recorded_included_service_ids_item_value, "result_recorded_item_recorded_included_service_ids_item", "item")?;
@@ -37408,7 +37348,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -37418,7 +37358,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -37430,7 +37370,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value)?;
@@ -37543,7 +37483,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -37553,7 +37493,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -37565,7 +37505,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value)?;
@@ -37678,7 +37618,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -37688,7 +37628,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -37700,7 +37640,7 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value)?;
@@ -38204,7 +38144,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -38214,7 +38154,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -38226,7 +38166,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_discovered_event_metadata_device_advertisement_service_data_item_value)?;
@@ -38339,7 +38279,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -38349,7 +38289,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -38361,7 +38301,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_lost_event_metadata_device_advertisement_service_data_item_value)?;
@@ -38474,7 +38414,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw = value.metadata.device.advertisement.service_uuids.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item = decode_string(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_value, "result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item", "item")?;
@@ -38484,7 +38424,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids.push(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_uuids_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw = value.metadata.device.advertisement.manufacturer_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_value)?;
@@ -38496,7 +38436,7 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             };
                             result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data.push(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_manufacturer_data_item_recorded);
                         }
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.raw_values(context)?;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw = value.metadata.device.advertisement.service_data.values(context)?;
                         let mut result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data = Vec::with_capacity(result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw.len());
                         for result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value in result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_raw {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_bluetooth_scan_updated_event_metadata_device_advertisement_service_data_item_value)?;
@@ -39042,7 +38982,7 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                 } else {
                     None
                 };
-                let result_recorded_advertisement_service_uuids_raw = result_value.advertisement.service_uuids.raw_values(context)?;
+                let result_recorded_advertisement_service_uuids_raw = result_value.advertisement.service_uuids.values(context)?;
                 let mut result_recorded_advertisement_service_uuids = Vec::with_capacity(result_recorded_advertisement_service_uuids_raw.len());
                 for result_recorded_advertisement_service_uuids_item_value in result_recorded_advertisement_service_uuids_raw {
                     let result_recorded_advertisement_service_uuids_item = decode_string(context, result_recorded_advertisement_service_uuids_item_value, "result_recorded_advertisement_service_uuids_item", "item")?;
@@ -39052,7 +38992,7 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                     };
                     result_recorded_advertisement_service_uuids.push(result_recorded_advertisement_service_uuids_item_recorded);
                 }
-                let result_recorded_advertisement_manufacturer_data_raw = result_value.advertisement.manufacturer_data.raw_values(context)?;
+                let result_recorded_advertisement_manufacturer_data_raw = result_value.advertisement.manufacturer_data.values(context)?;
                 let mut result_recorded_advertisement_manufacturer_data = Vec::with_capacity(result_recorded_advertisement_manufacturer_data_raw.len());
                 for result_recorded_advertisement_manufacturer_data_item_value in result_recorded_advertisement_manufacturer_data_raw {
                     let result_recorded_advertisement_manufacturer_data_item = <BluetoothAdvertisementManufacturerDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_advertisement_manufacturer_data_item_value)?;
@@ -39064,7 +39004,7 @@ fn destack_device_bluetooth_session_descriptor_vm_replay(
                     };
                     result_recorded_advertisement_manufacturer_data.push(result_recorded_advertisement_manufacturer_data_item_recorded);
                 }
-                let result_recorded_advertisement_service_data_raw = result_value.advertisement.service_data.raw_values(context)?;
+                let result_recorded_advertisement_service_data_raw = result_value.advertisement.service_data.values(context)?;
                 let mut result_recorded_advertisement_service_data = Vec::with_capacity(result_recorded_advertisement_service_data_raw.len());
                 for result_recorded_advertisement_service_data_item_value in result_recorded_advertisement_service_data_raw {
                     let result_recorded_advertisement_service_data_item = <BluetoothAdvertisementServiceDataVm as VmAggregateCodec>::decode_with_context(context, result_recorded_advertisement_service_data_item_value)?;
@@ -39717,7 +39657,7 @@ fn destack_device_camera_device_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CameraDeviceDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -39925,7 +39865,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<CameraStreamCapabilityVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <CameraStreamCapabilityVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -39962,7 +39902,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                     };
                     let result_recorded_item_recorded_minimum_frame_rate_milli_hz = result_recorded_item.minimum_frame_rate_milli_hz;
                     let result_recorded_item_recorded_maximum_frame_rate_milli_hz = result_recorded_item.maximum_frame_rate_milli_hz;
-                    let result_recorded_item_recorded_color_spaces_raw = result_recorded_item.color_spaces.raw_values(context)?;
+                    let result_recorded_item_recorded_color_spaces_raw = result_recorded_item.color_spaces.values(context)?;
                     let mut result_recorded_item_recorded_color_spaces = Vec::with_capacity(result_recorded_item_recorded_color_spaces_raw.len());
                     for result_recorded_item_recorded_color_spaces_item_value in result_recorded_item_recorded_color_spaces_raw {
                         let result_recorded_item_recorded_color_spaces_item_raw = decode_int32(result_recorded_item_recorded_color_spaces_item_value, "result_recorded_item_recorded_color_spaces_item_raw", "item")?;
@@ -39970,7 +39910,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         let result_recorded_item_recorded_color_spaces_item_recorded = result_recorded_item_recorded_color_spaces_item;
                         result_recorded_item_recorded_color_spaces.push(result_recorded_item_recorded_color_spaces_item_recorded);
                     }
-                    let result_recorded_item_recorded_dynamic_ranges_raw = result_recorded_item.dynamic_ranges.raw_values(context)?;
+                    let result_recorded_item_recorded_dynamic_ranges_raw = result_recorded_item.dynamic_ranges.values(context)?;
                     let mut result_recorded_item_recorded_dynamic_ranges = Vec::with_capacity(result_recorded_item_recorded_dynamic_ranges_raw.len());
                     for result_recorded_item_recorded_dynamic_ranges_item_value in result_recorded_item_recorded_dynamic_ranges_raw {
                         let result_recorded_item_recorded_dynamic_ranges_item_raw = decode_int32(result_recorded_item_recorded_dynamic_ranges_item_value, "result_recorded_item_recorded_dynamic_ranges_item_raw", "item")?;
@@ -39979,7 +39919,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         result_recorded_item_recorded_dynamic_ranges.push(result_recorded_item_recorded_dynamic_ranges_item_recorded);
                     }
                     let result_recorded_item_recorded_controls_exposure_modes = if let Some(value) = result_recorded_item.controls.exposure_modes {
-                        let result_recorded_item_recorded_controls_exposure_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_item_recorded_controls_exposure_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_item_recorded_controls_exposure_modes_inner = Vec::with_capacity(result_recorded_item_recorded_controls_exposure_modes_inner_raw.len());
                         for result_recorded_item_recorded_controls_exposure_modes_inner_item_value in result_recorded_item_recorded_controls_exposure_modes_inner_raw {
                             let result_recorded_item_recorded_controls_exposure_modes_inner_item_raw = decode_int32(result_recorded_item_recorded_controls_exposure_modes_inner_item_value, "result_recorded_item_recorded_controls_exposure_modes_inner_item_raw", "item")?;
@@ -39992,7 +39932,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         None
                     };
                     let result_recorded_item_recorded_controls_white_balance_modes = if let Some(value) = result_recorded_item.controls.white_balance_modes {
-                        let result_recorded_item_recorded_controls_white_balance_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_item_recorded_controls_white_balance_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_item_recorded_controls_white_balance_modes_inner = Vec::with_capacity(result_recorded_item_recorded_controls_white_balance_modes_inner_raw.len());
                         for result_recorded_item_recorded_controls_white_balance_modes_inner_item_value in result_recorded_item_recorded_controls_white_balance_modes_inner_raw {
                             let result_recorded_item_recorded_controls_white_balance_modes_inner_item_raw = decode_int32(result_recorded_item_recorded_controls_white_balance_modes_inner_item_value, "result_recorded_item_recorded_controls_white_balance_modes_inner_item_raw", "item")?;
@@ -40005,7 +39945,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         None
                     };
                     let result_recorded_item_recorded_controls_focus_modes = if let Some(value) = result_recorded_item.controls.focus_modes {
-                        let result_recorded_item_recorded_controls_focus_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_item_recorded_controls_focus_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_item_recorded_controls_focus_modes_inner = Vec::with_capacity(result_recorded_item_recorded_controls_focus_modes_inner_raw.len());
                         for result_recorded_item_recorded_controls_focus_modes_inner_item_value in result_recorded_item_recorded_controls_focus_modes_inner_raw {
                             let result_recorded_item_recorded_controls_focus_modes_inner_item_raw = decode_int32(result_recorded_item_recorded_controls_focus_modes_inner_item_value, "result_recorded_item_recorded_controls_focus_modes_inner_item_raw", "item")?;
@@ -40018,7 +39958,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         None
                     };
                     let result_recorded_item_recorded_controls_stabilization_modes = if let Some(value) = result_recorded_item.controls.stabilization_modes {
-                        let result_recorded_item_recorded_controls_stabilization_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_item_recorded_controls_stabilization_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_item_recorded_controls_stabilization_modes_inner = Vec::with_capacity(result_recorded_item_recorded_controls_stabilization_modes_inner_raw.len());
                         for result_recorded_item_recorded_controls_stabilization_modes_inner_item_value in result_recorded_item_recorded_controls_stabilization_modes_inner_raw {
                             let result_recorded_item_recorded_controls_stabilization_modes_inner_item_raw = decode_int32(result_recorded_item_recorded_controls_stabilization_modes_inner_item_value, "result_recorded_item_recorded_controls_stabilization_modes_inner_item_raw", "item")?;
@@ -40031,7 +39971,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         None
                     };
                     let result_recorded_item_recorded_controls_torch_modes = if let Some(value) = result_recorded_item.controls.torch_modes {
-                        let result_recorded_item_recorded_controls_torch_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_item_recorded_controls_torch_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_item_recorded_controls_torch_modes_inner = Vec::with_capacity(result_recorded_item_recorded_controls_torch_modes_inner_raw.len());
                         for result_recorded_item_recorded_controls_torch_modes_inner_item_value in result_recorded_item_recorded_controls_torch_modes_inner_raw {
                             let result_recorded_item_recorded_controls_torch_modes_inner_item_raw = decode_int32(result_recorded_item_recorded_controls_torch_modes_inner_item_value, "result_recorded_item_recorded_controls_torch_modes_inner_item_raw", "item")?;
@@ -41459,7 +41399,7 @@ fn destack_device_camera_stream_control_capabilities_vm_replay(
                 let result_value: CameraControlCapabilitiesVm = value.clone();
                 let result_recorded_exposure_modes =
                     if let Some(value) = result_value.exposure_modes {
-                        let result_recorded_exposure_modes_inner_raw = value.raw_values(context)?;
+                        let result_recorded_exposure_modes_inner_raw = value.values(context)?;
                         let mut result_recorded_exposure_modes_inner =
                             Vec::with_capacity(result_recorded_exposure_modes_inner_raw.len());
                         for result_recorded_exposure_modes_inner_item_value in
@@ -41494,46 +41434,46 @@ fn destack_device_camera_stream_control_capabilities_vm_replay(
                     } else {
                         None
                     };
-                let result_recorded_white_balance_modes =
-                    if let Some(value) = result_value.white_balance_modes {
-                        let result_recorded_white_balance_modes_inner_raw =
-                            value.raw_values(context)?;
-                        let mut result_recorded_white_balance_modes_inner =
-                            Vec::with_capacity(result_recorded_white_balance_modes_inner_raw.len());
-                        for result_recorded_white_balance_modes_inner_item_value in
-                            result_recorded_white_balance_modes_inner_raw
-                        {
-                            let result_recorded_white_balance_modes_inner_item_raw = decode_int32(
-                                result_recorded_white_balance_modes_inner_item_value,
-                                "result_recorded_white_balance_modes_inner_item_raw",
-                                "item",
-                            )?;
-                            let result_recorded_white_balance_modes_inner_item =
-                                match result_recorded_white_balance_modes_inner_item_raw {
-                                    1i32 => CameraWhiteBalanceMode::Auto,
-                                    2i32 => CameraWhiteBalanceMode::ContinuousAuto,
-                                    3i32 => CameraWhiteBalanceMode::Manual,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_white_balance_modes_inner_item",
-                                                "unknown CameraWhiteBalanceMode value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_white_balance_modes_inner_item_recorded =
-                                result_recorded_white_balance_modes_inner_item;
-                            result_recorded_white_balance_modes_inner
-                                .push(result_recorded_white_balance_modes_inner_item_recorded);
-                        }
-                        Some(result_recorded_white_balance_modes_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_white_balance_modes = if let Some(value) =
+                    result_value.white_balance_modes
+                {
+                    let result_recorded_white_balance_modes_inner_raw = value.values(context)?;
+                    let mut result_recorded_white_balance_modes_inner =
+                        Vec::with_capacity(result_recorded_white_balance_modes_inner_raw.len());
+                    for result_recorded_white_balance_modes_inner_item_value in
+                        result_recorded_white_balance_modes_inner_raw
+                    {
+                        let result_recorded_white_balance_modes_inner_item_raw = decode_int32(
+                            result_recorded_white_balance_modes_inner_item_value,
+                            "result_recorded_white_balance_modes_inner_item_raw",
+                            "item",
+                        )?;
+                        let result_recorded_white_balance_modes_inner_item =
+                            match result_recorded_white_balance_modes_inner_item_raw {
+                                1i32 => CameraWhiteBalanceMode::Auto,
+                                2i32 => CameraWhiteBalanceMode::ContinuousAuto,
+                                3i32 => CameraWhiteBalanceMode::Manual,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_white_balance_modes_inner_item",
+                                            "unknown CameraWhiteBalanceMode value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_white_balance_modes_inner_item_recorded =
+                            result_recorded_white_balance_modes_inner_item;
+                        result_recorded_white_balance_modes_inner
+                            .push(result_recorded_white_balance_modes_inner_item_recorded);
+                    }
+                    Some(result_recorded_white_balance_modes_inner)
+                } else {
+                    None
+                };
                 let result_recorded_focus_modes = if let Some(value) = result_value.focus_modes {
-                    let result_recorded_focus_modes_inner_raw = value.raw_values(context)?;
+                    let result_recorded_focus_modes_inner_raw = value.values(context)?;
                     let mut result_recorded_focus_modes_inner =
                         Vec::with_capacity(result_recorded_focus_modes_inner_raw.len());
                     for result_recorded_focus_modes_inner_item_value in
@@ -41568,46 +41508,46 @@ fn destack_device_camera_stream_control_capabilities_vm_replay(
                 } else {
                     None
                 };
-                let result_recorded_stabilization_modes =
-                    if let Some(value) = result_value.stabilization_modes {
-                        let result_recorded_stabilization_modes_inner_raw =
-                            value.raw_values(context)?;
-                        let mut result_recorded_stabilization_modes_inner =
-                            Vec::with_capacity(result_recorded_stabilization_modes_inner_raw.len());
-                        for result_recorded_stabilization_modes_inner_item_value in
-                            result_recorded_stabilization_modes_inner_raw
-                        {
-                            let result_recorded_stabilization_modes_inner_item_raw = decode_int32(
-                                result_recorded_stabilization_modes_inner_item_value,
-                                "result_recorded_stabilization_modes_inner_item_raw",
-                                "item",
-                            )?;
-                            let result_recorded_stabilization_modes_inner_item =
-                                match result_recorded_stabilization_modes_inner_item_raw {
-                                    1i32 => CameraStabilizationMode::Off,
-                                    2i32 => CameraStabilizationMode::Standard,
-                                    3i32 => CameraStabilizationMode::HighQuality,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_stabilization_modes_inner_item",
-                                                "unknown CameraStabilizationMode value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_stabilization_modes_inner_item_recorded =
-                                result_recorded_stabilization_modes_inner_item;
-                            result_recorded_stabilization_modes_inner
-                                .push(result_recorded_stabilization_modes_inner_item_recorded);
-                        }
-                        Some(result_recorded_stabilization_modes_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_stabilization_modes = if let Some(value) =
+                    result_value.stabilization_modes
+                {
+                    let result_recorded_stabilization_modes_inner_raw = value.values(context)?;
+                    let mut result_recorded_stabilization_modes_inner =
+                        Vec::with_capacity(result_recorded_stabilization_modes_inner_raw.len());
+                    for result_recorded_stabilization_modes_inner_item_value in
+                        result_recorded_stabilization_modes_inner_raw
+                    {
+                        let result_recorded_stabilization_modes_inner_item_raw = decode_int32(
+                            result_recorded_stabilization_modes_inner_item_value,
+                            "result_recorded_stabilization_modes_inner_item_raw",
+                            "item",
+                        )?;
+                        let result_recorded_stabilization_modes_inner_item =
+                            match result_recorded_stabilization_modes_inner_item_raw {
+                                1i32 => CameraStabilizationMode::Off,
+                                2i32 => CameraStabilizationMode::Standard,
+                                3i32 => CameraStabilizationMode::HighQuality,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_stabilization_modes_inner_item",
+                                            "unknown CameraStabilizationMode value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_stabilization_modes_inner_item_recorded =
+                            result_recorded_stabilization_modes_inner_item;
+                        result_recorded_stabilization_modes_inner
+                            .push(result_recorded_stabilization_modes_inner_item_recorded);
+                    }
+                    Some(result_recorded_stabilization_modes_inner)
+                } else {
+                    None
+                };
                 let result_recorded_torch_modes = if let Some(value) = result_value.torch_modes {
-                    let result_recorded_torch_modes_inner_raw = value.raw_values(context)?;
+                    let result_recorded_torch_modes_inner_raw = value.values(context)?;
                     let mut result_recorded_torch_modes_inner =
                         Vec::with_capacity(result_recorded_torch_modes_inner_raw.len());
                     for result_recorded_torch_modes_inner_item_value in
@@ -42618,7 +42558,7 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: CameraPhotoCapabilitiesVm = value.clone();
-                let result_recorded_options_raw = result_value.options.raw_values(context)?;
+                let result_recorded_options_raw = result_value.options.values(context)?;
                 let mut result_recorded_options =
                     Vec::with_capacity(result_recorded_options_raw.len());
                 for result_recorded_options_item_value in result_recorded_options_raw {
@@ -42684,7 +42624,7 @@ fn destack_device_camera_stream_photo_capabilities_vm_replay(
                     None
                 };
                 let result_recorded_flash_modes = if let Some(value) = result_value.flash_modes {
-                    let result_recorded_flash_modes_inner_raw = value.raw_values(context)?;
+                    let result_recorded_flash_modes_inner_raw = value.values(context)?;
                     let mut result_recorded_flash_modes_inner =
                         Vec::with_capacity(result_recorded_flash_modes_inner_raw.len());
                     for result_recorded_flash_modes_inner_item_value in
@@ -43064,7 +43004,7 @@ fn destack_device_camera_stream_read_vm_replay(
                 };
                 let result_recorded_color_space = result_value.color_space;
                 let result_recorded_dynamic_range = result_value.dynamic_range;
-                let result_recorded_planes_raw = result_value.planes.raw_values(context)?;
+                let result_recorded_planes_raw = result_value.planes.values(context)?;
                 let mut result_recorded_planes =
                     Vec::with_capacity(result_recorded_planes_raw.len());
                 for result_recorded_planes_item_value in result_recorded_planes_raw {
@@ -43289,7 +43229,7 @@ fn destack_device_camera_stream_recording_capabilities_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: CameraRecordingCapabilitiesVm = value.clone();
-                let result_recorded_containers_raw = result_value.containers.raw_values(context)?;
+                let result_recorded_containers_raw = result_value.containers.values(context)?;
                 let mut result_recorded_containers =
                     Vec::with_capacity(result_recorded_containers_raw.len());
                 for result_recorded_containers_item_value in result_recorded_containers_raw {
@@ -43315,8 +43255,7 @@ fn destack_device_camera_stream_recording_capabilities_vm_replay(
                     let result_recorded_containers_item_recorded = result_recorded_containers_item;
                     result_recorded_containers.push(result_recorded_containers_item_recorded);
                 }
-                let result_recorded_video_codecs_raw =
-                    result_value.video_codecs.raw_values(context)?;
+                let result_recorded_video_codecs_raw = result_value.video_codecs.values(context)?;
                 let mut result_recorded_video_codecs =
                     Vec::with_capacity(result_recorded_video_codecs_raw.len());
                 for result_recorded_video_codecs_item_value in result_recorded_video_codecs_raw {
@@ -43348,7 +43287,7 @@ fn destack_device_camera_stream_recording_capabilities_vm_replay(
                 }
                 let result_recorded_audio_supported = result_value.audio_supported;
                 let result_recorded_audio_codecs = if let Some(value) = result_value.audio_codecs {
-                    let result_recorded_audio_codecs_inner_raw = value.raw_values(context)?;
+                    let result_recorded_audio_codecs_inner_raw = value.values(context)?;
                     let mut result_recorded_audio_codecs_inner =
                         Vec::with_capacity(result_recorded_audio_codecs_inner_raw.len());
                     for result_recorded_audio_codecs_inner_item_value in
@@ -43544,7 +43483,7 @@ fn destack_device_camera_stream_recording_state_vm_replay(
                                     let result_recorded_options_inner_output_path_inner_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_options_inner_output_path_inner_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_item_value in result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_item_value, "result_recorded_options_inner_output_path_inner_os_path_utf16_utf16_inner_item", "item")?;
@@ -43935,7 +43874,7 @@ fn destack_device_camera_stream_take_photo_vm_replay(
                 };
                 let result_recorded_color_space = result_value.color_space;
                 let result_recorded_dynamic_range = result_value.dynamic_range;
-                let result_recorded_planes_raw = result_value.planes.raw_values(context)?;
+                let result_recorded_planes_raw = result_value.planes.values(context)?;
                 let mut result_recorded_planes =
                     Vec::with_capacity(result_recorded_planes_raw.len());
                 for result_recorded_planes_item_value in result_recorded_planes_raw {
@@ -44171,7 +44110,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
                 };
                 let result_recorded_color_space = result_value.color_space;
                 let result_recorded_dynamic_range = result_value.dynamic_range;
-                let result_recorded_planes_raw = result_value.planes.raw_values(context)?;
+                let result_recorded_planes_raw = result_value.planes.values(context)?;
                 let mut result_recorded_planes =
                     Vec::with_capacity(result_recorded_planes_raw.len());
                 for result_recorded_planes_item_value in result_recorded_planes_raw {
@@ -44391,7 +44330,7 @@ fn destack_device_midi_backend_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<MidiBackendDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -45221,7 +45160,7 @@ fn destack_device_midi_event_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<MidiEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <MidiEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -46453,7 +46392,7 @@ fn destack_device_midi_event_try_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<MidiEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <MidiEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -47389,7 +47328,7 @@ fn destack_device_midi_input_port_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<MidiPortDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -47863,7 +47802,7 @@ fn destack_device_midi_input_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<MidiInputRecordVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -48110,7 +48049,7 @@ fn destack_device_midi_input_try_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<MidiInputRecordVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -48614,7 +48553,7 @@ fn destack_device_midi_output_port_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<MidiPortDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -49368,7 +49307,7 @@ fn destack_device_serial_descriptor_vm_replay(
                                 .to_string()
                         };
                         let result_recorded_path_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_path_os_path_utf16_utf16_inner = Vec::with_capacity(
                             result_recorded_path_os_path_utf16_utf16_inner_raw.len(),
                         );
@@ -49820,7 +49759,7 @@ fn destack_device_serial_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<SerialPortDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <SerialPortDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -49879,7 +49818,7 @@ fn destack_device_serial_list_vm_replay(
                                 let result_recorded_item_recorded_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_path_os_path_utf16_kind_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                            let result_recorded_item_recorded_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                             let mut result_recorded_item_recorded_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_item_recorded_path_os_path_utf16_utf16_inner_raw.len());
                             for result_recorded_item_recorded_path_os_path_utf16_utf16_inner_item_value in result_recorded_item_recorded_path_os_path_utf16_utf16_inner_raw {
                                 let result_recorded_item_recorded_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_item_recorded_path_os_path_utf16_utf16_inner_item_value, "result_recorded_item_recorded_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -51021,7 +50960,7 @@ fn destack_device_serial_watch_read_vm_replay(
                                     let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value in result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value, "result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -51142,7 +51081,7 @@ fn destack_device_serial_watch_read_vm_replay(
                                     let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value in result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value, "result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -51542,7 +51481,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                     let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value in result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value, "result_recorded_serial_attached_event_metadata_port_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -51663,7 +51602,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                     let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                     result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_kind_ref.as_str().to_string()
                                 };
-                                let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw = value.utf16.0.values(context)?;
                                 let mut result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw.len());
                                 for result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value in result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_raw {
                                     let result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item_value, "result_recorded_serial_detached_event_metadata_port_path_os_path_utf16_utf16_inner_item", "item")?;
@@ -52060,7 +51999,7 @@ fn destack_device_usb_bos_capability_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<UsbBosCapabilityDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -52530,7 +52469,7 @@ fn destack_device_usb_configuration_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<UsbConfigurationDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <UsbConfigurationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -52547,7 +52486,7 @@ fn destack_device_usb_configuration_list_vm_replay(
                     let result_recorded_item_recorded_self_powered = result_recorded_item.self_powered;
                     let result_recorded_item_recorded_remote_wakeup = result_recorded_item.remote_wakeup;
                     let result_recorded_item_recorded_max_power_milli_amps = result_recorded_item.max_power_milli_amps;
-                    let result_recorded_item_recorded_interfaces_raw = result_recorded_item.interfaces.raw_values(context)?;
+                    let result_recorded_item_recorded_interfaces_raw = result_recorded_item.interfaces.values(context)?;
                     let mut result_recorded_item_recorded_interfaces = Vec::with_capacity(result_recorded_item_recorded_interfaces_raw.len());
                     for result_recorded_item_recorded_interfaces_item_value in result_recorded_item_recorded_interfaces_raw {
                         let result_recorded_item_recorded_interfaces_item = <UsbInterfaceDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_interfaces_item_value)?;
@@ -52565,7 +52504,7 @@ fn destack_device_usb_configuration_list_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_item_recorded_interfaces_item_recorded_endpoints_raw = result_recorded_item_recorded_interfaces_item.endpoints.raw_values(context)?;
+                        let result_recorded_item_recorded_interfaces_item_recorded_endpoints_raw = result_recorded_item_recorded_interfaces_item.endpoints.values(context)?;
                         let mut result_recorded_item_recorded_interfaces_item_recorded_endpoints = Vec::with_capacity(result_recorded_item_recorded_interfaces_item_recorded_endpoints_raw.len());
                         for result_recorded_item_recorded_interfaces_item_recorded_endpoints_item_value in result_recorded_item_recorded_interfaces_item_recorded_endpoints_raw {
                             let result_recorded_item_recorded_interfaces_item_recorded_endpoints_item = <UsbEndpointDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_interfaces_item_recorded_endpoints_item_value)?;
@@ -53318,7 +53257,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: UsbIsochronousTransferResultVm = value.clone();
                 let result_recorded_bytes = result_value.bytes.read_bytes(context)?;
-                let result_recorded_packets_raw = result_value.packets.raw_values(context)?;
+                let result_recorded_packets_raw = result_value.packets.values(context)?;
                 let mut result_recorded_packets =
                     Vec::with_capacity(result_recorded_packets_raw.len());
                 for result_recorded_packets_item_value in result_recorded_packets_raw {
@@ -53435,7 +53374,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
             if let Ok(value) = result {
                 let result_value: UsbIsochronousTransferResultVm = value.clone();
                 let result_recorded_bytes = result_value.bytes.read_bytes(context)?;
-                let result_recorded_packets_raw = result_value.packets.raw_values(context)?;
+                let result_recorded_packets_raw = result_value.packets.values(context)?;
                 let mut result_recorded_packets =
                     Vec::with_capacity(result_recorded_packets_raw.len());
                 for result_recorded_packets_item_value in result_recorded_packets_raw {
@@ -53530,7 +53469,7 @@ fn destack_device_usb_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<UsbDeviceDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -54097,7 +54036,7 @@ fn destack_device_usb_string_language_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<u16> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -57966,7 +57905,7 @@ pub(crate) fn install_device_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_device_vm_storage_types(isolate)?;
+    super::abi_generated::register_device_vm_aggregate_types(isolate)?;
     register_device_vm_bindings(registry, isolate);
 
     Ok(())

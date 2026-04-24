@@ -231,10 +231,10 @@ fn encode_destack_thread_sched_get_affinity_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("thread::ThreadCpuSet")
+                .begin_named_aggregate_builder("thread::ThreadCpuSet")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1528,7 +1528,7 @@ pub(crate) fn install_thread_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_thread_vm_storage_types(isolate)?;
+    super::abi_generated::register_thread_vm_aggregate_types(isolate)?;
     register_thread_vm_bindings(registry, isolate);
 
     Ok(())

@@ -252,13 +252,13 @@ fn encode_destack_memory_map_allocate_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("memory::ProtectedMemoryRange")
+                .begin_named_aggregate_builder("memory::ProtectedMemoryRange")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -362,13 +362,13 @@ fn encode_destack_memory_map_reserve_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("memory::MemoryRange")
+                .begin_named_aggregate_builder("memory::MemoryRange")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -452,13 +452,13 @@ fn encode_destack_memory_protect_remap_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("memory::ProtectedMemoryRange")
+                .begin_named_aggregate_builder("memory::ProtectedMemoryRange")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3148,7 +3148,7 @@ pub(crate) fn install_memory_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_memory_vm_storage_types(isolate)?;
+    super::abi_generated::register_memory_vm_aggregate_types(isolate)?;
     register_memory_vm_bindings(registry, isolate);
 
     Ok(())

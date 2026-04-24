@@ -377,24 +377,24 @@ fn encode_destack_input_clipboard_read_item_path_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                        .begin_named_aggregate_builder("fs::OsPathBytes")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -404,24 +404,24 @@ fn encode_destack_input_clipboard_read_item_path_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                        .begin_named_aggregate_builder("fs::OsPathUtf16")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("fs::OsPath")
+                    .begin_named_aggregate_builder("fs::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -588,79 +588,79 @@ fn encode_destack_input_device_capabilities_result(
             let field_23: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.supports_pen_orientation_angles));
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputDeviceCapabilities")
+                .begin_named_aggregate_builder("input::InputDeviceCapabilities")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(23, field_23?)
+                .write_field(23, field_23?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -802,47 +802,47 @@ fn encode_destack_input_event_monitor_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorChangeEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorChangeEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -866,47 +866,47 @@ fn encode_destack_input_event_monitor_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorConnectEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorConnectEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -930,47 +930,47 @@ fn encode_destack_input_event_monitor_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorDisconnectEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorDisconnectEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1021,47 +1021,47 @@ fn encode_destack_input_event_monitor_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorChangeEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorChangeEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1085,47 +1085,47 @@ fn encode_destack_input_event_monitor_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorConnectEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorConnectEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1149,47 +1149,47 @@ fn encode_destack_input_event_monitor_try_read_result(
                         let field_5: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.metadata.connected));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+                            .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputMonitorDisconnectEvent")
+                        .begin_named_aggregate_builder("input::InputMonitorDisconnectEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .begin_named_aggregate_builder("input::InputMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1236,19 +1236,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1261,46 +1261,44 @@ fn encode_destack_input_event_read_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.selection_end as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputCompositionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputCompositionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputCompositionEvent")
+                        .begin_named_aggregate_builder("input::InputCompositionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1320,19 +1318,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1344,41 +1342,41 @@ fn encode_destack_input_event_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.backend_value, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputDeviceEventPayload")
+                            .begin_named_aggregate_builder("input::InputDeviceEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputDeviceEvent")
+                        .begin_named_aggregate_builder("input::InputDeviceEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1398,19 +1396,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1432,56 +1430,56 @@ fn encode_destack_input_event_read_result(
                         let field_7: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.touched));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputGamepadEventPayload")
+                            .begin_named_aggregate_builder("input::InputGamepadEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputGamepadEvent")
+                        .begin_named_aggregate_builder("input::InputGamepadEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1501,19 +1499,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1564,43 +1562,43 @@ fn encode_destack_input_event_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -1609,65 +1607,65 @@ fn encode_destack_input_event_read_result(
                         let field_10: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.is_composing));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputKeyEventPayload")
+                            .begin_named_aggregate_builder("input::InputKeyEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputKeyEvent")
+                        .begin_named_aggregate_builder("input::InputKeyEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1687,19 +1685,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1754,43 +1752,43 @@ fn encode_destack_input_event_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -1801,15 +1799,15 @@ fn encode_destack_input_event_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -1848,116 +1846,114 @@ fn encode_destack_input_event_read_result(
                                 let field_10: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::bool(value.in_range));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputPenState")
+                                    .begin_named_aggregate_builder("input::InputPenState")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(5, field_5?)
+                                    .write_field(5, field_5?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(6, field_6?)
+                                    .write_field(6, field_6?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(7, field_7?)
+                                    .write_field(7, field_7?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(8, field_8?)
+                                    .write_field(8, field_8?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(9, field_9?)
+                                    .write_field(9, field_9?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(10, field_10?)
+                                    .write_field(10, field_10?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputPointerButtonEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputPointerButtonEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerButtonEvent")
+                        .begin_named_aggregate_builder("input::InputPointerButtonEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1977,19 +1973,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2042,43 +2038,43 @@ fn encode_destack_input_event_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -2089,15 +2085,15 @@ fn encode_destack_input_event_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -2136,40 +2132,40 @@ fn encode_destack_input_event_read_result(
                                 let field_10: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::bool(value.in_range));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputPenState")
+                                    .begin_named_aggregate_builder("input::InputPenState")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(5, field_5?)
+                                    .write_field(5, field_5?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(6, field_6?)
+                                    .write_field(6, field_6?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(7, field_7?)
+                                    .write_field(7, field_7?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(8, field_8?)
+                                    .write_field(8, field_8?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(9, field_9?)
+                                    .write_field(9, field_9?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(10, field_10?)
+                                    .write_field(10, field_10?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -2180,79 +2176,77 @@ fn encode_destack_input_event_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             value.payload.predicted_samples.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputPointerMotionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputPointerMotionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerMotionEvent")
+                        .begin_named_aggregate_builder("input::InputPointerMotionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2272,19 +2266,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2339,103 +2333,103 @@ fn encode_destack_input_event_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputScrollEventPayload")
+                            .begin_named_aggregate_builder("input::InputScrollEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputScrollEvent")
+                        .begin_named_aggregate_builder("input::InputScrollEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2455,19 +2449,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2487,53 +2481,53 @@ fn encode_destack_input_event_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::float64(value.payload.w));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputSensorEventPayload")
+                            .begin_named_aggregate_builder("input::InputSensorEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputSensorEvent")
+                        .begin_named_aggregate_builder("input::InputSensorEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2553,19 +2547,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2574,38 +2568,38 @@ fn encode_destack_input_event_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.is_composing));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTextEventPayload")
+                            .begin_named_aggregate_builder("input::InputTextEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextEvent")
+                        .begin_named_aggregate_builder("input::InputTextEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2625,19 +2619,19 @@ fn encode_destack_input_event_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2665,15 +2659,15 @@ fn encode_destack_input_event_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -2686,65 +2680,65 @@ fn encode_destack_input_event_read_result(
                         let field_10: RuntimeResult<vm::Value> =
                             Ok(vm::Value::float64(value.payload.twist));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTouchEventPayload")
+                            .begin_named_aggregate_builder("input::InputTouchEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTouchEvent")
+                        .begin_named_aggregate_builder("input::InputTouchEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2880,19 +2874,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2905,46 +2899,44 @@ fn encode_destack_input_event_try_read_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.selection_end as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputCompositionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputCompositionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputCompositionEvent")
+                        .begin_named_aggregate_builder("input::InputCompositionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2964,19 +2956,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2988,41 +2980,41 @@ fn encode_destack_input_event_try_read_result(
                         let field_2: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.backend_value, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputDeviceEventPayload")
+                            .begin_named_aggregate_builder("input::InputDeviceEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputDeviceEvent")
+                        .begin_named_aggregate_builder("input::InputDeviceEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3042,19 +3034,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3076,56 +3068,56 @@ fn encode_destack_input_event_try_read_result(
                         let field_7: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.touched));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputGamepadEventPayload")
+                            .begin_named_aggregate_builder("input::InputGamepadEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputGamepadEvent")
+                        .begin_named_aggregate_builder("input::InputGamepadEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3145,19 +3137,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3208,43 +3200,43 @@ fn encode_destack_input_event_try_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -3253,65 +3245,65 @@ fn encode_destack_input_event_try_read_result(
                         let field_10: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.is_composing));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputKeyEventPayload")
+                            .begin_named_aggregate_builder("input::InputKeyEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputKeyEvent")
+                        .begin_named_aggregate_builder("input::InputKeyEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3331,19 +3323,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3398,43 +3390,43 @@ fn encode_destack_input_event_try_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -3445,15 +3437,15 @@ fn encode_destack_input_event_try_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -3492,116 +3484,114 @@ fn encode_destack_input_event_try_read_result(
                                 let field_10: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::bool(value.in_range));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputPenState")
+                                    .begin_named_aggregate_builder("input::InputPenState")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(5, field_5?)
+                                    .write_field(5, field_5?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(6, field_6?)
+                                    .write_field(6, field_6?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(7, field_7?)
+                                    .write_field(7, field_7?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(8, field_8?)
+                                    .write_field(8, field_8?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(9, field_9?)
+                                    .write_field(9, field_9?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(10, field_10?)
+                                    .write_field(10, field_10?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputPointerButtonEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputPointerButtonEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerButtonEvent")
+                        .begin_named_aggregate_builder("input::InputPointerButtonEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3621,19 +3611,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3686,43 +3676,43 @@ fn encode_destack_input_event_try_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -3733,15 +3723,15 @@ fn encode_destack_input_event_try_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -3780,40 +3770,40 @@ fn encode_destack_input_event_try_read_result(
                                 let field_10: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::bool(value.in_range));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputPenState")
+                                    .begin_named_aggregate_builder("input::InputPenState")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(2, field_2?)
+                                    .write_field(2, field_2?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(3, field_3?)
+                                    .write_field(3, field_3?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(4, field_4?)
+                                    .write_field(4, field_4?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(5, field_5?)
+                                    .write_field(5, field_5?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(6, field_6?)
+                                    .write_field(6, field_6?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(7, field_7?)
+                                    .write_field(7, field_7?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(8, field_8?)
+                                    .write_field(8, field_8?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(9, field_9?)
+                                    .write_field(9, field_9?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(10, field_10?)
+                                    .write_field(10, field_10?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -3824,79 +3814,77 @@ fn encode_destack_input_event_try_read_result(
                         let field_14: RuntimeResult<vm::Value> =
                             value.payload.predicted_samples.to_value(context);
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputPointerMotionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputPointerMotionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(11, field_11?)
+                            .write_field(11, field_11?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(12, field_12?)
+                            .write_field(12, field_12?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(13, field_13?)
+                            .write_field(13, field_13?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(14, field_14?)
+                            .write_field(14, field_14?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerMotionEvent")
+                        .begin_named_aggregate_builder("input::InputPointerMotionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3916,19 +3904,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3983,103 +3971,103 @@ fn encode_destack_input_event_try_read_result(
                             let field_11: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::bool(value.payload.modifier_state.is_symbol_lock));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputModifierState")
+                                .begin_named_aggregate_builder("input::InputModifierState")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(6, field_6?)
+                                .write_field(6, field_6?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(7, field_7?)
+                                .write_field(7, field_7?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(8, field_8?)
+                                .write_field(8, field_8?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(9, field_9?)
+                                .write_field(9, field_9?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(10, field_10?)
+                                .write_field(10, field_10?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(11, field_11?)
+                                .write_field(11, field_11?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputScrollEventPayload")
+                            .begin_named_aggregate_builder("input::InputScrollEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputScrollEvent")
+                        .begin_named_aggregate_builder("input::InputScrollEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4099,19 +4087,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4131,53 +4119,53 @@ fn encode_destack_input_event_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::float64(value.payload.w));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputSensorEventPayload")
+                            .begin_named_aggregate_builder("input::InputSensorEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputSensorEvent")
+                        .begin_named_aggregate_builder("input::InputSensorEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4197,19 +4185,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4218,38 +4206,38 @@ fn encode_destack_input_event_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.is_composing));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTextEventPayload")
+                            .begin_named_aggregate_builder("input::InputTextEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextEvent")
+                        .begin_named_aggregate_builder("input::InputTextEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4269,19 +4257,19 @@ fn encode_destack_input_event_try_read_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4309,15 +4297,15 @@ fn encode_destack_input_event_try_read_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::float64(value.height));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder(
+                                    .begin_named_aggregate_builder(
                                         "input::InputPointerContactGeometry",
                                     )
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
@@ -4330,65 +4318,65 @@ fn encode_destack_input_event_try_read_result(
                         let field_10: RuntimeResult<vm::Value> =
                             Ok(vm::Value::float64(value.payload.twist));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTouchEventPayload")
+                            .begin_named_aggregate_builder("input::InputTouchEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(7, field_7?)
+                            .write_field(7, field_7?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(8, field_8?)
+                            .write_field(8, field_8?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(9, field_9?)
+                            .write_field(9, field_9?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(10, field_10?)
+                            .write_field(10, field_10?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTouchEvent")
+                        .begin_named_aggregate_builder("input::InputTouchEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputEvent")
+                    .begin_named_aggregate_builder("input::InputEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4559,13 +4547,13 @@ fn encode_destack_input_gamepad_state_result(
                     Ok(vm::Value::int(value.battery.state as i32 as i64, 32));
                 let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.battery.level));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputGamepadBatteryStatus")
+                    .begin_named_aggregate_builder("input::InputGamepadBatteryStatus")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -4605,113 +4593,113 @@ fn encode_destack_input_gamepad_state_result(
                     let field_9: RuntimeResult<vm::Value> =
                         Ok(vm::Value::float64(value.gyroscope_z));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputGamepadMotionState")
+                        .begin_named_aggregate_builder("input::InputGamepadMotionState")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputGamepadState")
+                .begin_named_aggregate_builder("input::InputGamepadState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(15, field_15?)
+                .write_field(15, field_15?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(16, field_16?)
+                .write_field(16, field_16?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(17, field_17?)
+                .write_field(17, field_17?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(18, field_18?)
+                .write_field(18, field_18?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(19, field_19?)
+                .write_field(19, field_19?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(20, field_20?)
+                .write_field(20, field_20?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(21, field_21?)
+                .write_field(21, field_21?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(22, field_22?)
+                .write_field(22, field_22?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4855,19 +4843,19 @@ fn encode_destack_input_keyboard_layout_result(
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputKeyboardLayoutInfo")
+                .begin_named_aggregate_builder("input::InputKeyboardLayoutInfo")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4928,43 +4916,43 @@ fn encode_destack_input_keyboard_state_result(
                 let field_11: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.modifier_state.is_symbol_lock));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputModifierState")
+                    .begin_named_aggregate_builder("input::InputModifierState")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -4991,19 +4979,19 @@ fn encode_destack_input_keyboard_state_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputKeyboardLayoutInfo")
+                        .begin_named_aggregate_builder("input::InputKeyboardLayoutInfo")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5011,40 +4999,40 @@ fn encode_destack_input_keyboard_state_result(
             };
             let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputKeyboardState")
+                .begin_named_aggregate_builder("input::InputKeyboardState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5143,43 +5131,43 @@ fn encode_destack_input_pointer_relative_state_result(
                 let field_11: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.modifier_state.is_symbol_lock));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputModifierState")
+                    .begin_named_aggregate_builder("input::InputModifierState")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -5208,40 +5196,40 @@ fn encode_destack_input_pointer_relative_state_result(
                     let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
                     let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPenState")
+                        .begin_named_aggregate_builder("input::InputPenState")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(10, field_10?)
+                        .write_field(10, field_10?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5252,65 +5240,65 @@ fn encode_destack_input_pointer_relative_state_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
                     let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerContactGeometry")
+                        .begin_named_aggregate_builder("input::InputPointerContactGeometry")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputPointerState")
+                .begin_named_aggregate_builder("input::InputPointerState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5450,43 +5438,43 @@ fn encode_destack_input_pointer_state_result(
                 let field_11: RuntimeResult<vm::Value> =
                     Ok(vm::Value::bool(value.modifier_state.is_symbol_lock));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputModifierState")
+                    .begin_named_aggregate_builder("input::InputModifierState")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(6, field_6?)
+                    .write_field(6, field_6?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(7, field_7?)
+                    .write_field(7, field_7?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(8, field_8?)
+                    .write_field(8, field_8?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(9, field_9?)
+                    .write_field(9, field_9?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(10, field_10?)
+                    .write_field(10, field_10?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(11, field_11?)
+                    .write_field(11, field_11?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -5515,40 +5503,40 @@ fn encode_destack_input_pointer_state_result(
                     let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
                     let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPenState")
+                        .begin_named_aggregate_builder("input::InputPenState")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(8, field_8?)
+                        .write_field(8, field_8?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(9, field_9?)
+                        .write_field(9, field_9?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(10, field_10?)
+                        .write_field(10, field_10?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -5559,65 +5547,65 @@ fn encode_destack_input_pointer_state_result(
                     let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
                     let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputPointerContactGeometry")
+                        .begin_named_aggregate_builder("input::InputPointerContactGeometry")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputPointerState")
+                .begin_named_aggregate_builder("input::InputPointerState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(8, field_8?)
+                .write_field(8, field_8?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(9, field_9?)
+                .write_field(9, field_9?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(10, field_10?)
+                .write_field(10, field_10?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(11, field_11?)
+                .write_field(11, field_11?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(12, field_12?)
+                .write_field(12, field_12?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(13, field_13?)
+                .write_field(13, field_13?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(14, field_14?)
+                .write_field(14, field_14?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5717,19 +5705,19 @@ fn encode_destack_input_rawhid_read_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
             let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputRawHidReport")
+                .begin_named_aggregate_builder("input::InputRawHidReport")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5794,19 +5782,19 @@ fn encode_destack_input_rawhid_try_read_result(
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
             let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputRawHidReport")
+                .begin_named_aggregate_builder("input::InputRawHidReport")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5901,19 +5889,19 @@ fn encode_destack_input_sensor_configure_result(
                 Ok(vm::Value::uint(value.batch_latency_ms as u64, 32));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputSensorEffectiveConfig")
+                .begin_named_aggregate_builder("input::InputSensorEffectiveConfig")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5999,28 +5987,28 @@ fn encode_destack_input_sensor_read_result(
             let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputSensorSample")
+                .begin_named_aggregate_builder("input::InputSensorSample")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6080,28 +6068,28 @@ fn encode_destack_input_sensor_try_read_result(
             let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputSensorSample")
+                .begin_named_aggregate_builder("input::InputSensorSample")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6174,25 +6162,25 @@ fn encode_destack_input_text_get_geometry_result(
                 let field_5: RuntimeResult<vm::Value> =
                     Ok(vm::Value::float64(value.local_to_target_transform.ty));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextTransform2D")
+                    .begin_named_aggregate_builder("input::InputTextTransform2D")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(4, field_4?)
+                    .write_field(4, field_4?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(5, field_5?)
+                    .write_field(5, field_5?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -6206,19 +6194,19 @@ fn encode_destack_input_text_get_geometry_result(
                 let field_3: RuntimeResult<vm::Value> =
                     Ok(vm::Value::float64(value.editor_rectangle.height));
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextRectangle")
+                    .begin_named_aggregate_builder("input::InputTextRectangle")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(3, field_3?)
+                    .write_field(3, field_3?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -6229,19 +6217,19 @@ fn encode_destack_input_text_get_geometry_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextRectangle")
+                        .begin_named_aggregate_builder("input::InputTextRectangle")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -6254,38 +6242,38 @@ fn encode_destack_input_text_get_geometry_result(
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextRectangle")
+                        .begin_named_aggregate_builder("input::InputTextRectangle")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputTextGeometry")
+                .begin_named_aggregate_builder("input::InputTextGeometry")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -6361,19 +6349,19 @@ fn encode_destack_input_text_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6385,33 +6373,33 @@ fn encode_destack_input_text_read_event_result(
                     };
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputClipboardCommandEvent")
+                        .begin_named_aggregate_builder("input::InputClipboardCommandEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6431,19 +6419,19 @@ fn encode_destack_input_text_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6456,46 +6444,44 @@ fn encode_destack_input_text_read_event_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.selection_end as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputCompositionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputCompositionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputCompositionEvent")
+                        .begin_named_aggregate_builder("input::InputCompositionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6515,19 +6501,19 @@ fn encode_destack_input_text_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6561,15 +6547,15 @@ fn encode_destack_input_text_read_event_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         Ok(vm::Value::int(value.y as i64, 32));
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder(
+                                        .begin_named_aggregate_builder(
                                             "display::DisplayDragPosition",
                                         )
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -6577,25 +6563,25 @@ fn encode_destack_input_text_read_event_result(
                             };
                             let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("display::DisplayDragTransfer")
+                                .begin_named_aggregate_builder("display::DisplayDragTransfer")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }
@@ -6603,42 +6589,42 @@ fn encode_destack_input_text_read_event_result(
                     };
                     let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputEditIntentEvent")
+                        .begin_named_aggregate_builder("input::InputEditIntentEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6658,19 +6644,19 @@ fn encode_destack_input_text_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6684,13 +6670,13 @@ fn encode_destack_input_text_read_event_result(
                             let field_1: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::uint(value.state.selection.end_offset as u64, 32));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputTextRange")
+                                .begin_named_aggregate_builder("input::InputTextRange")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -6701,54 +6687,54 @@ fn encode_destack_input_text_read_event_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.end_offset as u64, 32));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputTextRange")
+                                    .begin_named_aggregate_builder("input::InputTextRange")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTextSessionState")
+                            .begin_named_aggregate_builder("input::InputTextSessionState")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextSessionStateEvent")
+                        .begin_named_aggregate_builder("input::InputTextSessionStateEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6858,19 +6844,19 @@ fn encode_destack_input_text_try_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6882,33 +6868,33 @@ fn encode_destack_input_text_try_read_event_result(
                     };
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputClipboardCommandEvent")
+                        .begin_named_aggregate_builder("input::InputClipboardCommandEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -6928,19 +6914,19 @@ fn encode_destack_input_text_try_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -6953,46 +6939,44 @@ fn encode_destack_input_text_try_read_event_result(
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::int(value.payload.selection_end as i64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "input::InputCompositionEventPayload",
-                            )
+                            .begin_named_aggregate_builder("input::InputCompositionEventPayload")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputCompositionEvent")
+                        .begin_named_aggregate_builder("input::InputCompositionEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7012,19 +6996,19 @@ fn encode_destack_input_text_try_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -7058,15 +7042,15 @@ fn encode_destack_input_text_try_read_event_result(
                                     let field_1: RuntimeResult<vm::Value> =
                                         Ok(vm::Value::int(value.y as i64, 32));
                                     let mut value_builder = context
-                                        .begin_named_storage_value_builder(
+                                        .begin_named_aggregate_builder(
                                             "display::DisplayDragPosition",
                                         )
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(0, field_0?)
+                                        .write_field(0, field_0?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder
-                                        .write_component(1, field_1?)
+                                        .write_field(1, field_1?)
                                         .map_err(Box::<RuntimeError>::from)?;
                                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
@@ -7074,25 +7058,25 @@ fn encode_destack_input_text_try_read_event_result(
                             };
                             let field_5: RuntimeResult<vm::Value> = value.items.to_value(context);
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("display::DisplayDragTransfer")
+                                .begin_named_aggregate_builder("display::DisplayDragTransfer")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(2, field_2?)
+                                .write_field(2, field_2?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(3, field_3?)
+                                .write_field(3, field_3?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(4, field_4?)
+                                .write_field(4, field_4?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(5, field_5?)
+                                .write_field(5, field_5?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         }
@@ -7100,42 +7084,42 @@ fn encode_destack_input_text_try_read_event_result(
                     };
                     let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_composing));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputEditIntentEvent")
+                        .begin_named_aggregate_builder("input::InputEditIntentEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(5, field_5?)
+                        .write_field(5, field_5?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(6, field_6?)
+                        .write_field(6, field_6?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(7, field_7?)
+                        .write_field(7, field_7?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7155,19 +7139,19 @@ fn encode_destack_input_text_try_read_event_result(
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputEventMetadata")
+                            .begin_named_aggregate_builder("input::InputEventMetadata")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -7181,13 +7165,13 @@ fn encode_destack_input_text_try_read_event_result(
                             let field_1: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::uint(value.state.selection.end_offset as u64, 32));
                             let mut value_builder = context
-                                .begin_named_storage_value_builder("input::InputTextRange")
+                                .begin_named_aggregate_builder("input::InputTextRange")
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(0, field_0?)
+                                .write_field(0, field_0?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder
-                                .write_component(1, field_1?)
+                                .write_field(1, field_1?)
                                 .map_err(Box::<RuntimeError>::from)?;
                             value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
@@ -7198,54 +7182,54 @@ fn encode_destack_input_text_try_read_event_result(
                                 let field_1: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.end_offset as u64, 32));
                                 let mut value_builder = context
-                                    .begin_named_storage_value_builder("input::InputTextRange")
+                                    .begin_named_aggregate_builder("input::InputTextRange")
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(0, field_0?)
+                                    .write_field(0, field_0?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder
-                                    .write_component(1, field_1?)
+                                    .write_field(1, field_1?)
                                     .map_err(Box::<RuntimeError>::from)?;
                                 value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             None => Ok(vm::Value::VOID),
                         };
                         let mut value_builder = context
-                            .begin_named_storage_value_builder("input::InputTextSessionState")
+                            .begin_named_aggregate_builder("input::InputTextSessionState")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("input::InputTextSessionStateEvent")
+                        .begin_named_aggregate_builder("input::InputTextSessionStateEvent")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .begin_named_aggregate_builder("input::InputTextSessionEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -7281,19 +7265,19 @@ fn encode_destack_input_touch_state_result(
             let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
             let field_3: RuntimeResult<vm::Value> = value.contacts.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("input::InputTouchState")
+                .begin_named_aggregate_builder("input::InputTouchState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -21214,12 +21198,12 @@ fn destack_input_clipboard_list_items_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<ClipboardItemDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <ClipboardItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
                     let result_recorded_item_recorded_presentation_style = result_recorded_item.presentation_style;
-                    let result_recorded_item_recorded_representations_raw = result_recorded_item.representations.raw_values(context)?;
+                    let result_recorded_item_recorded_representations_raw = result_recorded_item.representations.values(context)?;
                     let mut result_recorded_item_recorded_representations = Vec::with_capacity(result_recorded_item_recorded_representations_raw.len());
                     for result_recorded_item_recorded_representations_item_value in result_recorded_item_recorded_representations_raw {
                         let result_recorded_item_recorded_representations_item = <ClipboardItemRepresentationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_representations_item_value)?;
@@ -21452,7 +21436,7 @@ fn destack_input_clipboard_read_item_path_vm_replay(
                             result_recorded_os_path_utf16_kind_ref.as_str().to_string()
                         };
                         let result_recorded_os_path_utf16_utf16_inner_raw =
-                            value.utf16.0.raw_values(context)?;
+                            value.utf16.0.values(context)?;
                         let mut result_recorded_os_path_utf16_utf16_inner =
                             Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
                         for result_recorded_os_path_utf16_utf16_inner_item_value in
@@ -21756,7 +21740,7 @@ fn destack_input_device_capabilities_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: InputDeviceCapabilitiesVm = value.clone();
-                let result_recorded_kinds_raw = result_value.kinds.raw_values(context)?;
+                let result_recorded_kinds_raw = result_value.kinds.values(context)?;
                 let mut result_recorded_kinds = Vec::with_capacity(result_recorded_kinds_raw.len());
                 for result_recorded_kinds_item_value in result_recorded_kinds_raw {
                     let result_recorded_kinds_item_raw = decode_int32(
@@ -21784,7 +21768,7 @@ fn destack_input_device_capabilities_vm_replay(
                     let result_recorded_kinds_item_recorded = result_recorded_kinds_item;
                     result_recorded_kinds.push(result_recorded_kinds_item_recorded);
                 }
-                let result_recorded_axes_raw = result_value.axes.raw_values(context)?;
+                let result_recorded_axes_raw = result_value.axes.values(context)?;
                 let mut result_recorded_axes = Vec::with_capacity(result_recorded_axes_raw.len());
                 for result_recorded_axes_item_value in result_recorded_axes_raw {
                     let result_recorded_axes_item =
@@ -21811,7 +21795,7 @@ fn destack_input_device_capabilities_vm_replay(
                     };
                     result_recorded_axes.push(result_recorded_axes_item_recorded);
                 }
-                let result_recorded_buttons_raw = result_value.buttons.raw_values(context)?;
+                let result_recorded_buttons_raw = result_value.buttons.values(context)?;
                 let mut result_recorded_buttons =
                     Vec::with_capacity(result_recorded_buttons_raw.len());
                 for result_recorded_buttons_item_value in result_recorded_buttons_raw {
@@ -22071,7 +22055,7 @@ fn destack_input_device_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<InputDeviceDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -23476,7 +23460,7 @@ fn destack_input_event_read_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.raw_values(context)?;
+                        let result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.values(context)?;
                         let mut result_recorded_input_pointer_motion_event_payload_coalesced_samples = Vec::with_capacity(result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw.len());
                         for result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value in result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw {
                             let result_recorded_input_pointer_motion_event_payload_coalesced_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
@@ -23553,7 +23537,7 @@ fn destack_input_event_read_vm_replay(
                             };
                             result_recorded_input_pointer_motion_event_payload_coalesced_samples.push(result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_recorded);
                         }
-                        let result_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.raw_values(context)?;
+                        let result_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.values(context)?;
                         let mut result_recorded_input_pointer_motion_event_payload_predicted_samples = Vec::with_capacity(result_recorded_input_pointer_motion_event_payload_predicted_samples_raw.len());
                         for result_recorded_input_pointer_motion_event_payload_predicted_samples_item_value in result_recorded_input_pointer_motion_event_payload_predicted_samples_raw {
                             let result_recorded_input_pointer_motion_event_payload_predicted_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_pointer_motion_event_payload_predicted_samples_item_value)?;
@@ -24764,7 +24748,7 @@ fn destack_input_event_read_batch_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<InputEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = <InputEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
@@ -25245,7 +25229,7 @@ fn destack_input_event_read_batch_vm_replay(
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.raw_values(context)?;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.values(context)?;
                             let mut result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples = Vec::with_capacity(result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_raw.len());
                             for result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value in result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_raw {
                                 let result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
@@ -25322,7 +25306,7 @@ fn destack_input_event_read_batch_vm_replay(
                                 };
                                 result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples.push(result_recorded_item_recorded_input_pointer_motion_event_payload_coalesced_samples_item_recorded);
                             }
-                            let result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.raw_values(context)?;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.values(context)?;
                             let mut result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples = Vec::with_capacity(result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_raw.len());
                             for result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_item_value in result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_raw {
                                 let result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_input_pointer_motion_event_payload_predicted_samples_item_value)?;
@@ -27118,7 +27102,7 @@ fn destack_input_event_try_read_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.raw_values(context)?;
+                        let result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw = value.payload.coalesced_samples.values(context)?;
                         let mut result_recorded_input_pointer_motion_event_payload_coalesced_samples = Vec::with_capacity(result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw.len());
                         for result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value in result_recorded_input_pointer_motion_event_payload_coalesced_samples_raw {
                             let result_recorded_input_pointer_motion_event_payload_coalesced_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_value)?;
@@ -27195,7 +27179,7 @@ fn destack_input_event_try_read_vm_replay(
                             };
                             result_recorded_input_pointer_motion_event_payload_coalesced_samples.push(result_recorded_input_pointer_motion_event_payload_coalesced_samples_item_recorded);
                         }
-                        let result_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.raw_values(context)?;
+                        let result_recorded_input_pointer_motion_event_payload_predicted_samples_raw = value.payload.predicted_samples.values(context)?;
                         let mut result_recorded_input_pointer_motion_event_payload_predicted_samples = Vec::with_capacity(result_recorded_input_pointer_motion_event_payload_predicted_samples_raw.len());
                         for result_recorded_input_pointer_motion_event_payload_predicted_samples_item_value in result_recorded_input_pointer_motion_event_payload_predicted_samples_raw {
                             let result_recorded_input_pointer_motion_event_payload_predicted_samples_item = <InputPointerMotionSampleVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_pointer_motion_event_payload_predicted_samples_item_value)?;
@@ -28717,7 +28701,7 @@ fn destack_input_gamepad_state_vm_replay(
                     } else {
                         None
                     };
-                let result_recorded_axes_raw = result_value.axes.raw_values(context)?;
+                let result_recorded_axes_raw = result_value.axes.values(context)?;
                 let mut result_recorded_axes = Vec::with_capacity(result_recorded_axes_raw.len());
                 for result_recorded_axes_item_value in result_recorded_axes_raw {
                     let result_recorded_axes_item = decode_float64(
@@ -28728,7 +28712,7 @@ fn destack_input_gamepad_state_vm_replay(
                     let result_recorded_axes_item_recorded = result_recorded_axes_item;
                     result_recorded_axes.push(result_recorded_axes_item_recorded);
                 }
-                let result_recorded_buttons_raw = result_value.buttons.raw_values(context)?;
+                let result_recorded_buttons_raw = result_value.buttons.values(context)?;
                 let mut result_recorded_buttons =
                     Vec::with_capacity(result_recorded_buttons_raw.len());
                 for result_recorded_buttons_item_value in result_recorded_buttons_raw {
@@ -28750,7 +28734,7 @@ fn destack_input_gamepad_state_vm_replay(
                     };
                     result_recorded_buttons.push(result_recorded_buttons_item_recorded);
                 }
-                let result_recorded_touches_raw = result_value.touches.raw_values(context)?;
+                let result_recorded_touches_raw = result_value.touches.values(context)?;
                 let mut result_recorded_touches =
                     Vec::with_capacity(result_recorded_touches_raw.len());
                 for result_recorded_touches_item_value in result_recorded_touches_raw {
@@ -29047,7 +29031,7 @@ fn destack_input_haptics_effects_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<InputHapticEffectType> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item_raw = decode_int32(
@@ -29420,7 +29404,7 @@ fn destack_input_keyboard_state_vm_replay(
                     is_symbol_lock: result_recorded_modifier_state_is_symbol_lock,
                 };
                 let result_recorded_pressed_codes_raw =
-                    result_value.pressed_codes.raw_values(context)?;
+                    result_value.pressed_codes.values(context)?;
                 let mut result_recorded_pressed_codes =
                     Vec::with_capacity(result_recorded_pressed_codes_raw.len());
                 for result_recorded_pressed_codes_item_value in result_recorded_pressed_codes_raw {
@@ -29440,8 +29424,7 @@ fn destack_input_keyboard_state_vm_replay(
                     };
                     result_recorded_pressed_codes.push(result_recorded_pressed_codes_item_recorded);
                 }
-                let result_recorded_pressed_keys_raw =
-                    result_value.pressed_keys.raw_values(context)?;
+                let result_recorded_pressed_keys_raw = result_value.pressed_keys.values(context)?;
                 let mut result_recorded_pressed_keys =
                     Vec::with_capacity(result_recorded_pressed_keys_raw.len());
                 for result_recorded_pressed_keys_item_value in result_recorded_pressed_keys_raw {
@@ -29462,7 +29445,7 @@ fn destack_input_keyboard_state_vm_replay(
                     result_recorded_pressed_keys.push(result_recorded_pressed_keys_item_recorded);
                 }
                 let result_recorded_pressed_backend_codes_raw =
-                    result_value.pressed_backend_codes.raw_values(context)?;
+                    result_value.pressed_backend_codes.values(context)?;
                 let mut result_recorded_pressed_backend_codes =
                     Vec::with_capacity(result_recorded_pressed_backend_codes_raw.len());
                 for result_recorded_pressed_backend_codes_item_value in
@@ -29479,7 +29462,7 @@ fn destack_input_keyboard_state_vm_replay(
                         .push(result_recorded_pressed_backend_codes_item_recorded);
                 }
                 let result_recorded_pressed_scan_codes_raw =
-                    result_value.pressed_scan_codes.raw_values(context)?;
+                    result_value.pressed_scan_codes.values(context)?;
                 let mut result_recorded_pressed_scan_codes =
                     Vec::with_capacity(result_recorded_pressed_scan_codes_raw.len());
                 for result_recorded_pressed_scan_codes_item_value in
@@ -30956,7 +30939,7 @@ fn destack_input_sensor_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<InputSensorDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -31533,12 +31516,12 @@ fn destack_input_text_read_event_vm_replay(
                         };
                         let result_recorded_input_clipboard_command_event_command = value.command;
                         let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.values(context)?;
                             let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_raw.len());
                             for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_raw {
                                 let result_recorded_input_clipboard_command_event_clipboard_items_inner_item = <ClipboardItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value)?;
                                 let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
-                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.values(context)?;
                                 let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw.len());
                                 for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw {
                                     let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item = <ClipboardItemRepresentationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value)?;
@@ -31668,7 +31651,7 @@ fn destack_input_text_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.raw_values(context)?;
+                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.values(context)?;
                         let mut result_recorded_input_edit_intent_event_target_ranges = Vec::with_capacity(result_recorded_input_edit_intent_event_target_ranges_raw.len());
                         for result_recorded_input_edit_intent_event_target_ranges_item_value in result_recorded_input_edit_intent_event_target_ranges_raw {
                             let result_recorded_input_edit_intent_event_target_ranges_item = <InputTextRangeVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_target_ranges_item_value)?;
@@ -31681,12 +31664,12 @@ fn destack_input_text_read_event_vm_replay(
                             result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
                         }
                         let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.values(context)?;
                             let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_raw.len());
                             for result_recorded_input_edit_intent_event_clipboard_items_inner_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_raw {
                                 let result_recorded_input_edit_intent_event_clipboard_items_inner_item = <ClipboardItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_clipboard_items_inner_item_value)?;
                                 let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
-                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.values(context)?;
                                 let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw.len());
                                 for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw {
                                     let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item = <ClipboardItemRepresentationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value)?;
@@ -31751,7 +31734,7 @@ fn destack_input_text_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.raw_values(context)?;
+                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.values(context)?;
                             let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::with_capacity(result_recorded_input_edit_intent_event_drag_inner_items_raw.len());
                             for result_recorded_input_edit_intent_event_drag_inner_items_item_value in result_recorded_input_edit_intent_event_drag_inner_items_raw {
                                 let result_recorded_input_edit_intent_event_drag_inner_items_item = <display::DisplayDragItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_drag_inner_items_item_value)?;
@@ -32362,12 +32345,12 @@ fn destack_input_text_try_read_event_vm_replay(
                         };
                         let result_recorded_input_clipboard_command_event_command = value.command;
                         let result_recorded_input_clipboard_command_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let result_recorded_input_clipboard_command_event_clipboard_items_inner_raw = value.values(context)?;
                             let mut result_recorded_input_clipboard_command_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_raw.len());
                             for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_raw {
                                 let result_recorded_input_clipboard_command_event_clipboard_items_inner_item = <ClipboardItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_clipboard_command_event_clipboard_items_inner_item_value)?;
                                 let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.presentation_style;
-                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_clipboard_command_event_clipboard_items_inner_item.representations.values(context)?;
                                 let mut result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw.len());
                                 for result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_raw {
                                     let result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item = <ClipboardItemRepresentationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_clipboard_command_event_clipboard_items_inner_item_recorded_representations_item_value)?;
@@ -32497,7 +32480,7 @@ fn destack_input_text_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.raw_values(context)?;
+                        let result_recorded_input_edit_intent_event_target_ranges_raw = value.target_ranges.values(context)?;
                         let mut result_recorded_input_edit_intent_event_target_ranges = Vec::with_capacity(result_recorded_input_edit_intent_event_target_ranges_raw.len());
                         for result_recorded_input_edit_intent_event_target_ranges_item_value in result_recorded_input_edit_intent_event_target_ranges_raw {
                             let result_recorded_input_edit_intent_event_target_ranges_item = <InputTextRangeVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_target_ranges_item_value)?;
@@ -32510,12 +32493,12 @@ fn destack_input_text_try_read_event_vm_replay(
                             result_recorded_input_edit_intent_event_target_ranges.push(result_recorded_input_edit_intent_event_target_ranges_item_recorded);
                         }
                         let result_recorded_input_edit_intent_event_clipboard_items = if let Some(value) = value.clipboard_items {
-                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.raw_values(context)?;
+                            let result_recorded_input_edit_intent_event_clipboard_items_inner_raw = value.values(context)?;
                             let mut result_recorded_input_edit_intent_event_clipboard_items_inner = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_raw.len());
                             for result_recorded_input_edit_intent_event_clipboard_items_inner_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_raw {
                                 let result_recorded_input_edit_intent_event_clipboard_items_inner_item = <ClipboardItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_clipboard_items_inner_item_value)?;
                                 let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_presentation_style = result_recorded_input_edit_intent_event_clipboard_items_inner_item.presentation_style;
-                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.raw_values(context)?;
+                                let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw = result_recorded_input_edit_intent_event_clipboard_items_inner_item.representations.values(context)?;
                                 let mut result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations = Vec::with_capacity(result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw.len());
                                 for result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value in result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_raw {
                                     let result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item = <ClipboardItemRepresentationDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_clipboard_items_inner_item_recorded_representations_item_value)?;
@@ -32580,7 +32563,7 @@ fn destack_input_text_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.raw_values(context)?;
+                            let result_recorded_input_edit_intent_event_drag_inner_items_raw = value.items.values(context)?;
                             let mut result_recorded_input_edit_intent_event_drag_inner_items = Vec::with_capacity(result_recorded_input_edit_intent_event_drag_inner_items_raw.len());
                             for result_recorded_input_edit_intent_event_drag_inner_items_item_value in result_recorded_input_edit_intent_event_drag_inner_items_raw {
                                 let result_recorded_input_edit_intent_event_drag_inner_items_item = <display::DisplayDragItemDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_input_edit_intent_event_drag_inner_items_item_value)?;
@@ -33071,7 +33054,7 @@ fn destack_input_touch_state_vm_replay(
                         .map_err(|error| RuntimeError::from(error).boxed())?;
                     result_recorded_device_id_ref.as_str().to_string()
                 };
-                let result_recorded_contacts_raw = result_value.contacts.raw_values(context)?;
+                let result_recorded_contacts_raw = result_value.contacts.values(context)?;
                 let mut result_recorded_contacts =
                     Vec::with_capacity(result_recorded_contacts_raw.len());
                 for result_recorded_contacts_item_value in result_recorded_contacts_raw {
@@ -34357,7 +34340,7 @@ pub(crate) fn install_input_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_input_vm_storage_types(isolate)?;
+    super::abi_generated::register_input_vm_aggregate_types(isolate)?;
     register_input_vm_bindings(registry, isolate);
 
     Ok(())

@@ -447,13 +447,13 @@ fn encode_destack_io_control_ioctl_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
             let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("io::DescriptorResult")
+                .begin_named_aggregate_builder("io::DescriptorResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -511,13 +511,13 @@ fn encode_destack_io_device_control_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
             let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("io::DescriptorResult")
+                .begin_named_aggregate_builder("io::DescriptorResult")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -925,13 +925,13 @@ fn encode_destack_io_timerfd_get_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.initial_ns, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.interval_ns, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("io::TimerFdSpec")
+                .begin_named_aggregate_builder("io::TimerFdSpec")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1079,22 +1079,22 @@ fn encode_destack_io_uring_features_result(
             let field_4: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.max_entries as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("io::UringFeatures")
+                .begin_named_aggregate_builder("io::UringFeatures")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -5203,7 +5203,7 @@ fn destack_io_completion_wait_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<CompletionEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -6161,7 +6161,7 @@ fn destack_io_poll_wait_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<PollEventVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -7497,7 +7497,7 @@ pub(crate) fn install_io_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_io_vm_storage_types(isolate)?;
+    super::abi_generated::register_io_vm_aggregate_types(isolate)?;
     register_io_vm_bindings(registry, isolate);
 
     Ok(())

@@ -1717,39 +1717,39 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            2236787214u32 => Self::AccessibilityActivateAction(<AccessibilityActivateActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1903946355u32 => Self::AccessibilityAddToSelectionAction(<AccessibilityAddToSelectionActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            496612936u32 => Self::AccessibilityClearSelectionAction(<AccessibilityClearSelectionActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1319128726u32 => Self::AccessibilityCollapseAction(<AccessibilityCollapseActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3631164633u32 => Self::AccessibilityCustomActionInvocation(<AccessibilityCustomActionInvocationVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2031128575u32 => Self::AccessibilityDecrementAction(<AccessibilityDecrementActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1872678456u32 => Self::AccessibilityDismissAction(<AccessibilityDismissActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2586860255u32 => Self::AccessibilityExpandAction(<AccessibilityExpandActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            430558043u32 => Self::AccessibilityFocusAction(<AccessibilityFocusActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1748811128u32 => Self::AccessibilityIncrementAction(<AccessibilityIncrementActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            727684083u32 => Self::AccessibilityMoveTextSelectionAction(<AccessibilityMoveTextSelectionActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3010974441u32 => Self::AccessibilityRemoveFromSelectionAction(<AccessibilityRemoveFromSelectionActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2533321292u32 => Self::AccessibilityReplaceSelectedTextAction(<AccessibilityReplaceSelectedTextActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1817520472u32 => Self::AccessibilityScrollAction(<AccessibilityScrollActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1432855482u32 => Self::AccessibilityScrollIntoViewAction(<AccessibilityScrollIntoViewActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            129083950u32 => Self::AccessibilityScrollTextRangeIntoViewAction(<AccessibilityScrollTextRangeIntoViewActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2850175718u32 => Self::AccessibilitySelectAction(<AccessibilitySelectActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2297349432u32 => Self::AccessibilitySetNumericValueAction(<AccessibilitySetNumericValueActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3095104548u32 => Self::AccessibilitySetSelectedTextRangeAction(<AccessibilitySetSelectedTextRangeActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1445324535u32 => Self::AccessibilitySetSelectedTextRangesAction(<AccessibilitySetSelectedTextRangesActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1550276491u32 => Self::AccessibilitySetTextValueAction(<AccessibilitySetTextValueActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3837586638u32 => Self::AccessibilityShowMenuAction(<AccessibilityShowMenuActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3853401430u32 => Self::AccessibilityToggleAction(<AccessibilityToggleActionVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            2236787214u32 => Self::AccessibilityActivateAction(<AccessibilityActivateActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1903946355u32 => Self::AccessibilityAddToSelectionAction(<AccessibilityAddToSelectionActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            496612936u32 => Self::AccessibilityClearSelectionAction(<AccessibilityClearSelectionActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1319128726u32 => Self::AccessibilityCollapseAction(<AccessibilityCollapseActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3631164633u32 => Self::AccessibilityCustomActionInvocation(<AccessibilityCustomActionInvocationVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2031128575u32 => Self::AccessibilityDecrementAction(<AccessibilityDecrementActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1872678456u32 => Self::AccessibilityDismissAction(<AccessibilityDismissActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2586860255u32 => Self::AccessibilityExpandAction(<AccessibilityExpandActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            430558043u32 => Self::AccessibilityFocusAction(<AccessibilityFocusActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1748811128u32 => Self::AccessibilityIncrementAction(<AccessibilityIncrementActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            727684083u32 => Self::AccessibilityMoveTextSelectionAction(<AccessibilityMoveTextSelectionActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3010974441u32 => Self::AccessibilityRemoveFromSelectionAction(<AccessibilityRemoveFromSelectionActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2533321292u32 => Self::AccessibilityReplaceSelectedTextAction(<AccessibilityReplaceSelectedTextActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1817520472u32 => Self::AccessibilityScrollAction(<AccessibilityScrollActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1432855482u32 => Self::AccessibilityScrollIntoViewAction(<AccessibilityScrollIntoViewActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            129083950u32 => Self::AccessibilityScrollTextRangeIntoViewAction(<AccessibilityScrollTextRangeIntoViewActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2850175718u32 => Self::AccessibilitySelectAction(<AccessibilitySelectActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2297349432u32 => Self::AccessibilitySetNumericValueAction(<AccessibilitySetNumericValueActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3095104548u32 => Self::AccessibilitySetSelectedTextRangeAction(<AccessibilitySetSelectedTextRangeActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1445324535u32 => Self::AccessibilitySetSelectedTextRangesAction(<AccessibilitySetSelectedTextRangesActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1550276491u32 => Self::AccessibilitySetTextValueAction(<AccessibilitySetTextValueActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3837586638u32 => Self::AccessibilityShowMenuAction(<AccessibilityShowMenuActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3853401430u32 => Self::AccessibilityToggleAction(<AccessibilityToggleActionVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown AccessibilityAction tag")).boxed()),
         };
         Ok(decoded)
@@ -1768,13 +1768,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1786,13 +1786,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1804,13 +1804,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1822,13 +1822,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1837,13 +1837,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3631164633u32, context)?;
                 let payload_value = <AccessibilityCustomActionInvocationVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1855,13 +1855,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1873,13 +1873,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1891,13 +1891,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1909,13 +1909,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1927,13 +1927,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1942,13 +1942,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(727684083u32, context)?;
                 let payload_value = <AccessibilityMoveTextSelectionActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1957,13 +1957,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3010974441u32, context)?;
                 let payload_value = <AccessibilityRemoveFromSelectionActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1972,13 +1972,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(2533321292u32, context)?;
                 let payload_value = <AccessibilityReplaceSelectedTextActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1990,13 +1990,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2008,13 +2008,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2023,13 +2023,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(129083950u32, context)?;
                 let payload_value = <AccessibilityScrollTextRangeIntoViewActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2041,13 +2041,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2056,13 +2056,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(2297349432u32, context)?;
                 let payload_value = <AccessibilitySetNumericValueActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2071,13 +2071,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3095104548u32, context)?;
                 let payload_value = <AccessibilitySetSelectedTextRangeActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2086,13 +2086,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1445324535u32, context)?;
                 let payload_value = <AccessibilitySetSelectedTextRangesActionVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2104,13 +2104,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2122,13 +2122,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2140,13 +2140,13 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2846,24 +2846,24 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            1763166206u32 => Self::AccessibilityDocumentRangeAtPointQuery(<AccessibilityDocumentRangeAtPointQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            150143220u32 => Self::AccessibilityDocumentRangeForChildQuery(<AccessibilityDocumentRangeForChildQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1379004282u32 => Self::AccessibilityDocumentRangeForUnitQuery(<AccessibilityDocumentRangeForUnitQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            657266885u32 => Self::AccessibilityDocumentReadEmbeddedObjectsQuery(<AccessibilityDocumentReadEmbeddedObjectsQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2184449520u32 => Self::AccessibilityDocumentReadRangeBoundsQuery(<AccessibilityDocumentReadRangeBoundsQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            4215888034u32 => Self::AccessibilityDocumentReadStyleRunsQuery(<AccessibilityDocumentReadStyleRunsQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            299345949u32 => Self::AccessibilityDocumentReadTextQuery(<AccessibilityDocumentReadTextQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            477874338u32 => Self::AccessibilityDocumentReadUnitRangesQuery(<AccessibilityDocumentReadUnitRangesQueryVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            1763166206u32 => Self::AccessibilityDocumentRangeAtPointQuery(<AccessibilityDocumentRangeAtPointQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            150143220u32 => Self::AccessibilityDocumentRangeForChildQuery(<AccessibilityDocumentRangeForChildQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1379004282u32 => Self::AccessibilityDocumentRangeForUnitQuery(<AccessibilityDocumentRangeForUnitQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            657266885u32 => Self::AccessibilityDocumentReadEmbeddedObjectsQuery(<AccessibilityDocumentReadEmbeddedObjectsQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2184449520u32 => Self::AccessibilityDocumentReadRangeBoundsQuery(<AccessibilityDocumentReadRangeBoundsQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            4215888034u32 => Self::AccessibilityDocumentReadStyleRunsQuery(<AccessibilityDocumentReadStyleRunsQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            299345949u32 => Self::AccessibilityDocumentReadTextQuery(<AccessibilityDocumentReadTextQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            477874338u32 => Self::AccessibilityDocumentReadUnitRangesQuery(<AccessibilityDocumentReadUnitRangesQueryVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown AccessibilityDocumentQuery tag")).boxed()),
         };
         Ok(decoded)
@@ -2879,13 +2879,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1763166206u32, context)?;
                 let payload_value = <AccessibilityDocumentRangeAtPointQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2894,13 +2894,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(150143220u32, context)?;
                 let payload_value = <AccessibilityDocumentRangeForChildQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2909,13 +2909,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1379004282u32, context)?;
                 let payload_value = <AccessibilityDocumentRangeForUnitQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2924,13 +2924,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(657266885u32, context)?;
                 let payload_value = <AccessibilityDocumentReadEmbeddedObjectsQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2939,13 +2939,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(2184449520u32, context)?;
                 let payload_value = <AccessibilityDocumentReadRangeBoundsQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2954,13 +2954,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(4215888034u32, context)?;
                 let payload_value = <AccessibilityDocumentReadStyleRunsQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2969,13 +2969,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(299345949u32, context)?;
                 let payload_value = <AccessibilityDocumentReadTextQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2984,13 +2984,13 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(477874338u32, context)?;
                 let payload_value = <AccessibilityDocumentReadUnitRangesQueryVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3338,22 +3338,22 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            2204527477u32 => Self::AccessibilityDocumentEmbeddedObjectsResponse(<AccessibilityDocumentEmbeddedObjectsResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1728889463u32 => Self::AccessibilityDocumentRangeBoundsResponse(<AccessibilityDocumentRangeBoundsResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3903573575u32 => Self::AccessibilityDocumentRangeResponse(<AccessibilityDocumentRangeResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1982999478u32 => Self::AccessibilityDocumentRangesResponse(<AccessibilityDocumentRangesResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            831452081u32 => Self::AccessibilityDocumentStyleRunsResponse(<AccessibilityDocumentStyleRunsResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2457571193u32 => Self::AccessibilityDocumentTextResponse(<AccessibilityDocumentTextResponseVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            2204527477u32 => Self::AccessibilityDocumentEmbeddedObjectsResponse(<AccessibilityDocumentEmbeddedObjectsResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1728889463u32 => Self::AccessibilityDocumentRangeBoundsResponse(<AccessibilityDocumentRangeBoundsResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3903573575u32 => Self::AccessibilityDocumentRangeResponse(<AccessibilityDocumentRangeResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1982999478u32 => Self::AccessibilityDocumentRangesResponse(<AccessibilityDocumentRangesResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            831452081u32 => Self::AccessibilityDocumentStyleRunsResponse(<AccessibilityDocumentStyleRunsResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2457571193u32 => Self::AccessibilityDocumentTextResponse(<AccessibilityDocumentTextResponseVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown AccessibilityDocumentResponse tag")).boxed()),
         };
         Ok(decoded)
@@ -3369,15 +3369,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(2204527477u32, context)?;
                 let payload_value = <AccessibilityDocumentEmbeddedObjectsResponseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3386,15 +3384,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1728889463u32, context)?;
                 let payload_value = <AccessibilityDocumentRangeBoundsResponseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3403,15 +3399,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3903573575u32, context)?;
                 let payload_value = <AccessibilityDocumentRangeResponseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3420,15 +3414,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(1982999478u32, context)?;
                 let payload_value = <AccessibilityDocumentRangesResponseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3437,15 +3429,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(831452081u32, context)?;
                 let payload_value = <AccessibilityDocumentStyleRunsResponseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3457,15 +3447,13 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder(
-                        "accessibility::AccessibilityDocumentResponse",
-                    )
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentResponse")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3723,28 +3711,26 @@ impl VmAggregateCodec for AccessibilityActionMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_window =
-            <resource::WindowHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_node_id =
-            <AccessibilityNodeId as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_window = <resource::WindowHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_node_id = <AccessibilityNodeId as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             window: field_window,
             node_id: field_node_id,
@@ -3759,34 +3745,33 @@ impl VmAggregateCodec for AccessibilityActionMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityActionMetadata")
+            .begin_named_aggregate_builder("accessibility::AccessibilityActionMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
             self.window,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(self.node_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3852,8 +3837,8 @@ impl VmAggregateCodec for AccessibilityActionOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -3861,7 +3846,7 @@ impl VmAggregateCodec for AccessibilityActionOpenOptions {
             .boxed());
         }
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         Ok(Self {
             queue_capacity: field_queue_capacity,
         })
@@ -3872,12 +3857,12 @@ impl VmAggregateCodec for AccessibilityActionOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityActionOpenOptions")
+            .begin_named_aggregate_builder("accessibility::AccessibilityActionOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3966,19 +3951,19 @@ impl VmAggregateCodec for AccessibilityActivateActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -3992,20 +3977,19 @@ impl VmAggregateCodec for AccessibilityActivateActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityActivateAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityActivateAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4123,19 +4107,19 @@ impl VmAggregateCodec for AccessibilityAddToSelectionActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4149,20 +4133,19 @@ impl VmAggregateCodec for AccessibilityAddToSelectionActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityAddToSelectionAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityAddToSelectionAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4280,19 +4263,19 @@ impl VmAggregateCodec for AccessibilityClearSelectionActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4306,20 +4289,19 @@ impl VmAggregateCodec for AccessibilityClearSelectionActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityClearSelectionAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityClearSelectionAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4437,19 +4419,19 @@ impl VmAggregateCodec for AccessibilityCollapseActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4463,20 +4445,19 @@ impl VmAggregateCodec for AccessibilityCollapseActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityCollapseAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityCollapseAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4577,24 +4558,22 @@ impl VmAggregateCodec for AccessibilityCollectionInfo {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_row_count = <Option<i32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_column_count = <Option<i32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_row_count =
+            <Option<i32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_column_count =
+            <Option<i32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_is_multiselectable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_is_selection_required =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             row_count: field_row_count,
             column_count: field_column_count,
@@ -4608,27 +4587,27 @@ impl VmAggregateCodec for AccessibilityCollectionInfo {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityCollectionInfo")
+            .begin_named_aggregate_builder("accessibility::AccessibilityCollectionInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.row_count, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.column_count, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_multiselectable, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_selection_required, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4706,36 +4685,28 @@ impl VmAggregateCodec for AccessibilityCollectionItemInfo {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_level = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_level =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_position_in_set =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_set_size = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_row_index = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
-        let field_column_index = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
-        let field_row_span = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 5,
-        )?;
-        let field_column_span = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_set_size =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_row_index =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_column_index =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_row_span =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_column_span =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             level: field_level,
             position_in_set: field_position_in_set,
@@ -4752,42 +4723,42 @@ impl VmAggregateCodec for AccessibilityCollectionItemInfo {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityCollectionItemInfo")
+            .begin_named_aggregate_builder("accessibility::AccessibilityCollectionItemInfo")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.level, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.position_in_set, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.set_size, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.row_index, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.column_index, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.row_span, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.column_span, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4876,18 +4847,18 @@ impl VmAggregateCodec for AccessibilityCustomActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -4901,17 +4872,17 @@ impl VmAggregateCodec for AccessibilityCustomActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityCustomAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityCustomAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5020,25 +4991,24 @@ impl VmAggregateCodec for AccessibilityCustomActionInvocationAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_action_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_action_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -5051,25 +5021,24 @@ impl VmAggregateCodec for AccessibilityCustomActionInvocationAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityCustomActionInvocation")
+            .begin_named_aggregate_builder("accessibility::AccessibilityCustomActionInvocation")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5193,19 +5162,19 @@ impl VmAggregateCodec for AccessibilityDecrementActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -5219,20 +5188,19 @@ impl VmAggregateCodec for AccessibilityDecrementActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDecrementAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDecrementAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5350,19 +5318,19 @@ impl VmAggregateCodec for AccessibilityDismissActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -5376,20 +5344,19 @@ impl VmAggregateCodec for AccessibilityDismissActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDismissAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDismissAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5515,28 +5482,26 @@ impl VmAggregateCodec for AccessibilityDocumentEmbeddedObjectsResponseAbi<VmAbi>
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_objects = <Option<VmSlice<AccessibilityEmbeddedObjectVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_objects = <Option<VmSlice<AccessibilityEmbeddedObjectVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             request_id: field_request_id,
@@ -5551,38 +5516,37 @@ impl VmAggregateCodec for AccessibilityDocumentEmbeddedObjectsResponseAbi<VmAbi>
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityDocumentEmbeddedObjectsResponse",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<AccessibilityEmbeddedObjectVm>> as VmAggregateCodec>::encode_with_context(self.objects, context)?;
+        let field_value = <Option<VmSlice<AccessibilityEmbeddedObjectVm>> as VmAggregateCodec>::encode_with_context(self.objects, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5720,8 +5684,8 @@ impl VmAggregateCodec for AccessibilityDocumentOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -5729,7 +5693,7 @@ impl VmAggregateCodec for AccessibilityDocumentOpenOptions {
             .boxed());
         }
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         Ok(Self {
             queue_capacity: field_queue_capacity,
         })
@@ -5740,12 +5704,12 @@ impl VmAggregateCodec for AccessibilityDocumentOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentOpenOptions")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5823,8 +5787,8 @@ impl VmAggregateCodec for AccessibilityDocumentQueryMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -5832,25 +5796,21 @@ impl VmAggregateCodec for AccessibilityDocumentQueryMetadata {
             .boxed());
         }
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_window =
-            <resource::WindowHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_node_id =
-            <AccessibilityNodeId as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_window = <resource::WindowHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_node_id = <AccessibilityNodeId as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             request_id: field_request_id,
             window: field_window,
@@ -5867,46 +5827,44 @@ impl VmAggregateCodec for AccessibilityDocumentQueryMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQueryMetadata")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQueryMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
             self.window,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(self.node_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6001,22 +5959,23 @@ impl VmAggregateCodec for AccessibilityDocumentRangeAtPointQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_x =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_y =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_x = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_y = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -6030,30 +5989,28 @@ impl VmAggregateCodec for AccessibilityDocumentRangeAtPointQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityDocumentRangeAtPointQuery",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentRangeAtPointQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6191,28 +6148,26 @@ impl VmAggregateCodec for AccessibilityDocumentRangeBoundsResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_rects = <Option<VmSlice<AccessibilityTextRectVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_rects = <Option<VmSlice<AccessibilityTextRectVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             request_id: field_request_id,
@@ -6227,41 +6182,40 @@ impl VmAggregateCodec for AccessibilityDocumentRangeBoundsResponseAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityDocumentRangeBoundsResponse",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmSlice<AccessibilityTextRectVm>> as VmAggregateCodec>::encode_with_context(
                 self.rects, context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6424,20 +6378,23 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForChildQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_child_node_id =
-            <AccessibilityNodeId as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityNodeId as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -6452,29 +6409,27 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForChildQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityDocumentRangeForChildQuery",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentRangeForChildQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(
             self.child_node_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6615,24 +6570,26 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForUnitQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_unit =
-            <AccessibilityTextUnit as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
             )?;
+        let field_unit = <AccessibilityTextUnit as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -6646,31 +6603,29 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForUnitQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityDocumentRangeForUnitQuery",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentRangeForUnitQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityTextUnit as VmAggregateCodec>::encode_with_context(self.unit, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6806,29 +6761,27 @@ impl VmAggregateCodec for AccessibilityDocumentRangeResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_range =
-            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -6845,39 +6798,38 @@ impl VmAggregateCodec for AccessibilityDocumentRangeResponseAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentRangeResponse")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentRangeResponse")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.range, context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7040,28 +6992,26 @@ impl VmAggregateCodec for AccessibilityDocumentRangesResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_ranges = <Option<VmSlice<AccessibilityTextRangeVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_ranges = <Option<VmSlice<AccessibilityTextRangeVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             request_id: field_request_id,
@@ -7076,40 +7026,39 @@ impl VmAggregateCodec for AccessibilityDocumentRangesResponseAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentRangesResponse")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentRangesResponse")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmSlice<AccessibilityTextRangeVm>> as VmAggregateCodec>::encode_with_context(
                 self.ranges,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7273,20 +7222,23 @@ impl VmAggregateCodec for AccessibilityDocumentReadEmbeddedObjectsQueryAbi<VmAbi
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -7301,28 +7253,28 @@ impl VmAggregateCodec for AccessibilityDocumentReadEmbeddedObjectsQueryAbi<VmAbi
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7450,20 +7402,23 @@ impl VmAggregateCodec for AccessibilityDocumentReadRangeBoundsQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -7478,28 +7433,28 @@ impl VmAggregateCodec for AccessibilityDocumentReadRangeBoundsQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7627,20 +7582,23 @@ impl VmAggregateCodec for AccessibilityDocumentReadStyleRunsQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -7655,28 +7613,26 @@ impl VmAggregateCodec for AccessibilityDocumentReadStyleRunsQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityDocumentReadStyleRunsQuery",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentReadStyleRunsQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7802,20 +7758,23 @@ impl VmAggregateCodec for AccessibilityDocumentReadTextQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -7830,26 +7789,26 @@ impl VmAggregateCodec for AccessibilityDocumentReadTextQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentReadTextQuery")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentReadTextQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7979,24 +7938,26 @@ impl VmAggregateCodec for AccessibilityDocumentReadUnitRangesQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata = <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_unit =
-            <AccessibilityTextUnit as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
+        let field_metadata =
+            <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
             )?;
+        let field_unit = <AccessibilityTextUnit as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -8012,33 +7973,33 @@ impl VmAggregateCodec for AccessibilityDocumentReadUnitRangesQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityDocumentReadUnitRangesQuery",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityTextUnit as VmAggregateCodec>::encode_with_context(self.unit, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8176,28 +8137,26 @@ impl VmAggregateCodec for AccessibilityDocumentStyleRunsResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_runs = <Option<VmSlice<AccessibilityTextStyleRunVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_runs = <Option<VmSlice<AccessibilityTextStyleRunVm>> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             request_id: field_request_id,
@@ -8212,38 +8171,35 @@ impl VmAggregateCodec for AccessibilityDocumentStyleRunsResponseAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityDocumentStyleRunsResponse",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentStyleRunsResponse")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<VmSlice<AccessibilityTextStyleRunVm>> as VmAggregateCodec>::encode_with_context(self.runs, context)?;
+        let field_value = <Option<VmSlice<AccessibilityTextStyleRunVm>> as VmAggregateCodec>::encode_with_context(self.runs, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8406,31 +8362,28 @@ impl VmAggregateCodec for AccessibilityDocumentTextResponseAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_request_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_document_revision =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_status =
-            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityDocumentQueryStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+        let field_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
         Ok(Self {
             kind: field_kind,
             request_id: field_request_id,
@@ -8445,38 +8398,37 @@ impl VmAggregateCodec for AccessibilityDocumentTextResponseAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityDocumentTextResponse")
+            .begin_named_aggregate_builder("accessibility::AccessibilityDocumentTextResponse")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.request_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.document_revision,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityDocumentQueryStatus as VmAggregateCodec>::encode_with_context(
                 self.status,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8602,8 +8554,8 @@ impl VmAggregateCodec for AccessibilityEmbeddedObject {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -8611,13 +8563,12 @@ impl VmAggregateCodec for AccessibilityEmbeddedObject {
             .boxed());
         }
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_node_id =
-            <AccessibilityNodeId as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_node_id = <AccessibilityNodeId as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             range: field_range,
             node_id: field_node_id,
@@ -8629,18 +8580,18 @@ impl VmAggregateCodec for AccessibilityEmbeddedObject {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityEmbeddedObject")
+            .begin_named_aggregate_builder("accessibility::AccessibilityEmbeddedObject")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(self.node_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8729,19 +8680,19 @@ impl VmAggregateCodec for AccessibilityExpandActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -8755,20 +8706,19 @@ impl VmAggregateCodec for AccessibilityExpandActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityExpandAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityExpandAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8886,19 +8836,19 @@ impl VmAggregateCodec for AccessibilityFocusActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -8912,20 +8862,19 @@ impl VmAggregateCodec for AccessibilityFocusActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityFocusAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityFocusAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9043,19 +8992,19 @@ impl VmAggregateCodec for AccessibilityIncrementActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9069,20 +9018,19 @@ impl VmAggregateCodec for AccessibilityIncrementActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityIncrementAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityIncrementAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9206,29 +9154,28 @@ impl VmAggregateCodec for AccessibilityMoveTextSelectionActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_unit =
-            <AccessibilityTextUnit as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_unit = <AccessibilityTextUnit as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_count =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_extend =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -9243,36 +9190,32 @@ impl VmAggregateCodec for AccessibilityMoveTextSelectionActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityMoveTextSelectionAction",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityMoveTextSelectionAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityTextUnit as VmAggregateCodec>::encode_with_context(self.unit, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.count, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.extend, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.extend, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9436,73 +9379,73 @@ impl VmAggregateCodec for AccessibilityNodeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 16 {
+        let field_count = value_ref.field_count();
+        if field_count != 16 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 16 fields",
             ))
             .boxed());
         }
-        let field_id = <AccessibilityNodeId as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <AccessibilityNodeId as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_role = <AccessibilityRole as VmAggregateCodec>::decode_component_with_context(
+        let field_role = <AccessibilityRole as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_child_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_bounds =
-            <Option<AccessibilityNodeBoundsVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityNodeBoundsVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
         let field_description =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
-        let field_help =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+        let field_help = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         let field_value =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_role_description =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_key_shortcuts =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_language_tag =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
-        let field_url =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 11,
-            )?;
+        let field_url = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 11,
+        )?;
         let field_state =
-            <AccessibilityNodeStateVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityNodeStateVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_text =
-            <Option<AccessibilityTextStateVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTextStateVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
         let field_relations =
-            <AccessibilityNodeRelationsVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityNodeRelationsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 14,
             )?;
-        let field_custom_actions = <VmSlice<AccessibilityCustomActionVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+        let field_custom_actions =
+            <VmSlice<AccessibilityCustomActionVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 15,
+            )?;
         Ok(Self {
             id: field_id,
             role: field_role,
@@ -9528,113 +9471,111 @@ impl VmAggregateCodec for AccessibilityNodeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityNode")
+            .begin_named_aggregate_builder("accessibility::AccessibilityNode")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityNodeId as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilityRole as VmAggregateCodec>::encode_with_context(self.role, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.child_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.child_ids,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityNodeBoundsVm> as VmAggregateCodec>::encode_with_context(
                 self.bounds,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.description,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.help, context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.value, context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.role_description,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.key_shortcuts,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.language_tag,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.url, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityNodeStateVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityNodeStateVm as VmAggregateCodec>::encode_with_context(
             self.state, context,
         )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityTextStateVm> as VmAggregateCodec>::encode_with_context(
                 self.text, context,
             )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityNodeRelationsVm as VmAggregateCodec>::encode_with_context(
-                self.relations,
-                context,
-            )?;
+        let field_value = <AccessibilityNodeRelationsVm as VmAggregateCodec>::encode_with_context(
+            self.relations,
+            context,
+        )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<AccessibilityCustomActionVm> as VmAggregateCodec>::encode_with_context(
                 self.custom_actions,
                 context,
             )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9904,22 +9845,20 @@ impl VmAggregateCodec for AccessibilityNodeBounds {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_y = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -9933,23 +9872,23 @@ impl VmAggregateCodec for AccessibilityNodeBounds {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityNodeBounds")
+            .begin_named_aggregate_builder("accessibility::AccessibilityNodeBounds")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10054,8 +9993,8 @@ impl VmAggregateCodec for AccessibilityNodeRelationsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 10 {
+        let field_count = value_ref.field_count();
+        if field_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
@@ -10063,43 +10002,43 @@ impl VmAggregateCodec for AccessibilityNodeRelationsAbi<VmAbi> {
             .boxed());
         }
         let field_active_descendant_id =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_controlled_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_column_header_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_described_by_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_details_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_error_message_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_flow_to_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_labeled_by_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_owned_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_row_header_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         Ok(Self {
@@ -10121,87 +10060,77 @@ impl VmAggregateCodec for AccessibilityNodeRelationsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityNodeRelations")
+            .begin_named_aggregate_builder("accessibility::AccessibilityNodeRelations")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.active_descendant_id,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.active_descendant_id,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.controlled_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.controlled_ids,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.column_header_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.column_header_ids,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.described_by_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.described_by_ids,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.details_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.details_ids,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.error_message_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.error_message_ids,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.flow_to_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.flow_to_ids,
+            context,
+        )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.labeled_by_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.labeled_by_ids,
+            context,
+        )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.owned_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.owned_ids,
+            context,
+        )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.row_header_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.row_header_ids,
+            context,
+        )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10534,8 +10463,8 @@ impl VmAggregateCodec for AccessibilityNodeStateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 29 {
+        let field_count = value_ref.field_count();
+        if field_count != 29 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 29 fields",
@@ -10543,79 +10472,87 @@ impl VmAggregateCodec for AccessibilityNodeStateAbi<VmAbi> {
             .boxed());
         }
         let field_checked =
-            <Option<AccessibilityTristate> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTristate> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_pressed =
-            <Option<AccessibilityTristate> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTristate> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_current =
-            <Option<AccessibilityCurrentKind> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityCurrentKind> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_invalid =
-            <Option<AccessibilityInvalidKind> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityInvalidKind> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_auto_complete =
-            <Option<AccessibilityAutoComplete> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityAutoComplete> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_has_popup =
-            <Option<AccessibilityHasPopup> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityHasPopup> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_orientation =
-            <Option<AccessibilityOrientation> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityOrientation> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
-        let field_live = <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_live = <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_relevant =
-            <AccessibilityRelevantFlags as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityRelevantFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
-        let field_sort = <Option<AccessibilitySortDirection> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
-        let field_level = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 10,
-        )?;
+        let field_sort =
+            <Option<AccessibilitySortDirection> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 9,
+            )?;
+        let field_level =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_value_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         let field_range_value =
-            <Option<AccessibilityRangeValueVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityRangeValueVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
-        let field_collection = <Option<AccessibilityCollectionInfoVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
-        let field_collection_item = <Option<AccessibilityCollectionItemInfoVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
-        let field_scroll = <Option<AccessibilityScrollStateVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+        let field_collection =
+            <Option<AccessibilityCollectionInfoVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 13,
+            )?;
+        let field_collection_item = <Option<AccessibilityCollectionItemInfoVm> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
+        let field_scroll =
+            <Option<AccessibilityScrollStateVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 15,
+            )?;
         let field_is_atomic =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_is_busy =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_is_disabled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 18)?;
         let field_is_hidden =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 19)?;
         let field_is_expanded =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 20)?;
         let field_is_focusable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_is_focused =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 22)?;
         let field_is_modal =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 23)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 23)?;
         let field_is_editable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 24)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 24)?;
         let field_is_read_only =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 25)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 25)?;
         let field_is_required =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 26)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 26)?;
         let field_is_selected =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 27)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 27)?;
         let field_is_visited =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 28)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 28)?;
         Ok(Self {
             checked: field_checked,
             pressed: field_pressed,
@@ -10654,194 +10591,186 @@ impl VmAggregateCodec for AccessibilityNodeStateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityNodeState")
+            .begin_named_aggregate_builder("accessibility::AccessibilityNodeState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityTristate> as VmAggregateCodec>::encode_with_context(
-                self.checked,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityTristate> as VmAggregateCodec>::encode_with_context(
+            self.checked,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityTristate> as VmAggregateCodec>::encode_with_context(
-                self.pressed,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityTristate> as VmAggregateCodec>::encode_with_context(
+            self.pressed,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityCurrentKind> as VmAggregateCodec>::encode_with_context(
                 self.current,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityInvalidKind> as VmAggregateCodec>::encode_with_context(
                 self.invalid,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityAutoComplete> as VmAggregateCodec>::encode_with_context(
                 self.auto_complete,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityHasPopup> as VmAggregateCodec>::encode_with_context(
-                self.has_popup,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityHasPopup> as VmAggregateCodec>::encode_with_context(
+            self.has_popup,
+            context,
+        )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityOrientation> as VmAggregateCodec>::encode_with_context(
                 self.orientation,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::encode_with_context(
                 self.live, context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityRelevantFlags as VmAggregateCodec>::encode_with_context(
-                self.relevant,
-                context,
-            )?;
+        let field_value = <AccessibilityRelevantFlags as VmAggregateCodec>::encode_with_context(
+            self.relevant,
+            context,
+        )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilitySortDirection> as VmAggregateCodec>::encode_with_context(
                 self.sort, context,
             )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.level, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.value_text,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityRangeValueVm> as VmAggregateCodec>::encode_with_context(
                 self.range_value,
                 context,
             )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityCollectionInfoVm> as VmAggregateCodec>::encode_with_context(
                 self.collection,
                 context,
             )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityCollectionItemInfoVm> as VmAggregateCodec>::encode_with_context(
                 self.collection_item,
                 context,
             )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityScrollStateVm> as VmAggregateCodec>::encode_with_context(
                 self.scroll,
                 context,
             )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_atomic, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_atomic, context)?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_busy, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_busy, context)?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_disabled, context)?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_hidden, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_hidden, context)?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_expanded, context)?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_focusable, context)?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_focused, context)?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_modal, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_modal, context)?;
         value_builder
-            .write_component(23, component_value)
+            .write_field(23, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_editable, context)?;
         value_builder
-            .write_component(24, component_value)
+            .write_field(24, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_read_only, context)?;
         value_builder
-            .write_component(25, component_value)
+            .write_field(25, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_required, context)?;
         value_builder
-            .write_component(26, component_value)
+            .write_field(26, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_selected, context)?;
         value_builder
-            .write_component(27, component_value)
+            .write_field(27, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_visited, context)?;
         value_builder
-            .write_component(28, component_value)
+            .write_field(28, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11284,8 +11213,8 @@ impl VmAggregateCodec for AccessibilityNotificationAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -11293,20 +11222,19 @@ impl VmAggregateCodec for AccessibilityNotificationAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <AccessibilityNotificationKind as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityNotificationKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_node_id =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_politeness = <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_politeness = <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_text_range =
-            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -11323,44 +11251,42 @@ impl VmAggregateCodec for AccessibilityNotificationAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityNotification")
+            .begin_named_aggregate_builder("accessibility::AccessibilityNotification")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityNotificationKind as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?;
+        let field_value = <AccessibilityNotificationKind as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.node_id,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.node_id,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityLiveRegionPoliteness> as VmAggregateCodec>::encode_with_context(
                 self.politeness,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.text_range,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11528,27 +11454,23 @@ impl VmAggregateCodec for AccessibilityRangeValueAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_min = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_min =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_max =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_now =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
-        let field_max = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_now = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
         Ok(Self {
             min: field_min,
             max: field_max,
@@ -11562,28 +11484,28 @@ impl VmAggregateCodec for AccessibilityRangeValueAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityRangeValue")
+            .begin_named_aggregate_builder("accessibility::AccessibilityRangeValue")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.min, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.max, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.now, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11704,19 +11626,19 @@ impl VmAggregateCodec for AccessibilityRemoveFromSelectionActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -11730,22 +11652,19 @@ impl VmAggregateCodec for AccessibilityRemoveFromSelectionActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityRemoveFromSelectionAction",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityRemoveFromSelectionAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11867,22 +11786,22 @@ impl VmAggregateCodec for AccessibilityReplaceSelectedTextActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         Ok(Self {
@@ -11897,27 +11816,24 @@ impl VmAggregateCodec for AccessibilityReplaceSelectedTextActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilityReplaceSelectedTextAction",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilityReplaceSelectedTextAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12043,23 +11959,23 @@ impl VmAggregateCodec for AccessibilityScrollActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_direction =
-            <AccessibilityScrollDirection as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityScrollDirection as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -12074,28 +11990,26 @@ impl VmAggregateCodec for AccessibilityScrollActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityScrollAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityScrollAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityScrollDirection as VmAggregateCodec>::encode_with_context(
-                self.direction,
-                context,
-            )?;
+        let field_value = <AccessibilityScrollDirection as VmAggregateCodec>::encode_with_context(
+            self.direction,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12230,19 +12144,19 @@ impl VmAggregateCodec for AccessibilityScrollIntoViewActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -12256,20 +12170,19 @@ impl VmAggregateCodec for AccessibilityScrollIntoViewActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityScrollIntoViewAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityScrollIntoViewAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12376,8 +12289,8 @@ impl VmAggregateCodec for AccessibilityScrollState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -12385,27 +12298,19 @@ impl VmAggregateCodec for AccessibilityScrollState {
             .boxed());
         }
         let field_is_scrollable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_x = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_y = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_max_x = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
-        let field_max_y = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_x =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_y =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_max_x =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_max_y =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_viewport_width =
-            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_viewport_height =
-            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             is_scrollable: field_is_scrollable,
             x: field_x,
@@ -12422,42 +12327,40 @@ impl VmAggregateCodec for AccessibilityScrollState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityScrollState")
+            .begin_named_aggregate_builder("accessibility::AccessibilityScrollState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_scrollable, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <Option<f64> as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <Option<f64> as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.max_x, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.max_y, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.viewport_width, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.viewport_height, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12552,27 +12455,27 @@ impl VmAggregateCodec for AccessibilityScrollTextRangeIntoViewActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_align_to_start =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12586,33 +12489,32 @@ impl VmAggregateCodec for AccessibilityScrollTextRangeIntoViewActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilityScrollTextRangeIntoViewAction",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.align_to_start, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12742,19 +12644,19 @@ impl VmAggregateCodec for AccessibilitySelectActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -12768,20 +12670,19 @@ impl VmAggregateCodec for AccessibilitySelectActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilitySelectAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilitySelectAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12901,23 +12802,23 @@ impl VmAggregateCodec for AccessibilitySetNumericValueActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_value =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12930,24 +12831,23 @@ impl VmAggregateCodec for AccessibilitySetNumericValueActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilitySetNumericValueAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilitySetNumericValueAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13077,25 +12977,25 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangeActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_anchor_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_focus_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -13109,32 +13009,29 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangeActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
-                "accessibility::AccessibilitySetSelectedTextRangeAction",
-            )
+            .begin_named_aggregate_builder("accessibility::AccessibilitySetSelectedTextRangeAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.anchor_offset, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.focus_offset, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13268,22 +13165,25 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangesActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_selections = <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_selections =
+            <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -13296,30 +13196,29 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangesActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder(
+            .begin_named_aggregate_builder(
                 "accessibility::AccessibilitySetSelectedTextRangesAction",
             )
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::encode_with_context(
                 self.selections,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13458,22 +13357,22 @@ impl VmAggregateCodec for AccessibilitySetTextValueActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         Ok(Self {
@@ -13488,25 +13387,24 @@ impl VmAggregateCodec for AccessibilitySetTextValueActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilitySetTextValueAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilitySetTextValueAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13630,19 +13528,19 @@ impl VmAggregateCodec for AccessibilityShowMenuActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13656,20 +13554,19 @@ impl VmAggregateCodec for AccessibilityShowMenuActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityShowMenuAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityShowMenuAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13795,8 +13692,8 @@ impl VmAggregateCodec for AccessibilityTextDocumentAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -13804,19 +13701,25 @@ impl VmAggregateCodec for AccessibilityTextDocumentAbi<VmAbi> {
             .boxed());
         }
         let field_revision =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_document_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_supported_selection = <AccessibilitySupportedTextSelection as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_supported_selection =
+            <AccessibilitySupportedTextSelection as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
+            )?;
         let field_supported_units =
-            <AccessibilityTextUnitFlags as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextUnitFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
-        let field_selections = <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_selections =
+            <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 4,
+            )?;
         let field_visible_ranges =
-            <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         Ok(Self {
@@ -13834,51 +13737,49 @@ impl VmAggregateCodec for AccessibilityTextDocumentAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextDocument")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextDocument")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.revision, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.revision, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.document_range,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AccessibilitySupportedTextSelection as VmAggregateCodec>::encode_with_context(
                 self.supported_selection,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityTextUnitFlags as VmAggregateCodec>::encode_with_context(
-                self.supported_units,
-                context,
-            )?;
+        let field_value = <AccessibilityTextUnitFlags as VmAggregateCodec>::encode_with_context(
+            self.supported_units,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<AccessibilityTextSelectionVm> as VmAggregateCodec>::encode_with_context(
                 self.selections,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.visible_ranges,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14050,8 +13951,8 @@ impl VmAggregateCodec for AccessibilityTextRange {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14059,9 +13960,9 @@ impl VmAggregateCodec for AccessibilityTextRange {
             .boxed());
         }
         let field_start_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_end_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             start_offset: field_start_offset,
             end_offset: field_end_offset,
@@ -14073,17 +13974,16 @@ impl VmAggregateCodec for AccessibilityTextRange {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextRange")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.start_offset, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.end_offset, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.end_offset, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14155,22 +14055,20 @@ impl VmAggregateCodec for AccessibilityTextRect {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_x =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_y =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_y = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_width =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_height =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -14184,23 +14082,23 @@ impl VmAggregateCodec for AccessibilityTextRect {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextRect")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextRect")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14268,8 +14166,8 @@ impl VmAggregateCodec for AccessibilityTextSelection {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14277,9 +14175,9 @@ impl VmAggregateCodec for AccessibilityTextSelection {
             .boxed());
         }
         let field_anchor_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_focus_offset =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             anchor_offset: field_anchor_offset,
             focus_offset: field_focus_offset,
@@ -14291,17 +14189,17 @@ impl VmAggregateCodec for AccessibilityTextSelection {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextSelection")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextSelection")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.anchor_offset, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.focus_offset, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14410,8 +14308,8 @@ impl VmAggregateCodec for AccessibilityTextStateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 12 {
+        let field_count = value_ref.field_count();
+        if field_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
@@ -14419,40 +14317,39 @@ impl VmAggregateCodec for AccessibilityTextStateAbi<VmAbi> {
             .boxed());
         }
         let field_value =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_caret_offset = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_selection = <Option<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_caret_offset =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_selection =
+            <Option<AccessibilityTextSelectionVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
+            )?;
         let field_selected_ranges =
-            <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_visible_range =
-            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_character_count =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
-        let field_line_count = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_line_count =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_placeholder =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_is_multiline =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_is_password =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_is_editable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_is_selectable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         Ok(Self {
             value: field_value,
             caret_offset: field_caret_offset,
@@ -14474,79 +14371,79 @@ impl VmAggregateCodec for AccessibilityTextStateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextState")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.value, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.caret_offset, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityTextSelectionVm> as VmAggregateCodec>::encode_with_context(
                 self.selection,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<AccessibilityTextRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.selected_ranges,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<AccessibilityTextRangeVm> as VmAggregateCodec>::encode_with_context(
                 self.visible_range,
                 context,
             )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.character_count, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.line_count, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.placeholder,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_multiline, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_password, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_editable, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_selectable, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14798,8 +14695,8 @@ impl VmAggregateCodec for AccessibilityTextStyleRunAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 15 {
+        let field_count = value_ref.field_count();
+        if field_count != 15 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 15 fields",
@@ -14807,47 +14704,41 @@ impl VmAggregateCodec for AccessibilityTextStyleRunAbi<VmAbi> {
             .boxed());
         }
         let field_range =
-            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityTextRangeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_language_tag =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_font_family =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_font_size_points =
-            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_foreground_color_rgba =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_background_color_rgba =
-            <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_is_bold =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_is_italic =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_is_underline =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_is_struck_through =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_is_superscript =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_is_subscript =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_is_misspelled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         let field_is_grammar_error =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 13)?;
         let field_link_url =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 14,
             )?;
         Ok(Self {
@@ -14874,93 +14765,91 @@ impl VmAggregateCodec for AccessibilityTextStyleRunAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTextStyleRun")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTextStyleRun")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AccessibilityTextRangeVm as VmAggregateCodec>::encode_with_context(
             self.range, context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.language_tag,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.font_family,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.font_size_points, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.foreground_color_rgba,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u32> as VmAggregateCodec>::encode_with_context(
             self.background_color_rgba,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_bold, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_bold, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_italic, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_italic, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_underline, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_struck_through, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_superscript, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_subscript, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_misspelled, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_grammar_error, context)?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.link_url,
             context,
         )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15215,19 +15104,19 @@ impl VmAggregateCodec for AccessibilityToggleActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <AccessibilityActionMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -15241,20 +15130,19 @@ impl VmAggregateCodec for AccessibilityToggleActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityToggleAction")
+            .begin_named_aggregate_builder("accessibility::AccessibilityToggleAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <AccessibilityActionMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15377,8 +15265,8 @@ impl VmAggregateCodec for AccessibilityTreeUpdateAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -15386,19 +15274,19 @@ impl VmAggregateCodec for AccessibilityTreeUpdateAbi<VmAbi> {
             .boxed());
         }
         let field_root_node_id =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_focused_node_id =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <Option<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_nodes =
-            <VmSlice<AccessibilityNodeVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_removed_node_ids =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -15414,38 +15302,34 @@ impl VmAggregateCodec for AccessibilityTreeUpdateAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("accessibility::AccessibilityTreeUpdate")
+            .begin_named_aggregate_builder("accessibility::AccessibilityTreeUpdate")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.root_node_id,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.root_node_id,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.focused_node_id,
-                context,
-            )?;
+        let field_value = <Option<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.focused_node_id,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeVm> as VmAggregateCodec>::encode_with_context(
-                self.nodes, context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeVm> as VmAggregateCodec>::encode_with_context(
+            self.nodes, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
-                self.removed_node_ids,
-                context,
-            )?;
+        let field_value = <VmSlice<AccessibilityNodeId> as VmAggregateCodec>::encode_with_context(
+            self.removed_node_ids,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16379,100 +16263,124 @@ pub const ACCESSIBILITY_TEXT_UNIT_PARAGRAPH: AccessibilityTextUnitFlags =
 pub const ACCESSIBILITY_TEXT_UNIT_WORD: AccessibilityTextUnitFlags =
     AccessibilityTextUnitFlags(4u32);
 
-/// Register VM storage schemas for accessibility.
-pub(crate) fn register_accessibility_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("accessibility::AccessibilityActionMetadata", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityActionOpenOptions", 1)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityActivateAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityAddToSelectionAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityClearSelectionAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityCollapseAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityCollectionInfo", 4)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityCollectionItemInfo", 7)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityCustomAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityCustomActionInvocation", 3)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDecrementAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDismissAction", 2)?;
-    isolate.register_named_storage_type(
+/// Register VM aggregate schemas for accessibility.
+pub(crate) fn register_accessibility_vm_aggregate_types(
+    isolate: &mut vm::Isolate,
+) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("accessibility::AccessibilityActionMetadata", 5)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityActionOpenOptions", 1)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityActivateAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityAddToSelectionAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityClearSelectionAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityCollapseAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityCollectionInfo", 4)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityCollectionItemInfo", 7)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityCustomAction", 2)?;
+    isolate
+        .register_named_aggregate_type("accessibility::AccessibilityCustomActionInvocation", 3)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDecrementAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDismissAction", 2)?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityDocumentEmbeddedObjectsResponse",
         5,
     )?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentOpenOptions", 1)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQueryMetadata", 7)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDocumentOpenOptions", 1)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentRangeAtPointQuery", 4)?;
-    isolate.register_named_storage_type(
+        .register_named_aggregate_type("accessibility::AccessibilityDocumentQueryMetadata", 7)?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityDocumentRangeAtPointQuery",
+        4,
+    )?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityDocumentRangeBoundsResponse",
         5,
     )?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityDocumentRangeForChildQuery",
+        3,
+    )?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityDocumentRangeForUnitQuery",
+        4,
+    )?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentRangeForChildQuery", 3)?;
+        .register_named_aggregate_type("accessibility::AccessibilityDocumentRangeResponse", 5)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentRangeForUnitQuery", 4)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangeResponse", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentRangesResponse", 5)?;
-    isolate.register_named_storage_type(
+        .register_named_aggregate_type("accessibility::AccessibilityDocumentRangesResponse", 5)?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
         3,
     )?;
-    isolate.register_named_storage_type(
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
         3,
     )?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityDocumentReadStyleRunsQuery",
+        3,
+    )?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentReadStyleRunsQuery", 3)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentReadTextQuery", 3)?;
-    isolate.register_named_storage_type(
+        .register_named_aggregate_type("accessibility::AccessibilityDocumentReadTextQuery", 3)?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityDocumentReadUnitRangesQuery",
         4,
     )?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityDocumentStyleRunsResponse",
+        5,
+    )?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDocumentTextResponse", 5)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityEmbeddedObject", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityExpandAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityFocusAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityIncrementAction", 2)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilityDocumentStyleRunsResponse", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentTextResponse", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityEmbeddedObject", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityExpandAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityFocusAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityIncrementAction", 2)?;
-    isolate
-        .register_named_storage_type("accessibility::AccessibilityMoveTextSelectionAction", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityNode", 16)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeBounds", 4)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeRelations", 10)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityNodeState", 29)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityNotification", 5)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityRangeValue", 4)?;
-    isolate
-        .register_named_storage_type("accessibility::AccessibilityRemoveFromSelectionAction", 2)?;
-    isolate
-        .register_named_storage_type("accessibility::AccessibilityReplaceSelectedTextAction", 3)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollAction", 3)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollIntoViewAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityScrollState", 7)?;
-    isolate.register_named_storage_type(
+        .register_named_aggregate_type("accessibility::AccessibilityMoveTextSelectionAction", 5)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityNode", 16)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityNodeBounds", 4)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityNodeRelations", 10)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityNodeState", 29)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityNotification", 5)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityRangeValue", 4)?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityRemoveFromSelectionAction",
+        2,
+    )?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilityReplaceSelectedTextAction",
+        3,
+    )?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityScrollAction", 3)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityScrollIntoViewAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityScrollState", 7)?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilityScrollTextRangeIntoViewAction",
         4,
     )?;
-    isolate.register_named_storage_type("accessibility::AccessibilitySelectAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilitySetNumericValueAction", 3)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilitySelectAction", 2)?;
     isolate
-        .register_named_storage_type("accessibility::AccessibilitySetSelectedTextRangeAction", 4)?;
-    isolate.register_named_storage_type(
+        .register_named_aggregate_type("accessibility::AccessibilitySetNumericValueAction", 3)?;
+    isolate.register_named_aggregate_type(
+        "accessibility::AccessibilitySetSelectedTextRangeAction",
+        4,
+    )?;
+    isolate.register_named_aggregate_type(
         "accessibility::AccessibilitySetSelectedTextRangesAction",
         3,
     )?;
-    isolate.register_named_storage_type("accessibility::AccessibilitySetTextValueAction", 3)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityShowMenuAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextDocument", 6)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextRange", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextRect", 4)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextSelection", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextState", 12)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTextStyleRun", 15)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityToggleAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityTreeUpdate", 4)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityAction", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentQuery", 2)?;
-    isolate.register_named_storage_type("accessibility::AccessibilityDocumentResponse", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilitySetTextValueAction", 3)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityShowMenuAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextDocument", 6)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextRange", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextRect", 4)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextSelection", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextState", 12)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTextStyleRun", 15)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityToggleAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityTreeUpdate", 4)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityAction", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDocumentQuery", 2)?;
+    isolate.register_named_aggregate_type("accessibility::AccessibilityDocumentResponse", 2)?;
 
     Ok(())
 }

@@ -1,9 +1,9 @@
 use destack_core::{ImmutableStringPool, LocalStringPool};
+use destack_mir::NodeTree;
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{NodeTree, TypeAlias};
 use destack_source::FileId;
 use destack_vm as vm;
-use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
+use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions};
 
 #[cfg(test)]
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
@@ -18,12 +18,12 @@ use crate::platform::random::{
 };
 use crate::runtime::bindings::BindingEngine;
 use crate::runtime::{
-    Worker, BindingCallContext, World, WorldRef, enter_binding_call_context,
+    BindingCallContext, Worker, World, WorldRef, enter_binding_call_context,
     enter_current_worker_context,
 };
 
 /// The canonical string type fixture used by runtime VM tests.
-const STRING_TYPE_ALIAS: &str = "type String {\n    lengthUtf16: uint32;\n    lengthBytes: uint32;\n    data: ref<uint8, raw>;\n}\n";
+const STRING_TYPE_ALIAS: &str = "type String {\n    lengthUtf16: uint32;\n    lengthBytes: uint32;\n    data: slice<uint8, readonly>;\n}\n";
 
 /// Runtime harness for runtime tests.
 pub(crate) struct TestRuntime {
@@ -85,15 +85,10 @@ impl TestRuntime {
         ));
 
         // deterministic random options
-        let mut options = RuntimeOptions {
-            execution: ExecutionMode::Fast,
-            random: RandomOptions {
-                mode: RandomMode::Deterministic,
-                seed: Some(0),
-                ..RandomOptions::default()
-            },
-            ..RuntimeOptions::default()
-        };
+        let mut options = RuntimeOptions::default();
+        options.set_execution_mode(ExecutionMode::Fast);
+        options.set_random_mode(RandomMode::Deterministic);
+        options.simulation.random.seed = Some(0);
         options.crypto.host_store_paths.user = Some(user_store_path);
 
         options
@@ -115,8 +110,8 @@ impl TestRuntime {
         // worker execution isolate
         let agent_tree = NodeTree::new();
         let agent_strings = LocalStringPool::new().into_immutable();
-        let agent_engine =
-            vm::Isolate::build(agent_tree, agent_strings).expect("worker engine should build");
+        let agent_engine = vm::Isolate::build(vm::IsolateId::new(1), agent_tree, agent_strings)
+            .expect("worker engine should build");
 
         let world_ref = world.world_ref();
         let mut worker =
@@ -130,14 +125,36 @@ impl TestRuntime {
 
         // vm binding isolate
         let (tree, strings) = test_vm_isolate_module();
-        let mut vm_isolate =
-            vm::Isolate::build(tree, strings).expect("test vm isolate should build");
+        let mut vm_isolate = vm::Isolate::build(vm::IsolateId::new(2), tree, strings)
+            .expect("test vm isolate should build");
         worker
             .bindings
             .install_vm_defaults(&mut vm_isolate)
             .expect("test vm bindings should install");
-        let vm_heap = vm::Heap::new().expect("default heap should build");
-        let vm_shared = vm::SharedHeap::default();
+        let vm_heap = vm::Heap::with_allocator_limits_and_options(
+            std::sync::Arc::new(
+                vm::Allocator::try_new(
+                    vm::HeapOptions::local().page_bytes,
+                    vm::HeapOptions::local().allocator_arena_bytes,
+                )
+                .expect("test vm allocator should build"),
+            ),
+            vm::HeapLimits::default(),
+            vm::HeapOptions::local(),
+        )
+        .expect("test vm heap should build");
+        let vm_shared = vm::SharedHeap::with_allocator_limits_and_options(
+            std::sync::Arc::new(
+                vm::Allocator::try_new(
+                    vm::HeapOptions::shared().page_bytes,
+                    vm::HeapOptions::shared().allocator_arena_bytes,
+                )
+                .expect("test shared allocator should build"),
+            ),
+            vm::SharedHeapLimits::default(),
+            vm::HeapOptions::shared(),
+        )
+        .expect("test vm shared heap should build");
 
         Self {
             world,
@@ -222,8 +239,7 @@ impl TestRuntime {
         let mut isolate = self.vm_isolate.borrow_mut();
         let mut heap = self.vm_heap.borrow_mut();
         let mut shared = self.vm_shared.borrow_mut();
-        let mut memory = vm::MemoryContext::new(&mut heap, &mut shared);
-        isolate.with_runtime_context(&mut memory, |context| {
+        isolate.with_runtime_context(&mut heap, &mut shared, Default::default(), |context| {
             let call_context = BindingCallContext::from_raw(
                 self.worker.as_ref() as *const Worker,
                 self.worker.event_loop.as_ref() as *const _,
@@ -306,23 +322,36 @@ impl TestRuntime {
 
 /// Build the minimal MIR module required for one VM binding test isolate.
 fn test_vm_isolate_module() -> (NodeTree, ImmutableStringPool) {
-    let (mut tree, strings) =
-        Parser::parse(FileId::new(0), STRING_TYPE_ALIAS, ParseOptions::default())
-            .validate()
-            .expect("runtime vm test isolate should parse");
-
-    // keep runtime VM tests explicit about the well known String contract
-    let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
-        if strings.get(type_alias.name) == "String" {
-            type_alias.ty.ty()
-        } else {
-            None
-        }
-    });
-
-    if let Some(string_type) = string_type {
-        tree.metadata.layout.set_string_type(string_type);
-    }
+    let (tree, strings) = Parser::parse(FileId::new(0), STRING_TYPE_ALIAS, ParseOptions::default())
+        .validate()
+        .expect("runtime vm test isolate should parse");
 
     (tree, strings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TestRuntime;
+    use crate::platform::VmSlice;
+    use destack_heap::HeapReference;
+
+    /// Empty heap backed slices use one null backing reference.
+    #[test]
+    fn test_empty_vm_slice_uses_null_heap_backing() {
+        let mut runtime = TestRuntime::deterministic_random();
+
+        runtime.with_vm_call_context(|_binding, context| {
+            let slice =
+                VmSlice::<u32>::from_values(&mut context.write(), &[]).expect("slice should build");
+
+            assert_eq!(slice.len, 0);
+            assert_eq!(slice.data.as_heap_reference(), Some(HeapReference::NULL));
+
+            let values = slice
+                .read_values(&context.read())
+                .expect("slice should read");
+
+            assert!(values.is_empty());
+        });
+    }
 }

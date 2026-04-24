@@ -295,6 +295,7 @@ pub(crate) unsafe fn destack_runtime_world_tick(
         TickOutcome::Idle => RuntimeTickOutcome::Idle,
         TickOutcome::Progressed => RuntimeTickOutcome::Progressed,
         TickOutcome::AdvancedTime => RuntimeTickOutcome::AdvancedTime,
+        TickOutcome::Concurrent => RuntimeTickOutcome::Progressed,
     };
 
     unsafe {

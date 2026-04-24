@@ -78,10 +78,10 @@ impl<'a> ModuleCodegen<'a> {
         )
     }
 
-    /// Build the VM storage registration helper name for this module.
-    pub(super) fn register_storage_types_fn_name(&self) -> String {
+    /// Build the VM aggregate registration helper name for this module.
+    pub(super) fn register_aggregate_types_fn_name(&self) -> String {
         format!(
-            "register_{}_vm_storage_types",
+            "register_{}_vm_aggregate_types",
             Self::sanitize_module_name(self.module)
         )
     }

@@ -382,48 +382,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityActivateAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityActivateAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -443,48 +441,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityAddToSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -504,48 +502,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityClearSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -565,48 +563,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityCollapseAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityCollapseAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -626,52 +622,52 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityCustomActionInvocation",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -691,48 +687,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDecrementAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -752,48 +748,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityDismissAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityDismissAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -813,48 +807,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityExpandAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityExpandAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -874,48 +866,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityFocusAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityFocusAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -935,48 +925,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityIncrementAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -996,24 +986,24 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1023,35 +1013,35 @@ fn encode_destack_accessibility_action_read_result(
                         Ok(vm::Value::int(value.count as i64, 32));
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityMoveTextSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1071,48 +1061,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityRemoveFromSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1132,52 +1122,52 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityReplaceSelectedTextAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1197,53 +1187,51 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.direction as i32 as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityScrollAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityScrollAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1263,48 +1251,48 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityScrollIntoViewAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1324,24 +1312,24 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1351,47 +1339,45 @@ fn encode_destack_accessibility_action_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.align_to_start));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityScrollTextRangeIntoViewAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1411,48 +1397,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilitySelectAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilitySelectAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1472,52 +1456,52 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetNumericValueAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1537,24 +1521,24 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -1563,32 +1547,32 @@ fn encode_destack_accessibility_action_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetSelectedTextRangeAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1608,52 +1592,52 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetSelectedTextRangesAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1673,52 +1657,52 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetTextValueAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1738,48 +1722,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityShowMenuAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityShowMenuAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1799,48 +1781,46 @@ fn encode_destack_accessibility_action_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityToggleAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityToggleAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1890,48 +1870,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityActivateAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityActivateAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -1951,48 +1929,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityAddToSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2012,48 +1990,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityClearSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2073,48 +2051,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityCollapseAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityCollapseAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2134,52 +2110,52 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityCustomActionInvocation",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2199,48 +2175,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDecrementAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2260,48 +2236,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityDismissAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityDismissAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2321,48 +2295,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityExpandAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityExpandAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2382,48 +2354,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityFocusAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityFocusAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2443,48 +2413,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityIncrementAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2504,24 +2474,24 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2531,35 +2501,35 @@ fn encode_destack_accessibility_action_try_read_result(
                         Ok(vm::Value::int(value.count as i64, 32));
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityMoveTextSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(4, field_4?)
+                        .write_field(4, field_4?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2579,48 +2549,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityRemoveFromSelectionAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2640,52 +2610,52 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityReplaceSelectedTextAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2705,53 +2675,51 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.direction as i32 as i64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityScrollAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityScrollAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2771,48 +2739,48 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityScrollIntoViewAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2832,24 +2800,24 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -2859,47 +2827,45 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.align_to_start));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityScrollTextRangeIntoViewAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2919,48 +2885,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilitySelectAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilitySelectAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2980,52 +2944,52 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetNumericValueAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3045,24 +3009,24 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3071,32 +3035,32 @@ fn encode_destack_accessibility_action_try_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetSelectedTextRangeAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3116,52 +3080,52 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetSelectedTextRangesAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3181,52 +3145,52 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilitySetTextValueAction",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3246,48 +3210,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityShowMenuAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityShowMenuAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3307,48 +3269,46 @@ fn encode_destack_accessibility_action_try_read_result(
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityActionMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
-                            "accessibility::AccessibilityToggleAction",
-                        )
+                        .begin_named_aggregate_builder("accessibility::AccessibilityToggleAction")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityAction")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3488,62 +3448,62 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeAtPointQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3570,59 +3530,59 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.child_node_id.0, 64));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeForChildQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3649,30 +3609,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3681,32 +3641,32 @@ fn encode_destack_accessibility_document_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.offset as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeForUnitQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3733,30 +3693,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3766,42 +3726,40 @@ fn encode_destack_accessibility_document_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3828,30 +3786,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3861,42 +3819,40 @@ fn encode_destack_accessibility_document_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3923,30 +3879,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -3956,42 +3912,40 @@ fn encode_destack_accessibility_document_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadStyleRunsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4018,30 +3972,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4051,42 +4005,40 @@ fn encode_destack_accessibility_document_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadTextQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4113,30 +4065,30 @@ fn encode_destack_accessibility_document_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4148,45 +4100,43 @@ fn encode_destack_accessibility_document_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadUnitRangesQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4313,62 +4263,62 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeAtPointQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4395,59 +4345,59 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.child_node_id.0, 64));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeForChildQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4474,30 +4424,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4506,32 +4456,32 @@ fn encode_destack_accessibility_document_try_read_result(
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.offset as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentRangeForUnitQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4558,30 +4508,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4591,42 +4541,40 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4653,30 +4601,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4686,42 +4634,40 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4748,30 +4694,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4781,42 +4727,40 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadStyleRunsQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4843,30 +4787,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4876,42 +4820,40 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadTextQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4938,30 +4880,30 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
+                            .begin_named_aggregate_builder(
                                 "accessibility::AccessibilityDocumentQueryMetadata",
                             )
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(2, field_2?)
+                            .write_field(2, field_2?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(3, field_3?)
+                            .write_field(3, field_3?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(4, field_4?)
+                            .write_field(4, field_4?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(5, field_5?)
+                            .write_field(5, field_5?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(6, field_6?)
+                            .write_field(6, field_6?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
@@ -4973,45 +4915,43 @@ fn encode_destack_accessibility_document_try_read_result(
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
                         let mut value_builder = context
-                            .begin_named_storage_value_builder(
-                                "accessibility::AccessibilityTextRange",
-                            )
+                            .begin_named_aggregate_builder("accessibility::AccessibilityTextRange")
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(0, field_0?)
+                            .write_field(0, field_0?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder
-                            .write_component(1, field_1?)
+                            .write_field(1, field_1?)
                             .map_err(Box::<RuntimeError>::from)?;
                         value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let mut value_builder = context
-                        .begin_named_storage_value_builder(
+                        .begin_named_aggregate_builder(
                             "accessibility::AccessibilityDocumentReadUnitRangesQuery",
                         )
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(3, field_3?)
+                        .write_field(3, field_3?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .begin_named_aggregate_builder("accessibility::AccessibilityDocumentQuery")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -10301,7 +10241,7 @@ fn destack_accessibility_action_read_vm_replay(
                             sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
                             dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.values(context)?;
                         let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
                         for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = <AccessibilityTextSelectionVm as VmAggregateCodec>::decode_with_context(context, result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value)?;
@@ -11440,7 +11380,7 @@ fn destack_accessibility_action_try_read_vm_replay(
                             sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
                             dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.values(context)?;
                         let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
                         for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = <AccessibilityTextSelectionVm as VmAggregateCodec>::decode_with_context(context, result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value)?;
@@ -14182,7 +14122,7 @@ pub(crate) fn install_accessibility_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_accessibility_vm_storage_types(isolate)?;
+    super::abi_generated::register_accessibility_vm_aggregate_types(isolate)?;
     register_accessibility_vm_bindings(registry, isolate);
 
     Ok(())

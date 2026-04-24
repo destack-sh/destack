@@ -211,13 +211,13 @@ fn encode_destack_ipc_message_queue_receive_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.priority as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("ipc::MessageQueueReceive")
+                .begin_named_aggregate_builder("ipc::MessageQueueReceive")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -325,13 +325,13 @@ fn encode_destack_ipc_pipe_open_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.read.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.write.0.0, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("ipc::PipePair")
+                .begin_named_aggregate_builder("ipc::PipePair")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -474,13 +474,13 @@ fn encode_destack_ipc_shared_memory_map_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("ipc::SharedMemoryMapping")
+                .begin_named_aggregate_builder("ipc::SharedMemoryMapping")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -710,32 +710,32 @@ fn encode_destack_ipc_unix_receive_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.gid as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("ipc::UnixPeerCredentials")
+                        .begin_named_aggregate_builder("ipc::UnixPeerCredentials")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("ipc::UnixReceiveAncillary")
+                .begin_named_aggregate_builder("ipc::UnixReceiveAncillary")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -4093,7 +4093,7 @@ fn destack_ipc_unix_receive_vm_replay(
             if let Ok(value) = result {
                 let result_value: UnixReceiveAncillaryVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
-                let result_recorded_handles_raw = result_value.handles.raw_values(context)?;
+                let result_recorded_handles_raw = result_value.handles.values(context)?;
                 let mut result_recorded_handles =
                     Vec::with_capacity(result_recorded_handles_raw.len());
                 for result_recorded_handles_item_value in result_recorded_handles_raw {
@@ -4704,7 +4704,7 @@ pub(crate) fn install_ipc_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_ipc_vm_storage_types(isolate)?;
+    super::abi_generated::register_ipc_vm_aggregate_types(isolate)?;
     register_ipc_vm_bindings(registry, isolate);
 
     Ok(())

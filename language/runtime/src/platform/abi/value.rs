@@ -32,19 +32,19 @@ pub trait VmAggregateCodec: Copy {
         .boxed())
     }
 
-    /// Decode one semantic component from one VM value view.
-    fn decode_component_with_context(
+    /// Decode one semantic field from one VM value view.
+    fn decode_field_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
         index: u32,
     ) -> RuntimeResult<Self> {
-        // prefer nested storage views when the component has one
-        if let Ok(component_ref) = value_ref.component_ref(index) {
-            return Self::decode_value_ref_with_context(context, &component_ref);
+        // prefer nested storage views when the field has one
+        if let Ok(field_ref) = value_ref.field_ref(index) {
+            return Self::decode_value_ref_with_context(context, &field_ref);
         }
 
         let value = value_ref
-            .component_value(index)
+            .field_value(index)
             .map_err(Box::<RuntimeError>::from)?;
 
         Self::decode_with_context(context, value)

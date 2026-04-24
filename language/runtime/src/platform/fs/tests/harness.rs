@@ -21,7 +21,7 @@ use crate::platform::fs::{
 use crate::platform::net::{self as core_net, AcceptFlags, SocketFamily, vm as platform_net_vm};
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
-use crate::tests::platform::{is_privileged_test_mode, vm_test_raw_values};
+use crate::tests::platform::{is_privileged_test_mode, vm_test_values};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -145,7 +145,7 @@ impl<'call> FsHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm dirents");
-                let raw = entries.raw_values(&context.read())?;
+                let raw = entries.values(&context.read())?;
                 let mut decoded = Vec::with_capacity(raw.len());
                 for value in raw {
                     let dirent = decode_dirent_vm(context, value)?;
@@ -235,7 +235,7 @@ impl<'call> FsHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm watch batch");
-                let raw = batch.events.raw_values(&context.read())?;
+                let raw = batch.events.values(&context.read())?;
                 let mut decoded = Vec::with_capacity(raw.len());
                 for value in raw {
                     let event = decode_watch_event_vm(context, value)?;
@@ -508,7 +508,7 @@ impl<'call> FsHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm nested byte-slice value");
-                let raw_values = value.raw_values(&context.read())?;
+                let raw_values = value.values(&context.read())?;
                 let mut buffers = Vec::with_capacity(raw_values.len());
                 for raw in raw_values {
                     let buffer = VmSlice::<u8>::from_value(
@@ -986,7 +986,7 @@ fn vm_slice_of_slices(
         .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()
         .expect("vm test slice values should encode");
-    let data = vm_test_raw_values(context, values);
+    let data = vm_test_values(context, values);
 
     VmSlice {
         data,

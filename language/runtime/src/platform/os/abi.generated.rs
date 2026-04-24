@@ -2128,23 +2128,23 @@ impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             2328661317u32 => Self::BackgroundTaskExpiredEvent(
-                <BackgroundTaskExpiredEventVm as VmAggregateCodec>::decode_component_with_context(
+                <BackgroundTaskExpiredEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             3682195369u32 => Self::BackgroundTaskReadyEvent(
-                <BackgroundTaskReadyEventVm as VmAggregateCodec>::decode_component_with_context(
+                <BackgroundTaskReadyEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -2172,13 +2172,13 @@ impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .begin_named_aggregate_builder("os::BackgroundEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2190,13 +2190,13 @@ impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .begin_named_aggregate_builder("os::BackgroundEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2336,23 +2336,23 @@ impl VmAggregateCodec for CalendarReminderAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             4217464285u32 => Self::CalendarAbsoluteReminder(
-                <CalendarAbsoluteReminderVm as VmAggregateCodec>::decode_component_with_context(
+                <CalendarAbsoluteReminderVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             1734430029u32 => Self::CalendarRelativeReminder(
-                <CalendarRelativeReminderVm as VmAggregateCodec>::decode_component_with_context(
+                <CalendarRelativeReminderVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -2380,13 +2380,13 @@ impl VmAggregateCodec for CalendarReminderAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::CalendarReminder")
+                    .begin_named_aggregate_builder("os::CalendarReminder")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2398,13 +2398,13 @@ impl VmAggregateCodec for CalendarReminderAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::CalendarReminder")
+                    .begin_named_aggregate_builder("os::CalendarReminder")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2550,38 +2550,38 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             3879189954u32 => Self::IntentCustomActionEvent(
-                <IntentCustomActionEventVm as VmAggregateCodec>::decode_component_with_context(
+                <IntentCustomActionEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             1555330426u32 => Self::IntentOpenFileEvent(
-                <IntentOpenFileEventVm as VmAggregateCodec>::decode_component_with_context(
+                <IntentOpenFileEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             3539197638u32 => Self::IntentOpenUrlEvent(
-                <IntentOpenUrlEventVm as VmAggregateCodec>::decode_component_with_context(
+                <IntentOpenUrlEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2751280649u32 => Self::IntentShareFilesEvent(
-                <IntentShareFilesEventVm as VmAggregateCodec>::decode_component_with_context(
+                <IntentShareFilesEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2932248757u32 => Self::IntentShareTextEvent(
-                <IntentShareTextEventVm as VmAggregateCodec>::decode_component_with_context(
+                <IntentShareTextEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -2609,13 +2609,13 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .begin_named_aggregate_builder("os::IntentEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2627,13 +2627,13 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .begin_named_aggregate_builder("os::IntentEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2645,13 +2645,13 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .begin_named_aggregate_builder("os::IntentEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2663,13 +2663,13 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .begin_named_aggregate_builder("os::IntentEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2681,13 +2681,13 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .begin_named_aggregate_builder("os::IntentEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2867,24 +2867,24 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            928362442u32 => Self::LifecycleBackgroundEvent(<LifecycleBackgroundEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3282312588u32 => Self::LifecycleForegroundEvent(<LifecycleForegroundEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3187108861u32 => Self::LifecycleLaunchEvent(<LifecycleLaunchEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2573044905u32 => Self::LifecycleLowMemoryEvent(<LifecycleLowMemoryEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2275129359u32 => Self::LifecycleLowPowerModeChangedEvent(<LifecycleLowPowerModeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1318852949u32 => Self::LifecyclePauseEvent(<LifecyclePauseEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            314295220u32 => Self::LifecycleResumeEvent(<LifecycleResumeEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1662979592u32 => Self::LifecycleTerminateEvent(<LifecycleTerminateEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            928362442u32 => Self::LifecycleBackgroundEvent(<LifecycleBackgroundEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3282312588u32 => Self::LifecycleForegroundEvent(<LifecycleForegroundEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3187108861u32 => Self::LifecycleLaunchEvent(<LifecycleLaunchEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2573044905u32 => Self::LifecycleLowMemoryEvent(<LifecycleLowMemoryEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2275129359u32 => Self::LifecycleLowPowerModeChangedEvent(<LifecycleLowPowerModeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1318852949u32 => Self::LifecyclePauseEvent(<LifecyclePauseEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            314295220u32 => Self::LifecycleResumeEvent(<LifecycleResumeEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1662979592u32 => Self::LifecycleTerminateEvent(<LifecycleTerminateEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown LifecycleEvent tag")).boxed()),
         };
         Ok(decoded)
@@ -2903,13 +2903,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2921,13 +2921,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2939,13 +2939,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2957,13 +2957,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2975,13 +2975,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2993,13 +2993,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3011,13 +3011,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3029,13 +3029,13 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .begin_named_aggregate_builder("os::LifecycleEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3279,28 +3279,28 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             2024395200u32 => Self::NotificationDeliveredEvent(
-                <NotificationDeliveredEventVm as VmAggregateCodec>::decode_component_with_context(
+                <NotificationDeliveredEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             667362994u32 => Self::NotificationDismissedEvent(
-                <NotificationDismissedEventVm as VmAggregateCodec>::decode_component_with_context(
+                <NotificationDismissedEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             3098836618u32 => Self::NotificationInteractedEvent(
-                <NotificationInteractedEventVm as VmAggregateCodec>::decode_component_with_context(
+                <NotificationInteractedEventVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -3328,13 +3328,13 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .begin_named_aggregate_builder("os::NotificationEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3346,13 +3346,13 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .begin_named_aggregate_builder("os::NotificationEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3364,13 +3364,13 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .begin_named_aggregate_builder("os::NotificationEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3534,20 +3534,38 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            2325801108u32 => Self::NotificationCalendarDateTrigger(<NotificationCalendarDateTriggerVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2453791684u32 => Self::NotificationImmediateTrigger(<NotificationImmediateTriggerVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2128434246u32 => Self::NotificationTimeIntervalTrigger(<NotificationTimeIntervalTriggerVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown NotificationTrigger tag")).boxed()),
+            2325801108u32 => Self::NotificationCalendarDateTrigger(
+                <NotificationCalendarDateTriggerVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            2453791684u32 => Self::NotificationImmediateTrigger(
+                <NotificationImmediateTriggerVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            2128434246u32 => Self::NotificationTimeIntervalTrigger(
+                <NotificationTimeIntervalTriggerVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationTrigger tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -3565,13 +3583,13 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationTrigger")
+                    .begin_named_aggregate_builder("os::NotificationTrigger")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3583,13 +3601,13 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationTrigger")
+                    .begin_named_aggregate_builder("os::NotificationTrigger")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3601,13 +3619,13 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::NotificationTrigger")
+                    .begin_named_aggregate_builder("os::NotificationTrigger")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3769,23 +3787,23 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             1243901586u32 => Self::OsPathBytes(
-                <fs::OsPathBytesVm as VmAggregateCodec>::decode_component_with_context(
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2271740357u32 => Self::OsPathUtf16(
-                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -3811,13 +3829,13 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 let payload_value =
                     <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::OsPath")
+                    .begin_named_aggregate_builder("os::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3827,13 +3845,13 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 let payload_value =
                     <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("os::OsPath")
+                    .begin_named_aggregate_builder("os::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3966,8 +3984,8 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -3975,19 +3993,17 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_identifier =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_execution_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_identifier = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_execution_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         let field_deadline_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -4002,34 +4018,33 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundEventMetadata")
+            .begin_named_aggregate_builder("os::BackgroundEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.execution_id,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.deadline_unix_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4145,8 +4160,8 @@ impl VmAggregateCodec for BackgroundEventOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -4154,9 +4169,9 @@ impl VmAggregateCodec for BackgroundEventOpenOptions {
             .boxed());
         }
         let field_include_task_ready =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_include_task_expired =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             include_task_ready: field_include_task_ready,
             include_task_expired: field_include_task_expired,
@@ -4168,17 +4183,17 @@ impl VmAggregateCodec for BackgroundEventOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundEventOpenOptions")
+            .begin_named_aggregate_builder("os::BackgroundEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_task_ready, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_task_expired, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4277,36 +4292,34 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_identifier =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_trigger =
-            <BackgroundTriggerKind as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_identifier = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_trigger = <BackgroundTriggerKind as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_schedule =
-            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_network =
-            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_requires_charging =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_requires_idle =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_conflict_policy =
-            <BackgroundConflictPolicy as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundConflictPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         Ok(Self {
@@ -4325,51 +4338,50 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundTaskDescriptor")
+            .begin_named_aggregate_builder("os::BackgroundTaskDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
             self.trigger,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
             self.schedule,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
-                self.network,
-                context,
-            )?;
+        let field_value = <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
+            self.network,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
             self.conflict_policy,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4545,19 +4557,19 @@ impl VmAggregateCodec for BackgroundTaskExpiredEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <BackgroundEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -4571,19 +4583,19 @@ impl VmAggregateCodec for BackgroundTaskExpiredEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundTaskExpiredEvent")
+            .begin_named_aggregate_builder("os::BackgroundTaskExpiredEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4711,36 +4723,34 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_identifier =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_trigger =
-            <BackgroundTriggerKind as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_identifier = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_trigger = <BackgroundTriggerKind as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_schedule =
-            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundTaskScheduleVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_network =
-            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundNetworkRequirement as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_requires_charging =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_requires_idle =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_conflict_policy =
-            <BackgroundConflictPolicy as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundConflictPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         Ok(Self {
@@ -4759,51 +4769,50 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundTaskOptions")
+            .begin_named_aggregate_builder("os::BackgroundTaskOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
             self.trigger,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundTaskScheduleVm as VmAggregateCodec>::encode_with_context(
             self.schedule,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
-                self.network,
-                context,
-            )?;
+        let field_value = <BackgroundNetworkRequirement as VmAggregateCodec>::encode_with_context(
+            self.network,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundConflictPolicy as VmAggregateCodec>::encode_with_context(
             self.conflict_policy,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4979,19 +4988,19 @@ impl VmAggregateCodec for BackgroundTaskReadyEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <BackgroundEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -5005,19 +5014,19 @@ impl VmAggregateCodec for BackgroundTaskReadyEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundTaskReadyEvent")
+            .begin_named_aggregate_builder("os::BackgroundTaskReadyEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <BackgroundEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <BackgroundEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5116,8 +5125,8 @@ impl VmAggregateCodec for BackgroundTaskSchedule {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -5125,17 +5134,13 @@ impl VmAggregateCodec for BackgroundTaskSchedule {
             .boxed());
         }
         let field_kind =
-            <BackgroundTaskScheduleKind as VmAggregateCodec>::decode_component_with_context(
+            <BackgroundTaskScheduleKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_earliest_begin_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_repeat_interval_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             earliest_begin_unix_ns: field_earliest_begin_unix_ns,
@@ -5148,28 +5153,27 @@ impl VmAggregateCodec for BackgroundTaskSchedule {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::BackgroundTaskSchedule")
+            .begin_named_aggregate_builder("os::BackgroundTaskSchedule")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <BackgroundTaskScheduleKind as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?;
+        let field_value = <BackgroundTaskScheduleKind as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.earliest_begin_unix_ns,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.repeat_interval_ns,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5258,19 +5262,19 @@ impl VmAggregateCodec for CalendarAbsoluteReminderAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_absolute_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             kind: field_kind,
             absolute_unix_ns: field_absolute_unix_ns,
@@ -5282,17 +5286,17 @@ impl VmAggregateCodec for CalendarAbsoluteReminderAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarAbsoluteReminder")
+            .begin_named_aggregate_builder("os::CalendarAbsoluteReminder")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.absolute_unix_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5409,32 +5413,30 @@ impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_email =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_optional =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_organizer =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_response_status =
-            <CalendarParticipantStatus as VmAggregateCodec>::decode_component_with_context(
+            <CalendarParticipantStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         Ok(Self {
@@ -5452,41 +5454,39 @@ impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarAttendee")
+            .begin_named_aggregate_builder("os::CalendarAttendee")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.email, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.optional, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.optional, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.organizer, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.organizer, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CalendarParticipantStatus as VmAggregateCodec>::encode_with_context(
+        let field_value = <CalendarParticipantStatus as VmAggregateCodec>::encode_with_context(
             self.response_status,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5638,34 +5638,33 @@ impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_source = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_source = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_owner =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_color_argb =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_primary =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_access = <CalendarAccess as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_access =
+            <CalendarAccess as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             id: field_id,
             title: field_title,
@@ -5682,43 +5681,41 @@ impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarDescriptor")
+            .begin_named_aggregate_builder("os::CalendarDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.owner, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.color_argb, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.color_argb, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CalendarAccess as VmAggregateCodec>::encode_with_context(self.access, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5891,76 +5888,78 @@ impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 20 {
+        let field_count = value_ref.field_count();
+        if field_count != 20 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 20 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_calendar_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_calendar_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_notes =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_location =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_start_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_end_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_all_day =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_canceled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_time_zone =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_availability =
-            <CalendarAvailability as VmAggregateCodec>::decode_component_with_context(
+            <CalendarAvailability as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
-        let field_url =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 11,
-            )?;
+        let field_url = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 11,
+        )?;
         let field_organizer_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_organizer_email =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
         let field_recurring =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
         let field_recurrence_master_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 15,
             )?;
         let field_recurrence_id_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 16,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_recurrence_rule =
-            <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 17,
             )?;
-        let field_attendees = <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
-        let field_reminders = <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
+        let field_attendees =
+            <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 18,
+            )?;
+        let field_reminders =
+            <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 19,
+            )?;
         Ok(Self {
             id: field_id,
             calendar_id: field_calendar_id,
@@ -5990,131 +5989,128 @@ impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarEvent")
+            .begin_named_aggregate_builder("os::CalendarEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.calendar_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.notes, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.location,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.canceled, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.canceled, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.time_zone,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CalendarAvailability as VmAggregateCodec>::encode_with_context(
+        let field_value = <CalendarAvailability as VmAggregateCodec>::encode_with_context(
             self.availability,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.url, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.organizer_name,
             context,
         )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.organizer_email,
             context,
         )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.recurring, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.recurring, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.recurrence_master_id,
             context,
         )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.recurrence_id_unix_ns,
             context,
         )?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::encode_with_context(
                 self.recurrence_rule,
                 context,
             )?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::encode_with_context(
                 self.attendees,
                 context,
             )?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::encode_with_context(
                 self.reminders,
                 context,
             )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6469,53 +6465,57 @@ impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 13 {
+        let field_count = value_ref.field_count();
+        if field_count != 13 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 13 fields",
             ))
             .boxed());
         }
-        let field_calendar_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_calendar_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_notes =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_location =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_start_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_end_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_all_day =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_time_zone =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_availability =
-            <CalendarAvailability as VmAggregateCodec>::decode_component_with_context(
+            <CalendarAvailability as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
-        let field_url =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 9,
-            )?;
+        let field_url = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 9,
+        )?;
         let field_recurrence_rule =
-            <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
-        let field_attendees = <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
-        let field_reminders = <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+        let field_attendees =
+            <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 11,
+            )?;
+        let field_reminders =
+            <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 12,
+            )?;
         Ok(Self {
             calendar_id: field_calendar_id,
             title: field_title,
@@ -6538,88 +6538,87 @@ impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarEventDraft")
+            .begin_named_aggregate_builder("os::CalendarEventDraft")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.calendar_id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.notes, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.location,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.time_zone,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CalendarAvailability as VmAggregateCodec>::encode_with_context(
+        let field_value = <CalendarAvailability as VmAggregateCodec>::encode_with_context(
             self.availability,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.url, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<CalendarRecurrenceRuleVm> as VmAggregateCodec>::encode_with_context(
                 self.recurrence_rule,
                 context,
             )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<CalendarAttendeeVm>> as VmAggregateCodec>::encode_with_context(
                 self.attendees,
                 context,
             )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmArray<CalendarReminderVm>> as VmAggregateCodec>::encode_with_context(
                 self.reminders,
                 context,
             )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6876,8 +6875,8 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -6885,22 +6884,21 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
             .boxed());
         }
         let field_calendar_ids =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_start_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_end_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_limit = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_limit =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_include_canceled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_include_declined =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_include_recurrence_instances =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             calendar_ids: field_calendar_ids,
             start_unix_ns: field_start_unix_ns,
@@ -6917,46 +6915,46 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarEventQuery")
+            .begin_named_aggregate_builder("os::CalendarEventQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.calendar_ids,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_canceled, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_declined, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.include_recurrence_instances,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7137,8 +7135,8 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
@@ -7146,38 +7144,31 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             .boxed());
         }
         let field_frequency =
-            <CalendarRecurrenceFrequency as VmAggregateCodec>::decode_component_with_context(
+            <CalendarRecurrenceFrequency as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_interval =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_count = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
-        let field_until_unix_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
-        let field_by_week_days = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
-        let field_by_weekday_ordinals = <VmArray<CalendarRecurrenceWeekdayVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_by_month_days = <VmArray<i8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
-        let field_by_months = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 7,
-        )?;
-        let field_by_year_days = <VmArray<i16> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 8,
-        )?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_count =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_until_unix_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_by_week_days =
+            <VmArray<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_by_weekday_ordinals =
+            <VmArray<CalendarRecurrenceWeekdayVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 5,
+            )?;
+        let field_by_month_days =
+            <VmArray<i8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
+        let field_by_months =
+            <VmArray<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
+        let field_by_year_days =
+            <VmArray<i16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_by_week_numbers =
-            <VmArray<i8> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 9,
-            )?;
+            <VmArray<i8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_by_set_positions =
-            <VmArray<i16> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 10,
-            )?;
+            <VmArray<i16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             frequency: field_frequency,
             interval: field_interval,
@@ -7198,70 +7189,68 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarRecurrenceRule")
+            .begin_named_aggregate_builder("os::CalendarRecurrenceRule")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <CalendarRecurrenceFrequency as VmAggregateCodec>::encode_with_context(
-                self.frequency,
-                context,
-            )?;
+        let field_value = <CalendarRecurrenceFrequency as VmAggregateCodec>::encode_with_context(
+            self.frequency,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.interval, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.interval, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.count, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.until_unix_ns, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_week_days, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<CalendarRecurrenceWeekdayVm> as VmAggregateCodec>::encode_with_context(
                 self.by_weekday_ordinals,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_month_days, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_months, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<i16> as VmAggregateCodec>::encode_with_context(self.by_year_days, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_week_numbers, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<i16> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<i16> as VmAggregateCodec>::encode_with_context(
             self.by_set_positions,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7468,18 +7457,17 @@ impl VmAggregateCodec for CalendarRecurrenceWeekday {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_day =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_day = <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_week_number =
-            <Option<i8> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <Option<i8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             day: field_day,
             week_number: field_week_number,
@@ -7491,16 +7479,16 @@ impl VmAggregateCodec for CalendarRecurrenceWeekday {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarRecurrenceWeekday")
+            .begin_named_aggregate_builder("os::CalendarRecurrenceWeekday")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<i8> as VmAggregateCodec>::encode_with_context(self.week_number, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7589,19 +7577,19 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_minutes_before_start =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             kind: field_kind,
             minutes_before_start: field_minutes_before_start,
@@ -7613,17 +7601,17 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CalendarRelativeReminder")
+            .begin_named_aggregate_builder("os::CalendarRelativeReminder")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <i32 as VmAggregateCodec>::encode_with_context(self.minutes_before_start, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7749,37 +7737,36 @@ impl VmAggregateCodec for ContactAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_name = <ContactNameVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_name =
+            <ContactNameVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_phones =
-            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_emails =
-            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_addresses =
-            <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_organization =
-            <ContactOrganizationVm as VmAggregateCodec>::decode_component_with_context(
+            <ContactOrganizationVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
-        let field_note = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_note = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 6,
         )?;
         Ok(Self {
@@ -7798,50 +7785,50 @@ impl VmAggregateCodec for ContactAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::Contact")
+            .begin_named_aggregate_builder("os::Contact")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ContactNameVm as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
             self.phones,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
             self.emails,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
             self.addresses,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
             self.organization,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8020,37 +8007,35 @@ impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_street = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_street = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_city = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_city = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_region = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_region = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
-        let field_postal_code =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
-        let field_country = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_postal_code = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_country = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
-        let field_country_code =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+        let field_country_code = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         Ok(Self {
             label: field_label,
             street: field_street,
@@ -8067,44 +8052,44 @@ impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactAddress")
+            .begin_named_aggregate_builder("os::ContactAddress")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.street, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.city, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.region, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.postal_code, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.country, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.country_code,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8262,34 +8247,33 @@ impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_name = <ContactNameVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_name =
+            <ContactNameVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_phones =
-            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_emails =
-            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_addresses =
-            <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_organization =
-            <ContactOrganizationVm as VmAggregateCodec>::decode_component_with_context(
+            <ContactOrganizationVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_note = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_note = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         Ok(Self {
@@ -8307,45 +8291,45 @@ impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactDraft")
+            .begin_named_aggregate_builder("os::ContactDraft")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <ContactNameVm as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
             self.phones,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
             self.emails,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
             self.addresses,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
             self.organization,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8510,22 +8494,22 @@ impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_address = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_address = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_primary =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             label: field_label,
             address: field_address,
@@ -8538,22 +8522,21 @@ impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactEmail")
+            .begin_named_aggregate_builder("os::ContactEmail")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8678,41 +8661,38 @@ impl VmAggregateCodec for ContactNameAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_given_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_middle_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_family_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_prefix = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_given_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_middle_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_family_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_prefix = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
-        let field_suffix = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_suffix = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
-        let field_nickname = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_nickname = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         let field_phonetic_given_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_phonetic_family_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         Ok(Self {
@@ -8732,51 +8712,51 @@ impl VmAggregateCodec for ContactNameAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactName")
+            .begin_named_aggregate_builder("os::ContactName")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.given_name, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.middle_name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.family_name, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.prefix, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.suffix, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.nickname, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.phonetic_given_name,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.phonetic_family_name,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8955,22 +8935,21 @@ impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_company = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_company = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_department =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_department = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         Ok(Self {
@@ -8985,22 +8964,22 @@ impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactOrganization")
+            .begin_named_aggregate_builder("os::ContactOrganization")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.company, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.department, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9117,24 +9096,22 @@ impl VmAggregateCodec for ContactPageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_contacts =
-            <VmArray<ContactVm> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_next_cursor =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_contacts = <VmArray<ContactVm> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_next_cursor = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_has_more =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             contacts: field_contacts,
             next_cursor: field_next_cursor,
@@ -9147,22 +9124,21 @@ impl VmAggregateCodec for ContactPageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactPage")
+            .begin_named_aggregate_builder("os::ContactPage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<ContactVm> as VmAggregateCodec>::encode_with_context(self.contacts, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9286,26 +9262,26 @@ impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_label = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_number = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_number = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_normalized_number =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_primary =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             label: field_label,
             number: field_number,
@@ -9319,29 +9295,28 @@ impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactPhone")
+            .begin_named_aggregate_builder("os::ContactPhone")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.number, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.normalized_number,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9481,8 +9456,8 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -9490,22 +9465,21 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
             .boxed());
         }
         let field_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_limit = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_limit =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_include_phones =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_include_emails =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_include_addresses =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_include_organization =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_include_notes =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             cursor: field_cursor,
             limit: field_limit,
@@ -9522,44 +9496,44 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::ContactQuery")
+            .begin_named_aggregate_builder("os::ContactQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.cursor,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_phones, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_emails, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_addresses, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_organization, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_notes, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9718,24 +9692,27 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_subtitle = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_subtitle = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_message = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_message = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_requirement = <CredentialAuthenticationRequirement as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_requirement =
+            <CredentialAuthenticationRequirement as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 3,
+            )?;
         Ok(Self {
             title: field_title,
             subtitle: field_subtitle,
@@ -9749,30 +9726,30 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CredentialAuthenticationOptions")
+            .begin_named_aggregate_builder("os::CredentialAuthenticationOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subtitle, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CredentialAuthenticationRequirement as VmAggregateCodec>::encode_with_context(
                 self.requirement,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9883,8 +9860,8 @@ impl VmAggregateCodec for CredentialAuthenticationResult {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -9892,9 +9869,9 @@ impl VmAggregateCodec for CredentialAuthenticationResult {
             .boxed());
         }
         let field_authenticated =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_mechanism =
-            <CredentialAuthenticationMechanism as VmAggregateCodec>::decode_component_with_context(
+            <CredentialAuthenticationMechanism as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9908,20 +9885,20 @@ impl VmAggregateCodec for CredentialAuthenticationResult {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CredentialAuthenticationResult")
+            .begin_named_aggregate_builder("os::CredentialAuthenticationResult")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.authenticated, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CredentialAuthenticationMechanism as VmAggregateCodec>::encode_with_context(
                 self.mechanism,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10014,26 +9991,26 @@ impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_access_group =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_require_authentication =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             service: field_service,
             account: field_account,
@@ -10047,29 +10024,29 @@ impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CredentialQuery")
+            .begin_named_aggregate_builder("os::CredentialQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.access_group,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.require_authentication, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10216,27 +10193,26 @@ impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_created_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_modified_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             service: field_service,
             account: field_account,
@@ -10251,32 +10227,32 @@ impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CredentialRecord")
+            .begin_named_aggregate_builder("os::CredentialRecord")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10413,37 +10389,36 @@ impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_account = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_access_group =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_accessibility =
-            <CredentialAccessibility as VmAggregateCodec>::decode_component_with_context(
+            <CredentialAccessibility as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_authentication =
-            <CredentialAuthenticationPolicy as VmAggregateCodec>::decode_component_with_context(
+            <CredentialAuthenticationPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_replace_existing =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         Ok(Self {
             service: field_service,
             account: field_account,
@@ -10460,49 +10435,49 @@ impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::CredentialWriteOptions")
+            .begin_named_aggregate_builder("os::CredentialWriteOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.access_group,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <CredentialAccessibility as VmAggregateCodec>::encode_with_context(
+        let field_value = <CredentialAccessibility as VmAggregateCodec>::encode_with_context(
             self.accessibility,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <CredentialAuthenticationPolicy as VmAggregateCodec>::encode_with_context(
                 self.authentication,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.replace_existing, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10685,35 +10660,32 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_uri = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_uri = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_mime_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_size_bytes = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_size_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_modified_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_is_directory =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_local_path =
-            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         Ok(Self {
@@ -10732,46 +10704,46 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::DocumentDescriptor")
+            .begin_named_aggregate_builder("os::DocumentDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_type,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
             self.local_path,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10945,8 +10917,8 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -10954,19 +10926,19 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
             .boxed());
         }
         let field_mime_types =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_extensions =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_multiple =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_allow_directories =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_copy_to_sandbox =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             mime_types: field_mime_types,
             extensions: field_extensions,
@@ -10981,36 +10953,35 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::DocumentPickOptions")
+            .begin_named_aggregate_builder("os::DocumentPickOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_types,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.extensions,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.multiple, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.multiple, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.allow_directories, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.copy_to_sandbox, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11166,27 +11137,26 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_hostname = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_hostname = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_kernel = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kernel = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_release = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_release = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_architecture =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_architecture = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             hostname: field_hostname,
             kernel: field_kernel,
@@ -11200,29 +11170,29 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::HostIdentity")
+            .begin_named_aggregate_builder("os::HostIdentity")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hostname, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kernel, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.release, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.architecture,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11351,23 +11321,23 @@ impl VmAggregateCodec for IntentCustomActionEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <IntentEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <IntentCustomActionPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentCustomActionPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -11382,27 +11352,26 @@ impl VmAggregateCodec for IntentCustomActionEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentCustomActionEvent")
+            .begin_named_aggregate_builder("os::IntentCustomActionEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <IntentCustomActionPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <IntentCustomActionPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11534,31 +11503,28 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_action = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_action = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_url =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_paths =
-            <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_url = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_paths = <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         let field_mime_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -11575,35 +11541,35 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentCustomActionPayload")
+            .begin_named_aggregate_builder("os::IntentCustomActionPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.url, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.paths, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_type,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11741,8 +11707,8 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -11750,11 +11716,11 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_source =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -11769,24 +11735,23 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentEventMetadata")
+            .begin_named_aggregate_builder("os::IntentEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.source,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11903,23 +11868,23 @@ impl VmAggregateCodec for IntentOpenFileEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <IntentEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <IntentOpenFilePayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentOpenFilePayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -11934,26 +11899,26 @@ impl VmAggregateCodec for IntentOpenFileEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentOpenFileEvent")
+            .begin_named_aggregate_builder("os::IntentOpenFileEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentOpenFilePayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentOpenFilePayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12070,19 +12035,18 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_path = <fs::OsPathVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_path =
+            <fs::OsPathVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_mime_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -12096,19 +12060,19 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentOpenFilePayload")
+            .begin_named_aggregate_builder("os::IntentOpenFilePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12209,8 +12173,8 @@ impl VmAggregateCodec for IntentOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -12218,13 +12182,13 @@ impl VmAggregateCodec for IntentOpenOptions {
             .boxed());
         }
         let field_include_open_url =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_include_open_file =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_include_share =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_include_custom_action =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             include_open_url: field_include_open_url,
             include_open_file: field_include_open_file,
@@ -12238,27 +12202,27 @@ impl VmAggregateCodec for IntentOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentOpenOptions")
+            .begin_named_aggregate_builder("os::IntentOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_open_url, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_open_file, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_share, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_custom_action, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12349,23 +12313,23 @@ impl VmAggregateCodec for IntentOpenUrlEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <IntentEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <IntentOpenUrlPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentOpenUrlPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -12380,26 +12344,26 @@ impl VmAggregateCodec for IntentOpenUrlEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentOpenUrlEvent")
+            .begin_named_aggregate_builder("os::IntentOpenUrlEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentOpenUrlPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentOpenUrlPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12512,15 +12476,15 @@ impl VmAggregateCodec for IntentOpenUrlPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_url = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_url = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { url: field_url })
@@ -12531,12 +12495,12 @@ impl VmAggregateCodec for IntentOpenUrlPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentOpenUrlPayload")
+            .begin_named_aggregate_builder("os::IntentOpenUrlPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12639,23 +12603,23 @@ impl VmAggregateCodec for IntentShareFilesEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <IntentEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <IntentShareFilesPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentShareFilesPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -12670,26 +12634,26 @@ impl VmAggregateCodec for IntentShareFilesEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentShareFilesEvent")
+            .begin_named_aggregate_builder("os::IntentShareFilesEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentShareFilesPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentShareFilesPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12809,20 +12773,19 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_paths =
-            <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_paths = <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_mime_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -12836,19 +12799,19 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentShareFilesPayload")
+            .begin_named_aggregate_builder("os::IntentShareFilesPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.paths, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12968,23 +12931,23 @@ impl VmAggregateCodec for IntentShareTextEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <IntentEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <IntentShareTextPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <IntentShareTextPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -12999,26 +12962,26 @@ impl VmAggregateCodec for IntentShareTextEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentShareTextEvent")
+            .begin_named_aggregate_builder("os::IntentShareTextEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <IntentShareTextPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <IntentShareTextPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13135,19 +13098,19 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_mime_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13161,19 +13124,19 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::IntentShareTextPayload")
+            .begin_named_aggregate_builder("os::IntentShareTextPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.mime_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13291,19 +13254,19 @@ impl VmAggregateCodec for LifecycleBackgroundEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13317,19 +13280,19 @@ impl VmAggregateCodec for LifecycleBackgroundEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleBackgroundEvent")
+            .begin_named_aggregate_builder("os::LifecycleBackgroundEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13423,8 +13386,8 @@ impl VmAggregateCodec for LifecycleEventMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -13432,9 +13395,9 @@ impl VmAggregateCodec for LifecycleEventMetadata {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -13446,17 +13409,16 @@ impl VmAggregateCodec for LifecycleEventMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+            .begin_named_aggregate_builder("os::LifecycleEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13545,19 +13507,19 @@ impl VmAggregateCodec for LifecycleForegroundEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13571,19 +13533,19 @@ impl VmAggregateCodec for LifecycleForegroundEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleForegroundEvent")
+            .begin_named_aggregate_builder("os::LifecycleForegroundEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13698,19 +13660,19 @@ impl VmAggregateCodec for LifecycleLaunchEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13724,19 +13686,19 @@ impl VmAggregateCodec for LifecycleLaunchEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleLaunchEvent")
+            .begin_named_aggregate_builder("os::LifecycleLaunchEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13853,23 +13815,23 @@ impl VmAggregateCodec for LifecycleLowMemoryEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -13884,27 +13846,26 @@ impl VmAggregateCodec for LifecycleLowMemoryEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleLowMemoryEvent")
+            .begin_named_aggregate_builder("os::LifecycleLowMemoryEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14013,8 +13974,8 @@ impl VmAggregateCodec for LifecycleLowMemoryPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -14022,7 +13983,7 @@ impl VmAggregateCodec for LifecycleLowMemoryPayload {
             .boxed());
         }
         let field_severity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         Ok(Self {
             severity: field_severity,
         })
@@ -14033,12 +13994,11 @@ impl VmAggregateCodec for LifecycleLowMemoryPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleLowMemoryPayload")
+            .begin_named_aggregate_builder("os::LifecycleLowMemoryPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.severity, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.severity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14129,23 +14089,23 @@ impl VmAggregateCodec for LifecycleLowPowerModeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <LifecycleLowPowerPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleLowPowerPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -14160,27 +14120,26 @@ impl VmAggregateCodec for LifecycleLowPowerModeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleLowPowerModeChangedEvent")
+            .begin_named_aggregate_builder("os::LifecycleLowPowerModeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <LifecycleLowPowerPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <LifecycleLowPowerPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14286,8 +14245,8 @@ impl VmAggregateCodec for LifecycleLowPowerPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -14295,7 +14254,7 @@ impl VmAggregateCodec for LifecycleLowPowerPayload {
             .boxed());
         }
         let field_enabled =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         Ok(Self {
             enabled: field_enabled,
         })
@@ -14306,12 +14265,11 @@ impl VmAggregateCodec for LifecycleLowPowerPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleLowPowerPayload")
+            .begin_named_aggregate_builder("os::LifecycleLowPowerPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14400,19 +14358,19 @@ impl VmAggregateCodec for LifecyclePauseEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14426,19 +14384,19 @@ impl VmAggregateCodec for LifecyclePauseEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecyclePauseEvent")
+            .begin_named_aggregate_builder("os::LifecyclePauseEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14553,19 +14511,19 @@ impl VmAggregateCodec for LifecycleResumeEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14579,19 +14537,19 @@ impl VmAggregateCodec for LifecycleResumeEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleResumeEvent")
+            .begin_named_aggregate_builder("os::LifecycleResumeEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14706,19 +14664,19 @@ impl VmAggregateCodec for LifecycleTerminateEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <LifecycleEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14732,19 +14690,19 @@ impl VmAggregateCodec for LifecycleTerminateEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LifecycleTerminateEvent")
+            .begin_named_aggregate_builder("os::LifecycleTerminateEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <LifecycleEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14840,8 +14798,8 @@ impl VmAggregateCodec for LoadAverage {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -14849,11 +14807,11 @@ impl VmAggregateCodec for LoadAverage {
             .boxed());
         }
         let field_one =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_five =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_fifteen =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             one: field_one,
             five: field_five,
@@ -14866,20 +14824,19 @@ impl VmAggregateCodec for LoadAverage {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LoadAverage")
+            .begin_named_aggregate_builder("os::LoadAverage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.one, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.one, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.five, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.five, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <f64 as VmAggregateCodec>::encode_with_context(self.fifteen, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.fifteen, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14959,8 +14916,8 @@ impl VmAggregateCodec for LocationSample {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -14968,21 +14925,21 @@ impl VmAggregateCodec for LocationSample {
             .boxed());
         }
         let field_latitude_degrees =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_longitude_degrees =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_altitude_meters =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_horizontal_accuracy_meters =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_vertical_accuracy_meters =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_speed_meters_per_second =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_heading_degrees =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_timestamp_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             latitude_degrees: field_latitude_degrees,
             longitude_degrees: field_longitude_degrees,
@@ -15000,49 +14957,49 @@ impl VmAggregateCodec for LocationSample {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LocationSample")
+            .begin_named_aggregate_builder("os::LocationSample")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.latitude_degrees, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.longitude_degrees, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.altitude_meters, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(
             self.horizontal_accuracy_meters,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.vertical_accuracy_meters, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.speed_meters_per_second, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.heading_degrees, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_unix_ns, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15114,23 +15071,23 @@ impl VmAggregateCodec for LocationWatchOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_accuracy = <LocationAccuracy as VmAggregateCodec>::decode_component_with_context(
+        let field_accuracy = <LocationAccuracy as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_minimum_interval_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_minimum_distance_meters =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_include_heading =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             accuracy: field_accuracy,
             minimum_interval_ns: field_minimum_interval_ns,
@@ -15144,27 +15101,27 @@ impl VmAggregateCodec for LocationWatchOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::LocationWatchOptions")
+            .begin_named_aggregate_builder("os::LocationWatchOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <LocationAccuracy as VmAggregateCodec>::encode_with_context(self.accuracy, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.minimum_distance_meters, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_heading, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15271,42 +15228,40 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_uri = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_uri = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_filename = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_filename = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_mime_type =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_kind = <MediaAssetKind as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
+        let field_mime_type = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
+        let field_kind =
+            <MediaAssetKind as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_duration_ms =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_size_bytes =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_created_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_modified_unix_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             id: field_id,
             uri: field_uri,
@@ -15327,60 +15282,59 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::MediaAssetDescriptor")
+            .begin_named_aggregate_builder("os::MediaAssetDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.filename, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <MediaAssetKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15545,8 +15499,8 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -15554,15 +15508,14 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
             .boxed());
         }
         let field_assets =
-            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_next_cursor =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_next_cursor = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_has_more =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             assets: field_assets,
             next_cursor: field_next_cursor,
@@ -15575,25 +15528,24 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::MediaPage")
+            .begin_named_aggregate_builder("os::MediaPage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::encode_with_context(
                 self.assets,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15726,8 +15678,8 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -15735,18 +15687,16 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
             .boxed());
         }
         let field_cursor =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_limit = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
+        let field_limit =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_kinds = <VmArray<MediaAssetKind> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
         )?;
-        let field_kinds =
-            <VmArray<MediaAssetKind> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
         let field_include_hidden =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             cursor: field_cursor,
             limit: field_limit,
@@ -15760,30 +15710,30 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::MediaQuery")
+            .begin_named_aggregate_builder("os::MediaQuery")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.cursor,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <VmArray<MediaAssetKind> as VmAggregateCodec>::encode_with_context(
+        let field_value = <VmArray<MediaAssetKind> as VmAggregateCodec>::encode_with_context(
             self.kinds, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_hidden, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15913,8 +15863,8 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -15922,19 +15872,17 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
             .boxed());
         }
         let field_source =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_target = <fs::OsPathVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_target =
+            <fs::OsPathVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_file_system =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_host_flags = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_host_flags =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             source: field_source,
             target: field_target,
@@ -15948,31 +15896,31 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::MountEntry")
+            .begin_named_aggregate_builder("os::MountEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.source,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.target, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.file_system,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.host_flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16085,8 +16033,8 @@ impl VmAggregateCodec for NetworkEvent {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -16094,12 +16042,11 @@ impl VmAggregateCodec for NetworkEvent {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_state = <NetworkStateVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_state =
+            <NetworkStateVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -16112,22 +16059,21 @@ impl VmAggregateCodec for NetworkEvent {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NetworkEvent")
+            .begin_named_aggregate_builder("os::NetworkEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <NetworkStateVm as VmAggregateCodec>::encode_with_context(self.state, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16209,8 +16155,8 @@ impl VmAggregateCodec for NetworkState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
@@ -16218,32 +16164,27 @@ impl VmAggregateCodec for NetworkState {
             .boxed());
         }
         let field_connection_type =
-            <NetworkConnectionType as VmAggregateCodec>::decode_component_with_context(
+            <NetworkConnectionType as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_connected =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_internet_reachable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_expensive = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
-        let field_constrained = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
-        let field_roaming = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 5,
-        )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_expensive =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_constrained =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_roaming =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_cellular_generation =
-            <Option<NetworkCellularGeneration> as VmAggregateCodec>::decode_component_with_context(
+            <Option<NetworkCellularGeneration> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
-        let field_downlink_mbps = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 7,
-        )?;
-        let field_uplink_mbps = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 8,
-        )?;
+        let field_downlink_mbps =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
+        let field_uplink_mbps =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             connection_type: field_connection_type,
             connected: field_connected,
@@ -16262,57 +16203,56 @@ impl VmAggregateCodec for NetworkState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NetworkState")
+            .begin_named_aggregate_builder("os::NetworkState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NetworkConnectionType as VmAggregateCodec>::encode_with_context(
+        let field_value = <NetworkConnectionType as VmAggregateCodec>::encode_with_context(
             self.connection_type,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.internet_reachable, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.expensive, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.constrained, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.roaming, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<NetworkCellularGeneration> as VmAggregateCodec>::encode_with_context(
                 self.cellular_generation,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.downlink_mbps, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.uplink_mbps, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16411,34 +16351,33 @@ impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_style =
-            <NotificationActionStyle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_style = <NotificationActionStyle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_foreground =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_authentication_required =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_text_input_button_title =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_text_input_placeholder =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         Ok(Self {
@@ -16457,47 +16396,47 @@ impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationAction")
+            .begin_named_aggregate_builder("os::NotificationAction")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NotificationActionStyle as VmAggregateCodec>::encode_with_context(
+        let field_value = <NotificationActionStyle as VmAggregateCodec>::encode_with_context(
             self.style, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.foreground, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.authentication_required, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text_input_button_title,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text_input_placeholder,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16671,19 +16610,19 @@ impl VmAggregateCodec for NotificationCalendarDateTriggerAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_calendar =
-            <NotificationCalendarTriggerVm as VmAggregateCodec>::decode_component_with_context(
+            <NotificationCalendarTriggerVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -16697,20 +16636,19 @@ impl VmAggregateCodec for NotificationCalendarDateTriggerAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationCalendarDateTrigger")
+            .begin_named_aggregate_builder("os::NotificationCalendarDateTrigger")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <NotificationCalendarTriggerVm as VmAggregateCodec>::encode_with_context(
-                self.calendar,
-                context,
-            )?;
+        let field_value = <NotificationCalendarTriggerVm as VmAggregateCodec>::encode_with_context(
+            self.calendar,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16840,8 +16778,8 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -16849,23 +16787,21 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
             .boxed());
         }
         let field_year =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_month =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_day =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_day = <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_hour =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_minute =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_second =
-            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
-        let field_time_zone =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 6,
-            )?;
+            <u8 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_time_zone = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 6,
+        )?;
         let field_repeats =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             year: field_year,
             month: field_month,
@@ -16883,41 +16819,40 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationCalendarTrigger")
+            .begin_named_aggregate_builder("os::NotificationCalendarTrigger")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.year, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.year, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.month, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.month, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.hour, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.hour, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.minute, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.minute, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u8 as VmAggregateCodec>::encode_with_context(self.second, context)?;
+        let field_value = <u8 as VmAggregateCodec>::encode_with_context(self.second, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.time_zone, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.repeats, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.repeats, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17060,19 +16995,19 @@ impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_actions =
-            <VmArray<NotificationActionVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmArray<NotificationActionVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -17086,20 +17021,19 @@ impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationCategory")
+            .begin_named_aggregate_builder("os::NotificationCategory")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmArray<NotificationActionVm> as VmAggregateCodec>::encode_with_context(
-                self.actions,
-                context,
-            )?;
+        let field_value = <VmArray<NotificationActionVm> as VmAggregateCodec>::encode_with_context(
+            self.actions,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17217,19 +17151,19 @@ impl VmAggregateCodec for NotificationDeliveredEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <NotificationEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <NotificationEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -17243,20 +17177,19 @@ impl VmAggregateCodec for NotificationDeliveredEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationDeliveredEvent")
+            .begin_named_aggregate_builder("os::NotificationDeliveredEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17374,19 +17307,19 @@ impl VmAggregateCodec for NotificationDismissedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <NotificationEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <NotificationEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -17400,20 +17333,19 @@ impl VmAggregateCodec for NotificationDismissedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationDismissedEvent")
+            .begin_named_aggregate_builder("os::NotificationDismissedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17535,8 +17467,8 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -17544,16 +17476,15 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_request =
-            <NotificationRequestVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_request = <NotificationRequestVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -17567,29 +17498,28 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+            .begin_named_aggregate_builder("os::NotificationEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
             self.request,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17689,8 +17619,8 @@ impl VmAggregateCodec for NotificationEventOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -17698,11 +17628,11 @@ impl VmAggregateCodec for NotificationEventOpenOptions {
             .boxed());
         }
         let field_include_delivered =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_include_interacted =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_include_dismissed =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             include_delivered: field_include_delivered,
             include_interacted: field_include_interacted,
@@ -17715,22 +17645,22 @@ impl VmAggregateCodec for NotificationEventOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationEventOpenOptions")
+            .begin_named_aggregate_builder("os::NotificationEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_delivered, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_interacted, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.include_dismissed, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17817,15 +17747,15 @@ impl VmAggregateCodec for NotificationImmediateTriggerAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { kind: field_kind })
@@ -17836,12 +17766,12 @@ impl VmAggregateCodec for NotificationImmediateTriggerAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationImmediateTrigger")
+            .begin_named_aggregate_builder("os::NotificationImmediateTrigger")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17944,23 +17874,23 @@ impl VmAggregateCodec for NotificationInteractedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <NotificationEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <NotificationEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <NotificationInteractedPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <NotificationInteractedPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -17975,28 +17905,27 @@ impl VmAggregateCodec for NotificationInteractedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationInteractedEvent")
+            .begin_named_aggregate_builder("os::NotificationInteractedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <NotificationEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <NotificationInteractedPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18131,8 +18060,8 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -18140,11 +18069,11 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
             .boxed());
         }
         let field_action_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_action_response_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -18158,21 +18087,21 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationInteractedPayload")
+            .begin_named_aggregate_builder("os::NotificationInteractedPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.action_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.action_response_text,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18321,56 +18250,53 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 12 {
+        let field_count = value_ref.field_count();
+        if field_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
             ))
             .boxed());
         }
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_subtitle =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_body = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_body = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_tag = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_tag = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_channel_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_priority =
-            <NotificationPriority as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
-        let field_badge_count = <Option<u32> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
+        let field_priority = <NotificationPriority as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 5,
         )?;
+        let field_badge_count =
+            <Option<u32> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_sound =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_category_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
         let field_thread_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
-        let field_trigger =
-            <NotificationTriggerVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 10,
-            )?;
+        let field_trigger = <NotificationTriggerVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 10,
+        )?;
         let field_action_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         Ok(Self {
@@ -18394,82 +18320,82 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationRequest")
+            .begin_named_aggregate_builder("os::NotificationRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.subtitle,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.body, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.tag, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.channel_id,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NotificationPriority as VmAggregateCodec>::encode_with_context(
+        let field_value = <NotificationPriority as VmAggregateCodec>::encode_with_context(
             self.priority,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.badge_count, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.sound, context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.category_id,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.thread_id,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NotificationTriggerVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <NotificationTriggerVm as VmAggregateCodec>::encode_with_context(
             self.trigger,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.action_id,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18692,25 +18618,22 @@ impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_request =
-            <NotificationRequestVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_request = <NotificationRequestVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_scheduled_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             id: field_id,
             request: field_request,
@@ -18723,26 +18646,26 @@ impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationScheduledDescriptor")
+            .begin_named_aggregate_builder("os::NotificationScheduledDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
             self.request,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.scheduled_unix_ns,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18866,19 +18789,19 @@ impl VmAggregateCodec for NotificationTimeIntervalTriggerAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_interval_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             kind: field_kind,
             interval_ns: field_interval_ns,
@@ -18890,17 +18813,17 @@ impl VmAggregateCodec for NotificationTimeIntervalTriggerAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::NotificationTimeIntervalTrigger")
+            .begin_named_aggregate_builder("os::NotificationTimeIntervalTrigger")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19007,18 +18930,18 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_component_with_context(
+        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -19032,17 +18955,17 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::OsPathBytes")
+            .begin_named_aggregate_builder("os::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19149,18 +19072,18 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -19174,17 +19097,17 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::OsPathUtf16")
+            .begin_named_aggregate_builder("os::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19270,8 +19193,8 @@ impl VmAggregateCodec for PermissionEntry {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -19279,8 +19202,8 @@ impl VmAggregateCodec for PermissionEntry {
             .boxed());
         }
         let field_permission =
-            <Permission as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_state = <PermissionState as VmAggregateCodec>::decode_component_with_context(
+            <Permission as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_state = <PermissionState as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -19294,17 +19217,17 @@ impl VmAggregateCodec for PermissionEntry {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::PermissionEntry")
+            .begin_named_aggregate_builder("os::PermissionEntry")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Permission as VmAggregateCodec>::encode_with_context(self.permission, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <PermissionState as VmAggregateCodec>::encode_with_context(self.state, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19376,8 +19299,8 @@ impl VmAggregateCodec for SystemSnapshot {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -19385,13 +19308,13 @@ impl VmAggregateCodec for SystemSnapshot {
             .boxed());
         }
         let field_cpu_count =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_memory_total =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_memory_available =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_page_size =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             cpu_count: field_cpu_count,
             memory_total: field_memory_total,
@@ -19405,27 +19328,25 @@ impl VmAggregateCodec for SystemSnapshot {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("os::SystemSnapshot")
+            .begin_named_aggregate_builder("os::SystemSnapshot")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.cpu_count, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.cpu_count, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.memory_total, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.memory_available, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.page_size, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.page_size, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20485,100 +20406,100 @@ pub enum OspathReplayRecord {
     OsPathUtf16(fs::Ospathutf16ReplayRecord),
 }
 
-/// Register VM storage schemas for os.
-pub(crate) fn register_os_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("os::PathBytes", 1)?;
-    isolate.register_named_storage_type("os::PathUtf16", 1)?;
-    isolate.register_named_storage_type("os::BackgroundEventMetadata", 5)?;
-    isolate.register_named_storage_type("os::BackgroundEventOpenOptions", 2)?;
-    isolate.register_named_storage_type("os::BackgroundTaskDescriptor", 7)?;
-    isolate.register_named_storage_type("os::BackgroundTaskExpiredEvent", 2)?;
-    isolate.register_named_storage_type("os::BackgroundTaskOptions", 7)?;
-    isolate.register_named_storage_type("os::BackgroundTaskReadyEvent", 2)?;
-    isolate.register_named_storage_type("os::BackgroundTaskSchedule", 3)?;
-    isolate.register_named_storage_type("os::CalendarAbsoluteReminder", 2)?;
-    isolate.register_named_storage_type("os::CalendarAttendee", 6)?;
-    isolate.register_named_storage_type("os::CalendarDescriptor", 7)?;
-    isolate.register_named_storage_type("os::CalendarEvent", 20)?;
-    isolate.register_named_storage_type("os::CalendarEventDraft", 13)?;
-    isolate.register_named_storage_type("os::CalendarEventQuery", 7)?;
-    isolate.register_named_storage_type("os::CalendarRecurrenceRule", 11)?;
-    isolate.register_named_storage_type("os::CalendarRecurrenceWeekday", 2)?;
-    isolate.register_named_storage_type("os::CalendarRelativeReminder", 2)?;
-    isolate.register_named_storage_type("os::Contact", 7)?;
-    isolate.register_named_storage_type("os::ContactAddress", 7)?;
-    isolate.register_named_storage_type("os::ContactDraft", 6)?;
-    isolate.register_named_storage_type("os::ContactEmail", 3)?;
-    isolate.register_named_storage_type("os::ContactName", 8)?;
-    isolate.register_named_storage_type("os::ContactOrganization", 3)?;
-    isolate.register_named_storage_type("os::ContactPage", 3)?;
-    isolate.register_named_storage_type("os::ContactPhone", 4)?;
-    isolate.register_named_storage_type("os::ContactQuery", 7)?;
-    isolate.register_named_storage_type("os::CredentialAuthenticationOptions", 4)?;
-    isolate.register_named_storage_type("os::CredentialAuthenticationResult", 2)?;
-    isolate.register_named_storage_type("os::CredentialQuery", 4)?;
-    isolate.register_named_storage_type("os::CredentialRecord", 5)?;
-    isolate.register_named_storage_type("os::CredentialWriteOptions", 7)?;
-    isolate.register_named_storage_type("os::DocumentDescriptor", 7)?;
-    isolate.register_named_storage_type("os::DocumentPickOptions", 5)?;
-    isolate.register_named_storage_type("os::HostIdentity", 4)?;
-    isolate.register_named_storage_type("os::IntentCustomActionEvent", 3)?;
-    isolate.register_named_storage_type("os::IntentCustomActionPayload", 5)?;
-    isolate.register_named_storage_type("os::IntentEventMetadata", 3)?;
-    isolate.register_named_storage_type("os::IntentOpenFileEvent", 3)?;
-    isolate.register_named_storage_type("os::IntentOpenFilePayload", 2)?;
-    isolate.register_named_storage_type("os::IntentOpenOptions", 4)?;
-    isolate.register_named_storage_type("os::IntentOpenUrlEvent", 3)?;
-    isolate.register_named_storage_type("os::IntentOpenUrlPayload", 1)?;
-    isolate.register_named_storage_type("os::IntentShareFilesEvent", 3)?;
-    isolate.register_named_storage_type("os::IntentShareFilesPayload", 2)?;
-    isolate.register_named_storage_type("os::IntentShareTextEvent", 3)?;
-    isolate.register_named_storage_type("os::IntentShareTextPayload", 2)?;
-    isolate.register_named_storage_type("os::LifecycleBackgroundEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleEventMetadata", 2)?;
-    isolate.register_named_storage_type("os::LifecycleForegroundEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleLaunchEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleLowMemoryEvent", 3)?;
-    isolate.register_named_storage_type("os::LifecycleLowMemoryPayload", 1)?;
-    isolate.register_named_storage_type("os::LifecycleLowPowerModeChangedEvent", 3)?;
-    isolate.register_named_storage_type("os::LifecycleLowPowerPayload", 1)?;
-    isolate.register_named_storage_type("os::LifecyclePauseEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleResumeEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleTerminateEvent", 2)?;
-    isolate.register_named_storage_type("os::LoadAverage", 3)?;
-    isolate.register_named_storage_type("os::LocationSample", 8)?;
-    isolate.register_named_storage_type("os::LocationWatchOptions", 4)?;
-    isolate.register_named_storage_type("os::MediaAssetDescriptor", 11)?;
-    isolate.register_named_storage_type("os::MediaPage", 3)?;
-    isolate.register_named_storage_type("os::MediaQuery", 4)?;
-    isolate.register_named_storage_type("os::MountEntry", 4)?;
-    isolate.register_named_storage_type("os::NetworkEvent", 3)?;
-    isolate.register_named_storage_type("os::NetworkState", 9)?;
-    isolate.register_named_storage_type("os::NotificationAction", 7)?;
-    isolate.register_named_storage_type("os::NotificationCalendarDateTrigger", 2)?;
-    isolate.register_named_storage_type("os::NotificationCalendarTrigger", 8)?;
-    isolate.register_named_storage_type("os::NotificationCategory", 2)?;
-    isolate.register_named_storage_type("os::NotificationDeliveredEvent", 2)?;
-    isolate.register_named_storage_type("os::NotificationDismissedEvent", 2)?;
-    isolate.register_named_storage_type("os::NotificationEventMetadata", 4)?;
-    isolate.register_named_storage_type("os::NotificationEventOpenOptions", 3)?;
-    isolate.register_named_storage_type("os::NotificationImmediateTrigger", 1)?;
-    isolate.register_named_storage_type("os::NotificationInteractedEvent", 3)?;
-    isolate.register_named_storage_type("os::NotificationInteractedPayload", 2)?;
-    isolate.register_named_storage_type("os::NotificationRequest", 12)?;
-    isolate.register_named_storage_type("os::NotificationScheduledDescriptor", 3)?;
-    isolate.register_named_storage_type("os::NotificationTimeIntervalTrigger", 2)?;
-    isolate.register_named_storage_type("os::OsPathBytes", 2)?;
-    isolate.register_named_storage_type("os::OsPathUtf16", 2)?;
-    isolate.register_named_storage_type("os::PermissionEntry", 2)?;
-    isolate.register_named_storage_type("os::SystemSnapshot", 4)?;
-    isolate.register_named_storage_type("os::BackgroundEvent", 2)?;
-    isolate.register_named_storage_type("os::CalendarReminder", 2)?;
-    isolate.register_named_storage_type("os::IntentEvent", 2)?;
-    isolate.register_named_storage_type("os::LifecycleEvent", 2)?;
-    isolate.register_named_storage_type("os::NotificationEvent", 2)?;
-    isolate.register_named_storage_type("os::NotificationTrigger", 2)?;
-    isolate.register_named_storage_type("os::OsPath", 2)?;
+/// Register VM aggregate schemas for os.
+pub(crate) fn register_os_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("os::PathBytes", 1)?;
+    isolate.register_named_aggregate_type("os::PathUtf16", 1)?;
+    isolate.register_named_aggregate_type("os::BackgroundEventMetadata", 5)?;
+    isolate.register_named_aggregate_type("os::BackgroundEventOpenOptions", 2)?;
+    isolate.register_named_aggregate_type("os::BackgroundTaskDescriptor", 7)?;
+    isolate.register_named_aggregate_type("os::BackgroundTaskExpiredEvent", 2)?;
+    isolate.register_named_aggregate_type("os::BackgroundTaskOptions", 7)?;
+    isolate.register_named_aggregate_type("os::BackgroundTaskReadyEvent", 2)?;
+    isolate.register_named_aggregate_type("os::BackgroundTaskSchedule", 3)?;
+    isolate.register_named_aggregate_type("os::CalendarAbsoluteReminder", 2)?;
+    isolate.register_named_aggregate_type("os::CalendarAttendee", 6)?;
+    isolate.register_named_aggregate_type("os::CalendarDescriptor", 7)?;
+    isolate.register_named_aggregate_type("os::CalendarEvent", 20)?;
+    isolate.register_named_aggregate_type("os::CalendarEventDraft", 13)?;
+    isolate.register_named_aggregate_type("os::CalendarEventQuery", 7)?;
+    isolate.register_named_aggregate_type("os::CalendarRecurrenceRule", 11)?;
+    isolate.register_named_aggregate_type("os::CalendarRecurrenceWeekday", 2)?;
+    isolate.register_named_aggregate_type("os::CalendarRelativeReminder", 2)?;
+    isolate.register_named_aggregate_type("os::Contact", 7)?;
+    isolate.register_named_aggregate_type("os::ContactAddress", 7)?;
+    isolate.register_named_aggregate_type("os::ContactDraft", 6)?;
+    isolate.register_named_aggregate_type("os::ContactEmail", 3)?;
+    isolate.register_named_aggregate_type("os::ContactName", 8)?;
+    isolate.register_named_aggregate_type("os::ContactOrganization", 3)?;
+    isolate.register_named_aggregate_type("os::ContactPage", 3)?;
+    isolate.register_named_aggregate_type("os::ContactPhone", 4)?;
+    isolate.register_named_aggregate_type("os::ContactQuery", 7)?;
+    isolate.register_named_aggregate_type("os::CredentialAuthenticationOptions", 4)?;
+    isolate.register_named_aggregate_type("os::CredentialAuthenticationResult", 2)?;
+    isolate.register_named_aggregate_type("os::CredentialQuery", 4)?;
+    isolate.register_named_aggregate_type("os::CredentialRecord", 5)?;
+    isolate.register_named_aggregate_type("os::CredentialWriteOptions", 7)?;
+    isolate.register_named_aggregate_type("os::DocumentDescriptor", 7)?;
+    isolate.register_named_aggregate_type("os::DocumentPickOptions", 5)?;
+    isolate.register_named_aggregate_type("os::HostIdentity", 4)?;
+    isolate.register_named_aggregate_type("os::IntentCustomActionEvent", 3)?;
+    isolate.register_named_aggregate_type("os::IntentCustomActionPayload", 5)?;
+    isolate.register_named_aggregate_type("os::IntentEventMetadata", 3)?;
+    isolate.register_named_aggregate_type("os::IntentOpenFileEvent", 3)?;
+    isolate.register_named_aggregate_type("os::IntentOpenFilePayload", 2)?;
+    isolate.register_named_aggregate_type("os::IntentOpenOptions", 4)?;
+    isolate.register_named_aggregate_type("os::IntentOpenUrlEvent", 3)?;
+    isolate.register_named_aggregate_type("os::IntentOpenUrlPayload", 1)?;
+    isolate.register_named_aggregate_type("os::IntentShareFilesEvent", 3)?;
+    isolate.register_named_aggregate_type("os::IntentShareFilesPayload", 2)?;
+    isolate.register_named_aggregate_type("os::IntentShareTextEvent", 3)?;
+    isolate.register_named_aggregate_type("os::IntentShareTextPayload", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleBackgroundEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleEventMetadata", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleForegroundEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleLaunchEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleLowMemoryEvent", 3)?;
+    isolate.register_named_aggregate_type("os::LifecycleLowMemoryPayload", 1)?;
+    isolate.register_named_aggregate_type("os::LifecycleLowPowerModeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("os::LifecycleLowPowerPayload", 1)?;
+    isolate.register_named_aggregate_type("os::LifecyclePauseEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleResumeEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleTerminateEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LoadAverage", 3)?;
+    isolate.register_named_aggregate_type("os::LocationSample", 8)?;
+    isolate.register_named_aggregate_type("os::LocationWatchOptions", 4)?;
+    isolate.register_named_aggregate_type("os::MediaAssetDescriptor", 11)?;
+    isolate.register_named_aggregate_type("os::MediaPage", 3)?;
+    isolate.register_named_aggregate_type("os::MediaQuery", 4)?;
+    isolate.register_named_aggregate_type("os::MountEntry", 4)?;
+    isolate.register_named_aggregate_type("os::NetworkEvent", 3)?;
+    isolate.register_named_aggregate_type("os::NetworkState", 9)?;
+    isolate.register_named_aggregate_type("os::NotificationAction", 7)?;
+    isolate.register_named_aggregate_type("os::NotificationCalendarDateTrigger", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationCalendarTrigger", 8)?;
+    isolate.register_named_aggregate_type("os::NotificationCategory", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationDeliveredEvent", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationDismissedEvent", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationEventMetadata", 4)?;
+    isolate.register_named_aggregate_type("os::NotificationEventOpenOptions", 3)?;
+    isolate.register_named_aggregate_type("os::NotificationImmediateTrigger", 1)?;
+    isolate.register_named_aggregate_type("os::NotificationInteractedEvent", 3)?;
+    isolate.register_named_aggregate_type("os::NotificationInteractedPayload", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationRequest", 12)?;
+    isolate.register_named_aggregate_type("os::NotificationScheduledDescriptor", 3)?;
+    isolate.register_named_aggregate_type("os::NotificationTimeIntervalTrigger", 2)?;
+    isolate.register_named_aggregate_type("os::OsPathBytes", 2)?;
+    isolate.register_named_aggregate_type("os::OsPathUtf16", 2)?;
+    isolate.register_named_aggregate_type("os::PermissionEntry", 2)?;
+    isolate.register_named_aggregate_type("os::SystemSnapshot", 4)?;
+    isolate.register_named_aggregate_type("os::BackgroundEvent", 2)?;
+    isolate.register_named_aggregate_type("os::CalendarReminder", 2)?;
+    isolate.register_named_aggregate_type("os::IntentEvent", 2)?;
+    isolate.register_named_aggregate_type("os::LifecycleEvent", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationEvent", 2)?;
+    isolate.register_named_aggregate_type("os::NotificationTrigger", 2)?;
+    isolate.register_named_aggregate_type("os::OsPath", 2)?;
 
     Ok(())
 }

@@ -60,7 +60,12 @@ fn vm_mmap_runtime_state(binding: &BindingCallContext) -> Arc<VmMmapRuntimeState
 
 /// Build a stable vm mapping key from one slice.
 fn vm_mapping_key(mapping: VmSlice<u8>) -> u64 {
-    u64::from(mapping.data.id())
+    let data = mapping
+        .data
+        .as_raw_pointer()
+        .expect("vm fs mappings require raw byte backing");
+
+    data.address() as u64
 }
 
 /// Validate common mmap flags.

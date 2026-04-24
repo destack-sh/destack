@@ -213,14 +213,21 @@ pub(crate) fn vm_test_byte_slice(
 }
 
 #[cfg(test)]
-/// Allocate one VM raw value buffer from fully encoded values.
-pub(crate) fn vm_test_raw_values(
+/// Allocate one VM heap value buffer from fully encoded values.
+pub(crate) fn vm_test_values(
     context: &mut vm::ExternalCallContext<'_>,
     values: Vec<vm::Value>,
-) -> vm::RawPointer {
-    context
-        .allocate_raw_values(values)
-        .expect("vm test raw values should allocate")
+) -> vm::Value {
+    let data = context
+        .allocate_heap_value_slots(values.len())
+        .expect("vm test heap values should allocate");
+    for (index, value) in values.into_iter().enumerate() {
+        context
+            .write_heap_value(data, index, value)
+            .expect("vm test heap value should write");
+    }
+
+    vm::Value::heap_reference(data)
 }
 
 /// Return whether one platform code represents a permission denial.

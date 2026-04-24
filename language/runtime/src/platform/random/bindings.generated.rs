@@ -219,28 +219,28 @@ fn encode_destack_random_secure_metadata_result(
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::float64(value.entropy_bits_per_byte));
             let mut value_builder = context
-                .begin_named_storage_value_builder("random::SecureRandomMetadata")
+                .begin_named_aggregate_builder("random::SecureRandomMetadata")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -282,13 +282,13 @@ fn encode_destack_random_stream_export_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.version as u64, 32));
             let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("random::RandomStreamState")
+                .begin_named_aggregate_builder("random::RandomStreamState")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2042,7 +2042,7 @@ pub(crate) fn install_random_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_random_vm_storage_types(isolate)?;
+    super::abi_generated::register_random_vm_aggregate_types(isolate)?;
     register_random_vm_bindings(registry, isolate);
 
     Ok(())

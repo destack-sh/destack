@@ -2389,22 +2389,48 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            3489413994u32 => Self::DisplayAddedEvent(<DisplayAddedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2383728628u32 => Self::DisplayDescriptorChangedEvent(<DisplayDescriptorChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1618220126u32 => Self::DisplayModeChangedEvent(<DisplayModeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            155560704u32 => Self::DisplayPrimaryChangedEvent(<DisplayPrimaryChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            821764653u32 => Self::DisplayRemovedEvent(<DisplayRemovedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayMonitorEvent tag")).boxed()),
+            3489413994u32 => Self::DisplayAddedEvent(
+                <DisplayAddedEventVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            2383728628u32 => Self::DisplayDescriptorChangedEvent(
+                <DisplayDescriptorChangedEventVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            1618220126u32 => Self::DisplayModeChangedEvent(
+                <DisplayModeChangedEventVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            155560704u32 => Self::DisplayPrimaryChangedEvent(
+                <DisplayPrimaryChangedEventVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            821764653u32 => Self::DisplayRemovedEvent(
+                <DisplayRemovedEventVm as VmAggregateCodec>::decode_field_with_context(
+                    context, value_ref, 1,
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayMonitorEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -2420,13 +2446,13 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                 let payload_value =
                     <DisplayAddedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::DisplayMonitorEvent")
+                    .begin_named_aggregate_builder("display::DisplayMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2438,13 +2464,13 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::DisplayMonitorEvent")
+                    .begin_named_aggregate_builder("display::DisplayMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2456,13 +2482,13 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::DisplayMonitorEvent")
+                    .begin_named_aggregate_builder("display::DisplayMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2474,13 +2500,13 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::DisplayMonitorEvent")
+                    .begin_named_aggregate_builder("display::DisplayMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2492,13 +2518,13 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::DisplayMonitorEvent")
+                    .begin_named_aggregate_builder("display::DisplayMonitorEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2690,23 +2716,23 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             1243901586u32 => Self::OsPathBytes(
-                <fs::OsPathBytesVm as VmAggregateCodec>::decode_component_with_context(
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
             2271740357u32 => Self::OsPathUtf16(
-                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_field_with_context(
                     context, value_ref, 1,
                 )?,
             ),
@@ -2732,13 +2758,13 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 let payload_value =
                     <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::OsPath")
+                    .begin_named_aggregate_builder("display::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2748,13 +2774,13 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 let payload_value =
                     <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::OsPath")
+                    .begin_named_aggregate_builder("display::OsPath")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2932,44 +2958,44 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            1369059526u32 => Self::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3772276311u32 => Self::WindowChromeChangedEvent(<WindowChromeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            994806682u32 => Self::WindowCloseRequestedEvent(<WindowCloseRequestedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2562695863u32 => Self::WindowContentRectChangedEvent(<WindowContentRectChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            878591535u32 => Self::WindowCreatedEvent(<WindowCreatedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            184891498u32 => Self::WindowDestroyedEvent(<WindowDestroyedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1189065445u32 => Self::WindowDisplayChangedEvent(<WindowDisplayChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2698446443u32 => Self::WindowDragEnteredEvent(<WindowDragEnteredEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            147008247u32 => Self::WindowDragExitedEvent(<WindowDragExitedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3409998562u32 => Self::WindowDragUpdatedEvent(<WindowDragUpdatedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2768857359u32 => Self::WindowDroppedEvent(<WindowDroppedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3088503659u32 => Self::WindowFocusChangedEvent(<WindowFocusChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2471808910u32 => Self::WindowFramebufferSizeChangedEvent(<WindowFramebufferSizeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3070869257u32 => Self::WindowModalChangedEvent(<WindowModalChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3707716724u32 => Self::WindowModeChangedEvent(<WindowModeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3655843800u32 => Self::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            158403053u32 => Self::WindowOcclusionChangedEvent(<WindowOcclusionChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3398903605u32 => Self::WindowOpacityChangedEvent(<WindowOpacityChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            401270370u32 => Self::WindowParentChangedEvent(<WindowParentChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1091699329u32 => Self::WindowPositionChangedEvent(<WindowPositionChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            668745667u32 => Self::WindowRenderStateChangedEvent(<WindowRenderStateChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3188496132u32 => Self::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            230889647u32 => Self::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1375014571u32 => Self::WindowSizeChangedEvent(<WindowSizeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            405937330u32 => Self::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1613918779u32 => Self::WindowThemeChangedEvent(<WindowThemeChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1611726874u32 => Self::WindowTransientChangedEvent(<WindowTransientChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            170308681u32 => Self::WindowVisibilityChangedEvent(<WindowVisibilityChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            1369059526u32 => Self::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3772276311u32 => Self::WindowChromeChangedEvent(<WindowChromeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            994806682u32 => Self::WindowCloseRequestedEvent(<WindowCloseRequestedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2562695863u32 => Self::WindowContentRectChangedEvent(<WindowContentRectChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            878591535u32 => Self::WindowCreatedEvent(<WindowCreatedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            184891498u32 => Self::WindowDestroyedEvent(<WindowDestroyedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1189065445u32 => Self::WindowDisplayChangedEvent(<WindowDisplayChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2698446443u32 => Self::WindowDragEnteredEvent(<WindowDragEnteredEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            147008247u32 => Self::WindowDragExitedEvent(<WindowDragExitedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3409998562u32 => Self::WindowDragUpdatedEvent(<WindowDragUpdatedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2768857359u32 => Self::WindowDroppedEvent(<WindowDroppedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3088503659u32 => Self::WindowFocusChangedEvent(<WindowFocusChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2471808910u32 => Self::WindowFramebufferSizeChangedEvent(<WindowFramebufferSizeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3070869257u32 => Self::WindowModalChangedEvent(<WindowModalChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3707716724u32 => Self::WindowModeChangedEvent(<WindowModeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3655843800u32 => Self::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            158403053u32 => Self::WindowOcclusionChangedEvent(<WindowOcclusionChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3398903605u32 => Self::WindowOpacityChangedEvent(<WindowOpacityChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            401270370u32 => Self::WindowParentChangedEvent(<WindowParentChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1091699329u32 => Self::WindowPositionChangedEvent(<WindowPositionChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            668745667u32 => Self::WindowRenderStateChangedEvent(<WindowRenderStateChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3188496132u32 => Self::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            230889647u32 => Self::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1375014571u32 => Self::WindowSizeChangedEvent(<WindowSizeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            405937330u32 => Self::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1613918779u32 => Self::WindowThemeChangedEvent(<WindowThemeChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1611726874u32 => Self::WindowTransientChangedEvent(<WindowTransientChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            170308681u32 => Self::WindowVisibilityChangedEvent(<WindowVisibilityChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowEvent tag")).boxed()),
         };
         Ok(decoded)
@@ -2988,13 +3014,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3006,13 +3032,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3024,13 +3050,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3042,13 +3068,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3060,13 +3086,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3078,13 +3104,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3096,13 +3122,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3114,13 +3140,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3132,13 +3158,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3150,13 +3176,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3168,13 +3194,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3186,13 +3212,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3204,13 +3230,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3222,13 +3248,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3240,13 +3266,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3255,13 +3281,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(3655843800u32, context)?;
                 let payload_value = <WindowMousePassthroughChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3273,13 +3299,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3291,13 +3317,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3309,13 +3335,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3327,13 +3353,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3345,13 +3371,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3363,13 +3389,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3381,13 +3407,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3399,13 +3425,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3414,13 +3440,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(405937330u32, context)?;
                 let payload_value = <WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3432,13 +3458,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3450,13 +3476,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -3468,13 +3494,13 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowEvent")
+                    .begin_named_aggregate_builder("display::WindowEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4114,19 +4140,19 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            3607132193u32 => Self::WindowBorderlessModeOptions(<WindowBorderlessModeOptionsVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            689450274u32 => Self::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            624471152u32 => Self::WindowWindowedModeOptions(<WindowWindowedModeOptionsVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            3607132193u32 => Self::WindowBorderlessModeOptions(<WindowBorderlessModeOptionsVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            689450274u32 => Self::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            624471152u32 => Self::WindowWindowedModeOptions(<WindowWindowedModeOptionsVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowModeOptions tag")).boxed()),
         };
         Ok(decoded)
@@ -4145,13 +4171,13 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowModeOptions")
+                    .begin_named_aggregate_builder("display::WindowModeOptions")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4160,13 +4186,13 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(689450274u32, context)?;
                 let payload_value = <WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowModeOptions")
+                    .begin_named_aggregate_builder("display::WindowModeOptions")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4178,13 +4204,13 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("display::WindowModeOptions")
+                    .begin_named_aggregate_builder("display::WindowModeOptions")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -4357,25 +4383,24 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <DisplayAddedPayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <DisplayAddedPayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -4388,27 +4413,26 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayAddedEvent")
+            .begin_named_aggregate_builder("display::DisplayAddedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayAddedPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayAddedPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4530,8 +4554,8 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -4539,7 +4563,7 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
             .boxed());
         }
         let field_descriptor =
-            <DisplayDescriptorVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayDescriptorVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -4552,14 +4576,14 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayAddedPayload")
+            .begin_named_aggregate_builder("display::DisplayAddedPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(
             self.descriptor,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4671,28 +4695,26 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_support =
-            <core::BackendSupport as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_support = <core::BackendSupport as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_priority =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_capability_flags =
-            <DisplayBackendCapabilityFlags as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendCapabilityFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -4709,35 +4731,33 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayBackendDescriptor")
+            .begin_named_aggregate_builder("display::DisplayBackendDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <core::BackendSupport as VmAggregateCodec>::encode_with_context(self.support, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
-                self.capability_flags,
-                context,
-            )?;
+        let field_value = <DisplayBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+            self.capability_flags,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4873,45 +4893,37 @@ impl VmAggregateCodec for DisplayBeginFrameEvent {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_window = <resource::WindowHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
         )?;
-        let field_window =
-            <resource::WindowHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
         let field_begin_frame_id =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_scheduled_at_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_target_wakeup_timestamp_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_predicted_presentation_timestamp_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
-        let field_deadline_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 6,
-        )?;
-        let field_interval_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 7,
-        )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
+        let field_deadline_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
+        let field_interval_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_delivered_at_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         Ok(Self {
             backend: field_backend,
             window: field_window,
@@ -4932,68 +4944,67 @@ impl VmAggregateCodec for DisplayBeginFrameEvent {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayBeginFrameEvent")
+            .begin_named_aggregate_builder("display::DisplayBeginFrameEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
             self.window,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.begin_frame_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.scheduled_at_ns, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.target_wakeup_timestamp_ns,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.predicted_presentation_timestamp_ns,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.delivered_at_ns, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5059,8 +5070,8 @@ impl VmAggregateCodec for DisplayBeginFrameFilter {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -5068,7 +5079,7 @@ impl VmAggregateCodec for DisplayBeginFrameFilter {
             .boxed());
         }
         let field_window =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -5081,15 +5092,15 @@ impl VmAggregateCodec for DisplayBeginFrameFilter {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayBeginFrameFilter")
+            .begin_named_aggregate_builder("display::DisplayBeginFrameFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.window,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5162,27 +5173,26 @@ impl VmAggregateCodec for DisplayBeginFrameOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_queue =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_filter =
-            <Option<DisplayBeginFrameFilterVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayBeginFrameFilterVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -5198,35 +5208,33 @@ impl VmAggregateCodec for DisplayBeginFrameOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayBeginFrameOpenOptions")
+            .begin_named_aggregate_builder("display::DisplayBeginFrameOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
-                self.queue, context,
-            )?;
+        let field_value = <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
+            self.queue, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<DisplayBeginFrameFilterVm> as VmAggregateCodec>::encode_with_context(
                 self.filter,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5296,25 +5304,21 @@ impl VmAggregateCodec for DisplayColorState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_hdr_mode = <DisplayHdrMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_hdr_mode =
+            <DisplayHdrMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_color_space = <DisplayColorSpace as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
         )?;
-        let field_color_space =
-            <DisplayColorSpace as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
         let field_bits_per_channel =
-            <Option<u16> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             hdr_mode: field_hdr_mode,
             color_space: field_color_space,
@@ -5327,24 +5331,24 @@ impl VmAggregateCodec for DisplayColorState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayColorState")
+            .begin_named_aggregate_builder("display::DisplayColorState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayHdrMode as VmAggregateCodec>::encode_with_context(self.hdr_mode, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayColorSpace as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayColorSpace as VmAggregateCodec>::encode_with_context(
             self.color_space,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.bits_per_channel, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5469,65 +5473,62 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 20 {
+        let field_count = value_ref.field_count();
+        if field_count != 20 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 20 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_primary =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
-        let field_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
-        let field_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_x = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
+        let field_y = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_width_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_height_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_work_area_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_work_area_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_work_area_width_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_work_area_height_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_width_mm =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         let field_height_mm =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 13)?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
         let field_orientation =
-            <DisplayOrientation as VmAggregateCodec>::decode_component_with_context(
+            <DisplayOrientation as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 15,
             )?;
         let field_builtin_panel =
-            <DisplaySupportStatus as VmAggregateCodec>::decode_component_with_context(
+            <DisplaySupportStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 16,
             )?;
         let field_variable_refresh_support =
-            <DisplaySupportStatus as VmAggregateCodec>::decode_component_with_context(
+            <DisplaySupportStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 17,
             )?;
         let field_hdr_support =
-            <DisplaySupportStatus as VmAggregateCodec>::decode_component_with_context(
+            <DisplaySupportStatus as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 18,
             )?;
         let field_color_state =
-            <Option<DisplayColorStateVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayColorStateVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 19,
             )?;
         Ok(Self {
@@ -5559,116 +5560,110 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDescriptor")
+            .begin_named_aggregate_builder("display::DisplayDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.width_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width_px, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.height_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height_px, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <i32 as VmAggregateCodec>::encode_with_context(self.work_area_x, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <i32 as VmAggregateCodec>::encode_with_context(self.work_area_y, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.work_area_width_px, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.work_area_height_px, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.width_mm, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width_mm, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.height_mm, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height_mm, context)?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayOrientation as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayOrientation as VmAggregateCodec>::encode_with_context(
             self.orientation,
             context,
         )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
             self.builtin_panel,
             context,
         )?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
             self.variable_refresh_support,
             context,
         )?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
             self.hdr_support,
             context,
         )?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayColorStateVm> as VmAggregateCodec>::encode_with_context(
-                self.color_state,
-                context,
-            )?;
+        let field_value = <Option<DisplayColorStateVm> as VmAggregateCodec>::encode_with_context(
+            self.color_state,
+            context,
+        )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5958,23 +5953,23 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -5989,28 +5984,27 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDescriptorChangedEvent")
+            .begin_named_aggregate_builder("display::DisplayDescriptorChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6147,8 +6141,8 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -6156,15 +6150,14 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
             .boxed());
         }
         let field_previous =
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_current =
-            <DisplayDescriptorVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_current = <DisplayDescriptorVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_changed_mask =
-            <DisplayMetricChangedMask as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMetricChangedMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -6179,27 +6172,26 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDescriptorChangedPayload")
+            .begin_named_aggregate_builder("display::DisplayDescriptorChangedPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
-                self.previous,
-                context,
-            )?;
+        let field_value = <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
+            self.previous,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(self.current, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayMetricChangedMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayMetricChangedMask as VmAggregateCodec>::encode_with_context(
             self.changed_mask,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6341,8 +6333,8 @@ impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -6350,23 +6342,23 @@ impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
             .boxed());
         }
         let field_window =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_allowed_operations =
-            <DisplayDragOperationMask as VmAggregateCodec>::decode_component_with_context(
+            <DisplayDragOperationMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_items =
-            <VmSlice<DisplayDragSourceItemVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<DisplayDragSourceItemVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_position =
-            <Option<DisplayDragPositionVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDragPositionVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_preview =
-            <Option<DisplayDragPreviewVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDragPreviewVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -6383,45 +6375,43 @@ impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragBeginOptions")
+            .begin_named_aggregate_builder("display::DisplayDragBeginOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.window,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(
             self.allowed_operations,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<DisplayDragSourceItemVm> as VmAggregateCodec>::encode_with_context(
                 self.items, context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
-                context,
-            )?;
+        let field_value = <Option<DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(
+            self.position,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDragPreviewVm> as VmAggregateCodec>::encode_with_context(
-                self.preview,
-                context,
-            )?;
+        let field_value = <Option<DisplayDragPreviewVm> as VmAggregateCodec>::encode_with_context(
+            self.preview,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6607,30 +6597,28 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <DisplayDragItemKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <DisplayDragItemKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_item_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_is_directory =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
-        let field_byte_length = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
         )?;
+        let field_is_directory =
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_byte_length =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             item_type: field_item_type,
@@ -6645,35 +6633,35 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragItemDescriptor")
+            .begin_named_aggregate_builder("display::DisplayDragItemDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayDragItemKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.item_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6788,18 +6776,16 @@ impl VmAggregateCodec for DisplayDragPosition {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_y = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -6811,15 +6797,15 @@ impl VmAggregateCodec for DisplayDragPosition {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragPosition")
+            .begin_named_aggregate_builder("display::DisplayDragPosition")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6916,8 +6902,8 @@ impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -6925,18 +6911,17 @@ impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
             .boxed());
         }
         let field_pixel_format =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_pixels = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_pixels =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_hotspot_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_hotspot_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         Ok(Self {
             pixel_format: field_pixel_format,
             width: field_width,
@@ -6952,35 +6937,33 @@ impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragPreview")
+            .begin_named_aggregate_builder("display::DisplayDragPreview")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.pixel_format, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.pixels, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <i32 as VmAggregateCodec>::encode_with_context(self.hotspot_x, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.hotspot_x, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <i32 as VmAggregateCodec>::encode_with_context(self.hotspot_y, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.hotspot_y, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7119,33 +7102,31 @@ impl VmAggregateCodec for DisplayDragSourceItemAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_kind = <DisplayDragItemKind as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <DisplayDragItemKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_item_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
-        let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_component_with_context(
+        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
+        let field_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
-        let field_bytes = <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+        let field_bytes = <Option<VmSlice<u8>> as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 5,
         )?;
         Ok(Self {
@@ -7163,41 +7144,41 @@ impl VmAggregateCodec for DisplayDragSourceItemAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragSourceItem")
+            .begin_named_aggregate_builder("display::DisplayDragSourceItem")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayDragItemKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.item_type,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.name, context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7347,30 +7328,36 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_session = <resource::DisplayDragSessionHandle as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_session =
+            <resource::DisplayDragSessionHandle as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 0,
+            )?;
         let field_is_external =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_allowed_operations =
-            <DisplayDragOperationMask as VmAggregateCodec>::decode_component_with_context(
+            <DisplayDragOperationMask as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_proposed_operation =
-            <Option<DisplayDragOperation> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDragOperation> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_position =
-            <Option<DisplayDragPositionVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDragPositionVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_items = <VmSlice<DisplayDragItemDescriptorVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_items =
+            <VmSlice<DisplayDragItemDescriptorVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 5,
+            )?;
         Ok(Self {
             session: field_session,
             is_external: field_is_external,
@@ -7386,50 +7373,48 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayDragTransfer")
+            .begin_named_aggregate_builder("display::DisplayDragTransfer")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <resource::DisplayDragSessionHandle as VmAggregateCodec>::encode_with_context(
                 self.session,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_external, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(
             self.allowed_operations,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDragOperation> as VmAggregateCodec>::encode_with_context(
-                self.proposed_operation,
-                context,
-            )?;
+        let field_value = <Option<DisplayDragOperation> as VmAggregateCodec>::encode_with_context(
+            self.proposed_operation,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
-                context,
-            )?;
+        let field_value = <Option<DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(
+            self.position,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<DisplayDragItemDescriptorVm> as VmAggregateCodec>::encode_with_context(
                 self.items, context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7595,8 +7580,8 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -7604,9 +7589,9 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
             .boxed());
         }
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_overflow_policy =
-            <DisplayEventOverflowPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayEventOverflowPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -7620,20 +7605,19 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayEventQueueOptions")
+            .begin_named_aggregate_builder("display::DisplayEventQueueOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
-                self.overflow_policy,
-                context,
-            )?;
+        let field_value = <DisplayEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
+            self.overflow_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7724,23 +7708,20 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_red = <VmSlice<u16> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_green = <VmSlice<u16> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
-        let field_blue = <VmSlice<u16> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 2,
-        )?;
+        let field_red =
+            <VmSlice<u16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_green =
+            <VmSlice<u16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
+        let field_blue =
+            <VmSlice<u16> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         Ok(Self {
             red: field_red,
             green: field_green,
@@ -7753,22 +7734,22 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayGammaRamp")
+            .begin_named_aggregate_builder("display::DisplayGammaRamp")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.red, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.green, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.blue, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7866,8 +7847,8 @@ impl VmAggregateCodec for DisplayMode {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -7875,16 +7856,16 @@ impl VmAggregateCodec for DisplayMode {
             .boxed());
         }
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_refresh_milli_hz =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_format = <DisplayPixelFormat as VmAggregateCodec>::decode_component_with_context(
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_format = <DisplayPixelFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
         let field_bit_depth =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -7899,30 +7880,29 @@ impl VmAggregateCodec for DisplayMode {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMode")
+            .begin_named_aggregate_builder("display::DisplayMode")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.refresh_milli_hz, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u16 as VmAggregateCodec>::encode_with_context(self.bit_depth, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.bit_depth, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8013,23 +7993,23 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <DisplayModeChangedPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayModeChangedPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -8044,28 +8024,26 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayModeChangedEvent")
+            .begin_named_aggregate_builder("display::DisplayModeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayModeChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <DisplayModeChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8179,8 +8157,8 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -8188,12 +8166,11 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
             .boxed());
         }
         let field_previous =
-            <Option<DisplayModeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayModeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_current = <DisplayModeVm as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_current =
+            <DisplayModeVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous: field_previous,
             current: field_current,
@@ -8205,19 +8182,19 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayModeChangedPayload")
+            .begin_named_aggregate_builder("display::DisplayModeChangedPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
             self.previous,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayModeVm as VmAggregateCodec>::encode_with_context(self.current, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8306,8 +8283,8 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -8315,10 +8292,13 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
             .boxed());
         }
         let field_display_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_kind_mask = <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_kind_mask =
+            <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 1,
+            )?;
         Ok(Self {
             display_id: field_display_id,
             kind_mask: field_kind_mask,
@@ -8330,22 +8310,22 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMonitorEventFilter")
+            .begin_named_aggregate_builder("display::DisplayMonitorEventFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.display_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::encode_with_context(
                 self.kind_mask,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8480,27 +8460,26 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_display_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             backend: field_backend,
             display_id: field_display_id,
@@ -8515,34 +8494,33 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMonitorEventMetadata")
+            .begin_named_aggregate_builder("display::DisplayMonitorEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.display_id,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8683,26 +8661,28 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_queue =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_filter = <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_filter =
+            <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 3,
+            )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -8716,35 +8696,33 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMonitorEventOpenOptions")
+            .begin_named_aggregate_builder("display::DisplayMonitorEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
-                self.queue, context,
-            )?;
+        let field_value = <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
+            self.queue, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::encode_with_context(
                 self.filter,
                 context,
             )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8866,19 +8844,18 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -8892,20 +8869,19 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMonitorListRequest")
+            .begin_named_aggregate_builder("display::DisplayMonitorListRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8974,19 +8950,18 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9000,20 +8975,19 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayMonitorOpenOptions")
+            .begin_named_aggregate_builder("display::DisplayMonitorOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9104,23 +9078,23 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <DisplayPrimaryPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayPrimaryPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -9135,27 +9109,26 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayPrimaryChangedEvent")
+            .begin_named_aggregate_builder("display::DisplayPrimaryChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayPrimaryPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayPrimaryPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9281,8 +9254,8 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -9290,11 +9263,11 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
             .boxed());
         }
         let field_previous_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9308,21 +9281,21 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayPrimaryPayload")
+            .begin_named_aggregate_builder("display::DisplayPrimaryPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.previous_id,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.current_id,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9453,23 +9426,23 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <DisplayRemovedPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayRemovedPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -9484,27 +9457,26 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayRemovedEvent")
+            .begin_named_aggregate_builder("display::DisplayRemovedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?;
+        let field_value = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9630,19 +9602,19 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_descriptor =
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -9656,20 +9628,19 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::DisplayRemovedPayload")
+            .begin_named_aggregate_builder("display::DisplayRemovedPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
-                self.descriptor,
-                context,
-            )?;
+        let field_value = <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
+            self.descriptor,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9787,18 +9758,18 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_component_with_context(
+        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -9812,17 +9783,17 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::OsPathBytes")
+            .begin_named_aggregate_builder("display::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9929,18 +9900,18 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
@@ -9954,17 +9925,17 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::OsPathUtf16")
+            .begin_named_aggregate_builder("display::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10050,8 +10021,8 @@ impl VmAggregateCodec for WindowAspectRatio {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -10059,9 +10030,9 @@ impl VmAggregateCodec for WindowAspectRatio {
             .boxed());
         }
         let field_numerator =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_denominator =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             numerator: field_numerator,
             denominator: field_denominator,
@@ -10073,17 +10044,16 @@ impl VmAggregateCodec for WindowAspectRatio {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowAspectRatio")
+            .begin_named_aggregate_builder("display::WindowAspectRatio")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.numerator, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.numerator, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.denominator, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10174,23 +10144,23 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowAspectRatioPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowAspectRatioPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -10205,27 +10175,26 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowAspectRatioChangedEvent")
+            .begin_named_aggregate_builder("display::WindowAspectRatioChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <WindowAspectRatioPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <WindowAspectRatioPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10327,8 +10296,8 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -10336,11 +10305,11 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
             .boxed());
         }
         let field_previous_aspect_ratio =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_aspect_ratio =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -10354,23 +10323,21 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowAspectRatioPayload")
+            .begin_named_aggregate_builder("display::WindowAspectRatioPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
-                self.previous_aspect_ratio,
-                context,
-            )?;
+        let field_value = <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+            self.previous_aspect_ratio,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
-                self.current_aspect_ratio,
-                context,
-            )?;
+        let field_value = <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+            self.current_aspect_ratio,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10459,19 +10426,19 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_display =
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -10485,20 +10452,20 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowBorderlessModeOptions")
+            .begin_named_aggregate_builder("display::WindowBorderlessModeOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.display,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10618,25 +10585,24 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowChromePayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowChromePayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10649,26 +10615,26 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowChromeChangedEvent")
+            .begin_named_aggregate_builder("display::WindowChromeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowChromePayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowChromePayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10762,8 +10728,8 @@ impl VmAggregateCodec for WindowChromePayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -10771,11 +10737,11 @@ impl VmAggregateCodec for WindowChromePayload {
             .boxed());
         }
         let field_previous_chrome =
-            <WindowChromeKind as VmAggregateCodec>::decode_component_with_context(
+            <WindowChromeKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_chrome =
-            <WindowChromeKind as VmAggregateCodec>::decode_component_with_context(
+            <WindowChromeKind as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -10789,21 +10755,21 @@ impl VmAggregateCodec for WindowChromePayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowChromePayload")
+            .begin_named_aggregate_builder("display::WindowChromePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowChromeKind as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowChromeKind as VmAggregateCodec>::encode_with_context(
             self.previous_chrome,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowChromeKind as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowChromeKind as VmAggregateCodec>::encode_with_context(
             self.current_chrome,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -10892,19 +10858,19 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -10918,19 +10884,19 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowCloseRequestedEvent")
+            .begin_named_aggregate_builder("display::WindowCloseRequestedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11041,23 +11007,23 @@ impl VmAggregateCodec for WindowContentRectChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowContentRectPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowContentRectPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -11072,27 +11038,26 @@ impl VmAggregateCodec for WindowContentRectChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowContentRectChangedEvent")
+            .begin_named_aggregate_builder("display::WindowContentRectChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <WindowContentRectPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <WindowContentRectPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11194,8 +11159,8 @@ impl VmAggregateCodec for WindowContentRectPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -11203,11 +11168,11 @@ impl VmAggregateCodec for WindowContentRectPayload {
             .boxed());
         }
         let field_previous_content_rect_logical =
-            <WindowLogicalRectVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalRectVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_content_rect_logical =
-            <WindowLogicalRectVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalRectVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -11221,21 +11186,21 @@ impl VmAggregateCodec for WindowContentRectPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowContentRectPayload")
+            .begin_named_aggregate_builder("display::WindowContentRectPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
             self.previous_content_rect_logical,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
             self.current_content_rect_logical,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11324,19 +11289,19 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -11350,19 +11315,19 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowCreatedEvent")
+            .begin_named_aggregate_builder("display::WindowCreatedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11501,57 +11466,56 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 17 {
+        let field_count = value_ref.field_count();
+        if field_count != 17 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 17 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_role =
-            <WindowRole as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
-        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowRole as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_resizable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_decorated =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_component_with_context(
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
+        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 7,
         )?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_transparent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_opacity =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_transient_for =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
         let field_modal =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
         let field_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 15)?;
         let field_aspect_ratio =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 16,
             )?;
         Ok(Self {
@@ -11580,100 +11544,96 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDescriptor")
+            .begin_named_aggregate_builder("display::WindowDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.chrome, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.taskbar_visible, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.parent,
                 context,
             )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.transient_for,
                 context,
             )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.mouse_passthrough, context)?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
-                self.aspect_ratio,
-                context,
-            )?;
+        let field_value = <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+            self.aspect_ratio,
+            context,
+        )?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -11908,19 +11868,19 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -11934,19 +11894,19 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDestroyedEvent")
+            .begin_named_aggregate_builder("display::WindowDestroyedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12057,23 +12017,23 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowDisplayPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowDisplayPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -12088,26 +12048,26 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDisplayChangedEvent")
+            .begin_named_aggregate_builder("display::WindowDisplayChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowDisplayPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowDisplayPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12201,8 +12161,8 @@ impl VmAggregateCodec for WindowDisplayPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -12210,11 +12170,11 @@ impl VmAggregateCodec for WindowDisplayPayload {
             .boxed());
         }
         let field_previous_display =
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_display =
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -12228,23 +12188,23 @@ impl VmAggregateCodec for WindowDisplayPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDisplayPayload")
+            .begin_named_aggregate_builder("display::WindowDisplayPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.previous_display,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.current_display,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12335,25 +12295,24 @@ impl VmAggregateCodec for WindowDragEnteredEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <DisplayDragTransferVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <DisplayDragTransferVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12366,26 +12325,26 @@ impl VmAggregateCodec for WindowDragEnteredEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDragEnteredEvent")
+            .begin_named_aggregate_builder("display::WindowDragEnteredEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12502,25 +12461,24 @@ impl VmAggregateCodec for WindowDragExitedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <DisplayDragTransferVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <DisplayDragTransferVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12533,26 +12491,26 @@ impl VmAggregateCodec for WindowDragExitedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDragExitedEvent")
+            .begin_named_aggregate_builder("display::WindowDragExitedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12669,25 +12627,24 @@ impl VmAggregateCodec for WindowDragUpdatedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <DisplayDragTransferVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <DisplayDragTransferVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12700,26 +12657,26 @@ impl VmAggregateCodec for WindowDragUpdatedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDragUpdatedEvent")
+            .begin_named_aggregate_builder("display::WindowDragUpdatedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12836,25 +12793,24 @@ impl VmAggregateCodec for WindowDroppedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <DisplayDragTransferVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <DisplayDragTransferVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12867,26 +12823,26 @@ impl VmAggregateCodec for WindowDroppedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowDroppedEvent")
+            .begin_named_aggregate_builder("display::WindowDroppedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <DisplayDragTransferVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -12980,8 +12936,8 @@ impl VmAggregateCodec for WindowEventFilter {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -12989,11 +12945,11 @@ impl VmAggregateCodec for WindowEventFilter {
             .boxed());
         }
         let field_window =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_kind_mask =
-            <Option<WindowEventKindMask> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowEventKindMask> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -13007,23 +12963,22 @@ impl VmAggregateCodec for WindowEventFilter {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowEventFilter")
+            .begin_named_aggregate_builder("display::WindowEventFilter")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.window,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowEventKindMask> as VmAggregateCodec>::encode_with_context(
-                self.kind_mask,
-                context,
-            )?;
+        let field_value = <Option<WindowEventKindMask> as VmAggregateCodec>::encode_with_context(
+            self.kind_mask,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13097,27 +13052,25 @@ impl VmAggregateCodec for WindowEventMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_window = <resource::WindowHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
         )?;
-        let field_window =
-            <resource::WindowHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             backend: field_backend,
             window: field_window,
@@ -13132,34 +13085,33 @@ impl VmAggregateCodec for WindowEventMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowEventMetadata")
+            .begin_named_aggregate_builder("display::WindowEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
             self.window,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13232,27 +13184,26 @@ impl VmAggregateCodec for WindowEventOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_queue =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_filter =
-            <Option<WindowEventFilterVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowEventFilterVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -13268,35 +13219,32 @@ impl VmAggregateCodec for WindowEventOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowEventOpenOptions")
+            .begin_named_aggregate_builder("display::WindowEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
-                self.queue, context,
-            )?;
+        let field_value = <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
+            self.queue, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowEventFilterVm> as VmAggregateCodec>::encode_with_context(
-                self.filter,
-                context,
-            )?;
+        let field_value = <Option<WindowEventFilterVm> as VmAggregateCodec>::encode_with_context(
+            self.filter,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13387,23 +13335,23 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_display =
-            <resource::DisplayHandle as VmAggregateCodec>::decode_component_with_context(
+            <resource::DisplayHandle as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_display_mode =
-            <Option<DisplayModeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<DisplayModeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -13418,26 +13366,26 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowExclusiveFullscreenModeOptions")
+            .begin_named_aggregate_builder("display::WindowExclusiveFullscreenModeOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <resource::DisplayHandle as VmAggregateCodec>::encode_with_context(
+        let field_value = <resource::DisplayHandle as VmAggregateCodec>::encode_with_context(
             self.display,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
             self.display_mode,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13568,25 +13516,24 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowFocusPayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowFocusPayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -13599,24 +13546,24 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowFocusChangedEvent")
+            .begin_named_aggregate_builder("display::WindowFocusChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowFocusPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13710,8 +13657,8 @@ impl VmAggregateCodec for WindowFocusPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -13719,9 +13666,9 @@ impl VmAggregateCodec for WindowFocusPayload {
             .boxed());
         }
         let field_previous_focused =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_focused =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_focused: field_previous_focused,
             current_focused: field_current_focused,
@@ -13733,17 +13680,17 @@ impl VmAggregateCodec for WindowFocusPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowFocusPayload")
+            .begin_named_aggregate_builder("display::WindowFocusPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.previous_focused, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.current_focused, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13834,23 +13781,23 @@ impl VmAggregateCodec for WindowFramebufferSizeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowFramebufferSizePayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowFramebufferSizePayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -13865,27 +13812,27 @@ impl VmAggregateCodec for WindowFramebufferSizeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowFramebufferSizeChangedEvent")
+            .begin_named_aggregate_builder("display::WindowFramebufferSizeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowFramebufferSizePayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -13990,8 +13937,8 @@ impl VmAggregateCodec for WindowFramebufferSizePayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -13999,11 +13946,11 @@ impl VmAggregateCodec for WindowFramebufferSizePayload {
             .boxed());
         }
         let field_previous_framebuffer_size =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_framebuffer_size =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -14017,21 +13964,21 @@ impl VmAggregateCodec for WindowFramebufferSizePayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowFramebufferSizePayload")
+            .begin_named_aggregate_builder("display::WindowFramebufferSizePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.previous_framebuffer_size,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.current_framebuffer_size,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14124,8 +14071,8 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -14133,16 +14080,15 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
             .boxed());
         }
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_pixel_format =
-            <WindowIconPixelFormat as VmAggregateCodec>::decode_component_with_context(
+            <WindowIconPixelFormat as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_pixels = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_pixels =
+            <VmSlice<u8> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -14156,27 +14102,27 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowIconImage")
+            .begin_named_aggregate_builder("display::WindowIconImage")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowIconPixelFormat as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowIconPixelFormat as VmAggregateCodec>::encode_with_context(
             self.pixel_format,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.pixels, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14304,8 +14250,8 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -14313,7 +14259,7 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
             .boxed());
         }
         let field_images =
-            <VmSlice<WindowIconImageVm> as VmAggregateCodec>::decode_component_with_context(
+            <VmSlice<WindowIconImageVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         Ok(Self {
@@ -14326,15 +14272,14 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowIconSet")
+            .begin_named_aggregate_builder("display::WindowIconSet")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <VmSlice<WindowIconImageVm> as VmAggregateCodec>::encode_with_context(
-                self.images,
-                context,
-            )?;
+        let field_value = <VmSlice<WindowIconImageVm> as VmAggregateCodec>::encode_with_context(
+            self.images,
+            context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14423,22 +14368,20 @@ impl VmAggregateCodec for WindowLogicalRect {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_x =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_y =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_y = <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_width =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_height =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -14452,23 +14395,23 @@ impl VmAggregateCodec for WindowLogicalRect {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowLogicalRect")
+            .begin_named_aggregate_builder("display::WindowLogicalRect")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14536,8 +14479,8 @@ impl VmAggregateCodec for WindowLogicalSize {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14545,9 +14488,9 @@ impl VmAggregateCodec for WindowLogicalSize {
             .boxed());
         }
         let field_width =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -14559,15 +14502,15 @@ impl VmAggregateCodec for WindowLogicalSize {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowLogicalSize")
+            .begin_named_aggregate_builder("display::WindowLogicalSize")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14658,25 +14601,24 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowModalPayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowModalPayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -14689,24 +14631,24 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowModalChangedEvent")
+            .begin_named_aggregate_builder("display::WindowModalChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowModalPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14800,8 +14742,8 @@ impl VmAggregateCodec for WindowModalPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -14809,9 +14751,9 @@ impl VmAggregateCodec for WindowModalPayload {
             .boxed());
         }
         let field_previous_modal =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_modal =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_modal: field_previous_modal,
             current_modal: field_current_modal,
@@ -14823,17 +14765,17 @@ impl VmAggregateCodec for WindowModalPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowModalPayload")
+            .begin_named_aggregate_builder("display::WindowModalPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.previous_modal, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.current_modal, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -14924,25 +14866,24 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowModePayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowModePayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -14955,24 +14896,24 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowModeChangedEvent")
+            .begin_named_aggregate_builder("display::WindowModeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowModePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15087,8 +15028,8 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -15096,11 +15037,11 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
             .boxed());
         }
         let field_previous_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -15114,21 +15055,21 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowModePayload")
+            .begin_named_aggregate_builder("display::WindowModePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
             self.previous_mode,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
             self.current_mode,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15259,23 +15200,23 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowMousePassthroughPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowMousePassthroughPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -15290,27 +15231,27 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowMousePassthroughChangedEvent")
+            .begin_named_aggregate_builder("display::WindowMousePassthroughChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowMousePassthroughPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15415,8 +15356,8 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -15424,9 +15365,9 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
             .boxed());
         }
         let field_previous_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_mouse_passthrough: field_previous_mouse_passthrough,
             current_mouse_passthrough: field_current_mouse_passthrough,
@@ -15438,21 +15379,21 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowMousePassthroughPayload")
+            .begin_named_aggregate_builder("display::WindowMousePassthroughPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.previous_mouse_passthrough,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.current_mouse_passthrough,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15543,23 +15484,23 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowOcclusionPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowOcclusionPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -15574,26 +15515,26 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowOcclusionChangedEvent")
+            .begin_named_aggregate_builder("display::WindowOcclusionChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowOcclusionPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowOcclusionPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15689,8 +15630,8 @@ impl VmAggregateCodec for WindowOcclusionPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -15698,11 +15639,11 @@ impl VmAggregateCodec for WindowOcclusionPayload {
             .boxed());
         }
         let field_previous_occlusion =
-            <WindowOcclusionState as VmAggregateCodec>::decode_component_with_context(
+            <WindowOcclusionState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_occlusion =
-            <WindowOcclusionState as VmAggregateCodec>::decode_component_with_context(
+            <WindowOcclusionState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -15716,21 +15657,21 @@ impl VmAggregateCodec for WindowOcclusionPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowOcclusionPayload")
+            .begin_named_aggregate_builder("display::WindowOcclusionPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
             self.previous_occlusion,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
             self.current_occlusion,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15821,23 +15762,23 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowOpacityPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowOpacityPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -15852,26 +15793,26 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowOpacityChangedEvent")
+            .begin_named_aggregate_builder("display::WindowOpacityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowOpacityPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowOpacityPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -15965,8 +15906,8 @@ impl VmAggregateCodec for WindowOpacityPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -15974,9 +15915,9 @@ impl VmAggregateCodec for WindowOpacityPayload {
             .boxed());
         }
         let field_previous_opacity =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_opacity =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_opacity: field_previous_opacity,
             current_opacity: field_current_opacity,
@@ -15988,17 +15929,17 @@ impl VmAggregateCodec for WindowOpacityPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowOpacityPayload")
+            .begin_named_aggregate_builder("display::WindowOpacityPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.previous_opacity, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.current_opacity, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16133,84 +16074,78 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 23 {
+        let field_count = value_ref.field_count();
+        if field_count != 23 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 23 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
         let field_role =
-            <WindowRole as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <WindowRole as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_position =
-            <Option<WindowPositionVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_constraints =
-            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_display =
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
-        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_component_with_context(
+        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 8,
         )?;
-        let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 9,
-            )?;
+        let field_visibility = <WindowVisibility as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 9,
+        )?;
         let field_resizable =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_decorated =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_transparent =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_component_with_context(
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
+        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 13,
         )?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
-        let field_opacity = <Option<f64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 15,
-        )?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
+        let field_opacity =
+            <Option<f64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 15)?;
         let field_focus_on_show =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 18,
             )?;
         let field_transient_for =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 19,
             )?;
-        let field_modal = <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 20,
-        )?;
+        let field_modal =
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 20)?;
         let field_mouse_passthrough =
-            <Option<bool> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 21,
-            )?;
+            <Option<bool> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_aspect_ratio =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 22,
             )?;
         Ok(Self {
@@ -16245,146 +16180,142 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowOptions")
+            .begin_named_aggregate_builder("display::WindowOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.size_logical,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
             self.position,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::encode_with_context(
                 self.constraints,
                 context,
             )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.display,
                 context,
             )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.chrome, context)?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.taskbar_visible, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.opacity, context)?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.focus_on_show, context)?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.parent,
                 context,
             )?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.transient_for,
                 context,
             )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.modal, context)?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<bool> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<bool> as VmAggregateCodec>::encode_with_context(
             self.mouse_passthrough,
             context,
         )?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
-                self.aspect_ratio,
-                context,
-            )?;
+        let field_value = <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+            self.aspect_ratio,
+            context,
+        )?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16721,25 +16652,24 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowParentPayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowParentPayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -16752,26 +16682,26 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowParentChangedEvent")
+            .begin_named_aggregate_builder("display::WindowParentChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowParentPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowParentPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16865,8 +16795,8 @@ impl VmAggregateCodec for WindowParentPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -16874,11 +16804,11 @@ impl VmAggregateCodec for WindowParentPayload {
             .boxed());
         }
         let field_previous_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -16892,23 +16822,23 @@ impl VmAggregateCodec for WindowParentPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowParentPayload")
+            .begin_named_aggregate_builder("display::WindowParentPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.previous_parent,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.current_parent,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -16976,8 +16906,8 @@ impl VmAggregateCodec for WindowPhysicalSize {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -16985,9 +16915,9 @@ impl VmAggregateCodec for WindowPhysicalSize {
             .boxed());
         }
         let field_width =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_height =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -16999,15 +16929,15 @@ impl VmAggregateCodec for WindowPhysicalSize {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowPhysicalSize")
+            .begin_named_aggregate_builder("display::WindowPhysicalSize")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17075,18 +17005,16 @@ impl VmAggregateCodec for WindowPosition {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_x =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
-        let field_y =
-            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_y = <i32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -17098,15 +17026,15 @@ impl VmAggregateCodec for WindowPosition {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowPosition")
+            .begin_named_aggregate_builder("display::WindowPosition")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        let field_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17197,23 +17125,23 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowPositionPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPositionPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -17228,26 +17156,26 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowPositionChangedEvent")
+            .begin_named_aggregate_builder("display::WindowPositionChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPositionPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPositionPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17343,8 +17271,8 @@ impl VmAggregateCodec for WindowPositionPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -17352,11 +17280,11 @@ impl VmAggregateCodec for WindowPositionPayload {
             .boxed());
         }
         let field_previous_position =
-            <WindowPositionVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPositionVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_position =
-            <WindowPositionVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPositionVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -17370,21 +17298,21 @@ impl VmAggregateCodec for WindowPositionPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowPositionPayload")
+            .begin_named_aggregate_builder("display::WindowPositionPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPositionVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPositionVm as VmAggregateCodec>::encode_with_context(
             self.previous_position,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPositionVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPositionVm as VmAggregateCodec>::encode_with_context(
             self.current_position,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17475,23 +17403,23 @@ impl VmAggregateCodec for WindowRenderStateChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowRenderStatePayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowRenderStatePayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -17506,27 +17434,26 @@ impl VmAggregateCodec for WindowRenderStateChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowRenderStateChangedEvent")
+            .begin_named_aggregate_builder("display::WindowRenderStateChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <WindowRenderStatePayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <WindowRenderStatePayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17628,8 +17555,8 @@ impl VmAggregateCodec for WindowRenderStatePayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -17637,11 +17564,11 @@ impl VmAggregateCodec for WindowRenderStatePayload {
             .boxed());
         }
         let field_previous_render_state =
-            <WindowRenderState as VmAggregateCodec>::decode_component_with_context(
+            <WindowRenderState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_render_state =
-            <WindowRenderState as VmAggregateCodec>::decode_component_with_context(
+            <WindowRenderState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -17655,21 +17582,21 @@ impl VmAggregateCodec for WindowRenderStatePayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowRenderStatePayload")
+            .begin_named_aggregate_builder("display::WindowRenderStatePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
             self.previous_render_state,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
             self.current_render_state,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17760,23 +17687,23 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowSafeAreaPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowSafeAreaPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -17791,26 +17718,26 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSafeAreaChangedEvent")
+            .begin_named_aggregate_builder("display::WindowSafeAreaChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowSafeAreaPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowSafeAreaPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -17910,8 +17837,8 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -17919,13 +17846,13 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
             .boxed());
         }
         let field_left_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_top_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_right_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_bottom_px =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         Ok(Self {
             left_px: field_left_px,
             top_px: field_top_px,
@@ -17939,26 +17866,23 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSafeAreaInsets")
+            .begin_named_aggregate_builder("display::WindowSafeAreaInsets")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.left_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.left_px, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.top_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.top_px, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.right_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.right_px, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u32 as VmAggregateCodec>::encode_with_context(self.bottom_px, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.bottom_px, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18026,8 +17950,8 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -18035,11 +17959,11 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
             .boxed());
         }
         let field_previous_safe_area_insets =
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_safe_area_insets =
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -18053,23 +17977,23 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSafeAreaPayload")
+            .begin_named_aggregate_builder("display::WindowSafeAreaPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
                 self.previous_safe_area_insets,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
                 self.current_safe_area_insets,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18160,23 +18084,23 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowScaleFactorPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowScaleFactorPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -18191,27 +18115,26 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowScaleFactorChangedEvent")
+            .begin_named_aggregate_builder("display::WindowScaleFactorChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <WindowScaleFactorPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?;
+        let field_value = <WindowScaleFactorPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18313,8 +18236,8 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -18322,9 +18245,9 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
             .boxed());
         }
         let field_previous_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_scale_factor_milli: field_previous_scale_factor_milli,
             current_scale_factor_milli: field_current_scale_factor_milli,
@@ -18336,21 +18259,21 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowScaleFactorPayload")
+            .begin_named_aggregate_builder("display::WindowScaleFactorPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.previous_scale_factor_milli,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(
             self.current_scale_factor_milli,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18441,25 +18364,24 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowSizePayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowSizePayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -18472,24 +18394,24 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSizeChangedEvent")
+            .begin_named_aggregate_builder("display::WindowSizeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowSizePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18583,8 +18505,8 @@ impl VmAggregateCodec for WindowSizeConstraints {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -18592,11 +18514,11 @@ impl VmAggregateCodec for WindowSizeConstraints {
             .boxed());
         }
         let field_min =
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_max =
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -18610,21 +18532,19 @@ impl VmAggregateCodec for WindowSizeConstraints {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSizeConstraints")
+            .begin_named_aggregate_builder("display::WindowSizeConstraints")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
-                self.min, context,
-            )?;
+        let field_value = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+            self.min, context,
+        )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
-                self.max, context,
-            )?;
+        let field_value = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+            self.max, context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18696,8 +18616,8 @@ impl VmAggregateCodec for WindowSizePayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -18705,19 +18625,19 @@ impl VmAggregateCodec for WindowSizePayload {
             .boxed());
         }
         let field_previous_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_previous_size_physical =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_current_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_current_size_physical =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -18733,35 +18653,35 @@ impl VmAggregateCodec for WindowSizePayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowSizePayload")
+            .begin_named_aggregate_builder("display::WindowSizePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.previous_size_logical,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.previous_size_physical,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.current_size_logical,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.current_size_physical,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -18873,88 +18793,85 @@ impl VmAggregateCodec for WindowState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 24 {
+        let field_count = value_ref.field_count();
+        if field_count != 24 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 24 fields",
             ))
             .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_position = <WindowPositionVm as VmAggregateCodec>::decode_component_with_context(
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_position = <WindowPositionVm as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         let field_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_size_physical =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_content_rect_logical =
-            <WindowLogicalRectVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowLogicalRectVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_framebuffer_size =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_role =
-            <WindowRole as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
-        let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 8,
-            )?;
+            <WindowRole as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
+        let field_visibility = <WindowVisibility as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 8,
+        )?;
         let field_display =
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
         let field_focused =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_occlusion =
-            <WindowOcclusionState as VmAggregateCodec>::decode_component_with_context(
+            <WindowOcclusionState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         let field_render_state =
-            <WindowRenderState as VmAggregateCodec>::decode_component_with_context(
+            <WindowRenderState as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_safe_area_insets =
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
-        let field_theme = <WindowTheme as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 14,
-        )?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_component_with_context(
+        let field_theme =
+            <WindowTheme as VmAggregateCodec>::decode_field_with_context(context, value_ref, 14)?;
+        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 15,
         )?;
         let field_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_opacity =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 18)?;
         let field_parent =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 19,
             )?;
         let field_transient_for =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 20,
             )?;
         let field_modal =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_mouse_passthrough =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 22)?;
         let field_aspect_ratio =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_component_with_context(
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 23,
             )?;
         Ok(Self {
@@ -18990,153 +18907,150 @@ impl VmAggregateCodec for WindowState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowState")
+            .begin_named_aggregate_builder("display::WindowState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.position, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.size_logical,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.size_physical,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowLogicalRectVm as VmAggregateCodec>::encode_with_context(
             self.content_rect_logical,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
             self.framebuffer_size,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
                 self.display,
                 context,
             )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.focused, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.focused, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
             self.occlusion,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowRenderState as VmAggregateCodec>::encode_with_context(
             self.render_state,
             context,
         )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
                 self.safe_area_insets,
                 context,
             )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.theme, context)?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.chrome, context)?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.taskbar_visible, context)?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.parent,
                 context,
             )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.transient_for,
                 context,
             )?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.mouse_passthrough, context)?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
-                self.aspect_ratio,
-                context,
-            )?;
+        let field_value = <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+            self.aspect_ratio,
+            context,
+        )?;
         value_builder
-            .write_component(23, component_value)
+            .write_field(23, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19227,23 +19141,23 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -19258,27 +19172,27 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowTaskbarVisibilityChangedEvent")
+            .begin_named_aggregate_builder("display::WindowTaskbarVisibilityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19383,8 +19297,8 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -19392,9 +19306,9 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
             .boxed());
         }
         let field_previous_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_current_taskbar_visible =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_taskbar_visible: field_previous_taskbar_visible,
             current_taskbar_visible: field_current_taskbar_visible,
@@ -19406,19 +19320,19 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowTaskbarVisibilityPayload")
+            .begin_named_aggregate_builder("display::WindowTaskbarVisibilityPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.previous_taskbar_visible,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.current_taskbar_visible, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19509,25 +19423,24 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
-        let field_payload =
-            <WindowThemePayloadVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_payload = <WindowThemePayloadVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -19540,24 +19453,24 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowThemeChangedEvent")
+            .begin_named_aggregate_builder("display::WindowThemeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowThemePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19651,8 +19564,8 @@ impl VmAggregateCodec for WindowThemePayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -19660,12 +19573,9 @@ impl VmAggregateCodec for WindowThemePayload {
             .boxed());
         }
         let field_previous_theme =
-            <WindowTheme as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
-        let field_current_theme = <WindowTheme as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+            <WindowTheme as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_current_theme =
+            <WindowTheme as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             previous_theme: field_previous_theme,
             current_theme: field_current_theme,
@@ -19677,17 +19587,17 @@ impl VmAggregateCodec for WindowThemePayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowThemePayload")
+            .begin_named_aggregate_builder("display::WindowThemePayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.previous_theme, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.current_theme, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19778,23 +19688,23 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowTransientPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowTransientPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -19809,26 +19719,26 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowTransientChangedEvent")
+            .begin_named_aggregate_builder("display::WindowTransientChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowTransientPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowTransientPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -19924,8 +19834,8 @@ impl VmAggregateCodec for WindowTransientPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -19933,11 +19843,11 @@ impl VmAggregateCodec for WindowTransientPayload {
             .boxed());
         }
         let field_previous_transient_for =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_transient_for =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -19951,23 +19861,23 @@ impl VmAggregateCodec for WindowTransientPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowTransientPayload")
+            .begin_named_aggregate_builder("display::WindowTransientPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.previous_transient_for,
                 context,
             )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.current_transient_for,
                 context,
             )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20058,23 +19968,23 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_metadata =
-            <WindowEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_payload =
-            <WindowVisibilityPayloadVm as VmAggregateCodec>::decode_component_with_context(
+            <WindowVisibilityPayloadVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -20089,26 +19999,26 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowVisibilityChangedEvent")
+            .begin_named_aggregate_builder("display::WindowVisibilityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(
             self.payload,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20207,8 +20117,8 @@ impl VmAggregateCodec for WindowVisibilityPayload {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -20216,11 +20126,11 @@ impl VmAggregateCodec for WindowVisibilityPayload {
             .boxed());
         }
         let field_previous_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_component_with_context(
+            <WindowVisibility as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
         let field_current_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_component_with_context(
+            <WindowVisibility as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -20234,21 +20144,21 @@ impl VmAggregateCodec for WindowVisibilityPayload {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowVisibilityPayload")
+            .begin_named_aggregate_builder("display::WindowVisibilityPayload")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowVisibility as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowVisibility as VmAggregateCodec>::encode_with_context(
             self.previous_visibility,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <WindowVisibility as VmAggregateCodec>::encode_with_context(
+        let field_value = <WindowVisibility as VmAggregateCodec>::encode_with_context(
             self.current_visibility,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -20335,15 +20245,15 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { kind: field_kind })
@@ -20354,12 +20264,12 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("display::WindowWindowedModeOptions")
+            .begin_named_aggregate_builder("display::WindowWindowedModeOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -21576,113 +21486,113 @@ pub const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask =
 /// Event kind bit for `visibilityChanged`.
 pub const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(16u64);
 
-/// Register VM storage schemas for display.
-pub(crate) fn register_display_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("display::PathBytes", 1)?;
-    isolate.register_named_storage_type("display::PathUtf16", 1)?;
-    isolate.register_named_storage_type("display::DisplayAddedEvent", 3)?;
-    isolate.register_named_storage_type("display::DisplayAddedPayload", 1)?;
-    isolate.register_named_storage_type("display::DisplayBackendDescriptor", 5)?;
-    isolate.register_named_storage_type("display::DisplayBeginFrameEvent", 11)?;
-    isolate.register_named_storage_type("display::DisplayBeginFrameFilter", 1)?;
-    isolate.register_named_storage_type("display::DisplayBeginFrameOpenOptions", 4)?;
-    isolate.register_named_storage_type("display::DisplayColorState", 3)?;
-    isolate.register_named_storage_type("display::DisplayDescriptor", 20)?;
-    isolate.register_named_storage_type("display::DisplayDescriptorChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::DisplayDescriptorChangedPayload", 3)?;
-    isolate.register_named_storage_type("display::DisplayDragBeginOptions", 5)?;
-    isolate.register_named_storage_type("display::DisplayDragItemDescriptor", 5)?;
-    isolate.register_named_storage_type("display::DisplayDragPosition", 2)?;
-    isolate.register_named_storage_type("display::DisplayDragPreview", 6)?;
-    isolate.register_named_storage_type("display::DisplayDragSourceItem", 6)?;
-    isolate.register_named_storage_type("display::DisplayDragTransfer", 6)?;
-    isolate.register_named_storage_type("display::DisplayEventQueueOptions", 2)?;
-    isolate.register_named_storage_type("display::DisplayGammaRamp", 3)?;
-    isolate.register_named_storage_type("display::DisplayMode", 5)?;
-    isolate.register_named_storage_type("display::DisplayModeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::DisplayModeChangedPayload", 2)?;
-    isolate.register_named_storage_type("display::DisplayMonitorEventFilter", 2)?;
-    isolate.register_named_storage_type("display::DisplayMonitorEventMetadata", 5)?;
-    isolate.register_named_storage_type("display::DisplayMonitorEventOpenOptions", 4)?;
-    isolate.register_named_storage_type("display::DisplayMonitorListRequest", 2)?;
-    isolate.register_named_storage_type("display::DisplayMonitorOpenOptions", 2)?;
-    isolate.register_named_storage_type("display::DisplayPrimaryChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::DisplayPrimaryPayload", 2)?;
-    isolate.register_named_storage_type("display::DisplayRemovedEvent", 3)?;
-    isolate.register_named_storage_type("display::DisplayRemovedPayload", 2)?;
-    isolate.register_named_storage_type("display::OsPathBytes", 2)?;
-    isolate.register_named_storage_type("display::OsPathUtf16", 2)?;
-    isolate.register_named_storage_type("display::WindowAspectRatio", 2)?;
-    isolate.register_named_storage_type("display::WindowAspectRatioChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowAspectRatioPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowBorderlessModeOptions", 2)?;
-    isolate.register_named_storage_type("display::WindowChromeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowChromePayload", 2)?;
-    isolate.register_named_storage_type("display::WindowCloseRequestedEvent", 2)?;
-    isolate.register_named_storage_type("display::WindowContentRectChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowContentRectPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowCreatedEvent", 2)?;
-    isolate.register_named_storage_type("display::WindowDescriptor", 17)?;
-    isolate.register_named_storage_type("display::WindowDestroyedEvent", 2)?;
-    isolate.register_named_storage_type("display::WindowDisplayChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowDisplayPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowDragEnteredEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowDragExitedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowDragUpdatedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowDroppedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowEventFilter", 2)?;
-    isolate.register_named_storage_type("display::WindowEventMetadata", 5)?;
-    isolate.register_named_storage_type("display::WindowEventOpenOptions", 4)?;
-    isolate.register_named_storage_type("display::WindowExclusiveFullscreenModeOptions", 3)?;
-    isolate.register_named_storage_type("display::WindowFocusChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowFocusPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowFramebufferSizeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowFramebufferSizePayload", 2)?;
-    isolate.register_named_storage_type("display::WindowIconImage", 4)?;
-    isolate.register_named_storage_type("display::WindowIconSet", 1)?;
-    isolate.register_named_storage_type("display::WindowLogicalRect", 4)?;
-    isolate.register_named_storage_type("display::WindowLogicalSize", 2)?;
-    isolate.register_named_storage_type("display::WindowModalChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowModalPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowModeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowModePayload", 2)?;
-    isolate.register_named_storage_type("display::WindowMousePassthroughChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowMousePassthroughPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowOcclusionChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowOcclusionPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowOpacityChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowOpacityPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowOptions", 23)?;
-    isolate.register_named_storage_type("display::WindowParentChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowParentPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowPhysicalSize", 2)?;
-    isolate.register_named_storage_type("display::WindowPosition", 2)?;
-    isolate.register_named_storage_type("display::WindowPositionChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowPositionPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowRenderStateChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowRenderStatePayload", 2)?;
-    isolate.register_named_storage_type("display::WindowSafeAreaChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowSafeAreaInsets", 4)?;
-    isolate.register_named_storage_type("display::WindowSafeAreaPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowScaleFactorChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowScaleFactorPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowSizeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowSizeConstraints", 2)?;
-    isolate.register_named_storage_type("display::WindowSizePayload", 4)?;
-    isolate.register_named_storage_type("display::WindowState", 24)?;
-    isolate.register_named_storage_type("display::WindowTaskbarVisibilityChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowTaskbarVisibilityPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowThemeChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowThemePayload", 2)?;
-    isolate.register_named_storage_type("display::WindowTransientChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowTransientPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowVisibilityChangedEvent", 3)?;
-    isolate.register_named_storage_type("display::WindowVisibilityPayload", 2)?;
-    isolate.register_named_storage_type("display::WindowWindowedModeOptions", 1)?;
-    isolate.register_named_storage_type("display::DisplayMonitorEvent", 2)?;
-    isolate.register_named_storage_type("display::OsPath", 2)?;
-    isolate.register_named_storage_type("display::WindowEvent", 2)?;
-    isolate.register_named_storage_type("display::WindowModeOptions", 2)?;
+/// Register VM aggregate schemas for display.
+pub(crate) fn register_display_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("display::PathBytes", 1)?;
+    isolate.register_named_aggregate_type("display::PathUtf16", 1)?;
+    isolate.register_named_aggregate_type("display::DisplayAddedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayAddedPayload", 1)?;
+    isolate.register_named_aggregate_type("display::DisplayBackendDescriptor", 5)?;
+    isolate.register_named_aggregate_type("display::DisplayBeginFrameEvent", 11)?;
+    isolate.register_named_aggregate_type("display::DisplayBeginFrameFilter", 1)?;
+    isolate.register_named_aggregate_type("display::DisplayBeginFrameOpenOptions", 4)?;
+    isolate.register_named_aggregate_type("display::DisplayColorState", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayDescriptor", 20)?;
+    isolate.register_named_aggregate_type("display::DisplayDescriptorChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayDescriptorChangedPayload", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayDragBeginOptions", 5)?;
+    isolate.register_named_aggregate_type("display::DisplayDragItemDescriptor", 5)?;
+    isolate.register_named_aggregate_type("display::DisplayDragPosition", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayDragPreview", 6)?;
+    isolate.register_named_aggregate_type("display::DisplayDragSourceItem", 6)?;
+    isolate.register_named_aggregate_type("display::DisplayDragTransfer", 6)?;
+    isolate.register_named_aggregate_type("display::DisplayEventQueueOptions", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayGammaRamp", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayMode", 5)?;
+    isolate.register_named_aggregate_type("display::DisplayModeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayModeChangedPayload", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorEventFilter", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorEventMetadata", 5)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorEventOpenOptions", 4)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorListRequest", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorOpenOptions", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayPrimaryChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayPrimaryPayload", 2)?;
+    isolate.register_named_aggregate_type("display::DisplayRemovedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::DisplayRemovedPayload", 2)?;
+    isolate.register_named_aggregate_type("display::OsPathBytes", 2)?;
+    isolate.register_named_aggregate_type("display::OsPathUtf16", 2)?;
+    isolate.register_named_aggregate_type("display::WindowAspectRatio", 2)?;
+    isolate.register_named_aggregate_type("display::WindowAspectRatioChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowAspectRatioPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowBorderlessModeOptions", 2)?;
+    isolate.register_named_aggregate_type("display::WindowChromeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowChromePayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowCloseRequestedEvent", 2)?;
+    isolate.register_named_aggregate_type("display::WindowContentRectChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowContentRectPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowCreatedEvent", 2)?;
+    isolate.register_named_aggregate_type("display::WindowDescriptor", 17)?;
+    isolate.register_named_aggregate_type("display::WindowDestroyedEvent", 2)?;
+    isolate.register_named_aggregate_type("display::WindowDisplayChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowDisplayPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowDragEnteredEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowDragExitedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowDragUpdatedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowDroppedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowEventFilter", 2)?;
+    isolate.register_named_aggregate_type("display::WindowEventMetadata", 5)?;
+    isolate.register_named_aggregate_type("display::WindowEventOpenOptions", 4)?;
+    isolate.register_named_aggregate_type("display::WindowExclusiveFullscreenModeOptions", 3)?;
+    isolate.register_named_aggregate_type("display::WindowFocusChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowFocusPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowFramebufferSizeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowFramebufferSizePayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowIconImage", 4)?;
+    isolate.register_named_aggregate_type("display::WindowIconSet", 1)?;
+    isolate.register_named_aggregate_type("display::WindowLogicalRect", 4)?;
+    isolate.register_named_aggregate_type("display::WindowLogicalSize", 2)?;
+    isolate.register_named_aggregate_type("display::WindowModalChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowModalPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowModeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowModePayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowMousePassthroughChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowMousePassthroughPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowOcclusionChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowOcclusionPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowOpacityChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowOpacityPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowOptions", 23)?;
+    isolate.register_named_aggregate_type("display::WindowParentChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowParentPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowPhysicalSize", 2)?;
+    isolate.register_named_aggregate_type("display::WindowPosition", 2)?;
+    isolate.register_named_aggregate_type("display::WindowPositionChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowPositionPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowRenderStateChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowRenderStatePayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowSafeAreaChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowSafeAreaInsets", 4)?;
+    isolate.register_named_aggregate_type("display::WindowSafeAreaPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowScaleFactorChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowScaleFactorPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowSizeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowSizeConstraints", 2)?;
+    isolate.register_named_aggregate_type("display::WindowSizePayload", 4)?;
+    isolate.register_named_aggregate_type("display::WindowState", 24)?;
+    isolate.register_named_aggregate_type("display::WindowTaskbarVisibilityChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowTaskbarVisibilityPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowThemeChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowThemePayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowTransientChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowTransientPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowVisibilityChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("display::WindowVisibilityPayload", 2)?;
+    isolate.register_named_aggregate_type("display::WindowWindowedModeOptions", 1)?;
+    isolate.register_named_aggregate_type("display::DisplayMonitorEvent", 2)?;
+    isolate.register_named_aggregate_type("display::OsPath", 2)?;
+    isolate.register_named_aggregate_type("display::WindowEvent", 2)?;
+    isolate.register_named_aggregate_type("display::WindowModeOptions", 2)?;
 
     Ok(())
 }

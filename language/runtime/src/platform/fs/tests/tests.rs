@@ -397,7 +397,7 @@ fn decode_string_value(
     _context: &vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::ManagedReference {
+    if value.tag() != vm::ValueTag::HeapReference {
         return Err(
             RuntimeError::from(PlatformError::invalid_argument_type("string", "string")).boxed(),
         );
@@ -733,7 +733,7 @@ fn array_string_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<Vec<String>> {
-    let values = values.raw_values(&context.read())?;
+    let values = values.values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let handle = decode_string_value(context, value)?;

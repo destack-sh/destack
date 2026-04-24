@@ -239,11 +239,16 @@ fn vm_slice_of_slices(
         .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()?;
     let data = context
-        .allocate_raw_values(values)
+        .allocate_heap_value_slots(values.len())
         .map_err(RuntimeError::from)?;
+    for (index, value) in values.into_iter().enumerate() {
+        context
+            .write_heap_value(data, index, value)
+            .map_err(RuntimeError::from)?;
+    }
 
     Ok(VmSlice {
-        data,
+        data: vm::Value::heap_reference(data),
         len: slices.len() as u32,
         _marker: std::marker::PhantomData::<VmSlice<u8>>,
     })

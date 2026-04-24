@@ -47,8 +47,8 @@ impl VmAggregateCodec for ThreadCpu {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -56,9 +56,9 @@ impl VmAggregateCodec for ThreadCpu {
             .boxed());
         }
         let field_group =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_cpu =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             group: field_group,
             cpu: field_cpu,
@@ -70,15 +70,15 @@ impl VmAggregateCodec for ThreadCpu {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("thread::ThreadCpu")
+            .begin_named_aggregate_builder("thread::ThreadCpu")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -165,15 +165,15 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 1 {
+        let field_count = value_ref.field_count();
+        if field_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_cpus = <VmArray<ThreadCpuVm> as VmAggregateCodec>::decode_component_with_context(
+        let field_cpus = <VmArray<ThreadCpuVm> as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         Ok(Self { cpus: field_cpus })
@@ -184,12 +184,12 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("thread::ThreadCpuSet")
+            .begin_named_aggregate_builder("thread::ThreadCpuSet")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <VmArray<ThreadCpuVm> as VmAggregateCodec>::encode_with_context(self.cpus, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -269,8 +269,8 @@ impl VmAggregateCodec for ThreadOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -278,9 +278,9 @@ impl VmAggregateCodec for ThreadOptions {
             .boxed());
         }
         let field_stack_bytes =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             stack_bytes: field_stack_bytes,
             flags: field_flags,
@@ -292,16 +292,16 @@ impl VmAggregateCodec for ThreadOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("thread::ThreadOptions")
+            .begin_named_aggregate_builder("thread::ThreadOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -349,11 +349,11 @@ pub struct ThreadcpusetReplayRecord {
     pub cpus: Vec<ThreadCpu>,
 }
 
-/// Register VM storage schemas for thread.
-pub(crate) fn register_thread_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("thread::ThreadCpu", 2)?;
-    isolate.register_named_storage_type("thread::ThreadCpuSet", 1)?;
-    isolate.register_named_storage_type("thread::ThreadOptions", 2)?;
+/// Register VM aggregate schemas for thread.
+pub(crate) fn register_thread_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("thread::ThreadCpu", 2)?;
+    isolate.register_named_aggregate_type("thread::ThreadCpuSet", 1)?;
+    isolate.register_named_aggregate_type("thread::ThreadOptions", 2)?;
 
     Ok(())
 }

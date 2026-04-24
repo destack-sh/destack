@@ -285,8 +285,8 @@ impl VmAggregateCodec for MemoryRange {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -294,9 +294,9 @@ impl VmAggregateCodec for MemoryRange {
             .boxed());
         }
         let field_address =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_length =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             address: field_address,
             length: field_length,
@@ -308,16 +308,15 @@ impl VmAggregateCodec for MemoryRange {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("memory::MemoryRange")
+            .begin_named_aggregate_builder("memory::MemoryRange")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -385,8 +384,8 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -394,9 +393,9 @@ impl VmAggregateCodec for ProtectedMemoryRange {
             .boxed());
         }
         let field_address =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_length =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         Ok(Self {
             address: field_address,
             length: field_length,
@@ -408,16 +407,15 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("memory::ProtectedMemoryRange")
+            .begin_named_aggregate_builder("memory::ProtectedMemoryRange")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -488,10 +486,10 @@ pub const MEMORY_RESERVE_NO_RESERVE: MemoryReserveFlags = MemoryReserveFlags(4u3
 /// Prefer high virtual addresses where supported.
 pub const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(1u32);
 
-/// Register VM storage schemas for memory.
-pub(crate) fn register_memory_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("memory::MemoryRange", 2)?;
-    isolate.register_named_storage_type("memory::ProtectedMemoryRange", 2)?;
+/// Register VM aggregate schemas for memory.
+pub(crate) fn register_memory_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("memory::MemoryRange", 2)?;
+    isolate.register_named_aggregate_type("memory::ProtectedMemoryRange", 2)?;
 
     Ok(())
 }

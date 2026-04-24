@@ -1978,30 +1978,30 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let tag = <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let decoded = match tag {
-            2671385442u32 => Self::AudioBackendDisconnectedEvent(<AudioBackendDisconnectedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            882086390u32 => Self::AudioBackendResetEvent(<AudioBackendResetEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3898931457u32 => Self::AudioDefaultCaptureChangedEvent(<AudioDefaultCaptureChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            148848279u32 => Self::AudioDefaultLoopbackChangedEvent(<AudioDefaultLoopbackChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3146923047u32 => Self::AudioDefaultPlaybackChangedEvent(<AudioDefaultPlaybackChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            4188441349u32 => Self::AudioDeviceAddedEvent(<AudioDeviceAddedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3233210258u32 => Self::AudioDeviceFormatChangedEvent(<AudioDeviceFormatChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            4161309046u32 => Self::AudioDeviceRemovedEvent(<AudioDeviceRemovedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3459080735u32 => Self::AudioDeviceReroutedEvent(<AudioDeviceReroutedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1214582496u32 => Self::AudioInterruptionBeganEvent(<AudioInterruptionBeganEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            2799812553u32 => Self::AudioInterruptionEndedEvent(<AudioInterruptionEndedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3694639736u32 => Self::AudioStreamDeviceChangedEvent(<AudioStreamDeviceChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            1303591687u32 => Self::AudioStreamStateChangedEvent(<AudioStreamStateChangedEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
-            3186589411u32 => Self::AudioStreamXRunEvent(<AudioStreamXRunEventVm as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?),
+            2671385442u32 => Self::AudioBackendDisconnectedEvent(<AudioBackendDisconnectedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            882086390u32 => Self::AudioBackendResetEvent(<AudioBackendResetEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3898931457u32 => Self::AudioDefaultCaptureChangedEvent(<AudioDefaultCaptureChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            148848279u32 => Self::AudioDefaultLoopbackChangedEvent(<AudioDefaultLoopbackChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3146923047u32 => Self::AudioDefaultPlaybackChangedEvent(<AudioDefaultPlaybackChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            4188441349u32 => Self::AudioDeviceAddedEvent(<AudioDeviceAddedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3233210258u32 => Self::AudioDeviceFormatChangedEvent(<AudioDeviceFormatChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            4161309046u32 => Self::AudioDeviceRemovedEvent(<AudioDeviceRemovedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3459080735u32 => Self::AudioDeviceReroutedEvent(<AudioDeviceReroutedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1214582496u32 => Self::AudioInterruptionBeganEvent(<AudioInterruptionBeganEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            2799812553u32 => Self::AudioInterruptionEndedEvent(<AudioInterruptionEndedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3694639736u32 => Self::AudioStreamDeviceChangedEvent(<AudioStreamDeviceChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            1303591687u32 => Self::AudioStreamStateChangedEvent(<AudioStreamStateChangedEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
+            3186589411u32 => Self::AudioStreamXRunEvent(<AudioStreamXRunEventVm as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?),
             _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown AudioEvent tag")).boxed()),
         };
         Ok(decoded)
@@ -2020,13 +2020,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2038,13 +2038,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2056,13 +2056,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2074,13 +2074,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2092,13 +2092,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2110,13 +2110,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2128,13 +2128,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2146,13 +2146,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2164,13 +2164,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2182,13 +2182,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2200,13 +2200,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2218,13 +2218,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2236,13 +2236,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2254,13 +2254,13 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                         value, context,
                     )?;
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("audio::AudioEvent")
+                    .begin_named_aggregate_builder("audio::AudioEvent")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, tag_value)
+                    .write_field(0, tag_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, payload_value)
+                    .write_field(1, payload_value)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
@@ -2657,46 +2657,50 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 11 {
+        let field_count = value_ref.field_count();
+        if field_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_support =
-            <core::BackendSupport as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_support = <core::BackendSupport as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_priority =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_capability_flags =
-            <AudioBackendCapabilityFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioBackendCapabilityFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         let field_supported_device_list_flags =
-            <AudioDeviceListFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceListFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_supported_device_open_flags =
-            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         let field_supported_stream_flags =
-            <AudioSupportedStreamFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioSupportedStreamFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
-        let field_supported_stream_requirement_flags = <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
-        let field_supported_event_subscription_flags = <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_supported_stream_requirement_flags =
+            <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 8,
+            )?;
+        let field_supported_event_subscription_flags =
+            <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 9,
+            )?;
         let field_supported_stream_clock_domains =
-            <AudioSupportedStreamClockDomains as VmAggregateCodec>::decode_component_with_context(
+            <AudioSupportedStreamClockDomains as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
         Ok(Self {
@@ -2719,80 +2723,78 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioBackendDescriptor")
+            .begin_named_aggregate_builder("audio::AudioBackendDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <core::BackendSupport as VmAggregateCodec>::encode_with_context(self.support, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
-                self.capability_flags,
-                context,
-            )?;
+        let field_value = <AudioBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+            self.capability_flags,
+            context,
+        )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceListFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceListFlags as VmAggregateCodec>::encode_with_context(
             self.supported_device_list_flags,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(
             self.supported_device_open_flags,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioSupportedStreamFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioSupportedStreamFlags as VmAggregateCodec>::encode_with_context(
             self.supported_stream_flags,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
                 self.supported_stream_requirement_flags,
                 context,
             )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
                 self.supported_event_subscription_flags,
                 context,
             )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedStreamClockDomains as VmAggregateCodec>::encode_with_context(
                 self.supported_stream_clock_domains,
                 context,
             )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3055,22 +3057,24 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3083,27 +3087,27 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioBackendDisconnectedEvent")
+            .begin_named_aggregate_builder("audio::AudioBackendDisconnectedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3229,22 +3233,24 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3257,27 +3263,27 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioBackendResetEvent")
+            .begin_named_aggregate_builder("audio::AudioBackendResetEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3400,8 +3406,8 @@ impl VmAggregateCodec for AudioClockSnapshot {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 12 {
+        let field_count = value_ref.field_count();
+        if field_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
@@ -3409,43 +3415,39 @@ impl VmAggregateCodec for AudioClockSnapshot {
             .boxed());
         }
         let field_stream_frames =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_clock_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_clock_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_component_with_context(
+            <AudioClockQuality as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_callback_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
-        )?;
+        let field_callback_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_callback_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_component_with_context(
+            <AudioClockQuality as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_input_adc_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 5,
-        )?;
+        let field_input_adc_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_input_adc_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_component_with_context(
+            <AudioClockQuality as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
-        let field_output_dac_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 7,
-        )?;
+        let field_output_dac_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_output_dac_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_component_with_context(
+            <AudioClockQuality as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 8,
             )?;
-        let field_device_ns = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 9,
-        )?;
+        let field_device_ns =
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_device_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_component_with_context(
+            <AudioClockQuality as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 10,
             )?;
         let field_monotonic_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         Ok(Self {
             stream_frames: field_stream_frames,
             clock_ns: field_clock_ns,
@@ -3467,77 +3469,76 @@ impl VmAggregateCodec for AudioClockSnapshot {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioClockSnapshot")
+            .begin_named_aggregate_builder("audio::AudioClockSnapshot")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_frames, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.clock_ns, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.clock_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
             self.clock_quality,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.callback_ns, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
             self.callback_quality,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.input_adc_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
             self.input_adc_quality,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.output_dac_ns, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
             self.output_dac_quality,
             context,
         )?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.device_ns, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioClockQuality as VmAggregateCodec>::encode_with_context(
             self.device_quality,
             context,
         )?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_ns, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3628,23 +3629,22 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -3659,26 +3659,26 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDefaultCaptureChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioDefaultCaptureChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3804,23 +3804,22 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -3835,26 +3834,26 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDefaultLoopbackChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioDefaultLoopbackChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -3980,23 +3979,22 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -4011,26 +4009,26 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDefaultPlaybackChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioDefaultPlaybackChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4156,23 +4154,22 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -4187,26 +4184,26 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceAddedEvent")
+            .begin_named_aggregate_builder("audio::AudioDeviceAddedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -4390,90 +4387,94 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 30 {
+        let field_count = value_ref.field_count();
+        if field_count != 30 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 30 fields",
             ))
             .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_group_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_group_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
         )?;
-        let field_transport =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
+        let field_transport = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
         )?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_direction =
-            <AudioDeviceDirection as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceDirection as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_connected =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_is_raw =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_is_default_playback =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_is_default_capture =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_is_default_loopback =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_capability_flags =
-            <AudioDeviceCapabilityFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceCapabilityFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         let field_supported_device_open_flags =
-            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_supported_stream_flags =
-            <AudioSupportedStreamFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioSupportedStreamFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
-        let field_supported_stream_requirement_flags = <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
-        let field_supported_event_subscription_flags = <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+        let field_supported_stream_requirement_flags =
+            <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 14,
+            )?;
+        let field_supported_event_subscription_flags =
+            <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 15,
+            )?;
         let field_supported_stream_clock_domains =
-            <AudioSupportedStreamClockDomains as VmAggregateCodec>::decode_component_with_context(
+            <AudioSupportedStreamClockDomains as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 16,
             )?;
         let field_preferred_sample_rate =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_min_sample_rate =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 18)?;
         let field_max_sample_rate =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 19)?;
         let field_preferred_period_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 20)?;
         let field_min_channels =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_max_channels =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 22)?;
         let field_preferred_layout =
-            <AudioChannelLayout as VmAggregateCodec>::decode_component_with_context(
+            <AudioChannelLayout as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 23,
             )?;
         let field_preferred_channel_mask =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 24)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 24)?;
         let field_supported_channel_mask =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 25)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 25)?;
         let field_min_period_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 26)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 26)?;
         let field_max_period_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 27)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 27)?;
         let field_format_mask =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 28)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 28)?;
         let field_share_mode_mask =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 29)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 29)?;
         Ok(Self {
             id: field_id,
             group_id: field_group_id,
@@ -4513,177 +4514,174 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceDescriptor")
+            .begin_named_aggregate_builder("audio::AudioDeviceDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.transport, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
             self.direction,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.is_raw, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.is_raw, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_default_playback, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_default_capture, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.is_default_loopback, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioDeviceCapabilityFlags as VmAggregateCodec>::encode_with_context(
-                self.capability_flags,
-                context,
-            )?;
+        let field_value = <AudioDeviceCapabilityFlags as VmAggregateCodec>::encode_with_context(
+            self.capability_flags,
+            context,
+        )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(
             self.supported_device_open_flags,
             context,
         )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioSupportedStreamFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioSupportedStreamFlags as VmAggregateCodec>::encode_with_context(
             self.supported_stream_flags,
             context,
         )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
                 self.supported_stream_requirement_flags,
                 context,
             )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
                 self.supported_event_subscription_flags,
                 context,
             )?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSupportedStreamClockDomains as VmAggregateCodec>::encode_with_context(
                 self.supported_stream_clock_domains,
                 context,
             )?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.preferred_sample_rate, context)?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.min_sample_rate, context)?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_sample_rate, context)?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.preferred_period_frames, context)?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u16 as VmAggregateCodec>::encode_with_context(self.min_channels, context)?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u16 as VmAggregateCodec>::encode_with_context(self.max_channels, context)?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
             self.preferred_layout,
             context,
         )?;
         value_builder
-            .write_component(23, component_value)
+            .write_field(23, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.preferred_channel_mask, context)?;
         value_builder
-            .write_component(24, component_value)
+            .write_field(24, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.supported_channel_mask, context)?;
         value_builder
-            .write_component(25, component_value)
+            .write_field(25, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.min_period_frames, context)?;
         value_builder
-            .write_component(26, component_value)
+            .write_field(26, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_period_frames, context)?;
         value_builder
-            .write_component(27, component_value)
+            .write_field(27, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.format_mask, context)?;
         value_builder
-            .write_component(28, component_value)
+            .write_field(28, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.share_mode_mask, context)?;
         value_builder
-            .write_component(29, component_value)
+            .write_field(29, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5149,23 +5147,22 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -5180,26 +5177,26 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceFormatChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioDeviceFormatChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5306,8 +5303,8 @@ impl VmAggregateCodec for AudioDeviceListRequest {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -5315,20 +5312,18 @@ impl VmAggregateCodec for AudioDeviceListRequest {
             .boxed());
         }
         let field_direction =
-            <AudioDeviceDirection as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceDirection as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_backend_policy =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_flags =
-            <AudioDeviceListFlags as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+        let field_flags = <AudioDeviceListFlags as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             direction: field_direction,
             backend: field_backend,
@@ -5342,32 +5337,31 @@ impl VmAggregateCodec for AudioDeviceListRequest {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceListRequest")
+            .begin_named_aggregate_builder("audio::AudioDeviceListRequest")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
             self.direction,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioDeviceListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5441,8 +5435,8 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -5450,23 +5444,20 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
             .boxed());
         }
         let field_direction =
-            <AudioDeviceDirection as VmAggregateCodec>::decode_component_with_context(
+            <AudioDeviceDirection as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 0,
             )?;
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 1,
-        )?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_backend_policy =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
-        let field_share_mode = <AudioShareMode as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 3,
+        let field_share_mode =
+            <AudioShareMode as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_flags = <AudioDeviceOpenFlags as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 4,
         )?;
-        let field_flags =
-            <AudioDeviceOpenFlags as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
         Ok(Self {
             direction: field_direction,
             backend: field_backend,
@@ -5481,37 +5472,36 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceOpenOptions")
+            .begin_named_aggregate_builder("audio::AudioDeviceOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioDeviceDirection as VmAggregateCodec>::encode_with_context(
             self.direction,
             context,
         )?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioShareMode as VmAggregateCodec>::encode_with_context(self.share_mode, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5602,23 +5592,22 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -5633,26 +5622,26 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceRemovedEvent")
+            .begin_named_aggregate_builder("audio::AudioDeviceRemovedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5778,23 +5767,22 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         Ok(Self {
@@ -5809,26 +5797,26 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioDeviceReroutedEvent")
+            .begin_named_aggregate_builder("audio::AudioDeviceReroutedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -5939,8 +5927,8 @@ impl VmAggregateCodec for AudioEventMetadata {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -5948,19 +5936,18 @@ impl VmAggregateCodec for AudioEventMetadata {
             .boxed());
         }
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_sequence =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_dropped_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
-        let field_source = <AudioEventSource as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
+        let field_source = <AudioEventSource as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 3,
         )?;
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 4,
-        )?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_flags =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -5976,36 +5963,35 @@ impl VmAggregateCodec for AudioEventMetadata {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioEventMetadata")
+            .begin_named_aggregate_builder("audio::AudioEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioEventSource as VmAggregateCodec>::encode_with_context(self.source, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        let field_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6085,38 +6071,40 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 8 {
+        let field_count = value_ref.field_count();
+        if field_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
-        )?;
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_backend_policy =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+            <AudioBackendSelectionPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_flags =
-            <AudioEventSubscriptionFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioEventSubscriptionFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_delivery_mode =
-            <AudioEventDeliveryMode as VmAggregateCodec>::decode_component_with_context(
+            <AudioEventDeliveryMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_overflow_policy =
-            <AudioEventOverflowPolicy as VmAggregateCodec>::decode_component_with_context(
+            <AudioEventOverflowPolicy as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 5,
+            )?;
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_poll_interval_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -6134,59 +6122,57 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioEventSubscriptionOptions")
+            .begin_named_aggregate_builder("audio::AudioEventSubscriptionOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
-                self.backend_policy,
-                context,
-            )?;
+        let field_value = <AudioBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+            self.backend_policy,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
-                self.flags, context,
-            )?;
+        let field_value = <AudioEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
+            self.flags, context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventDeliveryMode as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventDeliveryMode as VmAggregateCodec>::encode_with_context(
             self.delivery_mode,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
             self.overflow_policy,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6277,22 +6263,24 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -6305,27 +6293,27 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioInterruptionBeganEvent")
+            .begin_named_aggregate_builder("audio::AudioInterruptionBeganEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6451,22 +6439,24 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 3 {
+        let field_count = value_ref.field_count();
+        if field_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -6479,27 +6469,27 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioInterruptionEndedEvent")
+            .begin_named_aggregate_builder("audio::AudioInterruptionEndedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6608,8 +6598,8 @@ impl VmAggregateCodec for AudioStreamAvailability {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -6617,15 +6607,15 @@ impl VmAggregateCodec for AudioStreamAvailability {
             .boxed());
         }
         let field_readable_frames =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_writable_frames =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_min_transfer_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_max_transfer_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_timestamp_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         Ok(Self {
             readable_frames: field_readable_frames,
             writable_frames: field_writable_frames,
@@ -6640,32 +6630,32 @@ impl VmAggregateCodec for AudioStreamAvailability {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamAvailability")
+            .begin_named_aggregate_builder("audio::AudioStreamAvailability")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.readable_frames, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.writable_frames, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.min_transfer_frames, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.max_transfer_frames, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6743,8 +6733,8 @@ impl VmAggregateCodec for AudioStreamConfig {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 7 {
+        let field_count = value_ref.field_count();
+        if field_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
@@ -6752,22 +6742,22 @@ impl VmAggregateCodec for AudioStreamConfig {
             .boxed());
         }
         let field_sample_rate =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_channels =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_channel_layout =
-            <AudioChannelLayout as VmAggregateCodec>::decode_component_with_context(
+            <AudioChannelLayout as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_channel_mask =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
-        let field_format = <AudioSampleFormat as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
+        let field_format = <AudioSampleFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 4,
         )?;
         let field_period_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_transfer_mode =
-            <AudioStreamTransferMode as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamTransferMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 6,
             )?;
         Ok(Self {
@@ -6786,46 +6776,45 @@ impl VmAggregateCodec for AudioStreamConfig {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamConfig")
+            .begin_named_aggregate_builder("audio::AudioStreamConfig")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_rate, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u16 as VmAggregateCodec>::encode_with_context(self.channels, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.channels, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
             self.channel_layout,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.channel_mask, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSampleFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.period_frames, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamTransferMode as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamTransferMode as VmAggregateCodec>::encode_with_context(
             self.transfer_mode,
             context,
         )?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -6957,79 +6946,76 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 23 {
+        let field_count = value_ref.field_count();
+        if field_count != 23 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 23 fields",
             ))
             .boxed());
         }
-        let field_backend = <AudioBackend as VmAggregateCodec>::decode_component_with_context(
-            context, value_ref, 0,
+        let field_backend =
+            <AudioBackend as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
+        let field_backend_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
         )?;
-        let field_backend_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
-            )?;
-        let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+        let field_device_id = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 2,
+        )?;
         let field_sample_rate =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_channels =
-            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u16 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_channel_layout =
-            <AudioChannelLayout as VmAggregateCodec>::decode_component_with_context(
+            <AudioChannelLayout as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         let field_channel_mask =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
-        let field_format = <AudioSampleFormat as VmAggregateCodec>::decode_component_with_context(
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
+        let field_format = <AudioSampleFormat as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 7,
         )?;
         let field_period_frames =
-            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u32 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_transfer_mode =
-            <AudioStreamTransferMode as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamTransferMode as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 9,
             )?;
-        let field_share_mode = <AudioShareMode as VmAggregateCodec>::decode_component_with_context(
+        let field_share_mode = <AudioShareMode as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 10,
         )?;
         let field_requested_flags =
-            <AudioStreamFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 11,
             )?;
         let field_requested_requirements =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 12,
             )?;
         let field_effective_flags =
-            <AudioStreamFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 13,
             )?;
         let field_effective_requirements =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 14,
             )?;
         let field_period_jitter_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 15)?;
         let field_non_interleaved =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 16)?;
         let field_supports_write_at =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 17)?;
         let field_supports_pause =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 18)?;
         let field_supports_non_interleaved =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 19)?;
         let field_supports_volume =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 20)?;
         let field_supports_mute =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 21)?;
         let field_supports_hardware_timestamps =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 22)?;
         Ok(Self {
             backend: field_backend,
             backend_id: field_backend_id,
@@ -7062,140 +7048,137 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamDescriptor")
+            .begin_named_aggregate_builder("audio::AudioStreamDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.backend_id, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_rate, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u16 as VmAggregateCodec>::encode_with_context(self.channels, context)?;
+        let field_value = <u16 as VmAggregateCodec>::encode_with_context(self.channels, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioChannelLayout as VmAggregateCodec>::encode_with_context(
             self.channel_layout,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.channel_mask, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioSampleFormat as VmAggregateCodec>::encode_with_context(self.format, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u32 as VmAggregateCodec>::encode_with_context(self.period_frames, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamTransferMode as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamTransferMode as VmAggregateCodec>::encode_with_context(
             self.transfer_mode,
             context,
         )?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioShareMode as VmAggregateCodec>::encode_with_context(self.share_mode, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamFlags as VmAggregateCodec>::encode_with_context(
             self.requested_flags,
             context,
         )?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
-                self.requested_requirements,
-                context,
-            )?;
+        let field_value = <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
+            self.requested_requirements,
+            context,
+        )?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamFlags as VmAggregateCodec>::encode_with_context(
             self.effective_flags,
             context,
         )?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
-                self.effective_requirements,
-                context,
-            )?;
+        let field_value = <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
+            self.effective_requirements,
+            context,
+        )?;
         value_builder
-            .write_component(14, component_value)
+            .write_field(14, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.period_jitter_ns, context)?;
         value_builder
-            .write_component(15, component_value)
+            .write_field(15, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.non_interleaved, context)?;
         value_builder
-            .write_component(16, component_value)
+            .write_field(16, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_write_at, context)?;
         value_builder
-            .write_component(17, component_value)
+            .write_field(17, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_pause, context)?;
         value_builder
-            .write_component(18, component_value)
+            .write_field(18, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_non_interleaved,
             context,
         )?;
         value_builder
-            .write_component(19, component_value)
+            .write_field(19, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_volume, context)?;
         value_builder
-            .write_component(20, component_value)
+            .write_field(20, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <bool as VmAggregateCodec>::encode_with_context(self.supports_mute, context)?;
         value_builder
-            .write_component(21, component_value)
+            .write_field(21, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(
             self.supports_hardware_timestamps,
             context,
         )?;
         value_builder
-            .write_component(22, component_value)
+            .write_field(22, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7536,28 +7519,30 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 5 {
+        let field_count = value_ref.field_count();
+        if field_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 4,
             )?;
         Ok(Self {
@@ -7574,41 +7559,41 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamDeviceChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioStreamDeviceChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
             self.status_flags,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7746,19 +7731,19 @@ impl VmAggregateCodec for AudioStreamOpenOptions {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 2 {
+        let field_count = value_ref.field_count();
+        if field_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_flags = <AudioStreamFlags as VmAggregateCodec>::decode_component_with_context(
+        let field_flags = <AudioStreamFlags as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_requirements =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         Ok(Self {
@@ -7772,20 +7757,19 @@ impl VmAggregateCodec for AudioStreamOpenOptions {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamOpenOptions")
+            .begin_named_aggregate_builder("audio::AudioStreamOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioStreamFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
-                self.requirements,
-                context,
-            )?;
+        let field_value = <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
+            self.requirements,
+            context,
+        )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -7877,46 +7861,45 @@ impl VmAggregateCodec for AudioStreamState {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 14 {
+        let field_count = value_ref.field_count();
+        if field_count != 14 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 14 fields",
             ))
             .boxed());
         }
-        let field_state =
-            <AudioStreamStateKind as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 0,
-            )?;
+        let field_state = <AudioStreamStateKind as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 0,
+        )?;
         let field_running =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_paused =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_buffered_frames =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_input_latency_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_output_latency_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_total_latency_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 7,
             )?;
         let field_xrun_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         let field_input_underflow_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 9)?;
         let field_input_overflow_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 10)?;
         let field_output_underflow_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 11)?;
         let field_output_overflow_count =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 12)?;
         let field_callback_cpu_load =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 13)?;
         Ok(Self {
             state: field_state,
             running: field_running,
@@ -7940,79 +7923,76 @@ impl VmAggregateCodec for AudioStreamState {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamState")
+            .begin_named_aggregate_builder("audio::AudioStreamState")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <AudioStreamStateKind as VmAggregateCodec>::encode_with_context(self.state, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.running, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.running, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.paused, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.paused, context)?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.buffered_frames, context)?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.input_latency_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.output_latency_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.total_latency_ns, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
             self.status_flags,
             context,
         )?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count, context)?;
+        let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.input_underflow_count, context)?;
         value_builder
-            .write_component(9, component_value)
+            .write_field(9, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.input_overflow_count, context)?;
         value_builder
-            .write_component(10, component_value)
+            .write_field(10, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.output_underflow_count, context)?;
         value_builder
-            .write_component(11, component_value)
+            .write_field(11, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.output_overflow_count, context)?;
         value_builder
-            .write_component(12, component_value)
+            .write_field(12, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?;
         value_builder
-            .write_component(13, component_value)
+            .write_field(13, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8105,24 +8085,26 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -8138,34 +8120,34 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamStateChangedEvent")
+            .begin_named_aggregate_builder("audio::AudioStreamStateChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
             self.status_flags,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8311,8 +8293,8 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 4 {
+        let field_count = value_ref.field_count();
+        if field_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -8320,17 +8302,17 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
             .boxed());
         }
         let field_supported =
-            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <bool as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_descriptor =
-            <AudioStreamDescriptorVm as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamDescriptorVm as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 1,
             )?;
         let field_satisfied_requirements =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 2,
             )?;
         let field_unsatisfied_requirements =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamRequirementFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         Ok(Self {
@@ -8346,35 +8328,32 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamSupport")
+            .begin_named_aggregate_builder("audio::AudioStreamSupport")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <bool as VmAggregateCodec>::encode_with_context(self.supported, context)?;
+        let field_value = <bool as VmAggregateCodec>::encode_with_context(self.supported, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamDescriptorVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamDescriptorVm as VmAggregateCodec>::encode_with_context(
             self.descriptor,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
-                self.satisfied_requirements,
-                context,
-            )?;
+        let field_value = <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
+            self.satisfied_requirements,
+            context,
+        )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
-                self.unsatisfied_requirements,
-                context,
-            )?;
+        let field_value = <AudioStreamRequirementFlags as VmAggregateCodec>::encode_with_context(
+            self.unsatisfied_requirements,
+            context,
+        )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8525,8 +8504,8 @@ impl VmAggregateCodec for AudioStreamTiming {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 9 {
+        let field_count = value_ref.field_count();
+        if field_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
@@ -8534,31 +8513,23 @@ impl VmAggregateCodec for AudioStreamTiming {
             .boxed());
         }
         let field_stream_frames =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
         let field_stream_time_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_input_adc_time_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 2,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 2)?;
         let field_output_dac_time_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 3,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 3)?;
         let field_callback_time_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 4,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_device_clock_ns =
-            <Option<u64> as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 5,
-            )?;
+            <Option<u64> as VmAggregateCodec>::decode_field_with_context(context, value_ref, 5)?;
         let field_monotonic_clock_ns =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 6)?;
         let field_drift_ppm =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 7)?;
         let field_callback_cpu_load =
-            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+            <f64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 8)?;
         Ok(Self {
             stream_frames: field_stream_frames,
             stream_time_ns: field_stream_time_ns,
@@ -8577,56 +8548,55 @@ impl VmAggregateCodec for AudioStreamTiming {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamTiming")
+            .begin_named_aggregate_builder("audio::AudioStreamTiming")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_frames, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_time_ns, context)?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.input_adc_time_ns,
             context,
         )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<u64> as VmAggregateCodec>::encode_with_context(
             self.output_dac_time_ns,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.callback_time_ns, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.device_clock_ns, context)?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_clock_ns, context)?;
         value_builder
-            .write_component(6, component_value)
+            .write_field(6, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
-            <f64 as VmAggregateCodec>::encode_with_context(self.drift_ppm, context)?;
+        let field_value = <f64 as VmAggregateCodec>::encode_with_context(self.drift_ppm, context)?;
         value_builder
-            .write_component(7, component_value)
+            .write_field(7, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?;
         value_builder
-            .write_component(8, component_value)
+            .write_field(8, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -8723,30 +8693,32 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
         context: &vm::ExternalReadContext<'_, '_>,
         value_ref: &vm::VmValueRef<'_, '_>,
     ) -> RuntimeResult<Self> {
-        let component_count = value_ref.component_count();
-        if component_count != 6 {
+        let field_count = value_ref.field_count();
+        if field_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
-        let field_metadata =
-            <AudioEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
-                context, value_ref, 1,
+        let field_metadata = <AudioEventMetadataVm as VmAggregateCodec>::decode_field_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_field_with_context(
+                context, value_ref, 2,
             )?;
-        let field_stream = <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_component_with_context(
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 3,
             )?;
         let field_xrun_count_delta =
-            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+            <u64 as VmAggregateCodec>::decode_field_with_context(context, value_ref, 4)?;
         let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
                 context, value_ref, 5,
             )?;
         Ok(Self {
@@ -8764,46 +8736,46 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
         context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         let mut value_builder = context
-            .begin_named_storage_value_builder("audio::AudioStreamXRunEvent")
+            .begin_named_aggregate_builder("audio::AudioStreamXRunEvent")
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
         value_builder
-            .write_component(0, component_value)
+            .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioEventMetadataVm as VmAggregateCodec>::encode_with_context(
             self.metadata,
             context,
         )?;
         value_builder
-            .write_component(1, component_value)
+            .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?;
         value_builder
-            .write_component(2, component_value)
+            .write_field(2, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+        let field_value = <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
             self.status_flags,
             context,
         )?;
         value_builder
-            .write_component(3, component_value)
+            .write_field(3, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value =
+        let field_value =
             <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count_delta, context)?;
         value_builder
-            .write_component(4, component_value)
+            .write_field(4, field_value)
             .map_err(Box::<RuntimeError>::from)?;
-        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+        let field_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
             self.device_id,
             context,
         )?;
         value_builder
-            .write_component(5, component_value)
+            .write_field(5, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
@@ -9599,37 +9571,37 @@ pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_PAUSE: AudioSupportedStreamRequirem
 pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE: AudioSupportedStreamRequirementFlags =
     AudioSupportedStreamRequirementFlags(2u32);
 
-/// Register VM storage schemas for audio.
-pub(crate) fn register_audio_vm_storage_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_storage_type("audio::AudioBackendDescriptor", 11)?;
-    isolate.register_named_storage_type("audio::AudioBackendDisconnectedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioBackendResetEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioClockSnapshot", 12)?;
-    isolate.register_named_storage_type("audio::AudioDefaultCaptureChangedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDefaultLoopbackChangedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDefaultPlaybackChangedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDeviceAddedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDeviceDescriptor", 30)?;
-    isolate.register_named_storage_type("audio::AudioDeviceFormatChangedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDeviceListRequest", 4)?;
-    isolate.register_named_storage_type("audio::AudioDeviceOpenOptions", 5)?;
-    isolate.register_named_storage_type("audio::AudioDeviceRemovedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioDeviceReroutedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioEventMetadata", 6)?;
-    isolate.register_named_storage_type("audio::AudioEventSubscriptionOptions", 8)?;
-    isolate.register_named_storage_type("audio::AudioInterruptionBeganEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioInterruptionEndedEvent", 3)?;
-    isolate.register_named_storage_type("audio::AudioStreamAvailability", 5)?;
-    isolate.register_named_storage_type("audio::AudioStreamConfig", 7)?;
-    isolate.register_named_storage_type("audio::AudioStreamDescriptor", 23)?;
-    isolate.register_named_storage_type("audio::AudioStreamDeviceChangedEvent", 5)?;
-    isolate.register_named_storage_type("audio::AudioStreamOpenOptions", 2)?;
-    isolate.register_named_storage_type("audio::AudioStreamState", 14)?;
-    isolate.register_named_storage_type("audio::AudioStreamStateChangedEvent", 4)?;
-    isolate.register_named_storage_type("audio::AudioStreamSupport", 4)?;
-    isolate.register_named_storage_type("audio::AudioStreamTiming", 9)?;
-    isolate.register_named_storage_type("audio::AudioStreamXRunEvent", 6)?;
-    isolate.register_named_storage_type("audio::AudioEvent", 2)?;
+/// Register VM aggregate schemas for audio.
+pub(crate) fn register_audio_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
+    isolate.register_named_aggregate_type("audio::AudioBackendDescriptor", 11)?;
+    isolate.register_named_aggregate_type("audio::AudioBackendDisconnectedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioBackendResetEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioClockSnapshot", 12)?;
+    isolate.register_named_aggregate_type("audio::AudioDefaultCaptureChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDefaultLoopbackChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDefaultPlaybackChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceAddedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceDescriptor", 30)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceFormatChangedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceListRequest", 4)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceOpenOptions", 5)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceRemovedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioDeviceReroutedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioEventMetadata", 6)?;
+    isolate.register_named_aggregate_type("audio::AudioEventSubscriptionOptions", 8)?;
+    isolate.register_named_aggregate_type("audio::AudioInterruptionBeganEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioInterruptionEndedEvent", 3)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamAvailability", 5)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamConfig", 7)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamDescriptor", 23)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamDeviceChangedEvent", 5)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamOpenOptions", 2)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamState", 14)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamStateChangedEvent", 4)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamSupport", 4)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamTiming", 9)?;
+    isolate.register_named_aggregate_type("audio::AudioStreamXRunEvent", 6)?;
+    isolate.register_named_aggregate_type("audio::AudioEvent", 2)?;
 
     Ok(())
 }

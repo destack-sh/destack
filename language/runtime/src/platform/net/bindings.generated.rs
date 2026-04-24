@@ -232,16 +232,16 @@ fn encode_destack_net_address_local_address_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
             let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketAddress")
+                .begin_named_aggregate_builder("net::SocketAddress")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -274,16 +274,16 @@ fn encode_destack_net_address_peer_address_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
             let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketAddress")
+                .begin_named_aggregate_builder("net::SocketAddress")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -498,13 +498,13 @@ fn encode_destack_net_options_get_linger_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.seconds as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::Linger")
+                .begin_named_aggregate_builder("net::Linger")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1223,22 +1223,22 @@ fn encode_destack_net_raw_packet_receive_result(
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.truncated));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::PacketCaptureRecord")
+                .begin_named_aggregate_builder("net::PacketCaptureRecord")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1448,16 +1448,16 @@ fn encode_destack_net_raw_packet_stats_result(
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.interface_dropped_packets, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::PacketCaptureStats")
+                .begin_named_aggregate_builder("net::PacketCaptureStats")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1878,13 +1878,13 @@ fn encode_destack_net_socket_open_pair_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketPair")
+                .begin_named_aggregate_builder("net::SocketPair")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -1982,32 +1982,32 @@ fn encode_destack_net_socket_recv_from_result(
                     Ok(vm::Value::uint(value.address.length as u64, 32));
                 let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("net::SocketAddress")
+                    .begin_named_aggregate_builder("net::SocketAddress")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketRecvFrom")
+                .begin_named_aggregate_builder("net::SocketRecvFrom")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2116,16 +2116,16 @@ fn encode_destack_net_socket_recv_msg_result(
                         Ok(vm::Value::uint(value.length as u64, 32));
                     let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("net::SocketAddress")
+                        .begin_named_aggregate_builder("net::SocketAddress")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
@@ -2146,47 +2146,47 @@ fn encode_destack_net_socket_recv_msg_result(
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.gid as u64, 32));
                     let mut value_builder = context
-                        .begin_named_storage_value_builder("net::SocketCredentials")
+                        .begin_named_aggregate_builder("net::SocketCredentials")
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(0, field_0?)
+                        .write_field(0, field_0?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(1, field_1?)
+                        .write_field(1, field_1?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder
-                        .write_component(2, field_2?)
+                        .write_field(2, field_2?)
                         .map_err(Box::<RuntimeError>::from)?;
                     value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketRecvMessage")
+                .begin_named_aggregate_builder("net::SocketRecvMessage")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(4, field_4?)
+                .write_field(4, field_4?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(5, field_5?)
+                .write_field(5, field_5?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(6, field_6?)
+                .write_field(6, field_6?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(7, field_7?)
+                .write_field(7, field_7?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2430,19 +2430,19 @@ fn encode_destack_net_tcp_get_keep_alive_result(
             let field_3: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.probe_count as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::KeepAliveConfig")
+                .begin_named_aggregate_builder("net::KeepAliveConfig")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(3, field_3?)
+                .write_field(3, field_3?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -2936,16 +2936,16 @@ fn encode_destack_net_udp_recv_from_result(
                     Ok(vm::Value::uint(value.address.length as u64, 32));
                 let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
                 let mut value_builder = context
-                    .begin_named_storage_value_builder("net::SocketAddress")
+                    .begin_named_aggregate_builder("net::SocketAddress")
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(0, field_0?)
+                    .write_field(0, field_0?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(1, field_1?)
+                    .write_field(1, field_1?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder
-                    .write_component(2, field_2?)
+                    .write_field(2, field_2?)
                     .map_err(Box::<RuntimeError>::from)?;
                 value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
@@ -2953,16 +2953,16 @@ fn encode_destack_net_udp_recv_from_result(
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::UdpReceive")
+                .begin_named_aggregate_builder("net::UdpReceive")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(2, field_2?)
+                .write_field(2, field_2?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -3262,13 +3262,13 @@ fn encode_destack_net_uds_uds_socket_pair_result(
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
             let mut value_builder = context
-                .begin_named_storage_value_builder("net::SocketPair")
+                .begin_named_aggregate_builder("net::SocketPair")
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(0, field_0?)
+                .write_field(0, field_0?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder
-                .write_component(1, field_1?)
+                .write_field(1, field_1?)
                 .map_err(Box::<RuntimeError>::from)?;
             value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
@@ -14266,7 +14266,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<NetInterfaceVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -14286,7 +14286,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
                     let result_recorded_item_recorded_mac_address =
                         result_recorded_item.mac_address.read_bytes(context)?;
                     let result_recorded_item_recorded_addresses_raw =
-                        result_recorded_item.addresses.raw_values(context)?;
+                        result_recorded_item.addresses.values(context)?;
                     let mut result_recorded_item_recorded_addresses =
                         Vec::with_capacity(result_recorded_item_recorded_addresses_raw.len());
                     for result_recorded_item_recorded_addresses_item_value in
@@ -15906,7 +15906,7 @@ fn destack_net_raw_packet_backend_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<PacketBackendDescriptorVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -16781,7 +16781,7 @@ fn destack_net_resolve_lookup_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<SocketAddressVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -16870,7 +16870,7 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<ReverseLookupNameVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -17268,7 +17268,7 @@ fn destack_net_route_route_list_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<RouteEntryVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -17845,7 +17845,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
             let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<SocketRecvMessageVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
+                let result_recorded_raw = result_value.values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item =
@@ -17880,7 +17880,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                     let result_recorded_item_recorded_control =
                         result_recorded_item_recorded_control_inner;
                     let result_recorded_item_recorded_fds_raw =
-                        result_recorded_item.fds.raw_values(context)?;
+                        result_recorded_item.fds.values(context)?;
                     let mut result_recorded_item_recorded_fds =
                         Vec::with_capacity(result_recorded_item_recorded_fds_raw.len());
                     for result_recorded_item_recorded_fds_item_value in
@@ -18089,7 +18089,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                 let result_recorded_control_truncated = result_value.control_truncated;
                 let result_recorded_control_inner = result_value.control.0.read_bytes(context)?;
                 let result_recorded_control = result_recorded_control_inner;
-                let result_recorded_fds_raw = result_value.fds.raw_values(context)?;
+                let result_recorded_fds_raw = result_value.fds.values(context)?;
                 let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_raw.len());
                 for result_recorded_fds_item_value in result_recorded_fds_raw {
                     let result_recorded_fds_item_inner_inner = decode_uint64(
@@ -22403,7 +22403,7 @@ pub(crate) fn install_net_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) -> vm::Result<()> {
-    super::abi_generated::register_net_vm_storage_types(isolate)?;
+    super::abi_generated::register_net_vm_aggregate_types(isolate)?;
     register_net_vm_bindings(registry, isolate);
 
     Ok(())
