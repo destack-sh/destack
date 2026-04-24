@@ -87,7 +87,7 @@ class X2 {
     );
 }
 
-/// Method comments should stay attached to the final method shell.
+/// Method comments should stay attached to the final method boundary.
 #[test]
 fn test_format_method_comments() {
     assert_format_program_reference_widths(
@@ -313,7 +313,7 @@ fn test_format_interface_method_parameter_separator_comment() {
     );
 }
 
-/// Signature return separator comments should stay attached to the return type shell.
+/// Signature return separator comments should stay attached to the return type.
 #[test]
 fn test_format_signature_return_separator_comment() {
     assert_format_program_roundtrip_with_file_type(
