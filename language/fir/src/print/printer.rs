@@ -746,8 +746,6 @@ impl<'a> Printer<'a> {
 
             measurer.finish();
 
-            self.state.measured_group_fits = true;
-
             // print all pairs that fit in flat mode.
             for _ in 0..flat_pairs {
                 self.print_fill_item(queue, stack, args.with_print_mode(PrintMode::Flat))?;
@@ -1178,11 +1176,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                         LineMode::SoftOrSpace => return Ok(self.fits_text(Text::Token(" "), args)),
                         LineMode::Soft => {}
                         LineMode::Hard | LineMode::Empty => {
-                            return Ok(if self.must_be_flat {
-                                Fits::No
-                            } else {
-                                Fits::Yes
-                            });
+                            return Ok(Fits::Yes);
                         }
                     },
                     PrintMode::Expanded => {

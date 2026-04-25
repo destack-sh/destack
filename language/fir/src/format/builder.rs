@@ -1304,7 +1304,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            "const longVariableName =\n  (alpha =\n  beta =\n    computeValue())",
+            "const longVariableName =\n    (alpha =\n    beta =\n        computeValue())",
             nodes.print().unwrap().as_str()
         );
     }
@@ -1468,6 +1468,32 @@ mod tests {
 
         assert_eq!(
             "switch {\n    default:\n        break;\n}",
+            block.print().unwrap().as_str()
+        );
+    }
+
+    /// Indent should apply to a leading hard line.
+    #[test]
+    fn test_indent_applies_to_leading_hard_line() {
+        let content = format_with(|f| {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    text("// comment"),
+                    hard_line_break(),
+                    token(".run();"),
+                ]
+            )
+        });
+        let block = format!(
+            SimpleFormatContext::empty_destack(),
+            [group(&format_args![token("yield task"), indent(&content)])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "yield task\n    // comment\n    .run();",
             block.print().unwrap().as_str()
         );
     }
