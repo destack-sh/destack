@@ -777,18 +777,18 @@ mod tests {
     use destack_source::{File, FileId, FileType, ModuleId, Uri};
 
     use crate::{
-        Asynchrony, FunctionCardinality, FunctionKind, FunctionSignature, GenericParameter,
-        JsFormatContext, JsFormatOptions, LocalNodeId, LocalNodeIdAny, NOOP_JS_SOURCE_MAP,
-        NodeTree, Parameter, Path, PrimitiveType, ScalarLiteral, TypeExpression, TypeLiteral,
-        TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
-        TypeTemplateLiteral, format_roots, print_roots_minified,
+        FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
+        LocalNodeIdAny, NOOP_JS_SOURCE_MAP, NodeTree, Parameter, Path, PrimitiveType,
+        ScalarLiteral, TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter,
+        TypeModifier, TypePredicateSubject, TypeTemplateLiteral, format_roots,
+        print_roots_minified,
     };
 
     fn dummy_source_id() -> dir::LocalNodeIdAny {
         dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
     }
 
-    fn insert_type(tree: &mut NodeTree, ty: Type) -> LocalNodeId<TypeExpression> {
+    fn insert_type(tree: &mut NodeTree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
         tree.insert_from_source_any(ty, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
@@ -938,8 +938,8 @@ mod tests {
                     key_remap: Some(key_remap),
                 },
                 modifiers: TypeMappedModifiers {
-                    readonly: TypeModifier::Add,
-                    optional: TypeModifier::Add,
+                    readonly: TypeModifier::Present,
+                    optional: TypeModifier::Present,
                 },
                 value: mapped_value,
             },

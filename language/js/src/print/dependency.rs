@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::printer::Printer;
 use crate::{
@@ -43,31 +43,29 @@ impl<'a> Printer<'a> {
                 let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
                 self.write_identifier_with_source_span(alias, alias_span);
             }
-        } else {
-            if let Some(first_item) = first_item
-                && first_item.mode == DependencyMode::Default
+        } else if let Some(first_item) = first_item
+            && first_item.mode == DependencyMode::Default
+        {
+            if let Some(item_id) = items.first()
+                && let Some(alias) = first_item.alias
             {
-                if let Some(item_id) = items.first()
-                    && let Some(alias) = first_item.alias
-                {
-                    let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
-                    self.write_identifier_with_source_span(alias, alias_span);
-                }
+                let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
+                self.write_identifier_with_source_span(alias, alias_span);
+            }
 
-                let rest_items: Vec<LocalNodeId<DependencyItem>> =
-                    items.iter().skip(1).copied().collect();
+            let rest_items: Vec<LocalNodeId<DependencyItem>> =
+                items.iter().skip(1).copied().collect();
 
-                if !rest_items.is_empty() {
-                    self.write_punct(",");
-                    self.write_punct("{");
-                    self.print_dependency_item_list(&rest_items)?;
-                    self.write_punct("}");
-                }
-            } else if !items.is_empty() {
+            if !rest_items.is_empty() {
+                self.write_punct(",");
                 self.write_punct("{");
-                self.print_dependency_item_list(items)?;
+                self.print_dependency_item_list(&rest_items)?;
                 self.write_punct("}");
             }
+        } else if !items.is_empty() {
+            self.write_punct("{");
+            self.print_dependency_item_list(items)?;
+            self.write_punct("}");
         }
 
         if !items.is_empty() {
@@ -129,7 +127,8 @@ impl<'a> Printer<'a> {
         item_id: LocalNodeId<DependencyItem>,
         item: &DependencyItem,
     ) -> JsPrintResult<()> {
-        let name_span = self.source_part_span(item_id.id, NodeSpanType::Type);
+        let name_span =
+            self.source_part_span(item_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
         let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
 
         if item.kind == Some(DependencyKind::Type) {

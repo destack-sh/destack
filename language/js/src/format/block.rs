@@ -7,7 +7,7 @@ use crate::{FormatNode, JsFormatter};
 
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut JsFormatter<'ast, '_>,
-    statements: &Vec<LocalNodeId<Statement>>,
+    statements: &[LocalNodeId<Statement>],
 ) -> FormatResult<()> {
     let mut printed_any = false;
 
