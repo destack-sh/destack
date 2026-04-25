@@ -1,4 +1,5 @@
 mod diagnostic;
+mod effect;
 mod heap;
 mod platform;
 mod random;
@@ -7,9 +8,12 @@ mod rules;
 mod runtime;
 mod scheduler;
 mod selectors;
+mod simulation;
 mod time;
+mod trace;
 
 pub use diagnostic::*;
+pub use effect::*;
 pub use heap::*;
 pub use platform::*;
 pub use random::*;
@@ -18,4 +22,6 @@ pub use rules::*;
 pub use runtime::*;
 pub use scheduler::*;
 pub use selectors::*;
+pub use simulation::*;
 pub use time::*;
+pub use trace::*;

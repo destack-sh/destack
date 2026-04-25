@@ -9,19 +9,17 @@ const DEFAULT_LOCAL_MINIMUM_HEAP_BYTES: u64 = 128 * 1024;
 /// The default shared-heap pacing floor for heavier shared state.
 const DEFAULT_SHARED_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
 /// The default small young-space width for worker-local heaps.
-const DEFAULT_MANAGED_YOUNG_BYTES: usize = 64 * 1024;
+const DEFAULT_HEAP_YOUNG_BYTES: usize = 64 * 1024;
 /// The default nursery bypass threshold for larger payloads.
-const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
-/// The default managed small-span width for size-classed allocation.
-const DEFAULT_MANAGED_SPAN_BYTES: usize = 16 * 1024;
+const DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
+/// The default heap small-span width for size-classed allocation.
+const DEFAULT_HEAP_SPAN_BYTES: usize = 16 * 1024;
 /// The default raw small-span width for size-classed allocation.
 const DEFAULT_RAW_SPAN_BYTES: usize = 16 * 1024;
 /// The default heap page width aligned to common OS pages.
 const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-/// The default arena segment width that amortizes mapping and metadata work.
-const DEFAULT_SEGMENT_BYTES: usize = 1024 * 1024;
-/// The default remembered-card width for local write tracking.
-const DEFAULT_CARD_BYTES: usize = 256;
+/// The default allocator arena width that amortizes mapping and metadata work.
+const DEFAULT_ARENA_BYTES: usize = 1024 * 1024;
 /// The default alignment for small size classes.
 const DEFAULT_SMALL_ALIGNMENT_BYTES: usize = 8;
 
@@ -38,21 +36,12 @@ pub enum HeapSizeClasses {
 }
 
 /// Runtime heap garbage-collection configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct HeapGcOptions {
     /// Local-heap collector pacing.
     pub local: LocalGcOptions,
     /// Shared-heap collector pacing.
     pub shared: SharedGcOptions,
-}
-
-impl Default for HeapGcOptions {
-    fn default() -> Self {
-        Self {
-            local: LocalGcOptions::default(),
-            shared: SharedGcOptions::default(),
-        }
-    }
 }
 
 /// Runtime local-heap collector pacing.
@@ -104,7 +93,7 @@ impl Default for SharedGcOptions {
 }
 
 /// Runtime heap hard-limit configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct HeapLimitOptions {
     /// Local-heap hard limits.
     pub local: LocalHeapLimitOptions,
@@ -112,22 +101,13 @@ pub struct HeapLimitOptions {
     pub shared: SharedHeapLimitOptions,
 }
 
-impl Default for HeapLimitOptions {
-    fn default() -> Self {
-        Self {
-            local: LocalHeapLimitOptions::default(),
-            shared: SharedHeapLimitOptions::default(),
-        }
-    }
-}
-
 /// Hard limits for one local heap.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct LocalHeapLimitOptions {
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
-    /// Hard limit for retained managed heap bytes.
-    pub managed_max_bytes: Option<u64>,
+    /// Hard limit for retained heap bytes.
+    pub heap_max_bytes: Option<u64>,
     /// Hard limit for retained raw heap bytes.
     pub raw_max_bytes: Option<u64>,
 }
@@ -137,8 +117,8 @@ pub struct LocalHeapLimitOptions {
 pub struct SharedHeapLimitOptions {
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
-    /// Hard limit for retained managed heap bytes.
-    pub managed_max_bytes: Option<u64>,
+    /// Hard limit for retained heap bytes.
+    pub heap_max_bytes: Option<u64>,
     /// Hard limit for retained raw heap bytes.
     pub raw_max_bytes: Option<u64>,
 }
@@ -148,20 +128,18 @@ pub struct SharedHeapLimitOptions {
 pub struct HeapLayoutOptions {
     /// The configured size-class table for small allocations.
     pub size_classes: HeapSizeClasses,
-    /// The byte width for managed young space.
-    pub managed_young_bytes: usize,
-    /// The maximum payload size admitted into managed young space.
-    pub max_managed_young_allocation_bytes: usize,
-    /// The byte width for managed small-allocation spans.
-    pub managed_span_bytes: usize,
+    /// The byte width for heap young space.
+    pub heap_young_bytes: usize,
+    /// The maximum payload size admitted into heap young space.
+    pub max_heap_young_allocation_bytes: usize,
+    /// The byte width for heap small-allocation spans.
+    pub heap_span_bytes: usize,
     /// The byte width for raw small-allocation spans.
     pub raw_span_bytes: usize,
     /// The byte width for heap pages and page-sized chunks.
     pub page_bytes: usize,
-    /// The byte width for one physical segment.
-    pub segment_bytes: usize,
-    /// The byte width for one remembered card.
-    pub card_bytes: usize,
+    /// The byte width for one allocator arena.
+    pub arena_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_alignment_bytes: usize,
 }
@@ -170,13 +148,12 @@ impl Default for HeapLayoutOptions {
     fn default() -> Self {
         Self {
             size_classes: HeapSizeClasses::Default,
-            managed_young_bytes: DEFAULT_MANAGED_YOUNG_BYTES,
-            max_managed_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
-            managed_span_bytes: DEFAULT_MANAGED_SPAN_BYTES,
+            heap_young_bytes: DEFAULT_HEAP_YOUNG_BYTES,
+            max_heap_young_allocation_bytes: DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES,
+            heap_span_bytes: DEFAULT_HEAP_SPAN_BYTES,
             raw_span_bytes: DEFAULT_RAW_SPAN_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            segment_bytes: DEFAULT_SEGMENT_BYTES,
-            card_bytes: DEFAULT_CARD_BYTES,
+            arena_bytes: DEFAULT_ARENA_BYTES,
             small_alignment_bytes: DEFAULT_SMALL_ALIGNMENT_BYTES,
         }
     }
@@ -191,6 +168,101 @@ pub struct HeapOptions {
     pub limit: HeapLimitOptions,
     /// Layout and allocator geometry.
     pub layout: HeapLayoutOptions,
+}
+
+/// Runtime allocator configuration for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct HeapAllocatorOptionsJson {
+    /// The configured size-class table for small allocations.
+    pub size_classes: Option<HeapSizeClassesJson>,
+    /// The byte width for heap young space.
+    pub young_bytes: Option<usize>,
+    /// The maximum payload size admitted into heap young space.
+    pub max_young_allocation_bytes: Option<usize>,
+    /// The byte width for heap small-allocation spans.
+    pub span_bytes: Option<usize>,
+    /// The byte width for raw small-allocation spans.
+    pub raw_span_bytes: Option<usize>,
+    /// The byte width for heap pages and page-sized chunks.
+    pub page_bytes: Option<usize>,
+    /// The byte width for one allocator arena.
+    pub arena_bytes: Option<usize>,
+    /// The required alignment for configured small-allocation classes.
+    pub small_alignment_bytes: Option<usize>,
+}
+
+impl HeapAllocatorOptionsJson {
+    /// Inherit unset allocator settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.size_classes.is_none() {
+            self.size_classes = parent.size_classes.clone();
+        }
+
+        if self.young_bytes.is_none() {
+            self.young_bytes = parent.young_bytes;
+        }
+
+        if self.max_young_allocation_bytes.is_none() {
+            self.max_young_allocation_bytes = parent.max_young_allocation_bytes;
+        }
+
+        if self.span_bytes.is_none() {
+            self.span_bytes = parent.span_bytes;
+        }
+
+        if self.raw_span_bytes.is_none() {
+            self.raw_span_bytes = parent.raw_span_bytes;
+        }
+
+        if self.page_bytes.is_none() {
+            self.page_bytes = parent.page_bytes;
+        }
+
+        if self.arena_bytes.is_none() {
+            self.arena_bytes = parent.arena_bytes;
+        }
+
+        if self.small_alignment_bytes.is_none() {
+            self.small_alignment_bytes = parent.small_alignment_bytes;
+        }
+    }
+
+    /// Apply allocator overrides to one base set of options.
+    pub fn apply_to(&self, options: &mut HeapLayoutOptions) {
+        if let Some(size_classes) = &self.size_classes {
+            options.size_classes = size_classes.to_options();
+        }
+
+        if let Some(young_bytes) = self.young_bytes {
+            options.heap_young_bytes = young_bytes;
+        }
+
+        if let Some(max_young_allocation_bytes) = self.max_young_allocation_bytes {
+            options.max_heap_young_allocation_bytes = max_young_allocation_bytes;
+        }
+
+        if let Some(span_bytes) = self.span_bytes {
+            options.heap_span_bytes = span_bytes;
+        }
+
+        if let Some(raw_span_bytes) = self.raw_span_bytes {
+            options.raw_span_bytes = raw_span_bytes;
+        }
+
+        if let Some(page_bytes) = self.page_bytes {
+            options.page_bytes = page_bytes;
+        }
+
+        if let Some(arena_bytes) = self.arena_bytes {
+            options.arena_bytes = arena_bytes;
+        }
+
+        if let Some(small_alignment_bytes) = self.small_alignment_bytes {
+            options.small_alignment_bytes = small_alignment_bytes;
+        }
+    }
 }
 
 /// Runtime heap size-class configuration for JSON deserialization.
@@ -215,385 +287,62 @@ impl HeapSizeClassesJson {
     }
 }
 
-/// Runtime local-heap collector pacing for JSON deserialization.
+/// Runtime heap-space policy for JSON deserialization.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct LocalGcOptionsJson {
+pub struct HeapSpaceOptionsJson {
     /// Heap growth target percentage.
     pub growth_percent: Option<u32>,
-    /// Heap trigger as a percentage of the current goal.
-    pub trigger_percent: Option<u32>,
     /// Soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
-    /// Minimum live heap floor in bytes.
-    pub minimum_heap_bytes: Option<u64>,
+    /// Hard memory limit in bytes.
+    pub hard_limit_bytes: Option<u64>,
 }
 
-impl LocalGcOptionsJson {
-    /// Inherit unset GC settings from one parent config.
+impl HeapSpaceOptionsJson {
+    /// Inherit unset heap-space settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
         if self.growth_percent.is_none() {
             self.growth_percent = parent.growth_percent;
-        }
-
-        if self.trigger_percent.is_none() {
-            self.trigger_percent = parent.trigger_percent;
         }
 
         if self.memory_limit_bytes.is_none() {
             self.memory_limit_bytes = parent.memory_limit_bytes;
         }
 
-        if self.minimum_heap_bytes.is_none() {
-            self.minimum_heap_bytes = parent.minimum_heap_bytes;
+        if self.hard_limit_bytes.is_none() {
+            self.hard_limit_bytes = parent.hard_limit_bytes;
         }
     }
 
-    /// Apply GC overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut LocalGcOptions) {
+    /// Apply heap-space overrides to one base set of options.
+    pub fn apply_to_local(&self, options: &mut HeapOptions) {
         if let Some(growth_percent) = self.growth_percent {
-            options.growth_percent = growth_percent;
-        }
-
-        if let Some(trigger_percent) = self.trigger_percent {
-            options.trigger_percent = trigger_percent;
+            options.gc.local.growth_percent = growth_percent;
         }
 
         if let Some(memory_limit_bytes) = self.memory_limit_bytes {
-            options.memory_limit_bytes = Some(memory_limit_bytes);
+            options.gc.local.memory_limit_bytes = Some(memory_limit_bytes);
         }
 
-        if let Some(minimum_heap_bytes) = self.minimum_heap_bytes {
-            options.minimum_heap_bytes = Some(minimum_heap_bytes);
-        }
-    }
-}
-
-/// Runtime shared-heap collector pacing for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct SharedGcOptionsJson {
-    /// Heap growth target percentage.
-    pub growth_percent: Option<u32>,
-    /// Heap trigger as a percentage of the current goal.
-    pub trigger_percent: Option<u32>,
-    /// Soft memory limit in bytes.
-    pub memory_limit_bytes: Option<u64>,
-    /// Minimum live heap floor in bytes.
-    pub minimum_heap_bytes: Option<u64>,
-}
-
-impl SharedGcOptionsJson {
-    /// Inherit unset GC settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.growth_percent.is_none() {
-            self.growth_percent = parent.growth_percent;
-        }
-
-        if self.trigger_percent.is_none() {
-            self.trigger_percent = parent.trigger_percent;
-        }
-
-        if self.memory_limit_bytes.is_none() {
-            self.memory_limit_bytes = parent.memory_limit_bytes;
-        }
-
-        if self.minimum_heap_bytes.is_none() {
-            self.minimum_heap_bytes = parent.minimum_heap_bytes;
+        if let Some(hard_limit_bytes) = self.hard_limit_bytes {
+            options.limit.local.max_bytes = Some(hard_limit_bytes);
         }
     }
 
-    /// Apply GC overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut SharedGcOptions) {
+    /// Apply heap-space overrides to one base set of options.
+    pub fn apply_to_shared(&self, options: &mut HeapOptions) {
         if let Some(growth_percent) = self.growth_percent {
-            options.growth_percent = growth_percent;
-        }
-
-        if let Some(trigger_percent) = self.trigger_percent {
-            options.trigger_percent = trigger_percent;
+            options.gc.shared.growth_percent = growth_percent;
         }
 
         if let Some(memory_limit_bytes) = self.memory_limit_bytes {
-            options.memory_limit_bytes = Some(memory_limit_bytes);
+            options.gc.shared.memory_limit_bytes = Some(memory_limit_bytes);
         }
 
-        if let Some(minimum_heap_bytes) = self.minimum_heap_bytes {
-            options.minimum_heap_bytes = Some(minimum_heap_bytes);
-        }
-    }
-}
-
-/// Runtime heap GC configuration for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct HeapGcOptionsJson {
-    /// Local-heap collector pacing.
-    pub local: Option<LocalGcOptionsJson>,
-    /// Shared-heap collector pacing.
-    pub shared: Option<SharedGcOptionsJson>,
-}
-
-impl HeapGcOptionsJson {
-    /// Inherit unset GC settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.local.is_none() {
-            self.local = parent.local.clone();
-        } else if let (Some(local), Some(parent_local)) = (&mut self.local, &parent.local) {
-            local.extend_from(parent_local);
-        }
-
-        if self.shared.is_none() {
-            self.shared = parent.shared.clone();
-        } else if let (Some(shared), Some(parent_shared)) = (&mut self.shared, &parent.shared) {
-            shared.extend_from(parent_shared);
-        }
-    }
-
-    /// Apply GC overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut HeapGcOptions) {
-        if let Some(local) = &self.local {
-            local.apply_to(&mut options.local);
-        }
-
-        if let Some(shared) = &self.shared {
-            shared.apply_to(&mut options.shared);
-        }
-    }
-}
-
-/// Runtime local-heap hard limits for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct LocalHeapLimitOptionsJson {
-    /// Hard limit for total retained heap bytes.
-    pub max_bytes: Option<u64>,
-    /// Hard limit for retained managed heap bytes.
-    pub managed_max_bytes: Option<u64>,
-    /// Hard limit for retained raw heap bytes.
-    pub raw_max_bytes: Option<u64>,
-}
-
-impl LocalHeapLimitOptionsJson {
-    /// Inherit unset limit settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.max_bytes.is_none() {
-            self.max_bytes = parent.max_bytes;
-        }
-
-        if self.managed_max_bytes.is_none() {
-            self.managed_max_bytes = parent.managed_max_bytes;
-        }
-
-        if self.raw_max_bytes.is_none() {
-            self.raw_max_bytes = parent.raw_max_bytes;
-        }
-    }
-
-    /// Apply limit overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut LocalHeapLimitOptions) {
-        if let Some(max_bytes) = self.max_bytes {
-            options.max_bytes = Some(max_bytes);
-        }
-
-        if let Some(managed_max_bytes) = self.managed_max_bytes {
-            options.managed_max_bytes = Some(managed_max_bytes);
-        }
-
-        if let Some(raw_max_bytes) = self.raw_max_bytes {
-            options.raw_max_bytes = Some(raw_max_bytes);
-        }
-    }
-}
-
-/// Runtime shared-heap hard limits for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct SharedHeapLimitOptionsJson {
-    /// Hard limit for total retained heap bytes.
-    pub max_bytes: Option<u64>,
-    /// Hard limit for retained managed heap bytes.
-    pub managed_max_bytes: Option<u64>,
-    /// Hard limit for retained raw heap bytes.
-    pub raw_max_bytes: Option<u64>,
-}
-
-impl SharedHeapLimitOptionsJson {
-    /// Inherit unset limit settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.max_bytes.is_none() {
-            self.max_bytes = parent.max_bytes;
-        }
-
-        if self.managed_max_bytes.is_none() {
-            self.managed_max_bytes = parent.managed_max_bytes;
-        }
-
-        if self.raw_max_bytes.is_none() {
-            self.raw_max_bytes = parent.raw_max_bytes;
-        }
-    }
-
-    /// Apply limit overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut SharedHeapLimitOptions) {
-        if let Some(max_bytes) = self.max_bytes {
-            options.max_bytes = Some(max_bytes);
-        }
-
-        if let Some(managed_max_bytes) = self.managed_max_bytes {
-            options.managed_max_bytes = Some(managed_max_bytes);
-        }
-
-        if let Some(raw_max_bytes) = self.raw_max_bytes {
-            options.raw_max_bytes = Some(raw_max_bytes);
-        }
-    }
-}
-
-/// Runtime heap hard-limit configuration for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct HeapLimitOptionsJson {
-    /// Local-heap hard limits.
-    pub local: Option<LocalHeapLimitOptionsJson>,
-    /// Shared-heap hard limits.
-    pub shared: Option<SharedHeapLimitOptionsJson>,
-}
-
-impl HeapLimitOptionsJson {
-    /// Inherit unset limit settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.local.is_none() {
-            self.local = parent.local.clone();
-        } else if let (Some(local), Some(parent_local)) = (&mut self.local, &parent.local) {
-            local.extend_from(parent_local);
-        }
-
-        if self.shared.is_none() {
-            self.shared = parent.shared.clone();
-        } else if let (Some(shared), Some(parent_shared)) = (&mut self.shared, &parent.shared) {
-            shared.extend_from(parent_shared);
-        }
-    }
-
-    /// Apply limit overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut HeapLimitOptions) {
-        if let Some(local) = &self.local {
-            local.apply_to(&mut options.local);
-        }
-
-        if let Some(shared) = &self.shared {
-            shared.apply_to(&mut options.shared);
-        }
-    }
-}
-
-/// Runtime heap layout configuration for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct HeapLayoutOptionsJson {
-    /// The configured size-class table for small allocations.
-    pub size_classes: Option<HeapSizeClassesJson>,
-    /// The byte width for managed young space.
-    pub managed_young_bytes: Option<usize>,
-    /// The maximum payload size admitted into managed young space.
-    pub max_managed_young_allocation_bytes: Option<usize>,
-    /// The byte width for managed small-allocation spans.
-    pub managed_span_bytes: Option<usize>,
-    /// The byte width for raw small-allocation spans.
-    pub raw_span_bytes: Option<usize>,
-    /// The byte width for heap pages and page-sized chunks.
-    pub page_bytes: Option<usize>,
-    /// The byte width for one physical segment.
-    pub segment_bytes: Option<usize>,
-    /// The byte width for one remembered card.
-    pub card_bytes: Option<usize>,
-    /// The required alignment for configured small-allocation classes.
-    pub small_alignment_bytes: Option<usize>,
-}
-
-impl HeapLayoutOptionsJson {
-    /// Inherit unset layout settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.size_classes.is_none() {
-            self.size_classes = parent.size_classes.clone();
-        }
-
-        if self.managed_young_bytes.is_none() {
-            self.managed_young_bytes = parent.managed_young_bytes;
-        }
-
-        if self.max_managed_young_allocation_bytes.is_none() {
-            self.max_managed_young_allocation_bytes = parent.max_managed_young_allocation_bytes;
-        }
-
-        if self.managed_span_bytes.is_none() {
-            self.managed_span_bytes = parent.managed_span_bytes;
-        }
-
-        if self.raw_span_bytes.is_none() {
-            self.raw_span_bytes = parent.raw_span_bytes;
-        }
-
-        if self.page_bytes.is_none() {
-            self.page_bytes = parent.page_bytes;
-        }
-
-        if self.segment_bytes.is_none() {
-            self.segment_bytes = parent.segment_bytes;
-        }
-
-        if self.card_bytes.is_none() {
-            self.card_bytes = parent.card_bytes;
-        }
-
-        if self.small_alignment_bytes.is_none() {
-            self.small_alignment_bytes = parent.small_alignment_bytes;
-        }
-    }
-
-    /// Apply layout overrides to one base set of options.
-    pub fn apply_to(&self, options: &mut HeapLayoutOptions) {
-        if let Some(size_classes) = &self.size_classes {
-            options.size_classes = size_classes.to_options();
-        }
-
-        if let Some(managed_young_bytes) = self.managed_young_bytes {
-            options.managed_young_bytes = managed_young_bytes;
-        }
-
-        if let Some(max_managed_young_allocation_bytes) = self.max_managed_young_allocation_bytes {
-            options.max_managed_young_allocation_bytes = max_managed_young_allocation_bytes;
-        }
-
-        if let Some(managed_span_bytes) = self.managed_span_bytes {
-            options.managed_span_bytes = managed_span_bytes;
-        }
-
-        if let Some(raw_span_bytes) = self.raw_span_bytes {
-            options.raw_span_bytes = raw_span_bytes;
-        }
-
-        if let Some(page_bytes) = self.page_bytes {
-            options.page_bytes = page_bytes;
-        }
-
-        if let Some(segment_bytes) = self.segment_bytes {
-            options.segment_bytes = segment_bytes;
-        }
-
-        if let Some(card_bytes) = self.card_bytes {
-            options.card_bytes = card_bytes;
-        }
-
-        if let Some(small_alignment_bytes) = self.small_alignment_bytes {
-            options.small_alignment_bytes = small_alignment_bytes;
+        if let Some(hard_limit_bytes) = self.hard_limit_bytes {
+            options.limit.shared.max_bytes = Some(hard_limit_bytes);
         }
     }
 }
@@ -603,48 +352,50 @@ impl HeapLayoutOptionsJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct HeapOptionsJson {
-    /// Garbage-collection policy.
-    pub gc: Option<HeapGcOptionsJson>,
-    /// Hard limits.
-    pub limit: Option<HeapLimitOptionsJson>,
-    /// Layout and allocator geometry.
-    pub layout: Option<HeapLayoutOptionsJson>,
+    /// Local-heap policy.
+    pub local: Option<HeapSpaceOptionsJson>,
+    /// Shared-heap policy.
+    pub shared: Option<HeapSpaceOptionsJson>,
+    /// Allocator sizing policy.
+    pub allocator: Option<HeapAllocatorOptionsJson>,
 }
 
 impl HeapOptionsJson {
     /// Inherit unset heap settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.gc.is_none() {
-            self.gc = parent.gc.clone();
-        } else if let (Some(gc), Some(parent_gc)) = (&mut self.gc, &parent.gc) {
-            gc.extend_from(parent_gc);
+        if self.local.is_none() {
+            self.local = parent.local.clone();
+        } else if let (Some(local), Some(parent_local)) = (&mut self.local, &parent.local) {
+            local.extend_from(parent_local);
         }
 
-        if self.limit.is_none() {
-            self.limit = parent.limit.clone();
-        } else if let (Some(limit), Some(parent_limit)) = (&mut self.limit, &parent.limit) {
-            limit.extend_from(parent_limit);
+        if self.shared.is_none() {
+            self.shared = parent.shared.clone();
+        } else if let (Some(shared), Some(parent_shared)) = (&mut self.shared, &parent.shared) {
+            shared.extend_from(parent_shared);
         }
 
-        if self.layout.is_none() {
-            self.layout = parent.layout.clone();
-        } else if let (Some(layout), Some(parent_layout)) = (&mut self.layout, &parent.layout) {
-            layout.extend_from(parent_layout);
+        if self.allocator.is_none() {
+            self.allocator = parent.allocator.clone();
+        } else if let (Some(allocator), Some(parent_allocator)) =
+            (&mut self.allocator, &parent.allocator)
+        {
+            allocator.extend_from(parent_allocator);
         }
     }
 
     /// Apply heap overrides to a base set of options.
     pub fn apply_to(&self, options: &mut HeapOptions) {
-        if let Some(gc) = &self.gc {
-            gc.apply_to(&mut options.gc);
+        if let Some(local) = &self.local {
+            local.apply_to_local(options);
         }
 
-        if let Some(limit) = &self.limit {
-            limit.apply_to(&mut options.limit);
+        if let Some(shared) = &self.shared {
+            shared.apply_to_shared(options);
         }
 
-        if let Some(layout) = &self.layout {
-            layout.apply_to(&mut options.layout);
+        if let Some(allocator) = &self.allocator {
+            allocator.apply_to(&mut options.layout);
         }
     }
 }

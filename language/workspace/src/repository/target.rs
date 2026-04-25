@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use destack_artifact::{Platform, ProfileKey, Runtime};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId, matches as glob_matches};
-use im::OrdMap;
 
 use crate::repository::{
     EnvironmentSnapshot, ModuleTsConfigContext, Profile, Repository, RepositoryError, Revision,
@@ -157,23 +156,6 @@ impl Repository {
     /// Intern one target identity and return its stable id.
     pub fn intern_target_id(&self, package_id: PackageId, name: &str) -> TargetId {
         TargetId::new(package_id, name)
-    }
-
-    /// Build the explicit target index for one package snapshot set.
-    pub(crate) fn targets_by_id(
-        &self,
-        packages: &OrdMap<PackageId, Package>,
-    ) -> OrdMap<TargetId, Target> {
-        let mut targets_by_id = OrdMap::new();
-
-        // explicit targets
-        for package in packages.values() {
-            for (target_id, target) in &package.targets {
-                targets_by_id.insert(*target_id, target.clone());
-            }
-        }
-
-        targets_by_id
     }
 
     /// Get the default profile for one module.

@@ -7,25 +7,28 @@ use crate::config::target::{
     Runtime, TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
     TargetAppIdentityDeclaration, TargetAppNotificationCategoryDeclaration, TargetAppPermission,
 };
+use crate::{ExecutionMode, ReplayPayloadMode};
 
-use super::super::policy::{ExecutionMode, ExecutionModeJson};
+use super::random::{RandomMode, RandomOptions};
+use super::replay::ReplayOptions;
+use super::time::{TimeMode, TimeOptions};
 use super::{
-    HeapOptions, HeapOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
-    PlatformCryptoOptions, PlatformCryptoOptionsJson, PlatformDebugOptions,
-    PlatformDebugOptionsJson, PlatformDeviceOptions, PlatformDeviceOptionsJson,
-    PlatformDisplayOptions, PlatformDisplayOptionsJson, PlatformErrorOptions,
-    PlatformErrorOptionsJson, PlatformFfiOptions, PlatformFfiOptionsJson, PlatformFsOptions,
-    PlatformFsOptionsJson, PlatformGpuOptions, PlatformGpuOptionsJson, PlatformInputOptions,
-    PlatformInputOptionsJson, PlatformIoOptions, PlatformIoOptionsJson, PlatformIpcOptions,
-    PlatformIpcOptionsJson, PlatformNetOptions, PlatformNetOptionsJson, PlatformOptions,
-    PlatformOptionsJson, PlatformOsOptions, PlatformOsOptionsJson, PlatformProcessOptions,
-    PlatformProcessOptionsJson, PlatformResourceOptions, PlatformResourceOptionsJson,
-    PlatformSecurityOptions, PlatformSecurityOptionsJson, PlatformThreadOptions,
-    PlatformThreadOptionsJson, PlatformTlsOptions, PlatformTlsOptionsJson, PlatformTtyOptions,
-    PlatformTtyOptionsJson, RandomOptions, RandomOptionsJson, ReplayOptions, ReplayOptionsJson,
-    RuntimeAccess, RuntimeAccessJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson,
-    RuntimeRule, RuntimeRuleJson, RuntimeWorld, RuntimeWorldJson, SchedulerOptions,
-    SchedulerOptionsJson, TimeOptions, TimeOptionsJson,
+    EffectOptions, EffectOptionsJson, EffectSource, HeapOptions, HeapOptionsJson,
+    PlatformAudioOptions, PlatformAudioOptionsJson, PlatformCryptoOptions,
+    PlatformCryptoOptionsJson, PlatformDebugOptions, PlatformDebugOptionsJson,
+    PlatformDeviceOptions, PlatformDeviceOptionsJson, PlatformDisplayOptions,
+    PlatformDisplayOptionsJson, PlatformErrorOptions, PlatformErrorOptionsJson, PlatformFfiOptions,
+    PlatformFfiOptionsJson, PlatformFsOptions, PlatformFsOptionsJson, PlatformGpuOptions,
+    PlatformGpuOptionsJson, PlatformInputOptions, PlatformInputOptionsJson, PlatformIoOptions,
+    PlatformIoOptionsJson, PlatformIpcOptions, PlatformIpcOptionsJson, PlatformNetOptions,
+    PlatformNetOptionsJson, PlatformOptions, PlatformOptionsJson, PlatformOsOptions,
+    PlatformOsOptionsJson, PlatformProcessOptions, PlatformProcessOptionsJson,
+    PlatformResourceOptions, PlatformResourceOptionsJson, PlatformSecurityOptions,
+    PlatformSecurityOptionsJson, PlatformThreadOptions, PlatformThreadOptionsJson,
+    PlatformTlsOptions, PlatformTlsOptionsJson, PlatformTtyOptions, PlatformTtyOptionsJson,
+    RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode, SchedulerOptions,
+    SchedulerOptionsJson, SimulationOptions, SimulationOptionsJson, TraceMode, TraceOptions,
+    TraceOptionsJson,
 };
 
 /// Default identity options for one runtime primary worker.
@@ -446,7 +449,7 @@ impl From<TargetAppPermission> for RuntimeAppPermission {
     }
 }
 
-/// Runtime execution options for scheduler, time, randomness, and heap behavior.
+/// Runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
     /// Execution host semantics for this runtime.
@@ -461,22 +464,14 @@ pub struct RuntimeOptions {
     pub primary_worker: RuntimeWorkerOptions,
     /// Resolved target app declaration for host availability checks.
     pub app: RuntimeAppDeclaration,
-    /// Execution mode for runtime scheduling and replay.
-    pub execution: ExecutionMode,
-    /// Default world for bindings without a matching rule.
-    pub world: RuntimeWorld,
-    /// Default access policy for bindings without a matching access rule.
-    pub access: RuntimeAccess,
-    /// Ordered static runtime rules.
-    pub rules: Vec<RuntimeRule>,
-    /// Replay configuration.
-    pub replay: ReplayOptions,
-    /// Runtime clock configuration.
-    pub time: TimeOptions,
-    /// Runtime randomness configuration.
-    pub random: RandomOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
+    /// Runtime effect configuration.
+    pub effect: EffectOptions,
+    /// Runtime simulation configuration.
+    pub simulation: SimulationOptions,
+    /// Runtime trace configuration.
+    pub trace: TraceOptions,
     /// Runtime heap configuration.
     pub heap: HeapOptions,
     /// Runtime diagnostics configuration.
@@ -523,6 +518,139 @@ pub struct RuntimeOptions {
     pub crypto: PlatformCryptoOptions,
     /// Platform-specific host runtime overrides.
     pub platform: PlatformOptions,
+}
+
+impl RuntimeOptions {
+    /// Apply one collapsed execution summary onto the runtime planes.
+    pub fn set_execution_mode(&mut self, mode: ExecutionMode) {
+        // scheduler mode
+        self.scheduler.mode = match mode {
+            ExecutionMode::Fast => SchedulerMode::Parallel,
+            ExecutionMode::Deterministic | ExecutionMode::Record | ExecutionMode::Replay => {
+                SchedulerMode::Cooperative
+            }
+        };
+
+        // trace mode
+        self.trace.mode = match mode {
+            ExecutionMode::Fast | ExecutionMode::Deterministic => TraceMode::Off,
+            ExecutionMode::Record => TraceMode::Record,
+            ExecutionMode::Replay => TraceMode::Replay,
+        };
+
+        // effect sources
+        if mode == ExecutionMode::Replay {
+            self.effect.time = EffectSource::Trace;
+            self.effect.random = EffectSource::Trace;
+        }
+    }
+
+    /// Apply one collapsed time summary onto the runtime planes.
+    pub fn set_time_mode(&mut self, mode: TimeMode) {
+        self.effect.time = match mode {
+            TimeMode::Host => EffectSource::Host,
+            TimeMode::Virtual => EffectSource::Simulation,
+        };
+    }
+
+    /// Apply one collapsed randomness summary onto the runtime planes.
+    pub fn set_random_mode(&mut self, mode: RandomMode) {
+        self.effect.random = match mode {
+            RandomMode::Host => EffectSource::Host,
+            RandomMode::Deterministic => EffectSource::Simulation,
+        };
+    }
+
+    /// Return the collapsed execution summary used by legacy runtime internals.
+    pub fn execution_mode(&self) -> ExecutionMode {
+        // trace replay is always authoritative
+        if self.trace.mode == TraceMode::Replay {
+            return ExecutionMode::Replay;
+        }
+
+        // trace recording keeps the old record-facing behavior
+        if self.trace.mode == TraceMode::Record {
+            return ExecutionMode::Record;
+        }
+
+        // cooperative worlds collapse to deterministic execution
+        if self.scheduler.mode == SchedulerMode::Cooperative {
+            return ExecutionMode::Deterministic;
+        }
+
+        ExecutionMode::Fast
+    }
+
+    /// Return the collapsed time-source summary used by legacy runtime internals.
+    pub fn time_mode(&self) -> TimeMode {
+        match self.effect.time {
+            EffectSource::Host => TimeMode::Host,
+            EffectSource::Trace | EffectSource::Simulation | EffectSource::Deny => {
+                TimeMode::Virtual
+            }
+        }
+    }
+
+    /// Return the collapsed randomness summary used by legacy runtime internals.
+    pub fn random_mode(&self) -> RandomMode {
+        match self.effect.random {
+            EffectSource::Host => RandomMode::Host,
+            EffectSource::Trace | EffectSource::Simulation | EffectSource::Deny => {
+                RandomMode::Deterministic
+            }
+        }
+    }
+
+    /// Return the configured trace payload policy.
+    pub fn replay_payload_mode(&self) -> ReplayPayloadMode {
+        self.trace.payload
+    }
+
+    /// Return the configured trace chunk size in megabytes.
+    pub fn trace_chunk_size_mb(&self) -> Option<u64> {
+        self.trace.chunk_size_mb
+    }
+
+    /// Return derived clock configuration for runtime internals.
+    pub fn time_options(&self) -> TimeOptions {
+        let mode = self.time_mode();
+        let epoch_ns = self.simulation.time.epoch_ns;
+        let time_zone = self.simulation.time.time_zone.clone();
+
+        TimeOptions {
+            mode,
+            epoch_ns,
+            time_zone,
+        }
+    }
+
+    /// Return derived randomness configuration for runtime internals.
+    pub fn random_options(&self) -> RandomOptions {
+        let mode = self.random_mode();
+        let seed = self.simulation.random.seed;
+        let per_runnable = self.simulation.random.per_runnable;
+
+        RandomOptions {
+            mode,
+            seed,
+            per_runnable,
+        }
+    }
+
+    /// Return derived trace-storage configuration for runtime internals.
+    pub fn replay_options(&self) -> ReplayOptions {
+        ReplayOptions {
+            path: self.trace.path.clone(),
+            template: self.trace.template.clone(),
+            chunk_size_mb: self.trace.chunk_size_mb,
+            payload: self.trace.payload,
+        }
+    }
+
+    /// Return the configured scheduler options.
+    pub fn scheduler_options(&self) -> &SchedulerOptions {
+        &self.scheduler
+    }
 }
 
 /// Runtime config JSON.
@@ -590,22 +718,14 @@ pub struct RuntimeOptionsJson {
     pub labels: Option<BTreeMap<String, String>>,
     /// Default primary worker identity for policy selection.
     pub primary_worker: Option<RuntimeWorkerOptionsJson>,
-    /// Execution mode for runtime scheduling and replay.
-    pub execution: Option<ExecutionModeJson>,
-    /// Default world for bindings without matching world rules.
-    pub world: Option<RuntimeWorldJson>,
-    /// Default access policy for bindings without matching access rules.
-    pub access: Option<RuntimeAccessJson>,
-    /// Ordered static runtime rules.
-    pub rules: Option<Vec<RuntimeRuleJson>>,
-    /// Replay configuration.
-    pub replay: Option<ReplayOptionsJson>,
-    /// Runtime clock configuration.
-    pub time: Option<TimeOptionsJson>,
-    /// Runtime randomness configuration.
-    pub random: Option<RandomOptionsJson>,
     /// Runtime scheduler configuration.
     pub scheduler: Option<SchedulerOptionsJson>,
+    /// Runtime effect configuration.
+    pub effect: Option<EffectOptionsJson>,
+    /// Runtime simulation configuration.
+    pub simulation: Option<SimulationOptionsJson>,
+    /// Runtime trace configuration.
+    pub trace: Option<TraceOptionsJson>,
     /// Runtime heap configuration.
     pub heap: Option<HeapOptionsJson>,
     /// Runtime diagnostics configuration.
@@ -698,33 +818,33 @@ impl RuntimeOptionsJson {
         if self.primary_worker.is_none() {
             self.primary_worker = parent.primary_worker.clone();
         }
-        if self.execution.is_none() {
-            self.execution = parent.execution;
-        }
-        if self.world.is_none() {
-            self.world = parent.world;
-        }
-        if self.access.is_none() {
-            self.access = parent.access;
-        }
-        if self.rules.is_none() {
-            self.rules = parent.rules.clone();
-        }
-        if self.replay.is_none() {
-            self.replay = parent.replay.clone();
-        }
-        if self.time.is_none() {
-            self.time = parent.time.clone();
-        }
-        if self.random.is_none() {
-            self.random = parent.random.clone();
-        }
         if let Some(scheduler) = &mut self.scheduler {
             if let Some(parent_scheduler) = &parent.scheduler {
                 scheduler.extend_from(parent_scheduler);
             }
         } else {
             self.scheduler = parent.scheduler.clone();
+        }
+        if let Some(effect) = &mut self.effect {
+            if let Some(parent_effect) = &parent.effect {
+                effect.extend_from(parent_effect);
+            }
+        } else {
+            self.effect = parent.effect.clone();
+        }
+        if let Some(simulation) = &mut self.simulation {
+            if let Some(parent_simulation) = &parent.simulation {
+                simulation.extend_from(parent_simulation);
+            }
+        } else {
+            self.simulation = parent.simulation.clone();
+        }
+        if let Some(trace) = &mut self.trace {
+            if let Some(parent_trace) = &parent.trace {
+                trace.extend_from(parent_trace);
+            }
+        } else {
+            self.trace = parent.trace.clone();
         }
         if let Some(heap) = &mut self.heap {
             if let Some(parent_heap) = &parent.heap {
@@ -826,44 +946,21 @@ impl RuntimeOptionsJson {
             primary_worker.apply_to(&mut options.primary_worker);
         }
 
-        // apply execution mode overrides
-        if let Some(execution_mode) = self.execution {
-            options.execution = ExecutionMode::from(execution_mode);
-        }
-
-        // apply default world overrides
-        if let Some(default_world) = self.world {
-            options.world = RuntimeWorld::from(default_world);
-        }
-
-        // apply default access overrides
-        if let Some(default_access) = self.access {
-            options.access = RuntimeAccess::from(default_access);
-        }
-
-        // apply static runtime rules
-        if let Some(rules) = &self.rules {
-            options.rules = rules.iter().map(RuntimeRule::from).collect();
-        }
-
-        // apply replay overrides
-        if let Some(replay) = &self.replay {
-            replay.apply_to(&mut options.replay);
-        }
-
-        // apply time overrides
-        if let Some(time) = &self.time {
-            time.apply_to(&mut options.time);
-        }
-
-        // apply random overrides
-        if let Some(random) = &self.random {
-            random.apply_to(&mut options.random);
-        }
-
-        // apply scheduler overrides
+        // apply runtime planes
         if let Some(scheduler) = &self.scheduler {
             scheduler.apply_to(&mut options.scheduler);
+        }
+
+        if let Some(effect) = &self.effect {
+            effect.apply_to(&mut options.effect);
+        }
+
+        if let Some(simulation) = &self.simulation {
+            simulation.apply_to(&mut options.simulation);
+        }
+
+        if let Some(trace) = &self.trace {
+            trace.apply_to(&mut options.trace);
         }
 
         // apply heap overrides

@@ -31,7 +31,7 @@ pub struct Workspace {
     pub(crate) package_paths: Vec<(PathBuf, PackageId)>,
     /// The module snapshots in this workspace.
     pub(crate) modules: OrdMap<ModuleId, Module>,
-    /// The explicit targets indexed by stable target id.
+    /// Legacy target index retained for snapshot compatibility.
     pub(crate) targets: OrdMap<TargetId, Target>,
 }
 
@@ -74,7 +74,10 @@ impl Workspace {
 
     /// Return one indexed explicit target by id.
     pub(crate) fn target_by_id(&self, target_id: TargetId) -> Option<&Target> {
-        self.targets.get(&target_id)
+        self.packages
+            .get(&target_id.package_id())
+            .and_then(|package| package.targets.get(&target_id))
+            .or_else(|| self.targets.get(&target_id))
     }
 
     /// Return one module snapshot for one module id.

@@ -1546,7 +1546,7 @@ impl TargetOptions {
 
         // align execution mode field with runtime options
         if let Some(execution_mode) = json.execution.map(ExecutionMode::from) {
-            runtime_options.execution = execution_mode;
+            runtime_options.set_execution_mode(execution_mode);
         }
 
         // resolve one target app declaration for runtime host planning
