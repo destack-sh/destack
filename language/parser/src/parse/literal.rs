@@ -243,42 +243,28 @@ impl Parser {
                     })
             }
 
-            // character literal (ignore quotes)
+            // html entity character literal
             LiteralType::Character {
                 is_terminated,
                 is_html_entity,
             } => {
-                if is_html_entity {
-                    decode_html_entity(literal_str)
-                        .map(ScalarLiteral::Character)
-                        .ok_or_else(|| {
-                            ParseError::expected_for(
-                                literal_span.span,
-                                TokenType::Literal,
-                                NodeType::Expression,
-                            )
-                        })
-                } else {
-                    if !is_terminated {
-                        return Err(ParseError::expected_for(
+                if !is_terminated || !is_html_entity {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                decode_html_entity(literal_str)
+                    .map(ScalarLiteral::Character)
+                    .ok_or_else(|| {
+                        ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
-                        ));
-                    }
-                    let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
-                    content
-                        .chars()
-                        .next()
-                        .map(ScalarLiteral::Character)
-                        .ok_or_else(|| {
-                            ParseError::expected_for(
-                                literal_span.span,
-                                TokenType::Literal,
-                                NodeType::Expression,
-                            )
-                        })
-                }
+                        )
+                    })
             }
 
             // string literal (ignore quotes)
@@ -428,38 +414,23 @@ impl Parser {
                 is_terminated,
                 is_html_entity,
             } => {
-                if is_html_entity {
-                    decode_html_entity(literal_str)
-                        .map(ScalarLiteral::Character)
-                        .ok_or_else(|| {
-                            ParseError::expected_for(
-                                token.span,
-                                TokenType::Literal,
-                                NodeType::Expression,
-                            )
-                        })?
-                } else {
-                    if !is_terminated {
-                        return Err(ParseError::expected_for(
+                if !is_terminated || !is_html_entity {
+                    return Err(ParseError::expected_for(
+                        token.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                decode_html_entity(literal_str)
+                    .map(ScalarLiteral::Character)
+                    .ok_or_else(|| {
+                        ParseError::expected_for(
                             token.span,
                             TokenType::Literal,
                             NodeType::Expression,
-                        ));
-                    }
-
-                    let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
-                    content
-                        .chars()
-                        .next()
-                        .map(ScalarLiteral::Character)
-                        .ok_or_else(|| {
-                            ParseError::expected_for(
-                                token.span,
-                                TokenType::Literal,
-                                NodeType::Expression,
-                            )
-                        })?
-                }
+                        )
+                    })?
             }
             LiteralType::TreeString => {
                 let string_id = self.strings.intern(literal_str);
@@ -1645,9 +1616,27 @@ mod tests {
         );
     }
 
-    /// Parse a single quoted line separator character literal.
+    /// Parse single quoted character length literals as strings.
     #[test]
-    fn test_parse_single_quoted_line_separator_character_literal() {
+    fn test_parse_single_quoted_character_length_literal_as_string() {
+        let mut test = TestParser::new("'a'");
+        let mut parser = test.prepare();
+
+        let literal = parser.eat_scalar_literal().unwrap();
+
+        assert_string!(
+            parser,
+            match literal {
+                ScalarLiteral::String(id) => id,
+                other => panic!("expected string literal, got {other:?}"),
+            },
+            "a"
+        );
+    }
+
+    /// Parse a single quoted line separator string literal.
+    #[test]
+    fn test_parse_single_quoted_line_separator_as_string() {
         // source: ('\u{2028}')
         let mut test = TestParser::new("('\u{2028}')");
         let mut parser = test.prepare();
@@ -1656,12 +1645,19 @@ mod tests {
             .eat_token(destack_ast::TokenType::OpenParenthesis)
             .unwrap();
         let literal = parser.eat_scalar_literal().unwrap();
-        assert!(matches!(literal, ScalarLiteral::Character('\u{2028}')));
+        assert_string!(
+            parser,
+            match literal {
+                ScalarLiteral::String(id) => id,
+                other => panic!("expected string literal, got {other:?}"),
+            },
+            "\u{2028}"
+        );
     }
 
-    /// Parse a single quoted paragraph separator character literal.
+    /// Parse a single quoted paragraph separator string literal.
     #[test]
-    fn test_parse_single_quoted_paragraph_separator_character_literal() {
+    fn test_parse_single_quoted_paragraph_separator_as_string() {
         // source: ('\u{2029}')
         let mut test = TestParser::new("('\u{2029}')");
         let mut parser = test.prepare();
@@ -1670,7 +1666,14 @@ mod tests {
             .eat_token(destack_ast::TokenType::OpenParenthesis)
             .unwrap();
         let literal = parser.eat_scalar_literal().unwrap();
-        assert!(matches!(literal, ScalarLiteral::Character('\u{2029}')));
+        assert_string!(
+            parser,
+            match literal {
+                ScalarLiteral::String(id) => id,
+                other => panic!("expected string literal, got {other:?}"),
+            },
+            "\u{2029}"
+        );
     }
 
     /// Parse a regex string literal.
