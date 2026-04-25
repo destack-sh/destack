@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     ArgumentSlice, AtomicRmwOperator, AtomicScope, BinaryOperator, Call, CastOperator, Instruction,
@@ -995,8 +995,11 @@ impl Parser {
 
         // destination type
         if let Some(type_span) = type_span {
-            self.tree
-                .set_side_span(instruction_id, NodeSpanType::Type, type_span);
+            self.tree.set_side_span(
+                instruction_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                type_span,
+            );
         }
 
         // ordered source parts
