@@ -6,7 +6,9 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
-use crate::format::annotation::{block_infix_annotations, postfix_annotations, prefix_annotations};
+use crate::format::annotation::{
+    FormatTrailingComments, block_infix_annotations, postfix_annotations, prefix_annotations,
+};
 use crate::format::declaration::sequence::{
     block_allows_value_tail, expression_postfix_end, format_block_body_narrow,
     format_block_body_wide, program_statement_sequence,
@@ -35,6 +37,12 @@ pub fn statement_list<'ast>(
         }
 
         write!(f, [program_statement_sequence(expressions)])?;
+        write!(
+            f,
+            [FormatTrailingComments::Comments(
+                f.context().comments().unprinted_comments()
+            )]
+        )?;
         write!(f, [hard_line_break()])?;
 
         Ok(())

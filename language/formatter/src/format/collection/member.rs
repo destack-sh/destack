@@ -10,7 +10,9 @@ use crate::format::declaration::signature::{
     write_generic_parameter_list,
 };
 use crate::format::declaration::write_statement_terminator_after_anchor;
-use crate::format::file::{node_has_ignore_directive, write_ignored_node};
+use crate::format::file::{
+    node_has_ignore_directive, node_has_trailing_ignore_directive, write_ignored_node,
+};
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     Ambientness, Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
@@ -186,6 +188,10 @@ fn write_member_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> FormatResult<()> {
+    if node_has_trailing_ignore_directive(f.context(), node_id) {
+        return Ok(());
+    }
+
     write_statement_terminator_after_anchor(f, f.context().span(node_id).end)
 }
 

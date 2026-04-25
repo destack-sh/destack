@@ -9,6 +9,7 @@ use destack_fir::write;
 
 use crate::format::annotation::format_comment;
 use crate::format::chain::expression_trivia_anchor_end;
+use crate::format::file::node_has_trailing_ignore_directive;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_source::Span;
 
@@ -18,18 +19,29 @@ fn statement_terminator_comments_after(
     mut anchor_end: u32,
 ) -> Vec<Comment> {
     let comments = context.comments().comments_after(anchor_end);
+    let source = context.source_text();
 
     for (index, comment) in comments.iter().copied().enumerate() {
         if comment.is_leading() && comment.preceded_by_newline() {
+            let gap = Span::new(comment.span.file, anchor_end, comment.span.start);
+            let is_eof_trailing_comment = !context.has_blank_line(gap)
+                && source.all_bytes_match(anchor_end, comment.span.start, |byte| {
+                    byte.is_ascii_whitespace() || matches!(byte, b')' | b';')
+                })
+                && source.all_bytes_match(comment.span.end, source.len() as u32, |byte| {
+                    byte.is_ascii_whitespace()
+                });
+
+            if is_eof_trailing_comment {
+                return comments[..=index].to_vec();
+            }
+
             break;
         }
 
-        if context
-            .source_text()
-            .all_bytes_match(anchor_end, comment.span.start, |byte| {
-                matches!(byte, b'\t' | b' ' | b';')
-            })
-        {
+        if source.all_bytes_match(anchor_end, comment.span.start, |byte| {
+            matches!(byte, b'\t' | b' ' | b')' | b';')
+        }) {
             if comment.is_line() || comment.followed_by_newline() {
                 return comments[..=index].to_vec();
             }
@@ -44,15 +56,6 @@ fn statement_terminator_comments_after(
     Vec::new()
 }
 
-/// Return whether one statement owns same-line terminator comments.
-pub(crate) fn statement_has_inline_terminator_comments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let anchor_end = statement_trailing_comment_anchor_end(context, expression_id);
-    !statement_terminator_comments_after(context, anchor_end).is_empty()
-}
-
 /// Return trailing statement comments with one explicit following sibling start.
 fn statement_terminator_comments_between(
     context: &DestackFormatContext<'_>,
@@ -65,7 +68,15 @@ fn statement_terminator_comments_between(
     let mut collected = Vec::new();
 
     for comment in comments_before_following.iter().copied() {
-        if comment.is_leading() && comment.preceded_by_newline() {
+        let own_line_comment_before_source_semicolon = comment.preceded_by_newline()
+            && context
+                .source_text()
+                .bytes_contain(comment.span.end, following_span_start, b';');
+
+        if comment.is_leading()
+            && comment.preceded_by_newline()
+            && !own_line_comment_before_source_semicolon
+        {
             break;
         }
 
@@ -87,7 +98,7 @@ fn statement_terminator_comments_between(
         if !context
             .source_text()
             .all_bytes_match(cursor, comment.span.start, |byte| {
-                byte.is_ascii_whitespace() || byte == b';'
+                byte.is_ascii_whitespace() || matches!(byte, b')' | b';')
             })
         {
             break;
@@ -116,7 +127,7 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
         return Ok(());
     }
 
-    write_statement_terminator_comments(f, anchor_end, &comments)
+    write_statement_terminator_comments(f, anchor_end, &comments, false)
 }
 
 /// Write one statement terminator with one explicit following sibling start.
@@ -134,7 +145,7 @@ pub(crate) fn write_statement_terminator_with_following_start<'ast>(
         return Ok(());
     }
 
-    write_statement_terminator_comments(f, anchor_end, &comments)
+    write_statement_terminator_comments(f, anchor_end, &comments, true)
 }
 
 /// Write statement separator comments after one statement terminator.
@@ -142,6 +153,7 @@ fn write_statement_terminator_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     anchor_end: u32,
     comments: &[Comment],
+    indent_own_line: bool,
 ) -> FormatResult<()> {
     if comments.is_empty() {
         return Ok(());
@@ -158,22 +170,23 @@ fn write_statement_terminator_comments<'ast>(
     // statement-separator own-line comments should stay in the statement flow,
     // not in the generic trailing line-suffix path
     if comment_is_on_own_line {
-        return write!(
-            f,
-            [block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| {
-                    for (index, comment) in comments.iter().copied().enumerate() {
-                        format_comment(f, comment)?;
+        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            for (index, comment) in comments.iter().copied().enumerate() {
+                format_comment(f, comment)?;
 
-                        if index + 1 < comments.len() {
-                            write!(f, [hard_line_break()])?;
-                        }
-                    }
-
-                    Ok(())
+                if index + 1 < comments.len() {
+                    write!(f, [hard_line_break()])?;
                 }
-            ))]
-        );
+            }
+
+            Ok(())
+        });
+
+        if indent_own_line {
+            return write!(f, [block_indent(&content)]);
+        }
+
+        return write!(f, [hard_line_break(), content]);
     }
 
     write_inline_statement_terminator_comments(f, comments)
@@ -221,8 +234,16 @@ fn write_inline_statement_terminator_comments<'ast>(
                 ))]
             )?;
         } else {
-            write!(f, [space()])?;
-            format_comment(f, comment)?;
+            let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [space()])?;
+                format_comment(f, comment)
+            });
+
+            if comment.is_line() {
+                write!(f, [line_suffix(&content)])?;
+            } else {
+                write!(f, [content])?;
+            }
         }
 
         previous_comment = Some(comment);
@@ -260,6 +281,7 @@ pub(crate) fn expression_needs_statement_terminator(
     let always_needs_statement_terminator = matches!(
         expression,
         Expression::Import { .. }
+            | Expression::ExportNamespace { .. }
             | Expression::Let { .. }
             | Expression::LetElse { .. }
             | Expression::Using { .. }
@@ -386,6 +408,10 @@ pub(crate) fn write_statement_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    if node_has_trailing_ignore_directive(f.context(), expression_id) {
+        return Ok(());
+    }
+
     let anchor_end = statement_trailing_comment_anchor_end(f.context(), expression_id);
     write_statement_terminator_after_anchor(f, anchor_end)
 }
