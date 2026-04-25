@@ -566,7 +566,7 @@ mod tests {
     use destack_core::StringPool;
     use destack_dir as dir;
     use destack_fir::format::FileMarker;
-    use destack_source::{FileId, FileType, ModuleId, NodeSpanType, Span};
+    use destack_source::{FileId, FileType, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 
     use super::Printer;
     use crate::{
@@ -1140,7 +1140,7 @@ mod tests {
                 ),
                 (
                     item.id,
-                    NodeSpanType::Type,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
                     Span::new(FileId::new(1), 7, 12),
                 ),
                 (

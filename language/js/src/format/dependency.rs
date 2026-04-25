@@ -3,7 +3,7 @@ use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::format::argument::list_like;
 use crate::format::literal::format_string_literal_with_source_span;
@@ -60,7 +60,9 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         node_id: LocalNodeId<DependencyItem>,
         f: &mut JsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let name_span = f.context().source_part_span(node_id.id, NodeSpanType::Type);
+        let name_span = f
+            .context()
+            .source_part_span(node_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
         let alias_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
         // type

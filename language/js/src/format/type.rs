@@ -385,9 +385,7 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                 }
                 // parameters
                 write!(f, [token("(")])?;
-                list_like("", "", ",", &signature.parameters)
-                    .include_space()
-                    .format(f)?;
+                list_like("", "", ",", &signature.parameters).format(f)?;
                 write!(f, [token(")")])?;
                 // return type
                 if let Some(return_type) = signature.return_type {
@@ -406,9 +404,7 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                 }
 
                 write!(f, [token("(")])?;
-                list_like("", "", ",", &signature.parameters)
-                    .include_space()
-                    .format(f)?;
+                list_like("", "", ",", &signature.parameters).format(f)?;
                 write!(f, [token(")")])?;
 
                 if let Some(return_type) = signature.return_type {
