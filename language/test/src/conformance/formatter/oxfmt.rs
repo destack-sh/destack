@@ -145,6 +145,7 @@ impl ConformanceDriver for OxfmtSuite {
             expected_output.as_deref(),
             formatter_options,
             test.expect_error,
+            test.check_idempotence,
             show_diff,
         )
     }

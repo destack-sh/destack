@@ -102,6 +102,14 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
             !status_for_case(suite, &statuses, &case.name).is_some_and(is_skipped_status)
                 || runs_ignored
         })
+        .map(|case| {
+            let status = status_for_case(suite, &statuses, &case.name);
+            if status == Some(CaseStatus::KnownFailIdempotence) && !runs_known_failures {
+                case.clone().without_idempotence()
+            } else {
+                case.clone()
+            }
+        })
         .collect::<Vec<_>>();
 
     println!();
@@ -246,7 +254,9 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
                     passed += 1;
                     stats.passed += 1;
 
-                    if is_known_failure {
+                    let is_idempotence_check_suppressed =
+                        status == Some(CaseStatus::KnownFailIdempotence) && !runs_known_failures;
+                    if is_known_failure && !is_idempotence_check_suppressed {
                         fixed.push(name);
                     }
                 }
@@ -276,7 +286,11 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
                         CaseOutcome::Passed => unreachable!("passed outcome handled earlier"),
                     }
 
-                    if !is_known_failure {
+                    let is_expected_failure = status
+                        .is_some_and(|status| status_matches_failure(status, failure_kind))
+                        && !runs_known_failures;
+
+                    if !is_expected_failure {
                         regressions.push(name.clone());
                     }
 
@@ -293,7 +307,11 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
                     stats.failed += 1;
                     timeouts.push(name.clone());
 
-                    if !is_known_failure {
+                    let is_expected_timeout = status.is_some_and(|status| {
+                        matches!(status, CaseStatus::KnownFail | CaseStatus::Flaky)
+                    }) && !runs_known_failures;
+
+                    if !is_expected_timeout {
                         regressions.push(name.clone());
                     }
 
@@ -376,7 +394,19 @@ fn is_skipped_status(status: CaseStatus) -> bool {
 
 /// Return whether one status counts as a known failure.
 fn is_known_failure_status(status: CaseStatus) -> bool {
-    matches!(status, CaseStatus::KnownFail | CaseStatus::Flaky)
+    matches!(
+        status,
+        CaseStatus::KnownFail | CaseStatus::KnownFailIdempotence | CaseStatus::Flaky
+    )
+}
+
+/// Return whether one failure outcome is expected by a status.
+fn status_matches_failure(status: CaseStatus, outcome: CaseOutcome) -> bool {
+    match status {
+        CaseStatus::KnownFail | CaseStatus::Flaky => true,
+        CaseStatus::KnownFailIdempotence => outcome == CaseOutcome::FailedIdempotence,
+        _ => false,
+    }
 }
 
 /// Return the exact selectors declared by one status entry.
@@ -437,8 +467,17 @@ fn save_known_failure_statuses<S: ConformanceDriver>(
         .cloned()
         .collect::<Vec<_>>();
 
+    // remove manually classified failure modes from auto generated known failures
+    let current_failures = current_failures
+        .iter()
+        .filter(|selector| {
+            status_for_case(suite, statuses, selector) != Some(CaseStatus::KnownFailIdempotence)
+        })
+        .cloned()
+        .collect::<HashSet<_>>();
+
     // group failures by suite category
-    let failures = compress_exact_selectors(current_failures, discovered_case_names);
+    let failures = compress_exact_selectors(&current_failures, discovered_case_names);
     let mut grouped_failures = BTreeMap::<String, Vec<String>>::new();
 
     for selector in failures {
