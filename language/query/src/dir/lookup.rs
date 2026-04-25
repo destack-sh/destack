@@ -3,7 +3,7 @@ use destack_dir::{
     Declaration, DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, Parameter, Pattern,
     PatternField,
 };
-use destack_source::{FileId, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use std::str::FromStr;
 use {destack_ast as ast, destack_dir as dir};
 
@@ -134,9 +134,10 @@ pub(crate) fn get_path_segment_span(
     }
 
     let source_id = dir.tree().get_source(expression_id.id);
-    let span = ast
-        .tree()
-        .get_side_span_by_id(source_id, NodeSpanType::Segment(segment_index))?;
+    let span = ast.tree().get_side_span_by_id(
+        source_id,
+        NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
+    )?;
 
     Some(Span::new(ast.file_id(), span.start, span.end))
 }
@@ -582,7 +583,7 @@ fn find_symbol_at_offset_impl(
                 // prefer imported name spans as target symbol references in aliased imports
                 if let Some(name_side_span) = ast
                     .tree()
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Type)
+                    .get_side_span_by_id(ast_node_id, NodeSpanType::Region(NodeSpanRegion::Type))
                     .map(|span| Span::new(ast.file_id(), span.start, span.end))
                     && offset_matches_symbol_span(offset, name_side_span)
                     && let Some(symbol_id) = item.target_symbol()

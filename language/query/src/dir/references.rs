@@ -5,7 +5,7 @@ use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
     NodeType, Resolution,
 };
-use destack_source::{FileId, ModuleId, NodeSpanType, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::{Repository, Revision};
 
 use super::import::is_dependency_alias_for_target;
@@ -855,7 +855,7 @@ fn dependency_item_name_span(
     {
         let span = ast
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Type)?;
+            .get_side_span_by_id(ast_node_id, NodeSpanType::Region(NodeSpanRegion::Type))?;
         return Some(Span::new(ast.file_id(), span.start, span.end));
     }
 

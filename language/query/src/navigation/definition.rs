@@ -1,4 +1,4 @@
-use destack_source::{FileId, NodeSpanType, Span, Uri};
+use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
@@ -150,7 +150,7 @@ fn resolve_import_definition_at_offset(
         let source_id = dir_tree.get_source(item_id.id);
         let imported_name_span = ast
             .tree()
-            .get_side_span_by_id(source_id, NodeSpanType::Type)
+            .get_side_span_by_id(source_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .map(|span| Span::new(ctx.file_id(), span.start, span.end));
         let local_alias_span = ast
             .tree()

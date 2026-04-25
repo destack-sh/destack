@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalSymbolId};
-use destack_source::{NodeSpanType, SourcePartKey};
+use destack_source::{NodeSpanList, NodeSpanType, SourcePartKey};
 
 use super::resolve_expression_symbol;
 use crate::core::DirQuery;
@@ -31,6 +31,6 @@ pub(crate) fn resolve_path_segment_symbol(
     dir.types()
         .get_symbol_target_for_source_part(SourcePartKey::new(
             source_id,
-            NodeSpanType::Segment(segment_index),
+            NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
         ))
 }

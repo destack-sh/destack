@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_source::{EnclosingSpan, NodeSpanType, Span};
+use destack_source::{EnclosingSpan, NodeSpanRegion, NodeSpanType, Span};
 
 use super::{
     AstQuery, enclosing_spans_at_offsets, enclosing_spans_with_previous, next_significant_token,
@@ -65,7 +65,9 @@ pub(crate) fn offset_is_in_ast_type_side_span(ast: AstQuery<'_>, offset: u32) ->
 
     for enclosing in enclosing_spans_with_previous(ast, offset) {
         // type side spans own both the cursor and the previous byte boundary
-        if let Some(span) = ast.source_map().get_side(enclosing.idx, NodeSpanType::Type)
+        if let Some(span) = ast
+            .source_map()
+            .get_side(enclosing.idx, NodeSpanType::Region(NodeSpanRegion::Type))
             && (span.contains(offset) || span.contains(previous_offset))
         {
             return true;
