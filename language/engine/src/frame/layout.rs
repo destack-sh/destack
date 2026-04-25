@@ -1,62 +1,105 @@
 use destack_mir as mir;
 
-use crate::{ControlTransfer, MaterializedValue, ResumePointId};
+use crate::{ControlTransfer, ResumePointId};
 
 /// The identifier for one frame layout table entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FrameLayoutId(pub u32);
 
-/// The originating MIR entity represented by one frame slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameSlotSource {
-    /// One SSA value slot.
-    Value(mir::Value),
-    /// One mutable local slot.
-    Local(mir::LocalNodeId<mir::Local>),
-    /// The function environment slot.
-    Environment,
-}
-
-/// One logical slot in one frame layout.
+/// One byte region in one function activation record.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct FrameSlot {
-    /// The originating MIR entity represented by this slot.
-    pub source: FrameSlotSource,
+pub struct FrameRegion {
+    /// The byte offset from the frame base.
+    pub offset: u32,
+    /// The byte width reserved for this region.
+    pub byte_len: u32,
+    /// The required byte alignment.
+    pub alignment: u16,
+    /// Whether this region stores a VM word directly.
+    pub is_word: bool,
     /// The MIR type stored in this slot.
     pub ty: mir::LocalNodeId<mir::Type>,
 }
 
-/// The logical layout of one function activation.
+/// The byte layout of one function activation.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FrameLayout {
     /// The layout identifier.
     pub id: FrameLayoutId,
     /// The owning MIR function.
     pub function: mir::LocalNodeId<mir::Function>,
-    /// The ordered logical slots in layout order.
-    pub slots: Vec<FrameSlot>,
-    /// The SSA value slot range in layout order.
-    pub value_slots: std::ops::Range<u32>,
-    /// The mutable local slot range in layout order.
-    pub local_slots: std::ops::Range<u32>,
-    /// The function environment slot when present.
-    pub environment_slot: Option<u32>,
+    /// The byte regions for SSA values.
+    pub values: Vec<FrameRegion>,
+    /// The byte regions for mutable locals.
+    pub locals: Vec<FrameRegion>,
+    /// The callable environment region when present.
+    pub environment: Option<FrameRegion>,
+    /// The fixed activation record byte width.
+    pub byte_len: u32,
 }
 
 impl FrameLayout {
-    /// Return the slot at the given layout index.
-    pub fn slot(&self, slot: u32) -> Option<&FrameSlot> {
-        self.slots.get(slot as usize)
+    /// Return the value region at the given SSA value index.
+    pub fn value(&self, value: mir::Value) -> Option<&FrameRegion> {
+        self.values.get(value.0 as usize)
     }
-}
 
-/// One captured frame-local stack allocation.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct AllocationImage {
-    /// The raw byte storage for this allocation.
-    pub bytes: Vec<u8>,
-    /// The stored raw storage type.
-    pub storage_type: mir::LocalNodeId<mir::Type>,
+    /// Return the local region at the given local index.
+    pub fn local(&self, local: mir::LocalNodeId<mir::Local>) -> Option<&FrameRegion> {
+        self.locals.get(local.id as usize)
+    }
+
+    /// Return a region by materialization index.
+    pub fn materialized_region(&self, index: u32) -> Option<&FrameRegion> {
+        let value_count = self.values.len() as u32;
+        if index < value_count {
+            return self.values.get(index as usize);
+        }
+
+        let local_index = index.checked_sub(value_count)?;
+        let local_count = self.locals.len() as u32;
+        if local_index < local_count {
+            return self.locals.get(local_index as usize);
+        }
+
+        if local_index == local_count {
+            return self.environment.as_ref();
+        }
+
+        None
+    }
+
+    /// Return whether the materialization index addresses an SSA value.
+    pub fn materialized_value(&self, index: u32) -> Option<mir::Value> {
+        if index < self.values.len() as u32 {
+            Some(mir::Value::new(index))
+        } else {
+            None
+        }
+    }
+
+    /// Return whether the materialization index addresses a local.
+    pub fn materialized_local(&self, index: u32) -> Option<mir::LocalNodeId<mir::Local>> {
+        let value_count = self.values.len() as u32;
+        let local_index = index.checked_sub(value_count)?;
+        if local_index < self.locals.len() as u32 {
+            Some(mir::LocalNodeId::new(local_index))
+        } else {
+            None
+        }
+    }
+
+    /// Return whether the materialization index addresses the environment.
+    pub fn is_materialized_environment(&self, index: u32) -> bool {
+        let environment_index = self.values.len() + self.locals.len();
+
+        self.environment.is_some() && index as usize == environment_index
+    }
+
+    /// Return the materialized region count.
+    pub fn materialized_len(&self) -> usize {
+        self.values.len() + self.locals.len() + usize::from(self.environment.is_some())
+    }
 }
 
 /// One durable logical frame image.
@@ -68,8 +111,6 @@ pub struct FrameImage {
     pub resume_point: ResumePointId,
     /// The pending transfer owned by this frame when another frame is active.
     pub transfer: Option<ControlTransfer>,
-    /// The logical slot payloads in layout order.
-    pub slots: Vec<MaterializedValue>,
-    /// The captured frame-local stack allocations.
-    pub allocations: Vec<Option<AllocationImage>>,
+    /// The captured activation record bytes.
+    pub bytes: Vec<u8>,
 }
