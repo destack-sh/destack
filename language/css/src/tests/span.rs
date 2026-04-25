@@ -1,4 +1,4 @@
-use crate::{NodeSpanType, Rule, Stylesheet, assert_node};
+use crate::{NodeSpanRegion, NodeSpanType, Rule, Stylesheet, assert_node};
 
 use super::TestParser;
 
@@ -24,15 +24,24 @@ fn test_store_rule_and_import_side_spans() {
             test.span_for(source, r#"@import "./base.css" layer(theme);"#)
         );
         assert_eq!(
-            tree.side_span(import_rule, NodeSpanType::Segment(0)),
+            tree.side_span(
+                import_rule,
+                NodeSpanType::Region(NodeSpanRegion::Prelude),
+            ),
             Some(test.span_for(source, r#"@import "./base.css" layer(theme)"#))
         );
         assert_eq!(
-            tree.side_span(import_rule, NodeSpanType::Segment(1)),
+            tree.side_span(
+                import_rule,
+                NodeSpanType::Region(NodeSpanRegion::Value),
+            ),
             Some(test.span_for(source, "./base.css"))
         );
         assert_eq!(
-            tree.side_span(media_rule, NodeSpanType::Segment(0)),
+            tree.side_span(
+                media_rule,
+                NodeSpanType::Region(NodeSpanRegion::Prelude),
+            ),
             Some(test.span_for(source, "@media screen"))
         );
     });
