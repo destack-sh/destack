@@ -1,4 +1,4 @@
-use destack_source::{AdaptImage, NodeSpanType};
+use destack_source::{AdaptImage, NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -457,7 +457,7 @@ impl TypeExpression {
                 if tree.get_source(current_id.id) == source_id
                     && usize::from(segment_index) < path.segments.len() =>
             {
-                NodeSpanType::Segment(segment_index)
+                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index)
             }
             _ => NodeSpanType::Main,
         }
