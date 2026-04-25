@@ -372,33 +372,33 @@ fn test_lex_tree_after_type_alias_before_tree() {
 }
 
 #[test]
-fn test_lex_characters() {
+fn test_lex_single_quoted_single_character_strings() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::Character {
+            Some(LiteralType::String {
                 is_terminated: true,
-                is_html_entity: false,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::Character {
+            Some(LiteralType::String {
                 is_terminated: true,
-                is_html_entity: false,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Character {
+            Some(LiteralType::String {
                 is_terminated: true,
-                is_html_entity: false,
+                has_invalid_escape: false,
             })
         ),
     );
@@ -852,9 +852,9 @@ false
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::Character {
+            Some(LiteralType::String {
                 is_terminated: true,
-                is_html_entity: false,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Newline, 1, None),
@@ -1867,9 +1867,32 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
             Token::new(
                 TokenType::Literal,
                 3,
-                Some(LiteralType::Character {
+                Some(LiteralType::String {
                     is_terminated: false,
-                    is_html_entity: false,
+                    has_invalid_escape: true,
+                }),
+            ),
+            Token::end(),
+        ],
+    );
+
+    assert_eq!(side_tokens, vec![]);
+}
+
+/// Unterminated single-quoted string with trailing slash at EOF should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
+    let (semantic_tokens, side_tokens) = lex_source_tokens("'\\", LanguageType::default());
+
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(
+                TokenType::Literal,
+                2,
+                Some(LiteralType::String {
+                    is_terminated: false,
+                    has_invalid_escape: true,
                 }),
             ),
             Token::end(),
@@ -1890,9 +1913,9 @@ fn test_lex_unterminated_single_quote_hex_escape() {
             Token::new(
                 TokenType::Literal,
                 4,
-                Some(LiteralType::Character {
+                Some(LiteralType::String {
                     is_terminated: false,
-                    is_html_entity: false,
+                    has_invalid_escape: true,
                 }),
             ),
             Token::end(),
@@ -2007,9 +2030,9 @@ fn test_lex_unterminated_single_quote_in_parens() {
             Token::new(
                 TokenType::Literal,
                 2,
-                Some(LiteralType::Character {
+                Some(LiteralType::String {
                     is_terminated: false,
-                    is_html_entity: false,
+                    has_invalid_escape: false,
                 }),
             ),
             Token::end(),

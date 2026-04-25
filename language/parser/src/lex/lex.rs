@@ -23,18 +23,6 @@ pub struct LexResult {
     pub has_at: bool,
 }
 
-/// Result of parsing a single-quoted literal.
-enum SingleQuotedLiteral {
-    Character {
-        is_terminated: bool,
-        has_invalid_escape: bool,
-    },
-    String {
-        is_terminated: bool,
-        has_invalid_escape: bool,
-    },
-}
-
 pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Whitespace,
     TokenType::LineComment,
@@ -828,34 +816,19 @@ impl Lexer {
                 }
             }
 
-            // character literal (with fallback to string literal for #Compatibility)
-            '\'' => match self.eat_single_quoted_string() {
-                SingleQuotedLiteral::Character {
+            // string literal
+            '\'' => {
+                let (is_terminated, has_invalid_escape) = self.eat_quoted_string('\'');
+                let kind = LiteralType::String {
                     is_terminated,
                     has_invalid_escape,
-                } => {
-                    // Treat invalid escape as unterminated to trigger parse error
-                    let kind = LiteralType::Character {
-                        is_terminated: is_terminated && !has_invalid_escape,
-                        is_html_entity: false,
-                    };
-                    (TokenType::Literal, Some(kind))
-                }
-                SingleQuotedLiteral::String {
-                    is_terminated,
-                    has_invalid_escape,
-                } => {
-                    let kind = LiteralType::String {
-                        is_terminated,
-                        has_invalid_escape,
-                    };
-                    (TokenType::Literal, Some(kind))
-                }
-            },
+                };
+                (TokenType::Literal, Some(kind))
+            }
 
             // string literal
             '"' => {
-                let (terminated, has_invalid_escape) = self.eat_double_quoted_string();
+                let (terminated, has_invalid_escape) = self.eat_quoted_string('"');
                 let kind = LiteralType::String {
                     is_terminated: terminated,
                     has_invalid_escape,
@@ -1375,109 +1348,22 @@ impl Lexer {
         self.options.in_tree_attribute_value
     }
 
-    /// Parse a single-quoted literal (excluding the initial `'`).
-    /// Might be a character if single-quoted length is 1 or a string otherwise.
-    fn eat_single_quoted_string(&mut self) -> SingleQuotedLiteral {
-        debug_assert!(self.prev() == '\'');
+    /// Parse a quoted string literal after its opening quote.
+    fn eat_quoted_string(&mut self, quote: char) -> (bool, bool) {
+        debug_assert!(self.prev() == quote);
 
-        let mut logical_len = 0_u32;
         let mut has_invalid_escape = false;
 
         // parse until either quotes are terminated or EOF is reached
-        loop {
-            // check for EOF first to avoid infinite loop on unterminated strings
-            if self.is_end() {
-                return Self::finish_single_quoted_literal(logical_len, false, has_invalid_escape);
-            }
-
-            match self.peek() {
-                // quotes are terminated, finish parsing
-                '\'' => {
-                    self.eat();
-                    return Self::finish_single_quoted_literal(
-                        logical_len,
-                        true,
-                        has_invalid_escape,
-                    );
-                }
-                // line terminators are not allowed in single quoted strings
-                '\n' | '\r' => {
-                    // allow multiline quoted values inside tree opening tag attributes
-                    if self.allow_line_terminator_in_tree_attribute_string() {
-                        self.eat();
-                        logical_len = logical_len.saturating_add(1);
-                        continue;
-                    }
-                    return Self::finish_single_quoted_literal(
-                        logical_len,
-                        false,
-                        has_invalid_escape,
-                    );
-                }
-                // escaped character is considered one logical character
-                '\\' => {
-                    self.eat(); // eat '\'
-                    if self.is_end() {
-                        return Self::finish_single_quoted_literal(
-                            logical_len,
-                            false,
-                            has_invalid_escape,
-                        );
-                    }
-
-                    // consume escape sequence and track invalid escapes
-                    if self.eat_string_escape_sequence() {
-                        has_invalid_escape = true;
-                    }
-                    logical_len = logical_len.saturating_add(1);
-                }
-                // regular character
-                _ => {
-                    self.eat();
-                    logical_len = logical_len.saturating_add(1);
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn finish_single_quoted_literal(
-        logical_len: u32,
-        is_terminated: bool,
-        has_invalid_escape: bool,
-    ) -> SingleQuotedLiteral {
-        if logical_len == 1 {
-            SingleQuotedLiteral::Character {
-                is_terminated,
-                has_invalid_escape,
-            }
-        } else {
-            SingleQuotedLiteral::String {
-                is_terminated,
-                has_invalid_escape,
-            }
-        }
-    }
-
-    /// Parses a double-quoted string (excluding first `"`).
-    /// Returns (is_terminated, has_invalid_escape).
-    fn eat_double_quoted_string(&mut self) -> (bool, bool) {
-        debug_assert!(self.prev() == '"');
-        let mut has_invalid_escape = false;
         while !self.is_end() {
             match self.peek() {
-                '"' => {
+                // quotes are terminated, finish parsing
+                c if c == quote => {
                     self.eat();
                     return (true, has_invalid_escape);
                 }
-                '\\' => {
-                    self.eat();
-                    // consume escape sequence and track invalid escapes
-                    if self.eat_string_escape_sequence() {
-                        has_invalid_escape = true;
-                    }
-                }
-                // line terminators are not allowed in double quoted strings
+
+                // line terminators are not allowed in quoted strings
                 '\n' | '\r' => {
                     // allow multiline quoted values inside tree opening tag attributes
                     if self.allow_line_terminator_in_tree_attribute_string() {
@@ -1486,11 +1372,24 @@ impl Lexer {
                     }
                     return (false, has_invalid_escape);
                 }
+
+                // escape sequence
+                '\\' => {
+                    self.eat(); // eat '\'
+
+                    // consume escape sequence and track invalid escapes
+                    if self.eat_string_escape_sequence() {
+                        has_invalid_escape = true;
+                    }
+                }
+
+                // regular character
                 _ => {
                     self.eat();
                 }
             }
         }
+
         // end of file reached
         (false, has_invalid_escape)
     }

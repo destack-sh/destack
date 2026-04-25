@@ -295,12 +295,6 @@ impl Parser {
                 is_terminated: true,
                 has_invalid_escape: false,
             }) => self.peek_token(TokenType::Literal),
-            Some(LiteralType::Character { is_terminated, .. })
-                if is_terminated
-                    && (self.language.is_typescript() || self.language.is_javascript()) =>
-            {
-                self.peek_token(TokenType::Literal)
-            }
             _ => Err(ParseError::expected(token.span, TokenType::Literal)),
         }
     }
@@ -322,8 +316,7 @@ impl Parser {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
-        ) || matches!(token.token.literal, Some(LiteralType::Character { is_terminated: true, .. })
-        if self.language.is_typescript() || self.language.is_javascript())
+        )
     }
 
     /// Get the content of a string literal (without surrounding quotes).
@@ -353,12 +346,6 @@ impl Parser {
                     is_terminated: true,
                     has_invalid_escape: false,
                 }) => self.peek_next_token(TokenType::Literal),
-                Some(LiteralType::Character { is_terminated, .. })
-                    if is_terminated
-                        && (self.language.is_typescript() || self.language.is_javascript()) =>
-                {
-                    self.peek_next_token(TokenType::Literal)
-                }
                 _ => Err(ParseError::expected(token.span, TokenType::Literal)),
             }
         } else {
@@ -384,8 +371,7 @@ impl Parser {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
-        ) || matches!(token.token.literal, Some(LiteralType::Character { is_terminated: true, .. })
-        if self.language.is_typescript() || self.language.is_javascript())
+        )
     }
 
     /// Peek a numeric literal (int or float, for object keys).
