@@ -1,6 +1,6 @@
 use super::allocator::Allocator;
 use super::{PageSlot, PageView};
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapResult, Payload};
 
 impl Allocator {
     /// Overwrite one logical byte range without detaching shared pages.
@@ -43,6 +43,26 @@ impl Allocator {
 
         // copy the source bytes into each touched page slice
         self.copy_bytes_into_pages(page_view, start_page, end_page, start, end, source)
+    }
+
+    /// Write one allocation payload into one page view.
+    pub(crate) fn write_payload(
+        &self,
+        page_view: &mut PageView,
+        start: usize,
+        payload: Payload<'_>,
+    ) -> HeapResult<()> {
+        match payload {
+            Payload::Bytes(bytes) => self.set_bytes(page_view, start, bytes),
+            Payload::Zeroed => Ok(()),
+            Payload::PageView {
+                page_view: source,
+                start: source_start,
+                byte_len,
+            } => {
+                self.copy_bytes_between_page_views(source, source_start, page_view, start, byte_len)
+            }
+        }
     }
 
     /// Ensure every touched page already has unique ownership.
