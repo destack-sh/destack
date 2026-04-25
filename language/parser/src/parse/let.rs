@@ -6,7 +6,7 @@ use destack_ast::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
     NodeType, Pattern, TokenType,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use super::expression::common::DeclarationHeader;
 
@@ -485,8 +485,11 @@ impl Parser {
 
         // set type span for the type annotation
         if let Some(span) = ty_span {
-            self.tree
-                .set_side_span(declarator_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                declarator_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         Ok(declarator_id)

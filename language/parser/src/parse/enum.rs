@@ -8,7 +8,7 @@ use destack_ast::{
     Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LiteralType, LocalNodeId, Member,
     Name, NodeType, TemplateLiteral, TokenType,
 };
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Return parser contexts for enum members.
@@ -117,8 +117,11 @@ impl Parser {
             self.tree.set_main_span(enum_id, span);
         }
         if let Some(span) = generic_parameter_container_span {
-            self.tree
-                .set_side_span(enum_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                enum_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         Ok(enum_id)
@@ -236,10 +239,8 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             let name = if self.peek_is(TokenType::Literal)
-                && matches!(
-                    self.peek()?.token.literal,
-                    Some(LiteralType::String { .. } | LiteralType::Character { .. })
-                ) {
+                && matches!(self.peek()?.token.literal, Some(LiteralType::String { .. }))
+            {
                 let token = *self.peek()?;
                 let content = self.get_string_literal_str(token).to_owned();
                 let string_id = self.strings.intern(&content);
@@ -284,7 +285,7 @@ mod tests {
         CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField,
         EnumKind, Expression, GenericParameter, ScalarLiteral, TypeExpression, WhereClause,
     };
-    use destack_source::NodeSpanType;
+    use destack_source::{NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
@@ -468,7 +469,10 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 
         let generic_parameter_span = parser
             .tree
-            .get_side_span(enum_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                enum_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .expect("missing enum generic parameter span");
         assert_eq!(
             parser.get_span_str(generic_parameter_span),

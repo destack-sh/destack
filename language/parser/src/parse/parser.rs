@@ -7,7 +7,7 @@ use destack_ast::{
 use destack_core::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode,
-    NodeSpanType, Span,
+    NodeSpanBoundary, NodeSpanType, Span,
 };
 use std::fmt::Debug;
 #[cfg(feature = "timings")]
@@ -2057,8 +2057,11 @@ impl Parser {
         }
 
         let leading_span = Span::new(node_span.file, boundary_start, node_span.start);
-        self.tree
-            .set_side_span(node_id, NodeSpanType::Leading, leading_span);
+        self.tree.set_side_span(
+            node_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+            leading_span,
+        );
     }
 
     /// Attach one child-owned trailing boundary span.
@@ -2073,8 +2076,11 @@ impl Parser {
         }
 
         let trailing_span = Span::new(node_span.file, node_span.end, boundary_end);
-        self.tree
-            .set_side_span(node_id, NodeSpanType::Trailing, trailing_span);
+        self.tree.set_side_span(
+            node_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+            trailing_span,
+        );
     }
 
     /// Get a mark and return the span of the current position.

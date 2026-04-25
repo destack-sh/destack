@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use crate::parse::timing::tags;
@@ -309,7 +309,7 @@ impl Parser {
 
             self.tree.set_side_span(
                 expression_id,
-                NodeSpanType::Segment(segment_index),
+                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
                 segment_span,
             );
         }

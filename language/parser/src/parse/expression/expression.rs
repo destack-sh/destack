@@ -5,7 +5,7 @@ use super::lookahead::ParenthesizedGroupShape;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use super::operator::TypeUnaryOperator;
@@ -128,7 +128,7 @@ impl Parser {
 
             self.tree.set_side_span(
                 type_expression_id,
-                NodeSpanType::Segment(segment_index),
+                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
                 segment_span,
             );
         }
@@ -642,13 +642,11 @@ impl Parser {
             || !is_declaration_start
             || !self.language.supports_module_declaration()
             || !self.is_module_identifier_at(self.pos_index())
+            || !matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
         {
             false
-        }
-        // module names must not collide with relation keywords
-        else if !matches!(next_token_type, TokenType::Identifier | TokenType::Literal) {
-            false
         } else {
+            // module names must not collide with relation keywords
             let next_keyword = if next_token_type == TokenType::Identifier {
                 self.keyword_for_index(next_token_index)
             } else {
@@ -1100,6 +1098,10 @@ impl Parser {
 
         let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
+        if !self.preserves_parenthesized_wrappers() {
+            let close_parenthesis_start = self.peek()?.span.start;
+            self.set_node_trailing_span(expression_id, close_parenthesis_start);
+        }
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
         Ok(expression_id)
@@ -1115,6 +1117,10 @@ impl Parser {
         let expression_id =
             self.with_options(inner_options, |parser| parser.eat_type_expression())?;
         self.eat_newlines_maybe()?;
+        if !self.preserves_parenthesized_wrappers() {
+            let close_parenthesis_start = self.peek()?.span.start;
+            self.set_node_trailing_span(expression_id, close_parenthesis_start);
+        }
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
@@ -1132,9 +1138,7 @@ impl Parser {
         // wrapped type expressions keep a type-space parenthesized node
         if let Some(inner_expression_id) = self.wrapped_type_expression_maybe(expression_id) {
             if !self.preserves_parenthesized_wrappers() {
-                let expression_id = self.wrap_type_expression(inner_expression_id);
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                return expression_id;
+                return self.wrap_type_expression(inner_expression_id);
             }
 
             let parenthesized_id = self.insert_node(
@@ -1152,9 +1156,6 @@ impl Parser {
         }
 
         if !self.preserves_parenthesized_wrappers() {
-            let inner_head_span = self.expression_head_span(expression_id);
-            self.tree.set_span(expression_id, self.get_span_from(start));
-            self.tree.set_head_span(expression_id, inner_head_span);
             return expression_id;
         }
 
@@ -1180,9 +1181,6 @@ impl Parser {
         expression_id: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
         if !self.preserves_parenthesized_wrappers() {
-            let inner_head_span = self.type_expression_head_span(expression_id);
-            self.tree.set_span(expression_id, self.get_span_from(start));
-            self.tree.set_head_span(expression_id, inner_head_span);
             return expression_id;
         }
 
@@ -1433,6 +1431,7 @@ impl Parser {
 
         // consume the grouped body
         self.bump(); // eat open parenthesis
+        let open_parenthesis_end = self.prev_token_end();
         self.eat_newlines_maybe()?;
 
         // empty tuple or sequence when we immediately see a closing parenthesis
@@ -1451,6 +1450,7 @@ impl Parser {
 
         // tuple or parenthesized expression for the remaining cases
         let expression_id = self.eat_parenthesized_inner_expression()?;
+        self.set_node_leading_span(expression_id, open_parenthesis_end);
         let parenthesized_id = self.finish_parenthesized_expression(start, expression_id);
         let is_parenthesized = !self.preserves_parenthesized_wrappers();
 
@@ -1705,37 +1705,21 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // operand
-        let expression_id = self.eat_type_expression_inner_with_stack_guard()?;
+        let expression_id =
+            self.eat_type_leading_elementwise_constituent(leading_binary_operator)?;
         let operand_span = self.tree.get_span(expression_id);
         let operand_head_span = self.type_expression_head_span(expression_id);
-        let operand_has_transparent_wrapper = operand_span.start != operand_head_span.start;
 
-        // collapsed wrappers keep a visible singleton chain head
-        let full_span = self.get_span_from(start);
-        let expression_id = match (
-            leading_binary_operator,
-            self.tree.get(expression_id).clone(),
-        ) {
-            (BinaryOperator::ElementwiseOr, TypeExpression::Union { .. })
-                if !operand_has_transparent_wrapper =>
-            {
-                expression_id
-            }
-
-            (BinaryOperator::ElementwiseAnd, TypeExpression::Intersection { .. })
-                if !operand_has_transparent_wrapper =>
-            {
-                expression_id
-            }
-
-            (BinaryOperator::ElementwiseOr, _) => self.insert_node(
+        // leading operators always create the visible chain head
+        let expression_id = match leading_binary_operator {
+            BinaryOperator::ElementwiseOr => self.insert_node(
                 TypeExpression::Union {
                     elements: vec![expression_id],
                 },
                 operand_span,
             ),
 
-            (BinaryOperator::ElementwiseAnd, _) => self.insert_node(
+            BinaryOperator::ElementwiseAnd => self.insert_node(
                 TypeExpression::Intersection {
                     elements: vec![expression_id],
                 },
@@ -1746,13 +1730,17 @@ impl Parser {
         };
 
         // the container owns the explicit leading prefix
+        let full_span = self.get_span_from(start);
         let leading_span = Span::new(full_span.file, full_span.start, operand_span.start);
 
-        self.tree
-            .set_side_span(expression_id, NodeSpanType::Leading, leading_span);
         self.tree.set_side_span(
             expression_id,
-            NodeSpanType::LeadingOperator,
+            NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+            leading_span,
+        );
+        self.tree.set_side_span(
+            expression_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
             Span::new(full_span.file, full_span.start, separator_end),
         );
 
@@ -1760,6 +1748,28 @@ impl Parser {
         self.tree.set_head_span(expression_id, operand_head_span);
 
         Ok(expression_id)
+    }
+
+    /// Eat the first constituent after a leading union or intersection operator.
+    fn eat_type_leading_elementwise_constituent(
+        &mut self,
+        operator: BinaryOperator,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let mut expression_context = self
+            .options
+            .not_in_position()
+            .in_left_precedence(operator.precedence());
+        if self.options.is_in_type_conditional_right() {
+            expression_context = expression_context.in_type_conditional_right();
+        }
+
+        let ambient_context = self.options.with_type(true);
+        self.eat_type_expression_or_recover_missing(
+            self.options
+                .with_ambient_context(ambient_context)
+                .with_expression_context(expression_context),
+            NodeType::Expression,
+        )
     }
 
     /// Eat one signed scalar literal type.

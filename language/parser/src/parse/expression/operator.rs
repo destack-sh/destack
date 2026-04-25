@@ -11,7 +11,7 @@ use destack_ast::{
     AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
     OperatorPrecedence, TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
 };
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 
 const AS_ASSERTION_PRECEDENCE: u16 = 1355;
 const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
@@ -570,8 +570,13 @@ impl Parser {
         let left_span = self.tree.get_span(left);
         let right_span = self.tree.get_span(right);
         let source_span = Span::new(left_span.file, left_span.start, right_span.end);
-        let leading_span = self.tree.get_side_span(left, NodeSpanType::Leading);
-        let leading_operator_span = self.tree.get_side_span(left, NodeSpanType::LeadingOperator);
+        let leading_span = self
+            .tree
+            .get_side_span(left, NodeSpanType::Boundary(NodeSpanBoundary::Leading));
+        let leading_operator_span = self.tree.get_side_span(
+            left,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+        );
 
         // `A | B`, arms own trivia up to and after the operator
         self.set_node_trailing_span(left, operator_span.start);
@@ -600,13 +605,16 @@ impl Parser {
         let expression_id = self.insert_node(expression, source_span);
         self.tree.set_head_span(expression_id, head_span);
         if let Some(leading_span) = leading_span {
-            self.tree
-                .set_side_span(expression_id, NodeSpanType::Leading, leading_span);
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+                leading_span,
+            );
         }
         if let Some(leading_operator_span) = leading_operator_span {
             self.tree.set_side_span(
                 expression_id,
-                NodeSpanType::LeadingOperator,
+                NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
                 leading_operator_span,
             );
         }

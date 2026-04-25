@@ -9,7 +9,7 @@ use destack_ast::{
     LiteralType, LocalNodeId, Name, NodeType, Property, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 /// One leading triple slash directive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +22,17 @@ enum TripleSlashDirective<'a> {
     ReferenceLib(&'a str),
     /// A `/// <reference no-default-lib="true" />` directive.
     NoDefaultLib(&'a str),
+}
+
+/// One parsed import attribute clause plus parser owned source parts.
+#[derive(Debug, Clone)]
+struct ParsedImportAttributeClause {
+    /// The decoded import attribute clause.
+    clause: ImportAttributeClause,
+    /// The full source span of the clause.
+    span: Span,
+    /// The source spans of the attribute entries.
+    attribute_spans: Vec<Span>,
 }
 
 impl Parser {
@@ -382,7 +393,10 @@ impl Parser {
         let (target, target_span) = self.eat_dependency_target_with_span()?;
 
         // arguments
-        let attributes = self.eat_dependency_arguments_maybe()?;
+        let parsed_attributes = self.eat_dependency_arguments_maybe()?;
+        let attributes = parsed_attributes
+            .as_ref()
+            .map(|parsed_attributes| parsed_attributes.clause.clone());
 
         // import
         let import_id = self.insert_node(
@@ -399,6 +413,11 @@ impl Parser {
 
         // set main span to the import target string
         self.tree.set_main_span(import_id, target_span);
+
+        // set import attribute source parts
+        if let Some(parsed_attributes) = parsed_attributes {
+            self.set_import_attribute_clause_spans(import_id, &parsed_attributes)?;
+        }
 
         Ok(import_id)
     }
@@ -664,7 +683,10 @@ impl Parser {
             self.eat_keyword(Keyword::From)?;
             self.eat_newlines_maybe()?;
             let (target, target_span) = self.eat_dependency_target_with_span()?;
-            let attributes = self.eat_dependency_arguments_maybe()?;
+            let parsed_attributes = self.eat_dependency_arguments_maybe()?;
+            let attributes = parsed_attributes
+                .as_ref()
+                .map(|parsed_attributes| parsed_attributes.clause.clone());
             let item = DependencyItem::Item {
                 mode: DependencyMode::Namespace,
                 kind: None,
@@ -685,6 +707,11 @@ impl Parser {
 
             // set main span to the export target string
             self.tree.set_main_span(export, target_span);
+
+            // set import attribute source parts
+            if let Some(parsed_attributes) = parsed_attributes {
+                self.set_import_attribute_clause_spans(export, &parsed_attributes)?;
+            }
 
             return Ok(export);
         }
@@ -710,11 +737,14 @@ impl Parser {
         };
 
         // assertions or attributes
-        let attributes = if target.is_some() {
+        let parsed_attributes = if target.is_some() {
             self.eat_dependency_arguments_maybe()?
         } else {
             None
         };
+        let attributes = parsed_attributes
+            .as_ref()
+            .map(|parsed_attributes| parsed_attributes.clause.clone());
 
         // `export { default }` without `from` is invalid
         // (default is a reserved word and can't be a local binding)
@@ -750,6 +780,11 @@ impl Parser {
         // set main span to the export target string if present
         if let Some(target_span) = target_span {
             self.tree.set_main_span(export_id, target_span);
+        }
+
+        // set import attribute source parts
+        if let Some(parsed_attributes) = parsed_attributes {
+            self.set_import_attribute_clause_spans(export_id, &parsed_attributes)?;
         }
 
         Ok(export_id)
@@ -822,13 +857,42 @@ impl Parser {
         Ok(ImportAttribute { key: name, value })
     }
 
+    /// Set source parts for one parsed import attribute clause.
+    fn set_import_attribute_clause_spans(
+        &mut self,
+        node_id: LocalNodeId<Expression>,
+        parsed_attributes: &ParsedImportAttributeClause,
+    ) -> ParseResult<()> {
+        self.tree.set_side_span(
+            node_id,
+            NodeSpanType::Region(NodeSpanRegion::Clause),
+            parsed_attributes.span,
+        );
+
+        for (index, attribute_span) in parsed_attributes.attribute_spans.iter().enumerate() {
+            let Ok(segment) = u16::try_from(index) else {
+                return Err(ParseError::unexpected(*attribute_span));
+            };
+            self.tree.set_side_span(
+                node_id,
+                NodeSpanType::ListItem(NodeSpanList::Entry, segment),
+                *attribute_span,
+            );
+        }
+
+        Ok(())
+    }
+
     /// Eat dependency arguments for import/export attributes.
-    fn eat_dependency_arguments_maybe(&mut self) -> ParseResult<Option<ImportAttributeClause>> {
+    fn eat_dependency_arguments_maybe(
+        &mut self,
+    ) -> ParseResult<Option<ParsedImportAttributeClause>> {
         // attribute clause head
         if !self.is_keyword(Keyword::With) {
             return Ok(None);
         }
 
+        let start = self.mark_span();
         self.bump(); // eat with
 
         // attribute clause body
@@ -839,6 +903,11 @@ impl Parser {
             parser.eat_arguments_body(TokenType::CloseBrace)
         })?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
+        let span = self.get_span_from(&start);
+        let attribute_spans = arguments
+            .iter()
+            .map(|argument_id| self.tree.get_span(*argument_id))
+            .collect();
 
         // decoded attributes
         let mut attributes = Vec::with_capacity(arguments.len());
@@ -847,9 +916,15 @@ impl Parser {
             attributes.push(self.decode_import_attribute(argument_id)?);
         }
 
-        Ok(Some(ImportAttributeClause {
+        let clause = ImportAttributeClause {
             kind: ImportAttributeClauseKind::With,
             attributes,
+        };
+
+        Ok(Some(ParsedImportAttributeClause {
+            clause,
+            span,
+            attribute_spans,
         }))
     }
 
@@ -898,19 +973,11 @@ impl Parser {
     fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let token = *self.peek_token(TokenType::Literal)?;
 
-        // module targets accept:
-        // - regular string literals, including unterminated ones for recovery
-        // - terminated single quoted one character literals
+        // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(
             token.token.literal,
             Some(LiteralType::String {
                 has_invalid_escape: false,
-                ..
-            })
-        ) || matches!(
-            token.token.literal,
-            Some(LiteralType::Character {
-                is_terminated: true,
                 ..
             })
         );
@@ -1164,7 +1231,8 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
-            self.tree.set_side_span(item, NodeSpanType::Type, name_span);
+            self.tree
+                .set_side_span(item, NodeSpanType::Region(NodeSpanRegion::Type), name_span);
             let main_span = alias_span.unwrap_or(name_span);
             self.tree.set_main_span(item, main_span);
             Ok(item)
@@ -1261,7 +1329,7 @@ mod tests {
         ImportAliasDeclaration, ImportAliasTarget, ImportAttributeClauseKind, ImportAttributeValue,
         ImportSource, ImportTarget, LocalNodeId, Name, ScalarLiteral,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
     use crate::{
         Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,
@@ -1352,6 +1420,24 @@ mod tests {
                 ImportAttributeValue::ScalarLiteral(ScalarLiteral::Boolean(true))
             );
         });
+
+        let source = parser.file.text();
+        let clause_start = source.find("with").unwrap() as u32;
+        let attribute_start = source.find("bar").unwrap() as u32;
+        let attribute_end = source.find(" }").unwrap() as u32;
+
+        assert_eq!(
+            parser
+                .tree
+                .get_side_span(import_id, NodeSpanType::Region(NodeSpanRegion::Clause)),
+            Some(Span::new(parser.file.id, clause_start, source.len() as u32)),
+        );
+        assert_eq!(
+            parser
+                .tree
+                .get_side_span(import_id, NodeSpanType::ListItem(NodeSpanList::Entry, 0)),
+            Some(Span::new(parser.file.id, attribute_start, attribute_end,)),
+        );
     }
 
     #[test]
@@ -1618,6 +1704,27 @@ import {
                 assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, name.string(), "StructuredObjectOptions");
                 assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_items_without_separator_spaces() {
+        let mut test = TestParser::new("import {foo,bar,baz} from 'module'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
+            let items = import_items(items);
+            assert_eq!(items.len(), 3);
+            assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), .. } => {
+                assert_string!(parser, name.string(), "foo");
+            });
+            assert_node!(parser.tree, items[1], DependencyItem::Item { name: Some(name), .. } => {
+                assert_string!(parser, name.string(), "bar");
+            });
+            assert_node!(parser.tree, items[2], DependencyItem::Item { name: Some(name), .. } => {
+                assert_string!(parser, name.string(), "baz");
             });
         });
     }
