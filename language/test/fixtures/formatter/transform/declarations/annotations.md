@@ -977,7 +977,7 @@ type Pair = [
 ];
 ```
 
-## Class Comment Conformance Shapes
+## Class Heritage Comments
 
 ### class superclass boundary comment
 
@@ -1020,7 +1020,7 @@ class Child
 }
 ```
 
-## Union Conformance Permutations
+## Union Layout Comments
 
 ### union inlining with arm comments
 
@@ -1072,7 +1072,7 @@ type Value =
 type Value = A | B; // last-union
 ```
 
-## Mapped Type Conformance Permutations
+## Mapped Type Comments
 
 ### mapped type break mode comments
 

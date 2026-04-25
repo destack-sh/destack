@@ -77,3 +77,21 @@ const pair = makePair</* key */ string, /* value */ number>
 ```ts expected
 const pair = makePair</* key */ string, /* value */ number>;
 ```
+
+### instantiation with multiline comments
+
+Comments inside multiline instantiation type arguments keep the type arguments multiline.
+
+```ts:main.ts
+Math.random<
+  // comment
+  string | number | undefined
+>
+```
+
+```ts expected
+Math.random<
+    // comment
+    string | number | undefined
+>;
+```

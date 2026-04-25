@@ -447,6 +447,24 @@ foo<number>(x)
 foo<number>(x);
 ```
 
+### call with multiline commented type arguments
+
+Comments inside multiline call type arguments keep the type arguments multiline.
+
+```ts:main.ts
+Math.random<
+  // comment
+  string | number | undefined
+>()
+```
+
+```ts expected
+Math.random<
+    // comment
+    string | number | undefined
+>();
+```
+
 ### function call with multiple type arguments
 
 Multiple type arguments are separated by comma and space.
