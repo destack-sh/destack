@@ -28,6 +28,8 @@ pub struct Case {
     pub expect_error: bool,
     /// Optional expected output source for parity checks.
     pub expected_output: ExpectedOutput,
+    /// Whether to require a stable second pass (some cases aren't meaningfully stable).
+    pub check_idempotence: bool,
 }
 
 /// Expected output source for formatter conformance cases.
@@ -50,6 +52,7 @@ impl Case {
             file_type,
             expect_error: false,
             expected_output: ExpectedOutput::None,
+            check_idempotence: true,
         }
     }
 
@@ -60,12 +63,19 @@ impl Case {
             file_type,
             expect_error: true,
             expected_output: ExpectedOutput::None,
+            check_idempotence: true,
         }
     }
 
     /// Attach expected output metadata to this case.
     pub fn with_expected_output(mut self, expected_output: ExpectedOutput) -> Self {
         self.expected_output = expected_output;
+        self
+    }
+
+    /// Disable formatter idempotence checks for this case.
+    pub fn without_idempotence(mut self) -> Self {
+        self.check_idempotence = false;
         self
     }
 

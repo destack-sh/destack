@@ -33,6 +33,8 @@ pub enum CaseStatus {
     Adapted,
     /// The case is a known failure.
     KnownFail,
+    /// The case is a known idempotence-only failure.
+    KnownFailIdempotence,
     /// The case is intentionally ignored.
     Ignore,
     /// The case is blocked on environment availability.
@@ -51,6 +53,7 @@ impl CaseStatus {
             Self::Excluded => "excluded",
             Self::Adapted => "adapted",
             Self::KnownFail => "known-fail",
+            Self::KnownFailIdempotence => "known-fail-idempotence",
             Self::Ignore => "ignore",
             Self::EnvBlocked => "env-blocked",
             Self::Flaky => "flaky",

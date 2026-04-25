@@ -22,6 +22,7 @@ pub(super) fn run_formatter_case(
     expected_output: Option<&str>,
     formatter_options: FormatterOptions,
     expect_error: bool,
+    check_idempotence: bool,
     show_diff: bool,
 ) -> CaseOutcome {
     // read source content
@@ -59,23 +60,29 @@ pub(super) fn run_formatter_case(
         }
     }
 
-    // require idempotence after parity or when no oracle output exists
-    let second_pass = match format_once(path, &first_pass, file_type, formatter_options, show_diff)
-    {
-        Ok(formatted) => formatted,
-        Err(_) => return CaseOutcome::FailedIdempotence,
-    };
+    // require idempotence after parity
+    if check_idempotence {
+        let second_pass = match format_once(path, &first_pass, file_type, formatter_options, show_diff)
+        {
+            Ok(formatted) => formatted,
+            Err(_) => return CaseOutcome::FailedIdempotence,
+        };
 
-    let first_pass = normalize_output(&first_pass);
-    let second_pass = normalize_output(&second_pass);
-    if first_pass == second_pass {
-        CaseOutcome::Passed
-    } else {
-        if show_diff {
-            println!("idempotence diff for {}", path.display());
-            print_diff(&first_pass, &second_pass, &DiffOptions::new());
+        let first_pass = normalize_output(&first_pass);
+        let second_pass = normalize_output(&second_pass);
+        if first_pass == second_pass {
+            CaseOutcome::Passed
+        } else {
+            if show_diff {
+                println!("idempotence diff for {}", path.display());
+                print_diff(&first_pass, &second_pass, &DiffOptions::new());
+            }
+            CaseOutcome::FailedIdempotence
         }
-        CaseOutcome::FailedIdempotence
+    }
+    // no idempotence required
+    else {
+        CaseOutcome::Passed
     }
 }
 
