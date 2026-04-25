@@ -116,8 +116,10 @@ switch (x) {
 
 ```ds expected
 switch (x) {
-    case 1: "one"
-    case 2: "two"
+    case 1:
+        "one";
+    case 2:
+        "two";
 }
 ```
 
@@ -134,8 +136,10 @@ switch (value) {
 
 ```ds expected
 switch (value) {
-    case 1: "one"
-    default: "other"
+    case 1:
+        "one";
+    default:
+        "other";
 }
 ```
 
@@ -153,9 +157,12 @@ switch (type) {
 
 ```ds expected
 switch (type) {
-    case "static": handleStatic()
-    case "dynamic": handleDynamic()
-    default: handleDefault()
+    case "static":
+        handleStatic();
+    case "dynamic":
+        handleDynamic();
+    default:
+        handleDefault();
 }
 ```
 
@@ -190,8 +197,11 @@ switch (status) {
 
 ```ds expected
 switch (status) {
-    case "success": handleSuccess()
-    case "failure": handleFailure()
-    default: handleOther()
+    case "success":
+        handleSuccess();
+    case "failure":
+        handleFailure();
+    default:
+        handleOther();
 }
 ```

@@ -89,7 +89,7 @@ struct Versioned { static version: string = "1" }
 
 ```ds expected
 struct Versioned {
-    static version: string = '1';
+    static version: string = "1";
 }
 ```
 

@@ -81,7 +81,7 @@ match (n) {
 
 ### string patterns
 
-The formatter normalizes strings to single quotes.
+String patterns normalize to the configured formatter quote style.
 
 ```ds
 match (s) { "a" => 1; "b" => 2; _ => 0 }
@@ -89,8 +89,8 @@ match (s) { "a" => 1; "b" => 2; _ => 0 }
 
 ```ds expected
 match (s) {
-    'a' => 1
-    'b' => 2
+    "a" => 1
+    "b" => 2
     _ => 0
 }
 ```
@@ -312,7 +312,7 @@ match (s) { "a" | "b" | "c" => true; _ => false }
 
 ```ds expected
 match (s) {
-    'a' | 'b' | 'c' => true
+    "a" | "b" | "c" => true
     _ => false
 }
 ```
