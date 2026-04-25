@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::{LanguageType, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_type_template_literal_with_generic_arguments() {
@@ -209,13 +209,13 @@ fn test_parse_type_literal_generic_call_overloads() {
 
                     let generic_parameter_span = parser
                         .tree
-                        .get_side_span(properties[0], NodeSpanType::GenericParameters)
+                        .get_side_span(properties[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
                     assert_eq!(parser.get_span_str(generic_parameter_span), "<N extends number>");
 
                     let parameter_span = parser
                         .tree
-                        .get_side_span(properties[0], NodeSpanType::Parameters)
+                        .get_side_span(properties[0], NodeSpanType::Region(NodeSpanRegion::Parameters))
                         .expect("missing parameter span");
                     assert_eq!(parser.get_span_str(parameter_span), "(num: N)");
 
@@ -243,13 +243,13 @@ fn test_parse_type_literal_generic_call_overloads() {
 
                     let generic_parameter_span = parser
                         .tree
-                        .get_side_span(properties[1], NodeSpanType::GenericParameters)
+                        .get_side_span(properties[1], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
                     assert_eq!(parser.get_span_str(generic_parameter_span), "<S extends string>");
 
                     let parameter_span = parser
                         .tree
-                        .get_side_span(properties[1], NodeSpanType::Parameters)
+                        .get_side_span(properties[1], NodeSpanType::Region(NodeSpanRegion::Parameters))
                         .expect("missing parameter span");
                     assert_eq!(parser.get_span_str(parameter_span), "(str: S)");
 

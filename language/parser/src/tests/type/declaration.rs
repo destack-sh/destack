@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::{LanguageType, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_conditional_type_alias_with_generics() {
@@ -67,7 +67,7 @@ fn test_parse_type_alias_records_generic_parameter_container_span() {
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         let generic_parameter_span = parser
             .tree
-            .get_side_span(*declaration_id, NodeSpanType::GenericParameters)
+            .get_side_span(*declaration_id, NodeSpanType::Region(NodeSpanRegion::GenericParameters))
             .expect("missing type alias generic parameter span");
 
         assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
