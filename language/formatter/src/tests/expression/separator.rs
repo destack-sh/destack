@@ -1,4 +1,4 @@
-use crate::format::expression::expression_needs_parentheses_in_parent;
+use crate::expression::expression_needs_parentheses_in_parent;
 use crate::{DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type};
 use destack_ast::{
     CommentKind, CommentPosition, Declaration, Declarator, Expression, TypeExpression,
