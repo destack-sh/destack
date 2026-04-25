@@ -584,6 +584,10 @@ fn ignored_range_ends_with_separator(
     range_span: Span,
     separator: &str,
 ) -> bool {
+    if ignored_range_ends_with_comment(context, range_span) {
+        return true;
+    }
+
     let Some(separator_token) = separator_token_type(separator) else {
         return false;
     };
@@ -591,4 +595,18 @@ fn ignored_range_ends_with_separator(
     context
         .last_non_trivia_token_in_span(range_span)
         .is_some_and(|token| token.token.ty == separator_token)
+}
+
+/// Return whether one ignored range already owns a trailing comment.
+fn ignored_range_ends_with_comment(context: &DestackFormatContext<'_>, range_span: Span) -> bool {
+    let comment_tokens = context.comment_tokens_in_range(range_span.start, range_span.end);
+    let Some(comment_token) = comment_tokens.last().copied() else {
+        return false;
+    };
+
+    context
+        .source_text()
+        .all_bytes_match(comment_token.span.end, range_span.end, |byte| {
+            byte.is_ascii_whitespace()
+        })
 }

@@ -24,23 +24,40 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
 use destack_fir::{format_args, write};
-use destack_source::{FileId, Span};
+use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::format::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
 
-/// Return whether trivia between two expressions contains one explicit blank line.
-fn expressions_have_blank_line_between(
+/// Return the statement source span for one expression.
+fn expression_statement_span(
     context: &DestackFormatContext<'_>,
-    left_expression_id: LocalNodeId<Expression>,
-    right_expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+) -> Span {
+    let expression_span = context.span(expression_id);
+
+    context
+        .tree
+        .get_side_span(
+            expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Statement),
+        )
+        .unwrap_or(expression_span)
+}
+
+/// Return whether one expression has a source blank line before it.
+fn expression_has_lines_before(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let left_span = context.span(left_expression_id);
-    let right_span = context.span(right_expression_id);
-    let Some(between_span) = left_span.gap_to(right_span) else {
-        return false;
-    };
-    context.has_blank_line(between_span)
+    let expression_span = expression_statement_span(context, expression_id);
+    let expression_start = expression_prefix_start(context, expression_id, expression_span.start);
+    let expression_span = Span::new(expression_span.file, expression_start, expression_span.end);
+
+    context
+        .source_text()
+        .get_lines_before(expression_span, context.comments())
+        > 1
 }
 
 /// Format one program-scoped statement sequence.
@@ -136,6 +153,37 @@ fn expression_prefix_start(
     };
 
     start.min(semantic_head_start)
+}
+
+/// Return the stateless source start for following sibling trivia boundaries.
+fn expression_following_span_start(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> u32 {
+    let expression_span = expression_statement_span(context, expression_id);
+    let mut start = expression_span.start;
+
+    if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
+        for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
+            if matches!(
+                context.annotation(annotation_id).position,
+                DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
+            ) {
+                start = start.min(context.annotation_span(annotation_id).start);
+            }
+        }
+    }
+
+    for annotation_id in context.annotation_ids(expression_id).iter().copied() {
+        if matches!(
+            context.annotation(annotation_id).position,
+            DecoratorPosition::BlockPrefix | DecoratorPosition::LinePrefix
+        ) {
+            start = start.min(context.annotation_span(annotation_id).start);
+        }
+    }
+
+    start
 }
 
 /// Return the latest end offset for trailing comments on an expression.
@@ -389,7 +437,7 @@ fn statement_sequence_expression_needs_parentheses(
         return false;
     }
 
-    matches!(expression, Expression::ObjectExpression { .. })
+    matches!(expression, Expression::ObjectExpression { ty: None, .. })
 }
 
 /// Format a block inline with zero or one expression (including label and infix annotations).
@@ -583,11 +631,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
                     }
                 }
             } else {
-                expressions_have_blank_line_between(
-                    f.context(),
-                    previous_expression_id,
-                    expression_id,
-                )
+                expression_has_lines_before(f.context(), expression_id)
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
@@ -643,10 +687,9 @@ pub(crate) fn format_block_statement_sequence<'ast>(
         }
 
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
-        let following_expression_start = effective_expressions.get(i + 1).map(|expression_id| {
-            let expression_span = f.context().span(*expression_id);
-            expression_prefix_start(f.context(), *expression_id, expression_span.start)
-        });
+        let following_expression_start = effective_expressions
+            .get(i + 1)
+            .map(|expression_id| expression_following_span_start(f.context(), *expression_id));
         let expression_output_end = format_statement_sequence_expression(
             f,
             expression_id,
@@ -660,7 +703,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
 
         f.context_mut()
             .comments_mut()
-            .skip_comments_before(expression_output_end);
+            .skip_comments_before(expression_span.end);
 
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_output_was_ignored = false;
@@ -775,11 +818,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
                     }
                 }
             } else {
-                expressions_have_blank_line_between(
-                    f.context(),
-                    previous_expression_id,
-                    expression_id,
-                )
+                expression_has_lines_before(f.context(), expression_id)
             };
             if !has_ignore_range {
                 if !source_has_blank_line_between {
@@ -849,10 +888,9 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
         } else {
             None
         };
-        let following_expression_start = effective_expressions.get(i + 1).map(|expression_id| {
-            let expression_span = f.context().span(*expression_id);
-            expression_prefix_start(f.context(), *expression_id, expression_span.start)
-        });
+        let following_expression_start = effective_expressions
+            .get(i + 1)
+            .map(|expression_id| expression_following_span_start(f.context(), *expression_id));
         let expression_output_end = format_statement_sequence_expression(
             f,
             expression_id,
@@ -979,11 +1017,7 @@ fn format_program_statement_sequence<'ast>(
                     }
                 }
             } else {
-                expressions_have_blank_line_between(
-                    f.context(),
-                    previous_expression_id,
-                    expression_id,
-                )
+                expression_has_lines_before(f.context(), expression_id)
             };
             if !has_ignore_range {
                 write!(f, [hard_line_break()])?;
@@ -1071,6 +1105,11 @@ fn format_program_statement_sequence<'ast>(
                 .get(i + 1)
                 .map(|expression_id| f.context().span(*expression_id).start),
         )?;
+
+        f.context_mut()
+            .comments_mut()
+            .skip_comments_before(expression_output_end);
+
         previous_output_end = Some((expression_span.file, expression_output_end));
         previous_output_was_ignored = false;
     }

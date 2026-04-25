@@ -5,7 +5,7 @@ use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenTyp
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -116,6 +116,21 @@ fn prefix_comment_token_for_node(
     Some(token)
 }
 
+/// Return the source span used for ignore directive preservation.
+fn ignore_target_span<T: Node + Clone>(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> Span
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_span = ctx.span(node_id);
+
+    ctx.tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Statement))
+        .unwrap_or(node_span)
+}
+
 /// Return the source line distance between two byte offsets.
 fn line_distance_between_offsets(
     ctx: &DestackFormatContext<'_>,
@@ -146,6 +161,75 @@ fn comment_token_is_line_leading(ctx: &DestackFormatContext<'_>, token: TokenSpa
     prefix.trim().is_empty()
 }
 
+/// Return whether a trailing ignore gap contains only separators.
+fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) -> bool {
+    ctx.all_tokens()
+        .iter()
+        .copied()
+        .filter(|token| token.span.intersects(span))
+        .all(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::Whitespace | TokenType::Semicolon | TokenType::Comma
+            )
+        })
+}
+
+/// Return one same-line trailing ignore directive token for a node span.
+fn trailing_ignore_comment_token_for_node(
+    ctx: &DestackFormatContext<'_>,
+    node_span: Span,
+    comment_tokens: &[TokenSpan],
+) -> Option<TokenSpan> {
+    let token_index = comment_tokens.partition_point(|token| token.span.start < node_span.end);
+
+    let token = comment_tokens[token_index..].iter().copied().next()?;
+
+    if line_distance_between_offsets(ctx, node_span.end, token.span.start) != Some(0) {
+        return None;
+    }
+
+    let gap_span = Span::new(node_span.file, node_span.end, token.span.start);
+    if !trailing_ignore_gap_is_allowed(ctx, gap_span) {
+        return None;
+    }
+
+    matches!(
+        directive_token_for_comment_token(ctx, token),
+        Some(IgnoreDirective::Ignore)
+    )
+    .then_some(token)
+}
+
+/// Return whether one node has a same-line trailing ignore directive.
+pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_span = ignore_target_span(ctx, node_id);
+    let comment_tokens = ctx.comment_tokens();
+
+    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens).is_some()
+}
+
+/// Return whether one node has a same-line trailing line ignore directive.
+pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_span = ignore_target_span(ctx, node_id);
+    let comment_tokens = ctx.comment_tokens();
+
+    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens)
+        .is_some_and(|token| ctx.comment_is_line(token))
+}
+
 /// Return whether one node has a prefix ignore directive.
 pub fn node_has_ignore_directive<T: Node + Clone>(
     ctx: &DestackFormatContext<'_>,
@@ -158,8 +242,12 @@ where
         return false;
     }
 
-    let node_span = ctx.span(node_id);
+    let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
+    if trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens).is_some() {
+        return true;
+    }
+
     let Some(token) = prefix_comment_token_for_node(ctx, node_span, comment_tokens) else {
         return false;
     };
@@ -197,7 +285,11 @@ where
         return None;
     }
 
-    let node_span = ctx.span(node_id);
+    let node_span = ignore_target_span(ctx, node_id);
+    if let Some(token) = trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens) {
+        return Some(Span::new(node_span.file, node_span.start, token.span.end));
+    }
+
     let token = prefix_comment_token_for_node(ctx, node_span, comment_tokens)?;
 
     let is_adjacent =
@@ -228,6 +320,23 @@ where
         }
         Some(IgnoreDirective::IgnoreFile | IgnoreDirective::IgnoreEnd) | None => None,
     }
+}
+
+/// Return the source span to preserve for one ignored node.
+fn ignored_node_span<T: Node + Clone>(
+    ctx: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> Span
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_span = ignore_target_span(ctx, node_id);
+    let comment_tokens = ctx.comment_tokens();
+
+    trailing_ignore_comment_token_for_node(ctx, node_span, comment_tokens)
+        .map_or(node_span, |token| {
+            Span::new(node_span.file, node_span.start, token.span.end)
+        })
 }
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
@@ -372,14 +481,14 @@ pub fn write_ignored_span<'ast>(
 }
 
 /// Write one ignored node source range with formatter-managed indentation.
-pub fn write_ignored_node<'ast, T: Node>(
+pub fn write_ignored_node<'ast, T: Node + Clone>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    let span = f.context().span(node_id);
+    let span = ignored_node_span(f.context(), node_id);
     write_ignored_span(f, span)
 }
 
