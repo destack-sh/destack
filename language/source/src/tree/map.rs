@@ -34,22 +34,57 @@ pub enum NodeSpanType {
     Main,
     /// The head span of a node.
     Head,
+    /// One boundary span owned by a node.
+    Boundary(NodeSpanBoundary),
+    /// One named region span within a node.
+    Region(NodeSpanRegion),
+    /// One indexed item span within a node.
+    ListItem(NodeSpanList, u16),
+}
+
+/// A source boundary owned by one node.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NodeSpanBoundary {
     /// The leading owned prefix span of a node.
     Leading,
     /// The leading operator span of a node.
     LeadingOperator,
     /// The trailing owned suffix span of a node.
     Trailing,
+}
+
+/// A named source region within one node.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NodeSpanRegion {
+    /// The opening element span of a compound node.
+    Opening,
     /// The generic parameter container span of a function-like or declaration node.
     GenericParameters,
     /// The parameter container span of a function-like node.
     Parameters,
     /// The body container span of a function-like node.
     Body,
-    /// One indexed segment span of a compound node.
-    Segment(u16),
+    /// The statement source span of a statement-position expression.
+    Statement,
+    /// A clause span within a node.
+    Clause,
+    /// A prelude span within a node.
+    Prelude,
+    /// A name span within a node.
+    Name,
+    /// A value span within a node.
+    Value,
     /// The type declaration span of a node.
     Type,
+}
+
+/// An indexed source list within one node.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NodeSpanList {
+    /// One generic ordered source segment.
+    Segment,
+    /// One source entry.
+    Entry,
 }
 
 /// One typed source part keyed by source node id and span kind.
@@ -334,7 +369,7 @@ impl NodeSourceMap {
                 self.main_spans[index] = span;
                 self.side_span_flags[index] |= MAIN_SPAN_FLAG;
             }
-            NodeSpanType::Type => {
+            NodeSpanType::Region(NodeSpanRegion::Type) => {
                 if index >= self.type_spans.len() {
                     self.type_spans.resize(index + 1, empty_span());
                 }
@@ -362,7 +397,7 @@ impl NodeSourceMap {
                 .copied()
                 .filter(|flags| (flags & MAIN_SPAN_FLAG) != 0)
                 .map(|_| self.main_spans[index]),
-            NodeSpanType::Type => self
+            NodeSpanType::Region(NodeSpanRegion::Type) => self
                 .side_span_flags
                 .get(index)
                 .copied()
@@ -425,7 +460,10 @@ impl NodeSourceMap {
                 {
                     let part_length = part_span.end - part_span.start;
                     if part_length < best_length {
-                        best_owner = Some(SourcePartKey::new(source_id, NodeSpanType::Type));
+                        best_owner = Some(SourcePartKey::new(
+                            source_id,
+                            NodeSpanType::Region(NodeSpanRegion::Type),
+                        ));
                         best_length = part_length;
                     }
                 }
