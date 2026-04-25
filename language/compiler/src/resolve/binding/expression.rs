@@ -3,7 +3,7 @@ use destack_dir::{
     Expression, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
     ScalarLiteral, SymbolTable, TypeTable,
 };
-use destack_source::{NodeSpanType, SourcePartKey};
+use destack_source::{NodeSpanList, NodeSpanType, SourcePartKey};
 
 use crate::resolve::binding::ResolvedPathSymbolTargets;
 use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
@@ -270,7 +270,10 @@ impl Compiler {
                                 u16::try_from(index).expect("path segment target index overflow");
 
                             types.set_symbol_target_for_source_part(
-                                SourcePartKey::new(source_id, NodeSpanType::Segment(segment_index)),
+                                SourcePartKey::new(
+                                    source_id,
+                                    NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
+                                ),
                                 target_symbol,
                             );
                         }
