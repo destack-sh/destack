@@ -879,7 +879,6 @@ impl Expression {
                 | Expression::ForEach { .. }
                 | Expression::For { .. }
                 | Expression::Loop { .. }
-                | Expression::Try { .. }
                 | Expression::Match { .. }
                 | Expression::Break { .. }
                 | Expression::Continue { .. }
@@ -887,6 +886,18 @@ impl Expression {
                 | Expression::Return { .. }
                 | Expression::Throw { .. }
                 | Expression::Debugger
+                | Expression::Try {
+                    catch_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    catch_pattern: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    finally_expression: Some(_),
+                    ..
+                }
         )
     }
 
