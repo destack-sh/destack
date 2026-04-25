@@ -4,7 +4,7 @@ use crate::{
     assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.
 #[test]
@@ -161,9 +161,9 @@ fn test_parse_parenthesized_expression_records_semantic_head_span() {
     });
 }
 
-/// Preserve semantic head spans without parenthesized expression wrappers.
+/// Keep inner spans without parenthesized expression wrappers.
 #[test]
-fn test_parse_without_parenthesized_wrappers_preserves_expression_head_span() {
+fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
     let test = TestParser::new_with_options("(/* keep */ value)", LanguageType::TypeScript);
     let mut parser = Parser::lex_file_with_settings(
         test.file.clone(),
@@ -179,15 +179,18 @@ fn test_parse_without_parenthesized_wrappers_preserves_expression_head_span() {
     assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
 
     let expression_span = parser.tree.get_span(expression_id);
-    let head_span = parser
+    let leading_span = parser
         .tree
-        .get_head_span(expression_id)
-        .expect("missing expression head span");
+        .get_side_span(
+            expression_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+        )
+        .expect("missing expression leading span");
     let comment = parser.tree.comments()[0];
 
-    assert_eq!(parser.get_span_str(expression_span), "(/* keep */ value)");
-    assert_eq!(parser.get_span_str(head_span), "value");
-    assert_eq!(comment.attached_to, head_span.start);
+    assert_eq!(parser.get_span_str(expression_span), "value");
+    assert_eq!(parser.get_span_str(leading_span), "/* keep */ ");
+    assert_eq!(comment.attached_to, expression_span.start);
 }
 
 /// Parse a private identifier used in an in expression.

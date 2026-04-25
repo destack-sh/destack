@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::{LanguageType, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 /// Parse a lambda function type with empty parameters.
 #[test]
@@ -72,19 +72,19 @@ fn test_parse_lambda_function_type_container_spans_with_comments() {
     assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
         let parameter_type_span = parser
             .tree
-            .get_side_span(function.parameters[0], NodeSpanType::Type)
+            .get_side_span(function.parameters[0], NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("missing lambda parameter type span");
         assert_eq!(parser.get_span_str(parameter_type_span), ": /* arg */ string");
 
         let parameter_span = parser
             .tree
-            .get_side_span(type_expression_id, NodeSpanType::Parameters)
+            .get_side_span(type_expression_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
             .expect("missing lambda parameter span");
         assert_eq!(parser.get_span_str(parameter_span), "(value: /* arg */ string)");
 
         let return_type_span = parser
             .tree
-            .get_side_span(type_expression_id, NodeSpanType::Type)
+            .get_side_span(type_expression_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("missing lambda return type span");
         assert_eq!(parser.get_span_str(return_type_span), "=> void");
     });

@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_string};
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse labelled statements when the target statement starts on a new line.
 #[test]
@@ -127,7 +127,7 @@ type Value =
             // `| `
             let leading_span = parser
                 .tree
-                .get_side_span(*value, destack_source::NodeSpanType::Leading)
+                .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                 .expect("expected leading separator span");
             assert_eq!(parser.get_span_str(leading_span), "| ");
         });

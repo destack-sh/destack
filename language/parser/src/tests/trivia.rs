@@ -121,6 +121,26 @@ fn test_parse_runs_attach_comments_for_comments() {
 }
 
 #[test]
+fn test_parse_statement_span_stops_before_following_blank_line_comment() {
+    let source = r#"if (!process.stdout.isTTY) process.stdout._handle?.setBlocking?.(true);
+
+// Call the Rust CLI first
+const mode = runCli();
+"#;
+    let (parser, expressions) = parse_source(source, LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 2);
+
+    let first_span = parser.tree.get_span(expressions[0]);
+    let comment_start = source.find("// Call").expect("expected comment") as u32;
+
+    assert!(
+        first_span.end < comment_start,
+        "first statement span should end before following comment: {first_span:?}"
+    );
+}
+
+#[test]
 fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
     let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
@@ -240,6 +260,26 @@ fn test_comment_trivia_keeps_directive_comments_raw() {
     assert_eq!(comment_text(&parser, third), "prettier-ignore");
     assert_eq!(comment_text(&parser, fourth), "prettier-ignore-start");
     assert_eq!(comment_text(&parser, fifth), "prettier-ignore-end");
+}
+
+#[test]
+fn test_comment_trivia_keeps_empty_line_comments() {
+    let (parser, expressions) = parse_source(
+        r#"function func() {
+  /******/ "use strict" //
+  /******/ b;
+}"#,
+        LanguageType::TypeScript,
+    );
+
+    // `function func() { ... }`
+    assert_eq!(expressions.len(), 1);
+
+    // `/**/`, `//`, `/**/`
+    assert_eq!(comments(&parser).len(), 3);
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, "***");
+    assert_comment!(parser, 1, CommentKind::Line, "");
+    assert_comment!(parser, 2, CommentKind::SingleLineBlock, "***");
 }
 
 #[test]

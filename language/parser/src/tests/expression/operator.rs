@@ -475,6 +475,44 @@ fn test_parse_precedence_assignment_right_associative() {
     );
 }
 
+/// Conditional expressions bind tighter than assignment.
+#[test]
+fn test_parse_precedence_assignment_rhs_conditional() {
+    let mut test = TestParser::new_with_options(
+        "files = commit.files ? commit.files.map((file) => file.name) : []",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Assign { operator, left, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_expression_path!(parser, parser.tree.get(*left), "files");
+
+            assert_node!(
+                parser.tree,
+                *right,
+                Expression::If {
+                    kind: IfKind::Ternary,
+                    condition: IfCondition::Expression { condition },
+                    then_expression,
+                    else_expression,
+                } => {
+                    assert_expression_path!(parser, parser.tree.get(*condition), "commit.files");
+                    assert_node!(parser.tree, *then_expression, Expression::Call { .. });
+                    let else_expression = else_expression.expect("expected ternary else branch");
+                    assert_node!(parser.tree, else_expression, Expression::ArrayExpression { elements } => {
+                        assert!(elements.is_empty());
+                    });
+                }
+            );
+        }
+    );
+}
+
 /// Postfix call has higher precedence than addition.
 #[test]
 fn test_parse_precedence_postfix_call_before_add() {

@@ -1,7 +1,7 @@
 use crate::tests::*;
 use crate::{Parser, ParserSettings, assert_comment, assert_expression_path, assert_node};
 use destack_ast::*;
-use destack_source::{LanguageType, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 #[test]
 fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
@@ -143,7 +143,7 @@ fn test_parse_type_union_line_comment_on_leading_separator_owner() {
                 // `| // leading-union\n`, the explicit prefix stays on the union
                 let leading_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::Leading)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                     .expect("missing leading union container span");
                 assert_eq!(
                     parser.get_span_str(leading_span),
@@ -153,7 +153,7 @@ fn test_parse_type_union_line_comment_on_leading_separator_owner() {
                 // `|`, the leading operator is addressable separately
                 let leading_operator_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::LeadingOperator)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator))
                     .expect("missing leading union operator span");
                 assert_eq!(parser.get_span_str(leading_operator_span), "|");
 
@@ -189,7 +189,9 @@ fn test_parse_type_union_block_comment_on_leading_separator_owner() {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
                 TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
-                    let leading_span = parser.tree.get_side_span(*value, NodeSpanType::Leading);
+                    let leading_span = parser
+                        .tree
+                        .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading));
                     assert_eq!(
                         leading_span.map(|span| parser.get_span_str(span)),
                         Some("| /* leading-union */ ")
@@ -231,7 +233,9 @@ fn test_parse_type_union_doc_comment_on_leading_separator_owner() {
             Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
                 TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
-                    let leading_span = parser.tree.get_side_span(*value, NodeSpanType::Leading);
+                    let leading_span = parser
+                        .tree
+                        .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading));
                     assert_eq!(
                         leading_span.map(|span| parser.get_span_str(span)),
                         Some("| /** leading-union */ ")
@@ -364,7 +368,10 @@ fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
     // `| First`, the comment before the separator still targets the separator
     let leading_operator_span = parser
         .tree
-        .get_side_span(union_id, NodeSpanType::LeadingOperator)
+        .get_side_span(
+            union_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+        )
         .expect("missing leading union operator span");
 
     assert_eq!(parser.tree.comments().len(), 1);
@@ -450,7 +457,10 @@ fn test_parse_type_alias_doc_comment_before_leading_separator_owner() {
     // `| First`, the alias comment before the separator targets the separator
     let leading_operator_span = parser
         .tree
-        .get_side_span(union_id, NodeSpanType::LeadingOperator)
+        .get_side_span(
+            union_id,
+            NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+        )
         .expect("missing leading union operator span");
 
     assert_eq!(parser.tree.comments().len(), 1);
@@ -688,7 +698,7 @@ fn test_parse_type_intersection_line_comment_on_leading_separator_owner() {
                 // `& // leading-intersection\n`, the explicit prefix stays on the intersection
                 let leading_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::Leading)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                     .expect("missing leading intersection container span");
                 assert_eq!(
                     parser.get_span_str(leading_span),
@@ -860,7 +870,7 @@ fn test_parse_without_parenthesized_wrappers_trims_type_union_last_arm() {
 }
 
 #[test]
-fn test_parse_without_parenthesized_wrappers_preserves_type_head_span() {
+fn test_parse_without_parenthesized_wrappers_keeps_inner_type_span() {
     let source = "type Box = (/* keep */ string);";
     let test = TestParser::new_with_options(source, LanguageType::TypeScript);
     let mut parser = Parser::lex_file_with_settings(
@@ -880,15 +890,15 @@ fn test_parse_without_parenthesized_wrappers_preserves_type_head_span() {
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             let value_span = parser.tree.get_span(*value);
-            let head_span = parser
+            let leading_span = parser
                 .tree
-                .get_head_span(*value)
-                .expect("missing type head span");
+                .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
+                .expect("missing type leading span");
             let comment = parser.tree.comments()[0];
 
-            assert_eq!(parser.get_span_str(value_span), "(/* keep */ string)");
-            assert_eq!(parser.get_span_str(head_span), "string");
-            assert_eq!(comment.attached_to, head_span.start);
+            assert_eq!(parser.get_span_str(value_span), "string");
+            assert_eq!(parser.get_span_str(leading_span), "/* keep */ ");
+            assert_eq!(comment.attached_to, value_span.start);
         });
     });
 }
@@ -922,16 +932,16 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
                     .expect("missing outer union head span");
                 let leading_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::Leading)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                     .expect("missing leading union container span");
                 let leading_operator_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::LeadingOperator)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator))
                     .expect("missing leading union operator span");
 
-                assert_eq!(parser.get_span_str(outer_span), "(A | B)");
+                assert_eq!(parser.get_span_str(outer_span), "A | B");
                 assert_eq!(parser.get_span_str(outer_head_span), "A");
-                assert_eq!(parser.get_span_str(leading_span), "| ");
+                assert_eq!(parser.get_span_str(leading_span), "| (");
                 assert_eq!(parser.get_span_str(leading_operator_span), "|");
 
                 assert_node!(parser.tree, elements[0], TypeExpression::Union { elements } => {
@@ -973,16 +983,16 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_he
                     .expect("missing outer intersection head span");
                 let leading_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::Leading)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                     .expect("missing leading intersection container span");
                 let leading_operator_span = parser
                     .tree
-                    .get_side_span(*value, NodeSpanType::LeadingOperator)
+                    .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator))
                     .expect("missing leading intersection operator span");
 
-                assert_eq!(parser.get_span_str(outer_span), "(A & B)");
+                assert_eq!(parser.get_span_str(outer_span), "A & B");
                 assert_eq!(parser.get_span_str(outer_head_span), "A");
-                assert_eq!(parser.get_span_str(leading_span), "& ");
+                assert_eq!(parser.get_span_str(leading_span), "& (");
                 assert_eq!(parser.get_span_str(leading_operator_span), "&");
 
                 assert_node!(parser.tree, elements[0], TypeExpression::Intersection { elements } => {
