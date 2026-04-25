@@ -1,5 +1,4 @@
 use crate::{assert_format_program, assert_format_program_reference_widths};
-
 /// Logical chains should indent continuation operands under the head.
 #[test]
 fn test_format_logical_chain_indents_tail_operands() {
@@ -75,6 +74,23 @@ fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals
         anotherVeryLongThingThatKeepsGoingAndGoingAndGoing ||
         thirdVeryLongThingThatKeepsGoingAndGoingAndGoing;
 }
+"#,
+        destack_source::FileType::TypeScript,
+    );
+}
+
+/// Ternary tests should keep the normal logical-chain tail indent.
+#[test]
+fn test_format_logical_expression_in_ternary_test_indents_tail_operands() {
+    assert_format_program!(
+        r#"const value = (firstLongOperandThatForcesTheLogicalChainToBreak === null || secondLongOperandThatForcesTheLogicalChainToBreak === void 0 || thirdLongOperandThatForcesTheLogicalChainToBreak === null ? void 0 : fallbackValue)
+"#,
+        r#"const value =
+    firstLongOperandThatForcesTheLogicalChainToBreak === null ||
+    secondLongOperandThatForcesTheLogicalChainToBreak === void 0 ||
+    thirdLongOperandThatForcesTheLogicalChainToBreak === null
+        ? void 0
+        : fallbackValue;
 "#,
         destack_source::FileType::TypeScript,
     );

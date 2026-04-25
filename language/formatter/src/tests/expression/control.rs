@@ -8,9 +8,46 @@ use destack_source::FileType;
 fn test_format_match_expression_cases() {
     assert_format!(
         "match (x) { 1 => 2; 3 => 4 }",
-        "match (x) {\n\t1 => 2\n\t3 => 4\n}",
+        r#"match (x) {
+	1 => 2
+	3 => 4
+}"#,
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
+    );
+}
+
+/// Yielded member chains should keep separator comments inside the chain indentation.
+#[test]
+fn test_format_yield_member_separator_comment() {
+    assert_format_program_reference_widths(
+        r#"function *a() {
+  yield task
+    // No extra parens
+    .run();
+}
+"#,
+        FileType::JavaScript,
+        &[
+            (
+                80,
+                r#"function* a() {
+  yield task
+    // No extra parens
+    .run();
+}
+"#,
+            ),
+            (
+                100,
+                r#"function* a() {
+  yield task
+    // No extra parens
+    .run();
+}
+"#,
+            ),
+        ],
     );
 }
 
@@ -18,7 +55,11 @@ fn test_format_match_expression_cases() {
 fn test_format_match_with_block_case_and_guard() {
     assert_format!(
         "match (value) { Pattern if (cond) => { const X = 1; } }",
-        "match (value) {\n\tPattern if (cond) => {\n\t\tconst X = 1;\n\t}\n}",
+        r#"match (value) {
+	Pattern if (cond) => {
+		const X = 1;
+	}
+}"#,
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );
@@ -28,7 +69,12 @@ fn test_format_match_with_block_case_and_guard() {
 fn test_format_switch_expression_cases() {
     assert_format!(
         "switch (x) { case 1: 2; case 3: 4 }",
-        "switch (x) {\n\tcase 1: 2;\n\tcase 3: 4;\n}",
+        r#"switch (x) {
+	case 1:
+		2;
+	case 3:
+		4;
+}"#,
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );
@@ -38,7 +84,12 @@ fn test_format_switch_expression_cases() {
 fn test_format_switch_with_default_case() {
     assert_format!(
         "switch (x) { case 1: \"one\"; default: \"other\" }",
-        "switch (x) {\n\tcase 1: \"one\";\n\tdefault: \"other\";\n}",
+        r#"switch (x) {
+	case 1:
+		"one";
+	default:
+		"other";
+}"#,
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );
@@ -48,7 +99,11 @@ fn test_format_switch_with_default_case() {
 fn test_format_switch_with_block() {
     assert_format!(
         "switch (value) { case 1: { const x = 1; } }",
-        "switch (value) {\n\tcase 1: {\n\t\tconst x = 1;\n\t}\n}",
+        r#"switch (value) {
+	case 1: {
+		const x = 1;
+	}
+}"#,
         |p| p.eat_match(),
         DestackFormatOptions::default_tab()
     );

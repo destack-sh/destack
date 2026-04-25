@@ -9,8 +9,10 @@ use destack_source::FileType;
 #[test]
 fn test_format_computed_member_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = source /* before-index */ [key]\n",
-        "const value = source /* before-index */[key];\n",
+        r#"const value = source /* before-index */ [key]
+"#,
+        r#"const value = source /* before-index */[key];
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -20,8 +22,10 @@ fn test_format_computed_member_separator_comments() {
 #[test]
 fn test_format_template_member_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = `${source /* member-note */ .name}`\n",
-        "const value = `${source /* member-note */.name}`;\n",
+        r#"const value = `${source /* member-note */ .name}`
+"#,
+        r#"const value = `${source /* member-note */.name}`;
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -31,8 +35,10 @@ fn test_format_template_member_separator_comments() {
 #[test]
 fn test_format_unary_negative_separator_block_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = -/* unary-note */ 1\n",
-        "const value = -(/* unary-note */ 1);\n",
+        r#"const value = -/* unary-note */ 1
+"#,
+        r#"const value = -(/* unary-note */ 1);
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -121,8 +127,10 @@ fn test_format_unary_negative_expression_separator_block_comments() {
 #[test]
 fn test_format_parenthesized_scalar_separator_block_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = -(/* unary-note */ 1)\n",
-        "const value = -(/* unary-note */ 1);\n",
+        r#"const value = -(/* unary-note */ 1)
+"#,
+        r#"const value = -(/* unary-note */ 1);
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -132,8 +140,16 @@ fn test_format_parenthesized_scalar_separator_block_comments() {
 #[test]
 fn test_format_parenthesized_scalar_separator_line_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = -(\n    // unary-line-note\n    1\n)\n",
-        "const value = -(\n    // unary-line-note\n    1\n);\n",
+        r#"const value = -(
+    // unary-line-note
+    1
+)
+"#,
+        r#"const value = -(
+    // unary-line-note
+    1
+);
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -143,8 +159,13 @@ fn test_format_parenthesized_scalar_separator_line_comments() {
 #[test]
 fn test_format_parenthesized_scalar_separator_mixed_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = (/* keep */ // comment\n    a as any) + 1\n",
-        "const value =\n    /* keep */ // comment\n    (a as any) + 1;\n",
+        r#"const value = (/* keep */ // comment
+    a as any) + 1
+"#,
+        r#"const value =
+    /* keep */ // comment
+    (a as any) + 1;
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -153,7 +174,8 @@ fn test_format_parenthesized_scalar_separator_mixed_comments() {
 /// Mixed comments after `(` should stay visible as one leading slice for the inner assertion.
 #[test]
 fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_slice() {
-    let input = "(/* keep */ // comment\n    a as any) + 1";
+    let input = r#"(/* keep */ // comment
+    a as any) + 1"#;
     let block_start = 1;
     let block_end = 11;
     let line_start = 12;
@@ -206,7 +228,8 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
 /// The inner assertion should keep mixed leading comments on one line before derived parentheses.
 #[test]
 fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comments() {
-    let input = "(/* keep */ // comment\n    a as any) + 1";
+    let input = r#"(/* keep */ // comment
+    a as any) + 1"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
             parser.eat_expression(Default::default())
@@ -224,15 +247,25 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
         DestackFormatOptions::default_with_line_width(100),
     );
 
-    assert_eq!(formatted, "/* keep */ // comment\n(a as any)");
+    assert_eq!(
+        formatted,
+        r#"/* keep */ // comment
+(a as any)"#
+    );
 }
 
 /// Unary separator line comments should keep the multiline grouped operand.
 #[test]
 fn test_format_unary_negative_separator_line_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = -// unary-line-note\n1\n",
-        "const value = -(\n    // unary-line-note\n    1\n);\n",
+        r#"const value = -// unary-line-note
+1
+"#,
+        r#"const value = -(
+    // unary-line-note
+    1
+);
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -242,8 +275,16 @@ fn test_format_unary_negative_separator_line_comments() {
 #[test]
 fn test_format_label_separator_line_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "start: // label-tail\nwhile (true) {\n  break start\n}\n",
-        "// label-tail\nstart: while (true) {\n    break start;\n}\n",
+        r#"start: // label-tail
+while (true) {
+  break start
+}
+"#,
+        r#"// label-tail
+start: while (true) {
+    break start;
+}
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -253,8 +294,10 @@ fn test_format_label_separator_line_comments() {
 #[test]
 fn test_format_ternary_alternate_block_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const x = condition ? /* then */ valueA : /* else */ valueB\n",
-        "const x = condition ? /* then */ valueA : /* else */ valueB;\n",
+        r#"const x = condition ? /* then */ valueA : /* else */ valueB
+"#,
+        r#"const x = condition ? /* then */ valueA : /* else */ valueB;
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -264,8 +307,13 @@ fn test_format_ternary_alternate_block_separator_comments() {
 #[test]
 fn test_format_ternary_alternate_line_separator_comments() {
     assert_format_program_roundtrip_with_file_type(
-        "const x = condition ? valueA : // else-note\nvalueB\n",
-        "const x = condition\n    ? valueA // else-note\n    : valueB;\n",
+        r#"const x = condition ? valueA : // else-note
+valueB
+"#,
+        r#"const x = condition
+    ? valueA // else-note
+    : valueB;
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -275,8 +323,10 @@ fn test_format_ternary_alternate_line_separator_comments() {
 #[test]
 fn test_format_tagged_template_expression_preserves_generic_arguments() {
     assert_format_program_roundtrip_with_file_type(
-        "const value = sql<Type>`select * from t`\n",
-        "const value = sql<Type>`select * from t`;\n",
+        r#"const value = sql<Type>`select * from t`
+"#,
+        r#"const value = sql<Type>`select * from t`;
+"#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(100),
     );
@@ -285,7 +335,10 @@ fn test_format_tagged_template_expression_preserves_generic_arguments() {
 /// Template remap comments should stay owned by the template container, not the generic argument.
 #[test]
 fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
-    let input = "type Paths<T> = {\n  [K in keyof T as // remap-note\n    `get${Capitalize<K & string>}`]: () => T[K]\n}";
+    let input = r#"type Paths<T> = {
+  [K in keyof T as // remap-note
+    `get${Capitalize<K & string>}`]: () => T[K]
+}"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
             parser.eat_expression(Default::default())
@@ -326,6 +379,9 @@ fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
     );
     assert_eq!(
         formatted_expression,
-        "type Paths<T> = {\n    [K in keyof T as `get${Capitalize<K & string>}`]: () => T[K]; // remap-note\n};"
+        r#"type Paths<T> = {
+    [K in keyof T as `get${Capitalize<K & string> // remap-note
+    }`]: () => T[K];
+};"#
     );
 }

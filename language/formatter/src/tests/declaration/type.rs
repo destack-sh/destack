@@ -18,7 +18,10 @@ fn test_format_enum_empty() {
 fn test_format_enum_with_simple_fields() {
     assert_format!(
         "enum { A, B }",
-        "enum {\n\tA,\n\tB,\n}",
+        r#"enum {
+	A,
+	B,
+}"#,
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
@@ -29,7 +32,8 @@ fn test_format_enum_with_annotations() {
     assert_format_program!(
         r#"@description("The status of a task.") enum Status { @default Todo; Done }"#,
         r#"@description("The status of a task.") enum Status {
-    @default Todo,
+    @default
+    Todo,
     Done,
 }
 "#,

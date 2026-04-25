@@ -24,6 +24,29 @@ fn test_format_parameter_with_default() {
     );
 }
 
+/// Defaulted pattern parameters should keep comments inside the pattern.
+#[test]
+fn test_format_pattern_parameter_default_comments() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"({
+  // comment1
+  random = Math.random,
+  // comment2
+  sqrt = Math.sqrt,
+} = {}) => {};
+"#,
+        r#"({
+  // comment1
+  random = Math.random,
+  // comment2
+  sqrt = Math.sqrt,
+} = {}) => {};
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default().with_indent_width(2),
+    );
+}
+
 /// Generic parameter constraints should canonicalize by file type.
 #[test]
 fn test_format_generic_parameter_constraint_canonicalizes_by_file_type() {
@@ -188,12 +211,14 @@ fn test_format_type_literal_parameter_layout() {
 /// Mapped types should respect bracket spacing options exactly.
 #[test]
 fn test_format_mapped_type_bracket_spacing() {
-    let input = "export type Bar<T> = {[P in keyof T]: string}\n";
+    let input = r#"export type Bar<T> = {[P in keyof T]: string}
+"#;
 
     let spaced_options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format_program_roundtrip_with_file_type(
         input,
-        "export type Bar<T> = { [P in keyof T]: string };\n",
+        r#"export type Bar<T> = { [P in keyof T]: string };
+"#,
         FileType::TypeScript,
         spaced_options,
     );
@@ -202,7 +227,8 @@ fn test_format_mapped_type_bracket_spacing() {
         DestackFormatOptions::default_with_line_width(100).with_indent_width(2);
     assert_format_program_roundtrip_with_file_type(
         input,
-        "export type Bar<T> = { [P in keyof T]: string };\n",
+        r#"export type Bar<T> = { [P in keyof T]: string };
+"#,
         FileType::TypeScript,
         spaced_wide_options,
     );
@@ -212,7 +238,8 @@ fn test_format_mapped_type_bracket_spacing() {
     compact_options.bracket_spacing = false;
     assert_format_program_roundtrip_with_file_type(
         input,
-        "export type Bar<T> = {[P in keyof T]: string};\n",
+        r#"export type Bar<T> = {[P in keyof T]: string};
+"#,
         FileType::TypeScript,
         compact_options,
     );
@@ -222,7 +249,8 @@ fn test_format_mapped_type_bracket_spacing() {
     compact_wide_options.bracket_spacing = false;
     assert_format_program_roundtrip_with_file_type(
         input,
-        "export type Bar<T> = {[P in keyof T]: string};\n",
+        r#"export type Bar<T> = {[P in keyof T]: string};
+"#,
         FileType::TypeScript,
         compact_wide_options,
     );

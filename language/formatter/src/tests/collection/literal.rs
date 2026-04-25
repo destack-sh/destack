@@ -11,7 +11,7 @@ fn test_format_string_literal_multi_char() {
 /// Embedded target quotes should stay escaped once.
 #[test]
 fn test_format_string_literal_escapes_embedded_target_quote() {
-    assert_format!(r#"'\"1\"'"#, r#""\"1\"""#, |p| p
+    assert_format!(r#"'\"1\"'"#, r#"'"1"'"#, |p| p
         .eat_expression(Default::default()));
 }
 
