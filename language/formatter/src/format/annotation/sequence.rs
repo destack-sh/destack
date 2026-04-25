@@ -6,7 +6,7 @@ use destack_ast::{
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::write;
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanBoundary, NodeSpanType};
 
 /// One source-ordered prefix item.
 #[derive(Debug, Copy, Clone)]
@@ -28,7 +28,10 @@ where
 {
     let token_start = context.node_token_start(node_id);
 
-    if let Some(leading_span) = context.tree.get_side_span(node_id, NodeSpanType::Leading) {
+    if let Some(leading_span) = context
+        .tree
+        .get_side_span(node_id, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
+    {
         return context
             .comments()
             .comments_in_range(leading_span.start, token_start)

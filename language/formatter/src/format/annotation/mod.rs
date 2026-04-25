@@ -10,6 +10,6 @@ pub(crate) use self::sequence::{
 };
 pub(crate) use self::trivia::{
     DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, FormatTrailingComments,
-    format_comment, format_dangling_comments, format_leading_comments, format_trailing_comments,
-    write_comment_slice,
+    format_comment, format_dangling_comments, format_leading_comments,
+    format_node_with_trailing_comments, format_trailing_comments, write_comment_slice,
 };

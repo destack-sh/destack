@@ -1,5 +1,6 @@
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Comment, CommentContent};
+use crate::format::context::FormatNodeWithoutTrailingComments;
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{Comment, CommentContent, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, line_suffix, soft_block_indent,
@@ -420,6 +421,29 @@ pub(crate) const fn format_trailing_comments(
     following_span_start: u32,
 ) -> FormatTrailingComments<'static> {
     FormatTrailingComments::Node((enclosing_span, preceding_span, following_span_start))
+}
+
+/// Format one node with generated-node-style trailing comment boundaries.
+pub(crate) fn format_node_with_trailing_comments<'ast, T>(
+    enclosing_span: Span,
+    node_id: LocalNodeId<T>,
+    following_span_start: u32,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: FormatNode<'ast, T> + Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let node_span = f.context().span(node_id);
+
+        write!(
+            f,
+            [
+                FormatNodeWithoutTrailingComments(node_id),
+                format_trailing_comments(enclosing_span, node_span, following_span_start)
+            ]
+        )
+    })
 }
 
 /// Format trailing comments for one node relationship.
