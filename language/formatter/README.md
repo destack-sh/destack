@@ -6,6 +6,7 @@ Because Destack is designed for _modern strict TS(++)_, we do not fully support:
 - tag-aware JSDoc semantics (like `@type` or `@satisfies` comments)
 - legacy TypeScript angle-bracket assertions (like `<T>expr`, we don't even parse this)
 - legacy import-attribute `assert` syntax
+- "statement-like" decorators are on a full new line before the decorated item (instead of inline)
 - unsupported legacy JS syntax like `with` (also see [language/parser](../../language/parser/README.md))
 
 ## Architecture
