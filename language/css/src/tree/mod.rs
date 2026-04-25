@@ -13,7 +13,7 @@ pub use component::*;
 pub use condition::*;
 pub use declaration::*;
 pub use destack_core::Arena;
-pub use destack_source::{File, FileId, NodeSpanType, Span};
+pub use destack_source::{File, FileId, NodeSpanRegion, NodeSpanType, Span};
 pub use node::*;
 pub use rule::*;
 pub use selector::*;

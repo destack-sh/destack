@@ -7,14 +7,14 @@ use crate::{
     ImportLayer, ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList, KeyframesName,
     KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule, LocalName, LocalNodeId,
     MediaRule, MozDocumentRule, NamespacePrefix, NamespaceRule, NamespaceUrl,
-    NestedDeclarationsRule, NestingRule, Node, NodeSpanType, NodeTree, NodeTreeImpl, NthOfSelector,
-    NthSelector, NthSelectorKind, Number, PageMarginBox, PageMarginRule, PagePseudoClass, PageRule,
-    PageSelector, PageSelectorList, PropertyName, PropertyRule, PropertySyntax,
-    PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier, PseudoArgument,
-    PseudoClass, PseudoElement, Rule, ScopeRule, Selector, SelectorComponent, SelectorList,
-    SimpleSelector, StartingStyleRule, StyleRule, Stylesheet, SupportsRule, Symbol,
-    TimelineRangeName, TimelineRangePercentage, Token, UnknownRule, VendorPrefix,
-    ViewTransitionPartArgument, ViewTransitionRule, ViewportRule,
+    NestedDeclarationsRule, NestingRule, Node, NodeSpanRegion, NodeSpanType, NodeTree,
+    NodeTreeImpl, NthOfSelector, NthSelector, NthSelectorKind, Number, PageMarginBox,
+    PageMarginRule, PagePseudoClass, PageRule, PageSelector, PageSelectorList, PropertyName,
+    PropertyRule, PropertySyntax, PropertySyntaxComponent, PropertySyntaxComponentKind,
+    PropertySyntaxMultiplier, PseudoArgument, PseudoClass, PseudoElement, Rule, ScopeRule,
+    Selector, SelectorComponent, SelectorList, SimpleSelector, StartingStyleRule, StyleRule,
+    Stylesheet, SupportsRule, Symbol, TimelineRangeName, TimelineRangePercentage, Token,
+    UnknownRule, VendorPrefix, ViewTransitionPartArgument, ViewTransitionRule, ViewportRule,
 };
 use destack_core::StringId;
 use destack_source::{File, Span};
@@ -362,13 +362,19 @@ impl<'a> Lowerer<'a> {
         let rule_id = self.tree.insert(node, span);
 
         if let Some(prelude_span) = prelude_span {
-            self.tree
-                .set_side_span(rule_id, NodeSpanType::Segment(0), prelude_span);
+            self.tree.set_side_span(
+                rule_id,
+                NodeSpanType::Region(NodeSpanRegion::Prelude),
+                prelude_span,
+            );
         }
 
         if let Some(import_url_span) = import_url_span {
-            self.tree
-                .set_side_span(rule_id, NodeSpanType::Segment(1), import_url_span);
+            self.tree.set_side_span(
+                rule_id,
+                NodeSpanType::Region(NodeSpanRegion::Value),
+                import_url_span,
+            );
         }
 
         rule_id
@@ -621,10 +627,16 @@ impl<'a> Lowerer<'a> {
             },
         );
 
-        self.tree
-            .set_side_span(declaration_id, NodeSpanType::Segment(0), name_span);
-        self.tree
-            .set_side_span(declaration_id, NodeSpanType::Segment(1), value_span);
+        self.tree.set_side_span(
+            declaration_id,
+            NodeSpanType::Region(NodeSpanRegion::Name),
+            name_span,
+        );
+        self.tree.set_side_span(
+            declaration_id,
+            NodeSpanType::Region(NodeSpanRegion::Value),
+            value_span,
+        );
 
         declaration_id
     }
