@@ -61,6 +61,12 @@ fn escape_string_literal_content(content: &str, quote_char: char) -> String {
                 break;
             };
 
+            let alternate_quote = if quote_char == '"' { '\'' } else { '"' };
+            if next == alternate_quote {
+                escaped.push(next);
+                continue;
+            }
+
             escaped.push('\\');
             escaped.push(next);
             continue;
@@ -81,6 +87,25 @@ fn escape_string_literal_content(content: &str, quote_char: char) -> String {
     }
 
     escaped
+}
+
+/// Return the quote that minimizes escaped quote characters.
+fn minimized_quote_char(content: &str, preferred_quote: char) -> char {
+    let alternate_quote = if preferred_quote == '"' { '\'' } else { '"' };
+    let preferred_count = content
+        .chars()
+        .filter(|character| *character == preferred_quote)
+        .count();
+    let alternate_count = content
+        .chars()
+        .filter(|character| *character == alternate_quote)
+        .count();
+
+    if preferred_count > alternate_count {
+        alternate_quote
+    } else {
+        preferred_quote
+    }
 }
 
 /// Format a scalar literal.
@@ -122,39 +147,32 @@ pub(crate) fn format_scalar_literal<'ast>(
             }
         }
         ScalarLiteral::Character(value) => {
-            if f.context().options.language_type.is_destack() {
-                write!(
-                    f,
-                    [token("'"), text(value.to_string().as_str()), token("'")]
-                )?;
-            } else {
-                let mut quote_style = f.context().options.quote_style;
-                if quote_style == QuoteStyle::Semantic {
-                    quote_style = QuoteStyle::Double;
-                }
-                let content = value.to_string();
-                let quote_char = quote_style.char_for(content.as_str());
-                let quote_str = if quote_char == '"' { "\"" } else { "'" };
-                let escaped_content = escape_string_literal_content(content.as_str(), quote_char);
-                write!(
-                    f,
-                    [
-                        token(quote_str),
-                        text(escaped_content.as_str()),
-                        token(quote_str)
-                    ]
-                )?;
+            let mut quote_style = f.context().options.quote_style;
+            if quote_style == QuoteStyle::Semantic {
+                quote_style = QuoteStyle::Double;
             }
+            let content = value.to_string();
+            let preferred_quote = quote_style.char_for(content.as_str());
+            let quote_char = minimized_quote_char(content.as_str(), preferred_quote);
+            let quote_str = if quote_char == '"' { "\"" } else { "'" };
+            let escaped_content = escape_string_literal_content(content.as_str(), quote_char);
+            write!(
+                f,
+                [
+                    token(quote_str),
+                    text(escaped_content.as_str()),
+                    token(quote_str)
+                ]
+            )?;
         }
         ScalarLiteral::String(string_id) => {
             let mut quote_style = f.context().options.quote_style;
-            if quote_style == QuoteStyle::Semantic
-                && !f.context().options.language_type.is_destack()
-            {
+            if quote_style == QuoteStyle::Semantic {
                 quote_style = QuoteStyle::Double;
             }
             let content = f.context().strings.get(*string_id);
-            let quote_char = quote_style.char_for(content);
+            let preferred_quote = quote_style.char_for(content);
+            let quote_char = minimized_quote_char(content, preferred_quote);
             let escaped_content = escape_string_literal_content(content, quote_char);
 
             if is_tree_text {
@@ -167,18 +185,6 @@ pub(crate) fn format_scalar_literal<'ast>(
                     if !has_newline {
                         write!(f, [text(" ")])?;
                     }
-                } else if let Some(multiline_lines) = normalize_jsx_text_multiline_lines(content) {
-                    let multiline = format_with(|f| {
-                        for (line_index, line) in multiline_lines.iter().enumerate() {
-                            if line_index > 0 {
-                                write!(f, [hard_line_break()])?;
-                            }
-                            write!(f, [text(line)])?;
-                        }
-
-                        Ok(())
-                    });
-                    write!(f, [multiline])?;
                 } else {
                     let normalized = normalize_jsx_text(content);
                     write!(f, [text(normalized.as_str())])?;
@@ -401,22 +407,6 @@ fn normalize_jsx_text(text: &str) -> String {
     normalized
 }
 
-/// Normalize multiline jsx text into line-preserving segments.
-fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
-    if !text.contains(['\n', '\r']) {
-        return None;
-    }
-
-    let lines = text
-        .lines()
-        .filter_map(collapse_jsx_whitespace_to_single_spaces)
-        .collect::<Vec<_>>();
-    if lines.len() <= 1 {
-        return None;
-    }
-
-    Some(lines)
-}
 /// Collapse JSX whitespace runs to single spaces and drop outer whitespace.
 fn collapse_jsx_whitespace_to_single_spaces(text: &str) -> Option<String> {
     let mut collapsed = String::new();

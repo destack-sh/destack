@@ -1,9 +1,10 @@
 use crate::format::annotation::{
-    block_infix_annotations, format_comment, infix_or_postfix_annotations, prefix_annotations,
-    prefix_comment_nodes,
+    block_infix_annotations, format_comment, format_dangling_comments,
+    infix_or_postfix_annotations, prefix_annotations, prefix_comment_nodes,
 };
 use crate::format::collection::TrailingSeparator;
 use crate::format::collection::literal::format_scalar_literal;
+use crate::format::collection::property::{format_name_with_quotes, is_identifier_for_quotes};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Argument, DecoratorPosition, DependencyItem, DependencyKind, DependencyMode, Expression,
@@ -19,8 +20,8 @@ use destack_query::format::{
     ImportDeclarationKey, categorize_import, sort_dependency_items as query_sort_dependency_items,
     sort_import_declaration_indices,
 };
-use destack_source::{FileId, Span};
-use destack_workspace::{ImportSortOrder, TrailingComma};
+use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_workspace::{ImportSortOrder, QuoteProperty, TrailingComma};
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
@@ -347,22 +348,20 @@ fn write_dependency_gap_spacing<'ast>(
     end: u32,
     should_allow_soft_break: bool,
 ) -> FormatResult<()> {
-    if start >= end {
-        return Ok(());
-    }
+    if start < end {
+        let gap_span = Span::new(f.context().file.id, start, end);
 
-    let gap_span = Span::new(f.context().file.id, start, end);
+        // preserve blank separator lines
+        if dependency_gap_has_blank_line(f.context(), start, end) {
+            write!(f, [hard_line_break(), empty_line()])?;
+            return Ok(());
+        }
 
-    // preserve blank separator lines
-    if dependency_gap_has_blank_line(f.context(), start, end) {
-        write!(f, [hard_line_break(), empty_line()])?;
-        return Ok(());
-    }
-
-    // preserve single-line breaks
-    if f.context().has_newline(gap_span) {
-        write!(f, [hard_line_break()])?;
-        return Ok(());
+        // preserve single-line breaks
+        if f.context().has_newline(gap_span) {
+            write!(f, [hard_line_break()])?;
+            return Ok(());
+        }
     }
 
     if should_allow_soft_break {
@@ -404,6 +403,16 @@ fn write_dependency_gap<'ast>(
     end: u32,
     should_allow_soft_break: bool,
 ) -> FormatResult<()> {
+    if start >= end {
+        if should_allow_soft_break {
+            write!(f, [soft_line_break_or_space()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+
+        return Ok(());
+    }
+
     let has_comments = dependency_gap_has_comments(f.context(), start, end);
     let spacing_start = write_dependency_gap_comments(f, start, end)?;
 
@@ -492,6 +501,11 @@ fn write_import_attribute_value<'ast>(
 
     // object
     if let ImportAttributeValue::Object(attributes) = value {
+        let force_quote_keys = f.context().options.quote_props == QuoteProperty::Consistent
+            && attributes
+                .iter()
+                .any(|attribute| import_attribute_key_requires_quotes(f.context(), attribute));
+
         write!(f, [token("{")])?;
 
         if f.context().options.bracket_spacing && !attributes.is_empty() {
@@ -505,7 +519,7 @@ fn write_import_attribute_value<'ast>(
             }
 
             // attribute
-            format_import_attribute(f, attribute)?;
+            format_import_attribute(f, attribute, force_quote_keys)?;
         }
 
         if f.context().options.bracket_spacing && !attributes.is_empty() {
@@ -523,13 +537,25 @@ fn write_import_attribute_value<'ast>(
 fn format_import_attribute<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     attribute: &ImportAttribute,
+    force_quote_keys: bool,
 ) -> FormatResult<()> {
     // key
-    format_dependency_item_name(f, attribute.key)?;
+    format_name_with_quotes(f, attribute.key, force_quote_keys)?;
 
     // value
     write!(f, [token(":"), space()])?;
     write_import_attribute_value(f, &attribute.value)
+}
+
+/// Return whether one import attribute key requires quotes.
+fn import_attribute_key_requires_quotes(
+    context: &DestackFormatContext<'_>,
+    attribute: &ImportAttribute,
+) -> bool {
+    match attribute.key {
+        Name::Identifier(_) | Name::Number(_) => false,
+        Name::String(name) => !is_identifier_for_quotes(context.strings.get(name)),
+    }
 }
 
 /// Format `with { ... }` arguments for import and export statements.
@@ -544,25 +570,56 @@ fn format_dependency_with_arguments<'ast>(
     if has_attribute_head_annotation {
         write!(f, [block_infix_annotations(f.context(), node_id)])?;
     }
+    let force_quote_keys = f.context().options.quote_props == QuoteProperty::Consistent
+        && attributes
+            .iter()
+            .any(|attribute| import_attribute_key_requires_quotes(f.context(), attribute));
+    let attribute_clause_span = f
+        .context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Clause));
+    let first_attribute_segment_span = f
+        .context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::ListItem(NodeSpanList::Entry, 0));
+    let has_closing_comment = attribute_clause_span
+        .is_some_and(|span| f.context().comments().has_comment_before(span.end));
+    let should_use_block = attributes.len() > 1
+        || attributes
+            .first()
+            .is_some_and(|attribute| f.context().strings.get(attribute.key.string()) != "type")
+        || has_closing_comment;
+    let should_expand = first_attribute_segment_span
+        .is_some_and(|span| f.context().source_text().has_newline_before(span.start));
 
     // body
     let format_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if f.context().options.bracket_spacing {
+        let use_inner_space = f.context().options.bracket_spacing && !attributes.is_empty();
+        if use_inner_space {
             write!(f, [if_group_fits_on_line(&space())])?;
         }
 
         for (index, attribute) in attributes.iter().enumerate() {
             // separator
             if index > 0 {
-                write!(f, [token(","), space()])?;
+                write!(f, [token(",")])?;
+                if should_use_block {
+                    write!(f, [soft_line_break()])?;
+                } else {
+                    write!(f, [space()])?;
+                }
             }
 
             // entry
-            format_import_attribute(f, attribute)?;
+            format_import_attribute(f, attribute, force_quote_keys)?;
         }
 
-        if f.context().options.bracket_spacing {
+        if use_inner_space {
             write!(f, [if_group_fits_on_line(&space())])?;
+        }
+
+        if should_use_block {
+            write!(f, [if_group_breaks(&token(","))])?;
         }
 
         Ok(())
@@ -573,7 +630,7 @@ fn format_dependency_with_arguments<'ast>(
             [token("{"), soft_block_indent(&format_arguments), token("}")]
         )
     });
-    let with_arguments = group(&with_arguments);
+    let with_arguments = group(&with_arguments).should_expand(should_expand);
 
     let clause_keyword = match clause_kind {
         ImportAttributeClauseKind::With => Keyword::With,
@@ -1316,6 +1373,7 @@ fn write_import_call_target<'ast>(
 /// Format one dynamic `import(...)` call expression and report whether it handled output.
 fn format_import_call_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     source: ImportSource,
     target: &ImportTarget,
     arguments: Option<&[LocalNodeId<Argument>]>,
@@ -1339,7 +1397,12 @@ fn format_import_call_expression<'ast>(
     let format_call = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(
             f,
-            [token("("), soft_block_indent(&format_arguments), token(")")]
+            [
+                token("("),
+                soft_block_indent(&format_arguments),
+                format_dangling_comments(f.context().span(node_id)).with_soft_block_indent(),
+                token(")")
+            ]
         )
     });
 
@@ -1444,7 +1507,7 @@ pub(crate) fn format_import_expression<'ast>(
     let has_item_clause = items.is_some();
     let items = items.unwrap_or(&[]);
 
-    if format_import_call_expression(f, source, target, arguments)? {
+    if format_import_call_expression(f, node_id, source, target, arguments)? {
         return Ok(());
     }
 

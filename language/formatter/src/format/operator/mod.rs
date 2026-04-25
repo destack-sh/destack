@@ -10,6 +10,7 @@ pub(crate) use self::assign::{
     format_declarator_assignment, is_poorly_breakable_member_or_call_chain,
     write_assignment_like_right,
 };
+pub(crate) use self::binary::{binary_operator_format_precedence, should_flatten_binary};
 pub(crate) use self::expression::{
     format_operator_expression, write_operator_expression_trailing_annotations,
 };

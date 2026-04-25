@@ -193,48 +193,28 @@ pub(crate) fn write_tree_expression_argument<'ast>(
     let mut stub_argument_annotations_rendered_inline = false;
     match argument {
         Argument::Named { name, value, .. } => {
-            // destack tree literals normalize boolean true and string literal attribute values
-            if f.context().options.language_type.is_destack() {
-                let value_expr = f.context().tree.get(*value);
-                if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
-                    write!(f, [name])?;
-                } else {
-                    write!(f, [name])?;
-                    let is_string_literal = matches!(
-                        value_expr,
-                        Expression::ScalarLiteral(ScalarLiteral::String(_))
-                            | Expression::ScalarLiteral(ScalarLiteral::Character(_))
-                    );
-                    if is_string_literal {
-                        write!(f, [token("="), value])?;
+            // named tree attributes preserve their source token form
+            write!(f, [name])?;
+            let argument_span = f.context().span(argument_id);
+            let tokens = f.context().non_trivia_tokens_in_span(argument_span);
+            let (is_equals_braced, is_equals_unbraced) = tokens
+                .iter()
+                .position(|token| token.token.ty == TokenType::Assign)
+                .map(|assign_index| {
+                    if tokens
+                        .get(assign_index + 1)
+                        .is_some_and(|token| token.token.ty == TokenType::OpenBrace)
+                    {
+                        (true, false)
                     } else {
-                        format_tree_attribute_value(f, *value)?;
+                        (false, true)
                     }
-                }
-            } else {
-                // named tree attributes preserve their source token form
-                write!(f, [name])?;
-                let argument_span = f.context().span(argument_id);
-                let tokens = f.context().non_trivia_tokens_in_span(argument_span);
-                let (is_equals_braced, is_equals_unbraced) = tokens
-                    .iter()
-                    .position(|token| token.token.ty == TokenType::Assign)
-                    .map(|assign_index| {
-                        if tokens
-                            .get(assign_index + 1)
-                            .is_some_and(|token| token.token.ty == TokenType::OpenBrace)
-                        {
-                            (true, false)
-                        } else {
-                            (false, true)
-                        }
-                    })
-                    .unwrap_or((false, false));
-                if is_equals_braced {
-                    format_tree_attribute_value(f, *value)?;
-                } else if is_equals_unbraced {
-                    write!(f, [token("="), value])?;
-                }
+                })
+                .unwrap_or((false, false));
+            if is_equals_braced {
+                format_tree_attribute_value(f, *value)?;
+            } else if is_equals_unbraced {
+                write!(f, [token("="), value])?;
             }
         }
         Argument::Labeled { label, value, .. } => {

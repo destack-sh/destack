@@ -1,8 +1,9 @@
 use super::super::declaration::expression_is_in_statement_position;
 use crate::DestackFormatContext;
+use crate::format::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_ast::{
     AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition, IfKind,
-    LocalNodeId, NodeType,
+    LocalNodeId, NodeType, OperatorPrecedence,
 };
 use destack_source::Span;
 
@@ -216,7 +217,7 @@ fn expression_is_class_or_function_declaration(
 
     match context.tree.get(*declaration_id) {
         Declaration::Class(_) => true,
-        Declaration::Function(function) => function.signature.kind == FunctionKind::Lambda,
+        Declaration::Function(_) => true,
         _ => false,
     }
 }
@@ -249,8 +250,8 @@ fn expression_assignment_needs_parentheses_in_statement_position(
     matches!(context.tree.get(left), AssignPattern::Object { .. })
 }
 
-/// Return whether one named class declaration is in declaration statement position.
-fn expression_is_named_class_declaration_statement(
+/// Return whether one named class or function declaration is in declaration statement position.
+fn expression_is_named_declaration_statement(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -265,6 +266,10 @@ fn expression_is_named_class_declaration_statement(
     matches!(
         context.tree.get(*declaration_id),
         Declaration::Class(class) if class.name.is_some()
+    ) || matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function(function)
+            if function.name.is_some() && function.signature.kind == FunctionKind::Function
     )
 }
 
@@ -441,24 +446,77 @@ fn expression_binary_like_needs_parentheses_in_parent(
         return is_class_extends(context, parent_id, parent_type, parent_child_id);
     }
 
+    let Expression::Binary { operator, .. } = context.tree.get(node_id) else {
+        return type_cast_like_needs_parentheses(parent_expression, parent_child_id);
+    };
+
     // coalesce needs grouping inside conditionals
-    if matches!(
-        context.tree.get(node_id),
-        Expression::Binary {
-            operator: BinaryOperator::Coalesce,
-            ..
-        }
-    ) && matches!(
-        parent_expression,
-        Expression::If {
-            kind: IfKind::Ternary,
-            ..
-        }
-    ) {
+    if *operator == BinaryOperator::Coalesce
+        && matches!(
+            parent_expression,
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        )
+    {
         return true;
     }
 
+    if let Expression::Binary {
+        operator: parent_operator,
+        right,
+        ..
+    } = parent_expression
+    {
+        if binary_operator_is_logical(*parent_operator) && binary_operator_is_logical(*operator) {
+            return parent_operator != operator;
+        }
+
+        let parent_precedence = binary_operator_format_precedence(*parent_operator);
+        let precedence = binary_operator_format_precedence(*operator);
+
+        if parent_precedence > precedence {
+            return true;
+        }
+
+        let is_right = *right == node_id;
+        if is_right && parent_precedence == precedence {
+            return true;
+        }
+
+        if binary_operator_is_bitwise_or_shift(*parent_operator) {
+            return true;
+        }
+
+        if parent_precedence < precedence
+            && *operator == BinaryOperator::Remainder
+            && parent_operator.precedence_group() == OperatorPrecedence::Addition
+        {
+            return true;
+        }
+
+        return parent_precedence == precedence
+            && !should_flatten_binary(*parent_operator, *operator);
+    }
+
     type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+}
+
+/// Return whether one binary operator groups like bitwise or shift.
+fn binary_operator_is_bitwise_or_shift(operator: BinaryOperator) -> bool {
+    matches!(
+        operator.precedence_group(),
+        OperatorPrecedence::Elementwise | OperatorPrecedence::Shift
+    )
+}
+
+/// Return whether one binary operator maps to the logical expression family.
+fn binary_operator_is_logical(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    )
 }
 
 /// Return whether one expression is a binary-like expression.
@@ -527,6 +585,61 @@ fn expression_new_callee_needs_parentheses(
     }
 }
 
+/// Return whether one expression has lower precedence than update, member, or call positions.
+fn expression_is_update_or_lower_precedence(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        context.tree.get(node_id),
+        Expression::Declaration(_)
+            | Expression::ObjectExpression { .. }
+            | Expression::Unary { .. }
+            | Expression::Delete { .. }
+            | Expression::Await { .. }
+            | Expression::AwaitMaybe { .. }
+            | Expression::Comptime { .. }
+            | Expression::Binary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
+            | Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+            | Expression::As { .. }
+            | Expression::Satisfies { .. }
+            | Expression::Assign { .. }
+            | Expression::SequenceExpression { .. }
+            | Expression::Yield { .. }
+    )
+}
+
+/// Return whether one explicit wrapper is required by a postfix parent.
+fn parenthesized_wrapper_required_by_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !expression_is_update_or_lower_precedence(context, expression_id) {
+        return false;
+    }
+
+    let Some((parent_id, parent_type, parent_child_id)) =
+        effective_expression_parent(context, node_id)
+    else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_expression = context.tree.get(parent_expression_id);
+
+    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+}
+
 /// Return whether one expression needs derived parentheses in its parent.
 pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -579,7 +692,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             Expression::Declaration(_)
                 if expression_is_class_or_function_declaration(context, node_id) =>
             {
-                if expression_is_named_class_declaration_statement(context, node_id) {
+                if expression_is_named_declaration_statement(context, node_id) {
                     return false;
                 }
 
@@ -609,7 +722,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     if let Expression::Assign { .. } = context.tree.get(node_id) {
         return match parent_expression {
             Expression::Assign { .. } => false,
-            Expression::Index { .. } => true,
+            Expression::Parenthesized { .. } => false,
+            Expression::Index { .. } => false,
             _ => true,
         };
     }
@@ -645,17 +759,19 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             ..
         }
     ) {
-        return matches!(
-            parent_expression,
-            Expression::If {
-                kind: IfKind::Ternary,
-                condition,
-                ..
-            } if matches!(
-                condition,
-                IfCondition::Expression { condition } if *condition == parent_child_id
-            )
-        );
+        return type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+            || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+            || matches!(
+                parent_expression,
+                Expression::If {
+                    kind: IfKind::Ternary,
+                    condition,
+                    ..
+                } if matches!(
+                    condition,
+                    IfCondition::Expression { condition } if *condition == parent_child_id
+                )
+            );
     }
 
     // `as` and `satisfies` need parentheses in tighter or ambiguous parent positions
@@ -728,6 +844,11 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     // inner expressions that already need parentheses must not gain another pair
     if expression_needs_parentheses_in_parent(context, expression_id) {
         return false;
+    }
+
+    // postfix parents require the explicit wrapper around lower precedence children
+    if parenthesized_wrapper_required_by_parent(context, node_id, expression_id) {
+        return true;
     }
 
     // class and function wrappers in postfix-like parents should defer to the inner expression

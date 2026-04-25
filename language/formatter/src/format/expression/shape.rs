@@ -313,30 +313,13 @@ fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argu
     }
 }
 
-/// Return whether expression source is wrapped in a top-level parenthesis pair.
-fn expression_has_outer_parentheses_tokens(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let span = context.span(node_id);
-    let Some(first_token) = context.first_non_trivia_token_in_span(span) else {
-        return false;
-    };
-    let Some(last_token) = context.last_non_trivia_token_in_span(span) else {
-        return false;
-    };
-
-    first_token.token.ty == TokenType::OpenParenthesis
-        && last_token.token.ty == TokenType::CloseParenthesis
-}
-
 /// Return whether a sequence expression needs parentheses in its parent context.
 pub(crate) fn sequence_expression_needs_parens(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
+        return true;
     };
 
     if parent_type != NodeType::Expression {
@@ -355,10 +338,7 @@ pub(crate) fn sequence_expression_needs_parens(
             !initialization.is_some_and(|value_id| value_id == node_id)
                 && !increment.is_some_and(|value_id| value_id == node_id)
         }
-        // preserve explicit nested grouping: `(1, (2, 3), 4)`
-        Expression::SequenceExpression { .. } => {
-            expression_has_outer_parentheses_tokens(context, node_id)
-        }
+        Expression::SequenceExpression { .. } => true,
         _ => true,
     }
 }

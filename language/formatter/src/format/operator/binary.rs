@@ -1,14 +1,13 @@
-use crate::format::annotation::{format_trailing_comments, prefix_annotations};
-use crate::format::expression::write_expression_without_prefix_annotations;
+use crate::format::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, BinaryOperator, Expression, IfCondition, IfKind, LocalNodeId, MatchKind, Member,
-    NodeType, OperatorPrecedence, Property, TokenType, UnaryOperator,
+    NodeType, OperatorPrecedence, Property, TokenType,
 };
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, indent, soft_block_indent,
-    soft_line_break_or_space, soft_line_indent_or_space, space, token,
+    format_with, group, indent, soft_block_indent, soft_line_break_or_space,
+    soft_line_indent_or_space, space,
 };
 use destack_fir::write;
 use destack_source::Span;
@@ -120,11 +119,24 @@ fn binary_operator_is_remainder(operator: BinaryOperator) -> bool {
     operator == BinaryOperator::Remainder
 }
 
+/// Return the precedence value used by binary expression formatting.
+#[inline]
+pub(crate) fn binary_operator_format_precedence(operator: BinaryOperator) -> u16 {
+    if is_logical_binary_operator(operator) {
+        return operator.precedence();
+    }
+
+    operator.precedence_group() as u16
+}
+
 /// Return whether nested binaries should flatten into one chain.
 #[inline]
-fn should_flatten_binary(parent_operator: BinaryOperator, operator: BinaryOperator) -> bool {
-    let parent_precedence = parent_operator.precedence_group();
-    let precedence = operator.precedence_group();
+pub(crate) fn should_flatten_binary(
+    parent_operator: BinaryOperator,
+    operator: BinaryOperator,
+) -> bool {
+    let parent_precedence = binary_operator_format_precedence(parent_operator);
+    let precedence = binary_operator_format_precedence(operator);
 
     if parent_precedence != precedence {
         return false;
@@ -181,97 +193,6 @@ fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOpera
     )
 }
 
-/// Return whether one direct child expression is the left operand of its binary parent.
-fn binary_operand_is_left(
-    context: &DestackFormatContext<'_>,
-    operand_id: LocalNodeId<Expression>,
-) -> Option<bool> {
-    let (parent_id, parent_type) = context.parent(operand_id)?;
-    if parent_type != NodeType::Expression {
-        return None;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::Binary { left, right, .. } = context.tree.get(parent_id) else {
-        return None;
-    };
-
-    if *left == operand_id {
-        return Some(true);
-    }
-
-    if *right == operand_id {
-        return Some(false);
-    }
-
-    None
-}
-
-/// Return whether one expression is a prefix-like left operand of `in`.
-fn expression_is_relational_prefix_left_operand(expression: &Expression) -> bool {
-    match expression {
-        Expression::Unary { operator, .. } => matches!(
-            operator,
-            UnaryOperator::Not
-                | UnaryOperator::Plus
-                | UnaryOperator::Negate
-                | UnaryOperator::WrappingNegate
-                | UnaryOperator::ElementwiseNot
-                | UnaryOperator::Typeof
-                | UnaryOperator::Void
-                | UnaryOperator::Dereference
-                | UnaryOperator::Spread
-        ),
-        Expression::Await { .. }
-        | Expression::AwaitMaybe { .. }
-        | Expression::Yield { .. }
-        | Expression::Delete { .. } => true,
-        _ => false,
-    }
-}
-
-/// Return whether a binary operand requires explicit grouping parentheses.
-fn binary_operand_requires_grouping_parentheses(
-    context: &DestackFormatContext<'_>,
-    parent_operator: BinaryOperator,
-    operand_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(operand_is_left) = binary_operand_is_left(context, operand_id) else {
-        return false;
-    };
-
-    let expression = context.tree.get(operand_id);
-
-    // relational prefix left operands
-    if operand_is_left
-        && matches!(parent_operator, BinaryOperator::In)
-        && expression_is_relational_prefix_left_operand(expression)
-    {
-        return true;
-    }
-
-    let Expression::Binary {
-        operator: operand_operator,
-        ..
-    } = expression
-    else {
-        return false;
-    };
-
-    let parent_precedence = parent_operator.precedence_group() as u16;
-    let operand_precedence = operand_operator.precedence_group() as u16;
-
-    // lower precedence
-    if parent_precedence > operand_precedence {
-        return true;
-    }
-
-    // same precedence on the right
-    !operand_is_left
-        && parent_precedence == operand_precedence
-        && !should_flatten_binary(parent_operator, *operand_operator)
-}
-
 /// Return precedence value for an expression.
 #[inline]
 pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
@@ -302,7 +223,7 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
 
         // binary
-        Expression::Binary { operator, .. } => operator.precedence_group() as u16,
+        Expression::Binary { operator, .. } => binary_operator_format_precedence(*operator),
         Expression::As { .. } | Expression::Satisfies { .. } => u16::MAX,
         Expression::Is { .. } | Expression::InstanceOf { .. } => {
             OperatorPrecedence::Comparison as u16
@@ -320,65 +241,6 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         // atomic/primary expressions
         _ => u16::MAX,
     }
-}
-
-/// Format a binary operand with grouping parentheses when needed.
-pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parent_operator: BinaryOperator,
-    operand_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let operand_has_annotation = f.context().has_annotation(operand_id);
-    let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
-    let expression = f.context().tree.get(operand_id);
-    let needs_mixed_logical_grouping_parentheses = matches!(
-        (parent_operator, expression),
-        (
-            BinaryOperator::Or | BinaryOperator::Coalesce,
-            Expression::Binary {
-                operator: BinaryOperator::And | BinaryOperator::Coalesce,
-                ..
-            },
-        )
-    );
-    let needs_precedence_parentheses = expression_precedence(expression)
-        < parent_operator.precedence_group() as u16
-        || binary_operand_requires_grouping_parentheses(f.context(), parent_operator, operand_id);
-    let needs_grouping_parentheses =
-        needs_precedence_parentheses || needs_mixed_logical_grouping_parentheses;
-
-    if needs_grouping_parentheses {
-        // prefix annotations
-        if operand_has_prefix_annotation {
-            write!(f, [prefix_annotations(f.context(), operand_id), token("(")])?;
-            write_expression_without_prefix_annotations(f, operand_id)?;
-            write!(f, [token(")")])?;
-
-            return Ok(());
-        }
-
-        // multiline annotations
-        if operand_has_annotation {
-            write!(
-                f,
-                [
-                    token("("),
-                    block_indent(&operand_id),
-                    hard_line_break(),
-                    token(")")
-                ]
-            )?;
-
-            return Ok(());
-        }
-
-        // simple grouped operand
-        write!(f, [token("("), operand_id, token(")")])?;
-
-        return Ok(());
-    }
-
-    write!(f, [operand_id])
 }
 
 /// Write one separating space after the left operand when no postfix trivia exists.
@@ -455,7 +317,11 @@ impl BinaryLikeExpression {
         let parent_id = LocalNodeId::<Expression>::new(parent_id);
 
         match context.tree.get(parent_id) {
-            Expression::If { condition, .. } => matches!(
+            Expression::If {
+                kind: IfKind::If,
+                condition,
+                ..
+            } => matches!(
                 condition,
                 IfCondition::Expression { condition } if *condition == self.node_id
             ),
@@ -506,6 +372,33 @@ impl BinaryLikeExpression {
         let Some((parent_id, parent_type)) = context.parent(ternary_expression_id) else {
             return true;
         };
+
+        if parent_type == NodeType::Argument {
+            let argument_id = LocalNodeId::<Argument>::new(parent_id);
+            let argument_is_value = matches!(
+                context.tree.get(argument_id),
+                Argument::Positional { value } if *value == ternary_expression_id
+            );
+            if !argument_is_value {
+                return true;
+            }
+
+            let Some((parent_id, NodeType::Expression)) = context.parent(argument_id) else {
+                return true;
+            };
+
+            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+
+            return !matches!(
+                context.tree.get(parent_expression_id),
+                Expression::Call { .. }
+                    | Expression::New { .. }
+                    | Expression::Import { .. }
+                    | Expression::ImportMeta
+                    | Expression::NewTarget
+            );
+        }
+
         if parent_type != NodeType::Expression {
             return true;
         }
@@ -603,11 +496,17 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
     fn format(&self, f: &mut FirFormatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             // left side
-            Self::Left { parent } => format_binary_operand_with_grouping_parentheses(
-                f,
-                parent.operator(f.context()),
-                parent.left(f.context()),
-            ),
+            Self::Left { parent } => {
+                let (left, following_span_start) = {
+                    let context = f.context();
+                    let left = parent.left(context);
+                    let right = parent.right(context);
+
+                    (left, context.span(right).start)
+                };
+
+                with_following_span_start(f, following_span_start, |f| write!(f, [group(&left)]))
+            }
 
             // operator and right side
             Self::Right {
@@ -616,11 +515,8 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
             } => {
                 // source facts
                 let (
-                    left,
                     right,
                     operator,
-                    enclosing_span,
-                    left_span,
                     left_is_same_kind,
                     right_is_same_kind,
                     parent_is_same_kind,
@@ -630,8 +526,6 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                     let left = parent.left(context);
                     let right = parent.right(context);
                     let operator = parent.operator(context);
-                    let enclosing_span = context.span(parent.node_id);
-                    let left_span = context.span(left);
                     let left_is_same_kind =
                         expression_is_same_binary_kind(context.tree.get(left), operator);
                     let right_is_same_kind =
@@ -650,11 +544,8 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                     let should_break = binary_expression_has_line_suffix_comment(context, left);
 
                     (
-                        left,
                         right,
                         operator,
-                        enclosing_span,
-                        left_span,
                         left_is_same_kind,
                         right_is_same_kind,
                         parent_is_same_kind,
@@ -662,18 +553,8 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                     )
                 };
 
-                // trailing comments after the left operand
-                write!(
-                    f,
-                    [format_trailing_comments(
-                        enclosing_span,
-                        left_span,
-                        f.context().span(right).start
-                    )]
-                )?;
-
                 // separator space after left side
-                write_space_after_binary_left_if_needed(f, left, operator)?;
+                write_space_after_binary_left_if_needed(f, parent.left(f.context()), operator)?;
 
                 let operator_and_right = format_with(|f: &mut DestackFormatter<'a, '_>| {
                     write!(f, [operator])?;
@@ -700,7 +581,7 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                         write!(f, [soft_line_break_or_space()])?;
                     }
 
-                    format_binary_operand_with_grouping_parentheses(f, operator, right)
+                    write!(f, [right])
                 });
 
                 // group boundaries

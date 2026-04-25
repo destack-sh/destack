@@ -1,6 +1,8 @@
 use super::format_generic_argument_list;
-use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
-use crate::format::chain::{member_property_start, transparent_inner_expression};
+use crate::format::annotation::{
+    FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
+};
+use crate::format::chain::member_property_start;
 use crate::format::operator::{assign_pattern_target_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
@@ -42,8 +44,7 @@ fn format_type_template_interpolation_body<'ast>(
     let trailing_comments = f
         .context()
         .comments()
-        .comments_before_character(span.start, b'}')
-        .to_vec();
+        .comments_before_character(span.start, b'}');
 
     write!(f, [expression_id])?;
 
@@ -329,13 +330,14 @@ fn write_static_member_expression<'ast>(
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
     let (receiver_id, optional_position) = optional_member_receiver(f.context(), receiver_id);
-    let separator_comments = postfix_separator_comments(f.context(), node_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
 
     match static_member_layout(f.context(), node_id, receiver_id) {
         StaticMemberLayout::NoBreak => {
             format_member_receiver(f, receiver_id)?;
+
+            let separator_comments = postfix_separator_comments(f.context(), node_id);
             if !separator_comments.is_empty() {
                 write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
@@ -344,6 +346,8 @@ fn write_static_member_expression<'ast>(
         }
         StaticMemberLayout::BreakAfterObject => {
             format_member_receiver(f, receiver_id)?;
+
+            let separator_comments = postfix_separator_comments(f.context(), node_id);
             if !separator_comments.is_empty() {
                 write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
@@ -387,9 +391,9 @@ fn write_private_member_expression<'ast>(
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    let separator_comments = postfix_separator_comments(f.context(), node_id);
-
     format_member_receiver(f, receiver_id)?;
+
+    let separator_comments = postfix_separator_comments(f.context(), node_id);
     if !separator_comments.is_empty() {
         write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
     }
@@ -574,7 +578,14 @@ pub(crate) fn write_index_access<'ast>(
                 ])]
             )?;
         } else {
-            write!(f, [soft_block_indent(&index_id)])?;
+            write!(
+                f,
+                [soft_block_indent(&format_node_with_trailing_comments(
+                    f.context().span(node_id),
+                    index_id,
+                    0,
+                ))]
+            )?;
         }
         write!(f, [token("]")])
     });
@@ -594,9 +605,9 @@ pub(crate) fn format_index_expression<'ast>(
         index,
     } = f.context().tree.get(node_id)
     {
-        let separator_comments = postfix_separator_comments(f.context(), node_id);
-
         write_postfix_base_expression(f, *left)?;
+
+        let separator_comments = postfix_separator_comments(f.context(), node_id);
         if !separator_comments.is_empty() {
             write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
         }
@@ -605,11 +616,8 @@ pub(crate) fn format_index_expression<'ast>(
             write!(f, [token(".")])?;
         }
         if let Some(index) = index {
-            let inner_index_id = transparent_inner_expression(f.context(), *index);
-            let should_parenthesize = matches!(
-                f.context().tree.get(inner_index_id),
-                Expression::Assign { .. }
-            );
+            let should_parenthesize =
+                matches!(f.context().tree.get(*index), Expression::Assign { .. });
             write_index_access(f, node_id, *index, should_parenthesize)?;
         } else {
             write!(f, [token("[]")])?;

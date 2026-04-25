@@ -13,9 +13,9 @@ use crate::format::annotation::{
     infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
 };
 use crate::format::call::{
-    expression_is_long_curried_call, format_call_arguments_in_chain, format_call_expression,
+    expression_is_long_curried_call, format_call_arguments, format_call_expression,
 };
-use crate::format::context::DestackFormatterSpeculationExt;
+use crate::format::context::{DestackFormatterSpeculationExt, with_following_span_start};
 use crate::format::expression::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
     write_index_access,
@@ -137,7 +137,6 @@ impl MemberChain {
                     formatted_root_id,
                     group.members(),
                     following_group_first_member.as_ref(),
-                    false,
                 )
             });
             let will_break = f.speculate_will_break_after(start, &content)?;
@@ -575,7 +574,6 @@ fn write_one_line_chain<'ast>(
             formatted_root_id,
             group.members(),
             following_group_first_operation,
-            false,
         )?;
         skip_comments_after_chain_group(f, group)?;
     }
@@ -620,12 +618,12 @@ fn write_expanded_chain<'ast>(
                 )
             });
     let format_groups = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        for (group_index, group) in tail_groups.iter().enumerate() {
+        for (group_index, tail_group) in tail_groups.iter().enumerate() {
             let should_skip_first_break =
                 group_index == 0 && skip_first_soft_break_for_conditional_head;
             let should_insert_break = !should_skip_first_break
                 && (group_index == 0
-                    || !group.first().is_some_and(|operation| {
+                    || !tail_group.first().is_some_and(|operation| {
                         let node_id = chain_member_node_id(operation);
 
                         f.context()
@@ -639,24 +637,26 @@ fn write_expanded_chain<'ast>(
                             })
                     }));
             if should_insert_break {
-                if group.needs_empty_line() {
+                if tail_group.needs_empty_line() {
                     write!(f, [empty_line()])?;
                 } else {
                     write!(f, [hard_line_break()])?;
                 }
             }
 
-            write_chain_group(
-                f,
-                formatted_root_id,
-                group.members(),
-                tail_groups
-                    .iter()
-                    .nth(group_index + 1)
-                    .and_then(|group| group.first()),
-                should_insert_break,
-            )?;
-            skip_comments_after_chain_group(f, group)?;
+            let group_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write_chain_group(
+                    f,
+                    formatted_root_id,
+                    tail_group.members(),
+                    tail_groups
+                        .iter()
+                        .nth(group_index + 1)
+                        .and_then(|group| group.first()),
+                )
+            });
+            write!(f, [group(&group_content)])?;
+            skip_comments_after_chain_group(f, tail_group)?;
         }
 
         Ok(())
@@ -787,7 +787,6 @@ fn write_chain_operation_leading_comments<'ast>(
     if leading_comments.is_empty() {
         return Ok(());
     }
-
     write!(f, [FormatLeadingComments::Comments(&leading_comments)])
 }
 
@@ -872,13 +871,18 @@ fn write_chain_head<'ast>(
                 }
             }
             ChainRoot::Expression(node_id) => {
-                // the root expression still owns its own base formatting
-                write_postfix_base_expression(f, *node_id)?;
-                write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
-
                 let first_continuation = head
                     .first()
                     .or_else(|| first_tail_group_member(tail_groups));
+                let following_span_start = first_continuation
+                    .and_then(|operation| chain_operation_start(f.context(), operation))
+                    .unwrap_or(0);
+
+                // the root expression still owns its own base formatting
+                with_following_span_start(f, following_span_start, |f| {
+                    write_postfix_base_expression(f, *node_id)?;
+                    write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])
+                })?;
 
                 write_chain_trailing_comments(
                     f,
@@ -1155,7 +1159,7 @@ fn write_chain_operation<'ast>(
                 if !generic_arguments.is_empty() {
                     format_generic_argument_list(f, generic_arguments)?;
                 }
-                format_call_arguments_in_chain(f, *call_node_id, arguments)?;
+                format_call_arguments(f, *call_node_id, arguments)?;
             }
         }
         ChainMember::Index {
@@ -1212,7 +1216,6 @@ fn write_chain_group<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainMember],
     following_group_first_operation: Option<&ChainMember>,
-    _skip_first_member_gap_comments: bool,
 ) -> FormatResult<()> {
     for (index, op) in ops.iter().enumerate() {
         let next_operation = ops.get(index + 1).or(following_group_first_operation);

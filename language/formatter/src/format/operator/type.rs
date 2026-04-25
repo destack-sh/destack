@@ -1,4 +1,6 @@
-use crate::format::annotation::{FormatLeadingComments, FormatTrailingComments};
+use crate::format::annotation::{
+    FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
+};
 use crate::format::chain::transparent_inner_expression;
 use crate::format::expression::{
     write_expression_without_trailing_comments, write_type_expression_node,
@@ -356,8 +358,20 @@ fn format_as_or_satisfies_expression<'ast>(
             return Ok(());
         }
 
-        // block comment cast
-        write!(f, [expression_id, space(), token(operation), space()])?;
+        // commented cast
+        write!(
+            f,
+            [
+                format_node_with_trailing_comments(
+                    f.context().span(node_id),
+                    expression_id,
+                    type_start
+                ),
+                space(),
+                token(operation),
+                space()
+            ]
+        )?;
         write_type_expression_with_inline_prefix_annotations(f, type_annotation_id)
     });
 

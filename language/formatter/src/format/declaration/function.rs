@@ -22,7 +22,7 @@ use destack_ast::{
 use destack_fir::format::{FormatNodes, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::ArrowParentheses;
 
 /// The cached content wrapper keyed by source span.
@@ -158,7 +158,7 @@ pub(crate) fn function_parameter_container_span(
 ) -> Span {
     context
         .tree
-        .get_side_span(node_id, NodeSpanType::Parameters)
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
         .unwrap_or_else(|| unreachable!("function declaration should own its parameter container"))
 }
 

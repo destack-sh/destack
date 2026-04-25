@@ -1,6 +1,7 @@
 mod argument;
 mod attribute;
 mod child;
+mod element;
 mod literal;
 mod whitespace;
 
@@ -9,7 +10,11 @@ pub(crate) use self::argument::{
 };
 pub(crate) use self::attribute::should_force_break_tree_attributes;
 pub(crate) use self::child::tree_child_breaks_element;
-pub(crate) use self::literal::{format_tree_literal_expression, tree_literal_should_break};
+pub(crate) use self::element::FormatTreeOpeningElement;
+pub(crate) use self::literal::{
+    format_tree_literal_expression, tree_literal_should_break,
+    tree_literal_uses_conditional_trailing_comments,
+};
 pub(crate) use self::whitespace::{
     is_jsx_whitespace_char, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
 };

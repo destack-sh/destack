@@ -498,10 +498,13 @@ fn format_jsx_chain_ternary<'ast>(
 
     let layout = ternary_layout(f.context(), node_id);
     let format_inner = format_with(|f| {
-        write!(f, [condition, space(), token("?"), space()])?;
+        write_standard_ternary_test(f, layout, condition, then_expression)?;
+        write!(f, [space(), token("?"), space()])?;
         format_jsx_chain_branch(f, then_expression, false)?;
 
-        if let Some(else_expression) = else_expression {
+        if let Some(else_expression) = else_expression
+            && !ternary_branch_is_tree_like(f.context(), then_expression)
+        {
             let then_end = expression_trivia_anchor_end(f.context(), then_expression);
             let else_start = f.context().expression_token_start(else_expression);
             write_ternary_separator_comments(f, then_end, else_start, b':')?;

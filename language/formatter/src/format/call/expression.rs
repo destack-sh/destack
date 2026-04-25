@@ -1,5 +1,6 @@
 use super::argument::format_call_arguments;
 use crate::format::annotation::FormatTrailingComments;
+use crate::format::context::with_following_span_start;
 use crate::format::expression::{
     format_expression, format_generic_argument_list, write_expression_without_trailing_comments,
 };
@@ -150,7 +151,13 @@ pub(crate) fn format_new_expression<'ast>(
     generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    write!(f, [token("new"), space(), left])?;
+    write!(f, [token("new"), space()])?;
+
+    let callee_following_span_start = arguments
+        .first()
+        .map(|argument_id| f.context().span(*argument_id).start)
+        .unwrap_or_else(|| f.context().following_span_start());
+    with_following_span_start(f, callee_following_span_start, |f| write!(f, [left]))?;
 
     if !generic_arguments.is_empty() {
         format_generic_argument_list(f, generic_arguments)?;

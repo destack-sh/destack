@@ -22,7 +22,7 @@ use destack_fir::prelude::{
     space, token,
 };
 use destack_fir::{best_fitting, format_args, write};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::TrailingComma;
 
 /// Return whether any argument carries annotations.
@@ -75,7 +75,7 @@ fn can_group_lambda_argument(
             let block = context.tree.get(*block_id);
             let body_span = context
                 .tree
-                .get_side_span(declaration_id, NodeSpanType::Body)
+                .get_side_span(declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
                 .unwrap_or_else(|| context.span(body_id));
 
             if block.is_empty() && !context.comments().has_comment_before(body_span.end) {
@@ -555,7 +555,8 @@ fn grouped_function_argument_declaration_id(
     layout: GroupedCallArgumentLayout,
     is_only_argument: bool,
 ) -> Option<LocalNodeId<Declaration>> {
-    let value_id = argument_expression_id(context, argument_id)?;
+    let value_id =
+        transparent_inner_expression(context, argument_expression_id(context, argument_id)?);
     let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
         return None;
     };
@@ -814,6 +815,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         let Some(value_id) = argument_expression_id(f.context(), argument_id) else {
             unreachable!("grouped function argument should be one expression");
         };
+        let value_id = transparent_inner_expression(f.context(), value_id);
         let Expression::Declaration(declaration_id) = f.context().tree.get(value_id) else {
             unreachable!("grouped function argument should be one declaration expression");
         };
@@ -826,7 +828,10 @@ pub(crate) fn write_grouped_arguments<'ast>(
         let cache_key = f
             .context()
             .tree
-            .get_side_span(declaration_id, NodeSpanType::Parameters)
+            .get_side_span(
+                declaration_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+            )
             .unwrap_or_else(|| {
                 unreachable!("grouped function argument should own its parameter container")
             });
@@ -848,6 +853,9 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 disallow_trailing_separator,
                 true,
             );
+        }
+        if let Some(interned) = interned {
+            f.context_mut().cache_element(&cache_key, interned);
         }
 
         let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {

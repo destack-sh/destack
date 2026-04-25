@@ -5,7 +5,7 @@ use super::function::{
     write_function_return_type,
 };
 use crate::format::annotation::{
-    block_infix_annotations, format_leading_comments, postfix_annotations,
+    FormatTrailingComments, block_infix_annotations, format_leading_comments, postfix_annotations,
 };
 use crate::format::chain::{is_lambda_expression, transparent_inner_expression};
 use crate::format::declaration::signature::{
@@ -138,6 +138,7 @@ fn write_lambda_parameters_and_return_type<'ast>(
     body: &Option<LocalNodeId<Expression>>,
     parameters: &[LocalNodeId<Parameter>],
     can_omit_parens: bool,
+    cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     // grouping
     let group_parameters =
@@ -151,6 +152,11 @@ fn write_lambda_parameters_and_return_type<'ast>(
             can_omit_parens,
         )
     });
+    let format_parameters = FormatContentWithCacheMode::new(
+        function_parameter_container_span(f.context(), node_id),
+        format_parameters,
+        cache_mode,
+    );
 
     if group_parameters {
         write!(f, [group(&format_parameters)])?;
@@ -373,17 +379,10 @@ fn lambda_body_has_leading_own_line_comment(
     body_id: LocalNodeId<Expression>,
 ) -> bool {
     let body_span = context.span(body_id);
-    let comment_start = context
-        .previous_non_trivia_token_before_span(body_span)
-        .map_or(body_span.start, |token| token.span.end);
-    let leading_comments = context
-        .comments()
-        .comments_in_range(comment_start, body_span.start);
 
-    leading_comments
-        .iter()
-        .copied()
-        .any(|comment| comment.preceded_by_newline() || comment.is_line())
+    context
+        .comments()
+        .has_leading_own_line_comment(body_span.start)
 }
 
 /// Return whether one lambda body should keep its own break strategy.
@@ -571,9 +570,11 @@ fn write_single_lambda_layout<'ast>(
         return write!(f, [format_body]);
     }
 
+    write!(f, [formatted_signature])?;
+
     // self-breaking bodies
     if lambda_body_has_soft_line_break(f.context(), body_id, body_expression_id) {
-        return write!(f, [formatted_signature, space(), format_body]);
+        return write!(f, [space(), format_body]);
     }
 
     // flat bodies
@@ -586,7 +587,6 @@ fn write_single_lambda_layout<'ast>(
     let should_add_soft_line = is_last_call_argument
         || lambda_declaration_tree_argument_should_add_soft_line(f.context(), declaration_id);
 
-    write!(f, [formatted_signature])?;
     write!(
         f,
         [group(&format_args![
@@ -841,6 +841,7 @@ fn write_lambda_head<'ast>(
     is_first_in_chain: bool,
 ) -> FormatResult<()> {
     let parameters = function_parameters(signature);
+    let parameter_container_span = function_parameter_container_span(f.context(), node_id);
     let has_generic_parameters = !signature.generic_parameters.is_empty();
     let can_omit_parens = function_can_omit_lambda_parameter_parentheses(
         f,
@@ -863,6 +864,7 @@ fn write_lambda_head<'ast>(
             body,
             &parameters,
             can_omit_parens,
+            options.cache_mode,
         )?;
 
         let where_clauses = signature.where_clauses.as_slice();
@@ -888,23 +890,37 @@ fn write_lambda_head<'ast>(
     });
 
     let head = group(&head);
-    let cache_key = function_parameter_container_span(f.context(), node_id);
+    let cache_key = parameter_container_span;
     let head = FormatContentWithCacheMode::new(cache_key, head, options.cache_mode);
+    let comments_before_arrow = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let comments_before_arrow = f
+            .context()
+            .comments()
+            .comments_before_character(parameter_container_span.end, b'=');
+
+        write!(f, [FormatTrailingComments::Comments(comments_before_arrow)])
+    });
+    let comments_before_arrow = FormatContentWithCacheMode::new(
+        f.context().span(node_id),
+        comments_before_arrow,
+        options.cache_mode,
+    );
 
     if options.call_argument_layout.is_some() {
         if is_first_in_chain {
-            return write!(f, [head]);
+            return write!(f, [head, comments_before_arrow]);
         }
 
         let mut buffer = RemoveSoftLinesBuffer::new(f);
-        return write!(buffer, [head]);
+        return write!(buffer, [head, comments_before_arrow]);
     }
 
     write!(
         f,
         [
             (!is_first_in_chain).then_some(soft_line_break_or_space()),
-            head
+            head,
+            comments_before_arrow
         ]
     )
 }

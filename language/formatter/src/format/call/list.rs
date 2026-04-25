@@ -8,8 +8,8 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
 use destack_fir::prelude::{
-    block_indent, empty_line, format_with, group, if_group_breaks, line_suffix_boundary,
-    soft_block_indent, soft_line_break_or_space, space, token,
+    block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
+    soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
 use destack_source::Span;
@@ -25,10 +25,7 @@ pub(crate) enum CallArgumentSeparator {
     Always,
 
     /// Emit a comma only when the enclosing argument group breaks.
-    IfGroupBreaks {
-        /// The surrounding argument group id.
-        group_id: GroupId,
-    },
+    IfGroupBreaks,
 }
 
 /// Return the source line distance between two byte offsets.
@@ -79,7 +76,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
-    group_id: GroupId,
+    _group_id: GroupId,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
     let write_trailing_separator = !disallow_trailing_separator
@@ -119,10 +116,8 @@ pub(crate) fn format_all_args_broken_out<'ast>(
 
                 Ok(())
             })),
-            line_suffix_boundary(),
             token(")")
         ])
-        .with_id(Some(group_id))
         .should_expand(true)]
     )
 }
@@ -162,7 +157,6 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
 
                 Ok(())
             })),
-            line_suffix_boundary(),
             token(")")
         ])
         .should_expand(true)]
@@ -192,11 +186,8 @@ fn write_call_argument_separator<'ast>(
         CallArgumentSeparator::Always => {
             write!(f, [token(",")])?;
         }
-        CallArgumentSeparator::IfGroupBreaks { group_id } => {
-            write!(
-                f,
-                [if_group_breaks(&token(",")).with_group_id(Some(group_id))]
-            )?;
+        CallArgumentSeparator::IfGroupBreaks => {
+            write!(f, [if_group_breaks(&token(","))])?;
         }
     }
 
@@ -292,7 +283,7 @@ pub(crate) fn write_simple_call_argument_list<'ast>(
         write_call_argument_in_list(f, argument_id, following_span_start, separator)?;
     }
 
-    write!(f, [line_suffix_boundary(), token(")")])
+    write!(f, [token(")")])
 }
 
 /// Return whether one call argument list contains ignored ranges.
@@ -324,7 +315,6 @@ pub(crate) fn write_ignored_call_arguments<'ast>(
                 TrailingSeparator::Allowed,
                 Some(group_id),
             )),
-            line_suffix_boundary(),
             token(")")
         ])
         .with_id(Some(group_id))
@@ -355,7 +345,7 @@ fn empty_call_infix_requires_multiline(
 pub(crate) fn format_default_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _call_span: Span,
-    group_id: GroupId,
+    _group_id: GroupId,
     arguments: &[LocalNodeId<Argument>],
     force_expand: bool,
     disallow_trailing_separator: bool,
@@ -387,7 +377,7 @@ pub(crate) fn format_default_call_argument_list<'ast>(
                         let separator = if index + 1 != arguments.len() {
                             CallArgumentSeparator::Always
                         } else if trailing_separator == TrailingSeparator::Allowed {
-                            CallArgumentSeparator::IfGroupBreaks { group_id }
+                            CallArgumentSeparator::IfGroupBreaks
                         } else if trailing_separator == TrailingSeparator::Mandatory {
                             CallArgumentSeparator::Always
                         } else {
@@ -404,7 +394,6 @@ pub(crate) fn format_default_call_argument_list<'ast>(
 
                     Ok(())
                 })),
-                line_suffix_boundary(),
                 token(")")
             ]
         )
@@ -421,7 +410,6 @@ pub(crate) fn format_default_call_argument_list<'ast>(
                     f.write_node(element.clone());
                     Ok(())
                 }))
-                .with_id(Some(group_id))
                 .should_expand(should_expand)
             ]
         )?;
