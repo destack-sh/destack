@@ -3,7 +3,7 @@ use destack_ast::{
     Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenType, TypeExpression,
     VarianceModifier, Visibility,
 };
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
@@ -358,21 +358,15 @@ impl Parser {
         }
 
         // check for valid literal member names
-        match next_token.token.literal {
+        matches!(
+            next_token.token.literal,
             Some(LiteralType::String {
                 is_terminated: true,
                 has_invalid_escape: false,
-            }) => true,
-            Some(LiteralType::Character { is_terminated, .. })
-                if is_terminated
-                    && (self.language.is_typescript() || self.language.is_javascript()) =>
-            {
-                true
-            }
-            Some(LiteralType::Boolean { .. }) => true,
-            Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => true,
-            _ => false,
-        }
+            }) | Some(LiteralType::Boolean { .. })
+                | Some(LiteralType::Int { .. })
+                | Some(LiteralType::Float { .. })
+        )
     }
 
     /// Return true when `abstract` and `override` can be parsed as modifiers.
@@ -847,8 +841,11 @@ impl Parser {
 
         // set type span for the type annotation
         if let Some(span) = ty_span {
-            self.tree
-                .set_side_span(parameter_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                parameter_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         // attach parsed decorators to the parameter node
@@ -1171,8 +1168,11 @@ impl Parser {
         self.tree.set_main_span(parameter_id, name_span);
 
         if let Some(span) = declared_type_span {
-            self.tree
-                .set_side_span(parameter_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                parameter_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         Ok(parameter_id)
@@ -2089,7 +2089,7 @@ mod tests {
         PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
         Visibility,
     };
-    use destack_source::{LanguageType, NodeSpanType};
+    use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
     use crate::{
         TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
@@ -2554,7 +2554,10 @@ mod tests {
 
         let leading_span = parser
             .tree
-            .get_side_span(generic_parameters[0], NodeSpanType::Leading)
+            .get_side_span(
+                generic_parameters[0],
+                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+            )
             .expect("first generic parameter should record its container leading span");
 
         assert_eq!(parser.file.span_str(leading_span), "<\n  ");
@@ -3416,8 +3419,8 @@ const value = 1;
 
         assert_eq!(elements.len(), 1);
         assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
-            assert_eq!(*is_optional, false);
-            assert_eq!(*is_readonly, false);
+            assert!(!*is_optional);
+            assert!(!*is_readonly);
             assert_string!(parser, label.unwrap(), "label");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
         });
@@ -3434,8 +3437,8 @@ const value = 1;
 
         assert_eq!(elements.len(), 1);
         assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
-            assert_eq!(*is_optional, true);
-            assert_eq!(*is_readonly, false);
+            assert!(*is_optional);
+            assert!(!*is_readonly);
             assert_string!(parser, label.unwrap(), "options");
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 2);

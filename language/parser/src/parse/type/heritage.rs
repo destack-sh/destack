@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Return whether one optional heritage keyword is present at the current position.
@@ -237,9 +237,11 @@ impl Parser {
                 Ok(parser.normalize_super_type_expression(ty))
             },
             |parser, ty, super_type_span, _| {
-                parser
-                    .tree
-                    .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+                parser.tree.set_side_span(
+                    *ty,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    super_type_span,
+                );
 
                 Ok(())
             },
@@ -255,9 +257,11 @@ impl Parser {
             terminators,
             |parser| parser.eat_expression(parser.options.in_before_block()),
             |parser, ty, super_type_span, item_starts_with_parenthesis| {
-                parser
-                    .tree
-                    .set_side_span(*ty, NodeSpanType::Type, super_type_span);
+                parser.tree.set_side_span(
+                    *ty,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    super_type_span,
+                );
 
                 if !item_starts_with_parenthesis
                     && parser.super_type_has_invalid_unparenthesized_head(*ty)

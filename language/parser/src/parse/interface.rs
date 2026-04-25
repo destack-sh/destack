@@ -5,7 +5,7 @@ use crate::{ParseResult, Parser, ParserMark};
 use destack_ast::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Eat an Interface.
@@ -128,8 +128,11 @@ impl Parser {
                 self.tree.set_main_span(interface_id, span);
             }
             if let Some(span) = generic_parameter_container_span {
-                self.tree
-                    .set_side_span(interface_id, NodeSpanType::GenericParameters, span);
+                self.tree.set_side_span(
+                    interface_id,
+                    NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                    span,
+                );
             }
 
             Ok(interface_id)
@@ -155,7 +158,7 @@ mod tests {
     use crate::{
         TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
     };
-    use destack_source::{LanguageType, NodeSpanType};
+    use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
     #[test]
     fn test_parse_interface_anonymous_empty() {
@@ -441,7 +444,10 @@ interface Foo {
 
         let generic_parameter_span = parser
             .tree
-            .get_side_span(interface_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                interface_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .expect("missing interface generic parameter span");
         assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
     }
@@ -565,13 +571,13 @@ interface SQL {
 
                 let generic_parameter_span = parser
                     .tree
-                    .get_side_span(members[0], NodeSpanType::GenericParameters)
+                    .get_side_span(members[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                     .expect("missing generic parameter span");
                 assert_eq!(parser.get_span_str(generic_parameter_span), "<T = any>");
 
                 let parameter_span = parser
                     .tree
-                    .get_side_span(members[0], NodeSpanType::Parameters)
+                    .get_side_span(members[0], NodeSpanType::Region(NodeSpanRegion::Parameters))
                     .expect("missing parameter span");
                 assert_eq!(parser.get_span_str(parameter_span), "(value: T)");
 
@@ -641,13 +647,13 @@ interface SQL {
 
                 let optional_span = parser
                     .tree
-                    .get_side_span(members[4], NodeSpanType::Trailing)
+                    .get_side_span(members[4], NodeSpanType::Boundary(NodeSpanBoundary::Trailing))
                     .expect("missing optional marker span");
                 assert_eq!(parser.get_span_str(optional_span), "?");
 
                 let parameter_span = parser
                     .tree
-                    .get_side_span(members[4], NodeSpanType::Parameters)
+                    .get_side_span(members[4], NodeSpanType::Region(NodeSpanRegion::Parameters))
                     .expect("missing parameter span");
                 assert_eq!(parser.get_span_str(parameter_span), "()");
 

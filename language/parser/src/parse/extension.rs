@@ -3,7 +3,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Eat an extension (incl. `extension` keyword).
@@ -87,7 +87,7 @@ impl Parser {
         // record the full type span for the target type
         self.tree.set_side_span(
             target_type,
-            NodeSpanType::Type,
+            NodeSpanType::Region(NodeSpanRegion::Type),
             self.get_span_from(&target_start),
         );
 
@@ -124,8 +124,11 @@ impl Parser {
             self.tree.set_main_span(extension_id, span);
         }
         if let Some(span) = generic_parameter_container_span {
-            self.tree
-                .set_side_span(extension_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                extension_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         Ok(extension_id)
@@ -138,7 +141,7 @@ mod tests {
         Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntType, Member,
         Parameter, TypeExpression, TypeLiteral, WhereClause,
     };
-    use destack_source::NodeSpanType;
+    use destack_source::{NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -200,7 +203,7 @@ extension of Foo {
         assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { target_type, .. }) => {
             let span = parser
                 .tree
-                .get_side_span(*target_type, NodeSpanType::Type)
+                .get_side_span(*target_type, NodeSpanType::Region(NodeSpanRegion::Type))
                 .expect("expected target type span");
             assert_eq!(parser.get_span_str(span), "Foo.Bar");
         });
@@ -338,7 +341,10 @@ extension<U> of Bar<T> implements Baz<T> {
 
         let generic_parameter_span = parser
             .tree
-            .get_side_span(extension_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                extension_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .expect("missing extension generic parameter span");
         assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
     }
@@ -399,7 +405,10 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
 
         let generic_parameter_span = parser
             .tree
-            .get_side_span(extension_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                extension_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .expect("missing named extension generic parameter span");
         assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
     }

@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 use destack_ast::{
     Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypeMappedParameter, TypeModifier,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Return true when the current token starts a mapped type head.
@@ -165,8 +165,11 @@ impl Parser {
         self.tree
             .set_side_span(mapped_id, NodeSpanType::Head, mapped_head_span);
         if let Some(value_type_span) = value_type_span {
-            self.tree
-                .set_side_span(mapped_id, NodeSpanType::Type, value_type_span);
+            self.tree.set_side_span(
+                mapped_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                value_type_span,
+            );
         }
         self.tree.set_main_span(mapped_id, name_span);
 

@@ -3,7 +3,7 @@ use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Eat a where context declaration maybe.
@@ -118,8 +118,11 @@ impl Parser {
 
         // spans
         self.tree.set_main_span(clause, left_span);
-        self.tree
-            .set_side_span(clause, NodeSpanType::Type, self.get_span_from(&type_start));
+        self.tree.set_side_span(
+            clause,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            self.get_span_from(&type_start),
+        );
 
         Ok(clause)
     }
@@ -128,7 +131,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{CommentKind, IntType, NodeType, TypeExpression, TypeLiteral, WhereClause};
-    use destack_source::NodeSpanType;
+    use destack_source::{NodeSpanRegion, NodeSpanType};
 
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
 
@@ -260,7 +263,7 @@ mod tests {
         // type span
         let type_span = parser
             .tree
-            .get_side_span(clause_id, NodeSpanType::Type)
+            .get_side_span(clause_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("expected type span");
         assert_eq!(parser.get_span_str(type_span), ": Numeric");
     }
@@ -286,7 +289,7 @@ mod tests {
         // : // bound-note\nNumeric
         let type_span = parser
             .tree
-            .get_side_span(clauses[0], NodeSpanType::Type)
+            .get_side_span(clauses[0], NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("expected where type span");
         assert_eq!(parser.get_span_str(type_span), ": // bound-note\nNumeric");
 

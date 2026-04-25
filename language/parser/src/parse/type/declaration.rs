@@ -6,7 +6,7 @@ use destack_ast::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
     TypeKind,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Return true when the current identifier head starts a type alias.
@@ -114,8 +114,11 @@ impl Parser {
             let declaration_id = self.insert_node(declaration, self.get_span_from(start));
             self.tree.set_main_span(declaration_id, name_span);
             if let Some(span) = generic_parameter_container_span {
-                self.tree
-                    .set_side_span(declaration_id, NodeSpanType::GenericParameters, span);
+                self.tree.set_side_span(
+                    declaration_id,
+                    NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                    span,
+                );
             }
 
             return Ok(self.insert_node(

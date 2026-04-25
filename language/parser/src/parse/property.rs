@@ -6,7 +6,7 @@ use destack_ast::{
     Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, Property, StringId, TokenType,
     TypeExpression, TypeMember, Visibility,
 };
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 use super::PendingDecorators;
 use crate::parse::argument::BindingModifiers;
@@ -835,8 +835,11 @@ impl Parser {
 
             // set type span for return type annotation
             if let Some(span) = return_type_span {
-                self.tree
-                    .set_side_span(property_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    property_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
 
             Ok(property_id)
@@ -987,8 +990,11 @@ impl Parser {
 
             // set type span for field type annotation
             if let Some(span) = type_span {
-                self.tree
-                    .set_side_span(property_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    property_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
 
             Ok(property_id)
@@ -1160,13 +1166,16 @@ impl Parser {
                 .set_head_span(member_id, self.get_span_from(&key_start));
             self.tree.set_side_span(
                 member_id,
-                NodeSpanType::Type,
+                NodeSpanType::Region(NodeSpanRegion::Type),
                 self.get_span_from(&type_start),
             );
 
             if let Some(span) = optional_span {
-                self.tree
-                    .set_side_span(member_id, NodeSpanType::Trailing, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+                    span,
+                );
             }
 
             return Ok(member_id);
@@ -1246,20 +1255,33 @@ impl Parser {
             }
 
             if let Some(span) = return_type_span {
-                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
 
             if let Some(span) = generic_parameter_span {
-                self.tree
-                    .set_side_span(member_id, NodeSpanType::GenericParameters, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                    span,
+                );
             }
 
-            self.tree
-                .set_side_span(member_id, NodeSpanType::Parameters, parameter_span);
+            self.tree.set_side_span(
+                member_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+                parameter_span,
+            );
 
             if let Some(span) = optional_span {
-                self.tree
-                    .set_side_span(member_id, NodeSpanType::Trailing, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+                    span,
+                );
             }
 
             return Ok(member_id);
@@ -1306,14 +1328,17 @@ impl Parser {
         if declared_type.is_some() {
             self.tree.set_side_span(
                 member_id,
-                NodeSpanType::Type,
+                NodeSpanType::Region(NodeSpanRegion::Type),
                 self.get_span_from(&type_start),
             );
         }
 
         if let Some(span) = optional_span {
-            self.tree
-                .set_side_span(member_id, NodeSpanType::Trailing, span);
+            self.tree.set_side_span(
+                member_id,
+                NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+                span,
+            );
         }
 
         Ok(member_id)
@@ -1565,16 +1590,26 @@ impl Parser {
 
             // set type span for return type annotation
             if let Some(span) = return_type_span {
-                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
 
             if let Some(span) = generic_parameter_span {
-                self.tree
-                    .set_side_span(member_id, NodeSpanType::GenericParameters, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                    span,
+                );
             }
 
-            self.tree
-                .set_side_span(member_id, NodeSpanType::Parameters, parameter_span);
+            self.tree.set_side_span(
+                member_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+                parameter_span,
+            );
 
             Ok(member_id)
         }
@@ -1683,7 +1718,11 @@ impl Parser {
 
             // set type span for field type annotation
             if let Some(span) = type_span {
-                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    member_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
 
             Ok(member_id)

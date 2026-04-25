@@ -8,7 +8,7 @@ use destack_ast::{
     FunctionTypeDeclaration, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType,
     TypeExpression,
 };
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// The keywords that can appear before a function declaration.
 pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
@@ -83,26 +83,38 @@ impl Parser {
 
         // return type
         if let Some(span) = function.return_type_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         // generic parameters
         if let Some(span) = function.generic_parameter_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         // parameters
         if let Some(span) = function.parameter_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Parameters, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+                span,
+            );
         }
 
         // body
         if let Some(span) = function.body_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Body, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Body),
+                span,
+            );
         }
 
         function_id
@@ -141,20 +153,29 @@ impl Parser {
 
         // return type
         if let Some(span) = function.return_type_span {
-            self.tree
-                .set_side_span(type_expression_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                type_expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         // generic parameters
         if let Some(span) = function.generic_parameter_span {
-            self.tree
-                .set_side_span(type_expression_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                type_expression_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         // parameters
         if let Some(span) = function.parameter_span {
-            self.tree
-                .set_side_span(type_expression_id, NodeSpanType::Parameters, span);
+            self.tree.set_side_span(
+                type_expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+                span,
+            );
         }
 
         type_expression_id
@@ -261,23 +282,35 @@ impl Parser {
             self.get_span_from(start),
         );
         if let Some(span) = return_type_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Type, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                span,
+            );
         }
 
         if let Some(span) = generic_parameter_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         if let Some(span) = parameter_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Parameters, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+                span,
+            );
         }
 
         if let Some(span) = body_container_span {
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Body, span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Body),
+                span,
+            );
         }
 
         function_id
@@ -539,8 +572,11 @@ impl Parser {
             );
             self.tree.set_main_span(parameter_id, parameter_name_span);
             if let Some(span) = parameter_type_span {
-                self.tree
-                    .set_side_span(parameter_id, NodeSpanType::Type, span);
+                self.tree.set_side_span(
+                    parameter_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    span,
+                );
             }
             parameters.push(parameter_id);
         }
@@ -1246,7 +1282,7 @@ mod tests {
         TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
-    use destack_source::{LanguageType, NodeSpanType};
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
@@ -1485,13 +1521,16 @@ function setns(
 
         let parameter_container_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Parameters)
+            .get_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+            )
             .unwrap();
         assert_eq!(parser.get_span_str(parameter_container_span), "(\nvalue\n)");
 
         let body_container_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Body)
+            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
             .unwrap();
         assert_eq!(parser.get_span_str(body_container_span), "value");
     }
@@ -1508,13 +1547,16 @@ function setns(
 
         let parameters_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Parameters)
+            .get_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+            )
             .unwrap();
         assert_eq!(parser.get_span_str(parameters_span), "value");
 
         let body_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Body)
+            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
             .unwrap();
         assert_eq!(parser.get_span_str(body_span), "value");
     }
@@ -1531,7 +1573,7 @@ function setns(
 
         let body_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Body)
+            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
             .unwrap();
         assert_eq!(parser.get_span_str(body_span), "({ key: value })");
     }
@@ -1893,13 +1935,19 @@ function h<T>
 
         let generic_parameter_container_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .unwrap();
         assert_eq!(parser.get_span_str(generic_parameter_container_span), "<T>");
 
         let parameter_container_span = parser
             .tree
-            .get_side_span(function_id, NodeSpanType::Parameters)
+            .get_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Parameters),
+            )
             .unwrap();
         assert_eq!(parser.get_span_str(parameter_container_span), "(tag: T)");
     }

@@ -7,7 +7,7 @@ use crate::{ParseResult, Parser, ParserMark};
 use destack_ast::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Eat a struct or class declaration.
@@ -163,8 +163,11 @@ impl Parser {
             self.tree.set_main_span(declaration_id, span);
         }
         if let Some(span) = generic_parameter_container_span {
-            self.tree
-                .set_side_span(declaration_id, NodeSpanType::GenericParameters, span);
+            self.tree.set_side_span(
+                declaration_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
         }
 
         Ok(declaration_id)
@@ -178,7 +181,7 @@ mod tests {
         IntType, Key, Member, Name, NodeType, Parameter, ScalarLiteral, StructDeclaration,
         TypeExpression, TypeLiteral, Visibility, WhereClause,
     };
-    use destack_source::{LanguageType, NodeSpanType};
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
@@ -696,7 +699,10 @@ class Box<T> {}
 
         let generic_parameter_span = parser
             .tree
-            .get_side_span(class_id, NodeSpanType::GenericParameters)
+            .get_side_span(
+                class_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+            )
             .expect("missing class generic parameter span");
 
         assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
@@ -768,13 +774,13 @@ struct Foo {
             assert_eq!(embedded_types.len(), 1);
             let extends_span = parser
                 .tree
-                .get_side_span(embedded_types[0], NodeSpanType::Type)
+                .get_side_span(embedded_types[0], NodeSpanType::Region(NodeSpanRegion::Type))
                 .expect("expected extends type span");
             assert_eq!(parser.get_span_str(extends_span), "Bar.Baz");
             assert_eq!(implements_types.len(), 1);
             let implements_span = parser
                 .tree
-                .get_side_span(implements_types[0], NodeSpanType::Type)
+                .get_side_span(implements_types[0], NodeSpanType::Region(NodeSpanRegion::Type))
                 .expect("expected implements type span");
             assert_eq!(parser.get_span_str(implements_span), "Qux");
         });
