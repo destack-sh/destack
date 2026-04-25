@@ -6,4 +6,4 @@ pub mod pattern;
 pub mod property;
 
 pub(crate) use block::format_block_nodes_with_ignore_ranges_after;
-pub(crate) use list::{TrailingSeparator, separated_entries};
+pub(crate) use list::{FormatSeparatedIter, TrailingSeparator, separated_entries};

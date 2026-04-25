@@ -27,7 +27,7 @@ use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::{QuoteProperty, QuoteStyle};
 
 impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
@@ -89,7 +89,7 @@ pub(crate) fn is_identifier_for_quotes(content: &str) -> bool {
 }
 
 /// Format a name key while applying quote rules.
-fn format_name_with_quotes<'ast>(
+pub(crate) fn format_name_with_quotes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     name: Name,
     force_quote_keys: bool,
@@ -159,7 +159,7 @@ fn format_quoted_name<'ast>(
     string_id: StringId,
 ) -> FormatResult<()> {
     let mut quote_style = f.context().options.quote_style;
-    if quote_style == QuoteStyle::Semantic && !f.context().options.language_type.is_destack() {
+    if quote_style == QuoteStyle::Semantic {
         quote_style = QuoteStyle::Double;
     }
     let content = f.context().strings.get(string_id);
@@ -180,7 +180,11 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+    if let Some(type_span) = f
+        .context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
+    {
         write_type_annotation_prefix(f, type_span.start)?;
         write_type_expression_with_inline_prefix_annotations(f, value)
     } else {
@@ -525,6 +529,9 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
+    let force_quote_keys =
+        force_quote_keys || should_preserve_typescript_class_field_quote(f.context(), node_id, key);
+
     // prefixes
     write_ambient_prefix(f, ambient)?;
     write_visibility_prefix(f, visibility)?;
@@ -558,6 +565,31 @@ where
     }
 
     Ok(())
+}
+
+/// Return whether a TypeScript class field string key should preserve quotes.
+fn should_preserve_typescript_class_field_quote<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    key: Key,
+) -> bool
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if !context.options.language_type.is_typescript() {
+        return false;
+    }
+
+    if !matches!(key, Key::Name(Name::String(_))) {
+        return false;
+    }
+
+    let Some((_, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+
+    parent_type == NodeType::Declaration
 }
 
 /// Format shared property or member field output.

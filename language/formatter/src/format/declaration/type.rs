@@ -1,7 +1,8 @@
 use crate::format::annotation::{
     FormatLeadingComments, FormatTrailingComments, decorator_prefix_annotations,
-    format_dangling_comments, infix_or_postfix_annotations, postfix_annotations,
-    prefix_annotations, prefix_comments_before_decorators, write_vertical_prefix_annotations,
+    format_dangling_comments, format_node_with_trailing_comments, format_trailing_comments,
+    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
+    prefix_comments_before_decorators, write_vertical_prefix_annotations,
 };
 use crate::format::chain::transparent_inner_expression;
 use crate::format::collection::member::format_block_of_members;
@@ -21,13 +22,13 @@ use crate::{
 use destack_ast::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
     GenericArgument, GenericParameter, InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny,
-    Member, Node, NodeTree, NodeTreeImpl, NodeType, StructDeclaration, TokenType, TypeExpression,
-    TypeMember, WhereClause,
+    Member, Node, NodeTree, NodeTreeImpl, NodeType, StructDeclaration, TokenSpan, TokenType,
+    TypeExpression, TypeMember, WhereClause,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Write one declaration generic parameter list.
 fn write_declaration_generic_parameters<'ast>(
@@ -104,6 +105,44 @@ fn generic_argument_list_span_after_expression(
     ))
 }
 
+/// Write one class or interface heritage type list.
+fn write_heritage_type_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    enclosing_span: Span,
+    types: &[LocalNodeId<TypeExpression>],
+) -> FormatResult<()> {
+    for (index, type_id) in types.iter().copied().enumerate() {
+        let next_type = types.get(index + 1).copied();
+
+        if let Some(next_type) = next_type {
+            let type_span = f.context().span(type_id);
+            let next_type_start = f.context().span(next_type).start;
+            let comma_token = f
+                .context()
+                .next_non_trivia_token_after_span(type_span)
+                .filter(|token| token.token.ty == TokenType::Comma)
+                .ok_or_else(|| FormatError::SyntaxError {
+                    message: "expected comma between heritage types",
+                })?;
+
+            write!(f, [FormatNodeWithoutTrailingComments(type_id), token(",")])?;
+            write!(
+                f,
+                [format_trailing_comments(
+                    enclosing_span,
+                    comma_token.span,
+                    next_type_start
+                )]
+            )?;
+            write!(f, [soft_line_break_or_space()])?;
+        } else {
+            write!(f, [FormatNodeWithoutTrailingComments(type_id)])?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Write one declaration member block without its leading separator.
 fn write_member_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -153,6 +192,67 @@ fn write_member_body<'ast>(
     }
 
     write_member_block(f, node_id, members)
+}
+
+/// Return the opening brace token for one class body.
+fn class_body_open_brace_token<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    members: &[LocalNodeId<Member>],
+) -> Option<TokenSpan> {
+    if let Some(first_member_id) = members.first().copied() {
+        let first_member_prefix_start = f
+            .context()
+            .annotation_ids(first_member_id)
+            .iter()
+            .copied()
+            .map(|annotation_id| f.context().annotation_span(annotation_id).start)
+            .next()
+            .unwrap_or_else(|| f.context().node_token_start(first_member_id));
+        let first_member_start = Span::new(
+            f.context().span(first_member_id).file,
+            first_member_prefix_start,
+            first_member_prefix_start,
+        );
+        let open_token = f
+            .context()
+            .previous_non_trivia_token_before_span(first_member_start)?;
+
+        return (open_token.token.ty == TokenType::OpenBrace).then_some(open_token);
+    }
+
+    let node_span = f.context().span(node_id);
+    let close_token = f.context().last_non_trivia_token_in_span(node_span)?;
+    if close_token.token.ty != TokenType::CloseBrace {
+        return None;
+    }
+
+    let open_token = f
+        .context()
+        .previous_non_trivia_token_before_span(close_token.span)?;
+
+    (open_token.token.ty == TokenType::OpenBrace).then_some(open_token)
+}
+
+/// Write class header comments that appear before the body opening brace.
+fn write_class_body_leading_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    members: &[LocalNodeId<Member>],
+) -> FormatResult<()> {
+    let Some(open_token) = class_body_open_brace_token(f, node_id, members) else {
+        return Ok(());
+    };
+
+    let leading_comments = f
+        .context()
+        .comments()
+        .comments_before(open_token.span.start);
+    if leading_comments.iter().any(|comment| !comment.is_line()) {
+        write!(f, [FormatLeadingComments::Comments(leading_comments)])?;
+    }
+
+    Ok(())
 }
 
 /// Write one declaration type-member block without its leading separator.
@@ -270,9 +370,10 @@ fn class_heritage_should_group(
     }
 
     let name_span = context.tree.get_main_span(node_id);
-    let generic_parameters_span = context
-        .tree
-        .get_side_span(node_id, NodeSpanType::GenericParameters);
+    let generic_parameters_span = context.tree.get_side_span(
+        node_id,
+        NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+    );
     let extends_span = declaration
         .extends_expression
         .map(|expression_id| context.span(expression_id));
@@ -372,7 +473,10 @@ fn interface_heritage_should_group(
 
     let previous_span = context
         .tree
-        .get_side_span(node_id, NodeSpanType::GenericParameters)
+        .get_side_span(
+            node_id,
+            NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+        )
         .or(context.tree.get_main_span(node_id));
     let extends_span = declaration
         .extends_types
@@ -556,9 +660,30 @@ pub(crate) fn format_class_declaration<'ast>(
                 let has_trailing_line_comments =
                     extends_comments.iter().any(|comment| comment.is_line());
                 let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    let enclosing_span = f.context().span(node_id);
+                    let type_arguments_span = generic_argument_list_span_after_expression(
+                        f.context(),
+                        extends_expression,
+                        &declaration.extends_generic_arguments,
+                    );
+                    let first_implements_start = declaration
+                        .implements_types
+                        .first()
+                        .copied()
+                        .map(|type_id| f.context().span(type_id).start);
+
                     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                         if !declaration.extends_generic_arguments.is_empty() {
-                            write!(f, [extends_expression])?;
+                            let following_span_start =
+                                type_arguments_span.map_or(0, |span| span.start);
+                            write!(
+                                f,
+                                [format_node_with_trailing_comments(
+                                    enclosing_span,
+                                    extends_expression,
+                                    following_span_start
+                                )]
+                            )?;
                             format_generic_argument_list(
                                 f,
                                 &declaration.extends_generic_arguments,
@@ -570,7 +695,14 @@ pub(crate) fn format_class_declaration<'ast>(
                                 write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
                             }
                         } else {
-                            write!(f, [extends_expression])?;
+                            write!(
+                                f,
+                                [format_node_with_trailing_comments(
+                                    enclosing_span,
+                                    extends_expression,
+                                    first_implements_start.unwrap_or(0)
+                                )]
+                            )?;
                         }
 
                         Ok(())
@@ -640,24 +772,11 @@ pub(crate) fn format_class_declaration<'ast>(
                             Keyword::Implements,
                             group(&soft_line_indent_or_space(&format_with(
                                 |f: &mut DestackFormatter<'ast, '_>| {
-                                    for (index, type_id) in
-                                        declaration.implements_types.iter().copied().enumerate()
-                                    {
-                                        if index > 0 {
-                                            write!(f, [token(","), soft_line_break_or_space()])?;
-                                        }
-
-                                        if index + 1 == declaration.implements_types.len() {
-                                            write!(
-                                                f,
-                                                [FormatNodeWithoutTrailingComments(type_id)]
-                                            )?;
-                                        } else {
-                                            write!(f, [type_id])?;
-                                        }
-                                    }
-
-                                    Ok(())
+                                    write_heritage_type_list(
+                                        f,
+                                        f.context().span(node_id),
+                                        &declaration.implements_types,
+                                    )
                                 }
                             )))
                         ]
@@ -675,21 +794,11 @@ pub(crate) fn format_class_declaration<'ast>(
                             ]
                         )?;
 
-                        for (index, type_id) in
-                            declaration.implements_types.iter().copied().enumerate()
-                        {
-                            if index > 0 {
-                                write!(f, [token(","), soft_line_break_or_space()])?;
-                            }
-
-                            if index + 1 == declaration.implements_types.len() {
-                                write!(f, [FormatNodeWithoutTrailingComments(type_id)])?;
-                            } else {
-                                write!(f, [type_id])?;
-                            }
-                        }
-
-                        Ok(())
+                        write_heritage_type_list(
+                            f,
+                            f.context().span(node_id),
+                            &declaration.implements_types,
+                        )
                     });
 
                     if heritage_group_mode {
@@ -729,6 +838,7 @@ pub(crate) fn format_class_declaration<'ast>(
             write!(f, [space()])?;
         }
 
+        write_class_body_leading_comments(f, node_id, &declaration.members)?;
         write_member_block(f, node_id, &declaration.members)
     });
 
@@ -794,7 +904,12 @@ fn write_enum_body<'ast>(
         [group(&block_indent(&format_with(move |f| {
             for (index, node_id) in nodes.iter().copied().enumerate() {
                 if index > 0 {
-                    write!(f, [hard_line_break()])?;
+                    let previous_node_id = nodes[index - 1];
+                    if previous_node_id.ty == node_id.ty {
+                        write!(f, [hard_line_break()])?;
+                    } else {
+                        write!(f, [empty_line()])?;
+                    }
                 }
 
                 write!(f, [node_id])?;
@@ -883,17 +998,11 @@ pub(crate) fn format_interface_declaration<'ast>(
                         Keyword::Extends,
                         group(&soft_line_indent_or_space(&format_with(
                             |f: &mut DestackFormatter<'ast, '_>| {
-                                for (index, type_id) in
-                                    declaration.extends_types.iter().copied().enumerate()
-                                {
-                                    if index > 0 {
-                                        write!(f, [token(","), soft_line_break_or_space()])?;
-                                    }
-
-                                    write!(f, [type_id])?;
-                                }
-
-                                Ok(())
+                                write_heritage_type_list(
+                                    f,
+                                    f.context().span(node_id),
+                                    &declaration.extends_types,
+                                )
                             }
                         )))
                     ]
@@ -948,7 +1057,8 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
         node_id: LocalNodeId<EnumField>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [prefix_annotations(f.context(), node_id)])?;
+        write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
+        write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;
 
         // name
         write!(f, [self.name])?;

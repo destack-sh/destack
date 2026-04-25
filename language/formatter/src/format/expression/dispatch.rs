@@ -1,13 +1,16 @@
-use crate::format::annotation::{format_leading_comments, prefix_annotations};
+use crate::format::annotation::{
+    format_leading_comments, format_trailing_comments, prefix_annotations,
+};
 use crate::format::context::FormatNodeWithoutTrailingComments;
 use crate::format::expression::{
     expression_needs_parentheses_in_parent, format_primary_expression, format_statement_expression,
     write_primary_expression_trailing_annotations, write_statement_expression_trailing_annotations,
 };
-use crate::format::file::write_ignored_node;
+use crate::format::file::{node_has_ignore_directive, write_ignored_node};
 use crate::format::operator::{
     format_operator_expression, write_operator_expression_trailing_annotations,
 };
+use crate::format::tree::tree_literal_uses_conditional_trailing_comments;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
@@ -154,6 +157,28 @@ fn write_expression_trailing_node_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
+    let expression_span = f.context().span(expression_id);
+    let enclosing_span = f
+        .context()
+        .parent(expression_id)
+        .map(|(parent_id, _)| f.context().span_by_id(parent_id))
+        .unwrap_or(expression_span);
+    let following_span_start = f.context().following_span_start();
+
+    let has_tree_literal_owned_trailing_comments =
+        matches!(expression, Expression::TreeExpression { .. })
+            && tree_literal_uses_conditional_trailing_comments(f.context(), expression_id);
+
+    if !has_tree_literal_owned_trailing_comments {
+        write!(
+            f,
+            [format_trailing_comments(
+                enclosing_span,
+                expression_span,
+                following_span_start
+            )]
+        )?;
+    }
 
     // trailing annotations
     write_expression_trailing_annotations(f, expression_id, expression)
@@ -297,6 +322,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             write_expression_prefix_annotations_and_leading_comments(f, node_id)?;
         }
 
+        if node_has_ignore_directive(f.context(), node_id) {
+            write_ignored_node(f, node_id)?;
+            return write_expression_trailing_node_annotations(f, node_id);
+        }
+
         if needs_parentheses {
             let parenthesized_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(f, [token("(")])?;
@@ -319,5 +349,10 @@ pub(crate) fn write_expression_without_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    if node_has_ignore_directive(f.context(), expression_id) {
+        write_ignored_node(f, expression_id)?;
+        return Ok(());
+    }
+
     write!(f, [FormatNodeWithoutTrailingComments(expression_id)])
 }

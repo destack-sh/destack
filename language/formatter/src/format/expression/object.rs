@@ -1,5 +1,5 @@
 use crate::format::annotation::{block_infix_annotations, format_dangling_comments};
-use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::format::file::any_ignore_range_for_nodes;
 use crate::format::operator::{assign_pattern_contains_expression, expression_generic_arguments};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -9,7 +9,7 @@ use destack_ast::{
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    block_indent, format_with, group, hard_line_break, if_group_breaks, if_group_fits_on_line,
+    block_indent, empty_line, format_with, group, hard_line_break, if_group_fits_on_line,
     soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
@@ -106,7 +106,7 @@ pub(crate) fn format_outer_comment_array<'ast>(
     }
 
     let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
-    let body = format_with(|f| {
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, element_id) in elements.iter().copied().enumerate() {
             if index > 0 {
                 write!(f, [token(","), space()])?;
@@ -141,23 +141,42 @@ pub(crate) fn format_fill_array<'ast>(
         return Ok(());
     }
 
-    let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
-    let body = format_with(|f| {
-        let mut fill = f.fill();
-        for (index, element_id) in elements.iter().copied().enumerate() {
-            let separator = format_with(|f| {
-                if index == 0 {
-                    return Ok(());
+    let group_id = f.group_id("array");
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let trailing_separator = if f.context().options.trailing_comma == TrailingComma::None {
+            TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
+        };
+        let entries = FormatSeparatedIter::new(elements.iter().copied(), ",")
+            .with_trailing_separator(trailing_separator)
+            .with_group_id(Some(group_id));
+        let mut fill: destack_fir::format::FillBuilder<'_, '_, DestackFormatContext<'ast>> =
+            f.fill();
+
+        for (index, entry) in entries.enumerate() {
+            let element_id = elements[index];
+            let separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let element_span = f.context().span(element_id);
+                if f.context()
+                    .source_text()
+                    .get_lines_before(element_span, f.context().comments())
+                    > 1
+                {
+                    write!(f, [empty_line()])
+                } else if f
+                    .context()
+                    .comments()
+                    .has_leading_own_line_comment(element_span.start)
+                {
+                    write!(f, [hard_line_break()])
+                } else {
+                    write!(f, [soft_line_break_or_space()])
                 }
-                write!(f, [token(","), soft_line_break_or_space()])
             });
-            fill.entry(&separator, &element_id);
+            fill.entry(&separator, &entry);
         }
         fill.finish()?;
-
-        if should_add_trailing_separator {
-            write!(f, [if_group_breaks(&token(","))])?;
-        }
 
         Ok(())
     });
@@ -168,7 +187,8 @@ pub(crate) fn format_fill_array<'ast>(
             token("["),
             soft_block_indent(&body),
             token("]")
-        ])]
+        ])
+        .with_id(Some(group_id))]
     )
 }
 

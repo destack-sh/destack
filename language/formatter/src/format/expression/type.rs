@@ -1,7 +1,7 @@
 use super::conditional::ConditionalLayout;
 use crate::format::annotation::{
-    FormatLeadingComments, FormatTrailingComments, infix_or_postfix_annotations,
-    prefix_annotations, prefix_annotations_without_comments,
+    FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
+    infix_or_postfix_annotations, prefix_annotations, prefix_annotations_without_comments,
 };
 use crate::format::collection::literal::format_scalar_literal;
 use crate::format::collection::{TrailingSeparator, separated_entries};
@@ -12,21 +12,25 @@ use crate::format::declaration::signature::{
     write_signature_parameter_list, write_signature_return_type,
 };
 use crate::format::expression::format_type_template_literal;
+use crate::format::file::{
+    node_has_ignore_directive, node_has_trailing_line_ignore_directive, write_ignored_node,
+};
 use crate::format::operator::{
     format_generic_argument_list, write_colon_prefixed_type_annotation,
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionSignature,
+    Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionKind, FunctionSignature,
     FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
-    Mutability, NodeType, Parameter, TupleElement, TypeExpression, TypeLiteral, TypeMember,
-    TypeModifier, TypePredicateSubject, VarianceBound, WhereClause,
+    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, TokenType, TupleElement,
+    TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
+    WhereClause,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
-use destack_source::{LanguageType, NodeSpanType, Span};
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::TrailingComma;
 
 /// Return the innermost type that can own one postfix type operator.
@@ -150,7 +154,7 @@ pub(crate) fn write_type_expression_leading_comments<'ast>(
     let leading_span = f
         .context()
         .tree
-        .get_side_span(node_id, NodeSpanType::Leading);
+        .get_side_span(node_id, NodeSpanType::Boundary(NodeSpanBoundary::Leading));
     let comments = {
         let comments = f.context().comments();
 
@@ -425,6 +429,30 @@ fn intersection_type_is_object_like(expression: &TypeExpression) -> bool {
     )
 }
 
+/// Write one intersection member with generated-node-style trailing comments.
+fn write_intersection_member<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    intersection_id: LocalNodeId<TypeExpression>,
+    element_id: LocalNodeId<TypeExpression>,
+    next_element_id: Option<LocalNodeId<TypeExpression>>,
+) -> FormatResult<()> {
+    if let Some(next_element_id) = next_element_id {
+        let enclosing_span = f.context().span(intersection_id);
+        let following_span_start = f.context().span(next_element_id).start;
+
+        return write!(
+            f,
+            [format_node_with_trailing_comments(
+                enclosing_span,
+                element_id,
+                following_span_start
+            )]
+        );
+    }
+
+    write!(f, [element_id])
+}
+
 /// Write one intersection type with object-chain layout.
 fn write_intersection_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -442,12 +470,13 @@ fn write_intersection_type<'ast>(
         let mut is_chain_indented = false;
 
         for (index, element_id) in elements.iter().copied().enumerate() {
+            let next_element_id = elements.get(index + 1).copied();
             let element = f.context().tree.get(element_id);
             let is_object_like = intersection_type_is_object_like(element);
 
             // first element stays inline
             if index == 0 {
-                write!(f, [element_id])?;
+                write_intersection_member(f, node_id, element_id, next_element_id)?;
             }
             // non-object edges use the standard breakable layout
             else if !(previous_is_object_like || is_object_like)
@@ -455,8 +484,9 @@ fn write_intersection_type<'ast>(
                     .comments()
                     .has_leading_own_line_comment(f.context().span(element_id).start)
             {
-                let content =
-                    format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [element_id]));
+                let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                    write_intersection_member(f, node_id, element_id, next_element_id)
+                });
 
                 write!(f, [soft_line_indent_or_space(&content)])?;
             }
@@ -469,13 +499,16 @@ fn write_intersection_type<'ast>(
                 }
 
                 if is_chain_indented {
-                    write!(f, [indent(&element_id)])?;
+                    let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                        write_intersection_member(f, node_id, element_id, next_element_id)
+                    });
+
+                    write!(f, [indent(&content)])?;
                 } else {
-                    write!(f, [element_id])?;
+                    write_intersection_member(f, node_id, element_id, next_element_id)?;
                 }
             }
 
-            // separator
             if index < last_index {
                 write!(f, [space(), token("&")])?;
             }
@@ -625,7 +658,10 @@ fn type_alias_union_should_indent(
 
     let head_end = context
         .tree
-        .get_side_span(declaration_id, NodeSpanType::GenericParameters)
+        .get_side_span(
+            declaration_id,
+            NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+        )
         .or(context.tree.get_main_span(declaration_id))
         .unwrap_or_else(|| context.span(declaration_id))
         .end;
@@ -794,10 +830,10 @@ pub(crate) fn write_union_type<'ast>(
     }
 
     // leading comments
-    let leading_separator_span = f
-        .context()
-        .tree
-        .get_side_span(node_id, NodeSpanType::LeadingOperator);
+    let leading_separator_span = f.context().tree.get_side_span(
+        node_id,
+        NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
+    );
     let (format_node_id, format_elements) = union_print_chain(f.context(), node_id, elements);
     let format_elements = format_elements.as_slice();
     let union_content_start = type_expression_content_start(f.context(), node_id);
@@ -832,7 +868,11 @@ pub(crate) fn write_union_type<'ast>(
     // inline unions
     let leading_comment_info = union_leading_comment_info(&union_leading_comments);
     let should_hug = union_should_hug(f, format_node_id, format_elements)
-        && !has_leading_separator_prefix_comment;
+        && !has_leading_separator_prefix_comment
+        && !format_elements
+            .iter()
+            .copied()
+            .any(|element_id| node_has_trailing_line_ignore_directive(f.context(), element_id));
     let parent_needs_parentheses =
         type_expression_needs_parentheses_in_parent(f.context(), format_node_id);
     let emit_last_arm_trailing_comments = parent_needs_parentheses;
@@ -927,7 +967,9 @@ pub(crate) fn write_union_type<'ast>(
                     }
                 }
 
-                if should_hug {
+                if node_has_trailing_line_ignore_directive(f.context(), element_id) {
+                    write!(f, [hard_line_break()])?;
+                } else if should_hug {
                     write!(f, [space()])?;
                 } else {
                     write!(f, [soft_line_break_or_space()])?;
@@ -1268,7 +1310,7 @@ fn function_like_type_needs_parentheses_in_declaration_parent(
         return false;
     }
 
-    !function_like.is_constructor
+    !function_like.is_constructor && parent_function.signature.kind == FunctionKind::Lambda
 }
 
 /// Return whether one type expression needs derived parentheses in its effective parent.
@@ -1440,13 +1482,89 @@ fn write_type_callable_generic_parameters<'ast>(
     Ok(())
 }
 
+/// Write comments in one generated child boundary.
+fn write_generated_boundary_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: u32,
+    end: u32,
+) -> FormatResult<bool> {
+    let comments = f
+        .context()
+        .comments()
+        .comments_in_range(start, end)
+        .to_vec();
+
+    if comments.is_empty() {
+        return Ok(false);
+    }
+
+    write!(f, [FormatTrailingComments::Comments(&comments)])?;
+
+    Ok(true)
+}
+
+/// Return the parameter-list source span for one function-like node.
+fn function_like_parameters_span<T>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> Option<Span>
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    context
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Parameters))
+}
+
+/// Write the constructor-type boundary between `new` and parameters.
+fn write_constructor_type_parameter_boundary<'ast, T>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
+) -> FormatResult<()>
+where
+    T: Node,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let Some(parameters_span) = function_like_parameters_span(f.context(), node_id) else {
+        write!(f, [space()])?;
+        return Ok(());
+    };
+
+    let Some(previous_token) = f
+        .context()
+        .previous_non_trivia_token_before_span(parameters_span)
+    else {
+        write!(f, [space()])?;
+        return Ok(());
+    };
+
+    if !write_generated_boundary_comments(f, previous_token.span.end, parameters_span.start)? {
+        write!(f, [space()])?;
+    }
+
+    Ok(())
+}
+
 /// Write the arrow return section for one function-like type expression.
 fn write_type_callable_arrow_return<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
     return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     if let Some(return_type) = return_type {
-        write!(f, [space(), token("=>"), space()])?;
+        if let Some(parameters_span) = function_like_parameters_span(f.context(), node_id)
+            && let Some(arrow_token) = f
+                .context()
+                .previous_non_trivia_token_before_span(f.context().span(return_type))
+            && arrow_token.token.ty == TokenType::ArrowWide
+        {
+            write_generated_boundary_comments(f, parameters_span.end, arrow_token.span.start)?;
+        }
+
+        write!(f, [space()])?;
+
+        write!(f, [token("=>"), space()])?;
         write_type_expression_with_inline_prefix_annotations(f, return_type)?;
     }
 
@@ -1479,7 +1597,7 @@ fn write_function_type_declaration<'ast>(
         write_type_parameters_from_parts(f, function.this_parameter, &function.parameters)?;
 
         // fat arrow
-        write_type_callable_arrow_return(f, function.return_type)?;
+        write_type_callable_arrow_return(f, _node_id, function.return_type)?;
 
         // where clauses
         write_type_callable_where_clauses(f, &function.where_clauses)?;
@@ -1506,14 +1624,14 @@ fn write_constructor_type_declaration<'ast>(
 
         // parameter prefix
         if function.generic_parameters.is_empty() {
-            write!(f, [space()])?;
+            write_constructor_type_parameter_boundary(f, _node_id)?;
         }
 
         // parameters
         write_type_parameters_from_parts(f, None, &function.parameters)?;
 
         // fat arrow
-        write_type_callable_arrow_return(f, function.return_type)?;
+        write_type_callable_arrow_return(f, _node_id, function.return_type)?;
 
         // where clauses
         write_type_callable_where_clauses(f, &function.where_clauses)?;
@@ -1549,7 +1667,27 @@ fn write_type_signature<'ast>(
 
         // optional
         if is_optional {
+            let key_end = f
+                .context()
+                .tree
+                .get_main_span(node_id)
+                .map_or_else(|| f.context().span(node_id).start, |span| span.end);
+            let parameter_start = function_like_parameters_span(f.context(), node_id)
+                .map_or_else(|| f.context().span(node_id).end, |span| span.start);
+            let optional_token = f
+                .context()
+                .first_non_trivia_token_between(key_end, parameter_start)
+                .filter(|token| token.token.ty == TokenType::Maybe);
+
+            if let Some(optional_token) = optional_token {
+                write_generated_boundary_comments(f, key_end, optional_token.span.start)?;
+            }
+
             write!(f, [token("?")])?;
+
+            if let Some(optional_token) = optional_token {
+                write_generated_boundary_comments(f, optional_token.span.end, parameter_start)?;
+            }
         }
 
         // generic parameters
@@ -1670,52 +1808,17 @@ fn write_mapped_modifier_suffix<'ast>(
     }
 }
 
-/// Return comments between `as` and one mapped remap expression.
-fn mapped_remap_leading_comments(
-    context: &DestackFormatContext<'_>,
-    key_remap: LocalNodeId<TypeExpression>,
-) -> Vec<Comment> {
-    let Some(leading_span) = context.tree.get_side_span(key_remap, NodeSpanType::Leading) else {
-        return Vec::new();
-    };
-
-    let token_start = context.node_token_start(key_remap);
-    context
-        .comments()
-        .comments_in_range(leading_span.start, token_start)
-        .to_vec()
-}
-
-/// Return comments between a mapped source type and its remap clause.
-fn mapped_source_type_trailing_comments(
-    context: &DestackFormatContext<'_>,
-    source_type: LocalNodeId<TypeExpression>,
-) -> Vec<Comment> {
-    let Some(trailing_span) = context
-        .tree
-        .get_side_span(source_type, NodeSpanType::Trailing)
-    else {
-        return Vec::new();
-    };
-
-    context
-        .comments()
-        .comments_in_range(trailing_span.start, trailing_span.end)
-        .to_vec()
-}
-
 /// Write the value annotation for one mapped type.
 fn write_mapped_value_type_annotation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     value: LocalNodeId<TypeExpression>,
-    remap_line_comments: &[Comment],
 ) -> FormatResult<()> {
     let value_start = f.context().node_token_start(value);
     let type_span = f
         .context()
         .tree
-        .get_side_span(node_id, NodeSpanType::Type)
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
         .expect("mapped type should own its value type span");
     let separator_comments = f
         .context()
@@ -1725,7 +1828,7 @@ fn write_mapped_value_type_annotation<'ast>(
     let trailing_comments = f
         .context()
         .tree
-        .get_side_span(value, NodeSpanType::Trailing)
+        .get_side_span(value, NodeSpanType::Boundary(NodeSpanBoundary::Trailing))
         .map(|span| {
             f.context()
                 .comments()
@@ -1751,10 +1854,6 @@ fn write_mapped_value_type_annotation<'ast>(
         write!(f, [if_group_breaks(&token(";"))])?;
         write!(f, [FormatTrailingComments::Comments(separator_comments)])?;
 
-        if !remap_line_comments.is_empty() {
-            write!(f, [FormatTrailingComments::Comments(remap_line_comments)])?;
-        }
-
         if !trailing_comments.is_empty() {
             write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
         }
@@ -1776,10 +1875,6 @@ fn write_mapped_value_type_annotation<'ast>(
     }
 
     write!(f, [if_group_breaks(&token(";"))])?;
-
-    if !remap_line_comments.is_empty() {
-        write!(f, [FormatTrailingComments::Comments(remap_line_comments)])?;
-    }
 
     if !trailing_line_comments.is_empty() {
         write!(
@@ -2090,32 +2185,13 @@ pub(crate) fn write_type_expression_body<'ast>(
                 // modifiers
                 write_mapped_modifier_prefix(f, *readonly, "readonly")?;
 
-                let (remap_block_comments, remap_line_comments) = if let Some(key_remap) =
-                    parameter.key_remap
-                {
-                    let source_comments =
-                        mapped_source_type_trailing_comments(f.context(), parameter.source_type);
-                    let remap_comments = mapped_remap_leading_comments(f.context(), key_remap);
-                    let remap_block_comments = source_comments
-                        .iter()
-                        .chain(remap_comments.iter())
-                        .copied()
-                        .filter(|comment| comment.is_block())
-                        .collect::<Vec<_>>();
-                    let remap_line_comments = source_comments
-                        .iter()
-                        .chain(remap_comments.iter())
-                        .copied()
-                        .filter(|comment| comment.is_line())
-                        .collect::<Vec<_>>();
-
-                    (remap_block_comments, remap_line_comments)
-                } else {
-                    (Vec::new(), Vec::new())
-                };
-
                 // key head
                 let format_key = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    let remap_start = parameter
+                        .key_remap
+                        .map(|key_remap| f.context().span(key_remap).start)
+                        .unwrap_or_else(|| f.context().span(parameter.source_type).end);
+
                     write!(
                         f,
                         [
@@ -2124,20 +2200,17 @@ pub(crate) fn write_type_expression_body<'ast>(
                             space(),
                             Keyword::In,
                             space(),
-                            parameter.source_type
+                            format_node_with_trailing_comments(
+                                f.context().span(node_id),
+                                parameter.source_type,
+                                remap_start
+                            )
                         ]
                     )?;
 
                     if let Some(key_remap) = parameter.key_remap {
-                        if !remap_block_comments.is_empty() {
-                            write!(f, [FormatTrailingComments::Comments(&remap_block_comments)])?;
-                        }
-
                         write!(f, [space(), Keyword::As, space()])?;
-                        for comment in remap_line_comments.iter().copied() {
-                            f.context_mut().comments_mut().mark_comment_printed(comment);
-                        }
-                        write_type_expression_without_leading_comments(f, key_remap)?;
+                        write!(f, [key_remap])?;
                     }
 
                     write!(f, [token("]")])?;
@@ -2146,7 +2219,7 @@ pub(crate) fn write_type_expression_body<'ast>(
 
                 // value
                 write!(f, [group(&format_key)])?;
-                write_mapped_value_type_annotation(f, node_id, *value, &remap_line_comments)?;
+                write_mapped_value_type_annotation(f, node_id, *value)?;
 
                 Ok(())
             });
@@ -2221,6 +2294,10 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
         node_id: LocalNodeId<TypeExpression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if node_has_ignore_directive(f.context(), node_id) {
+            return write_ignored_node(f, node_id);
+        }
+
         write_type_expression_node(f, node_id, self, true)
     }
 }
@@ -2254,8 +2331,10 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 }
 
                 if let Some(declared_type) = declared_type {
-                    if let Some(type_span) =
-                        f.context().tree.get_side_span(node_id, NodeSpanType::Type)
+                    if let Some(type_span) = f
+                        .context()
+                        .tree
+                        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
                     {
                         write_type_annotation_prefix(f, type_span.start)?;
                         write_type_expression_with_inline_prefix_annotations(f, *declared_type)?;

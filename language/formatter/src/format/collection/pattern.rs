@@ -3,14 +3,16 @@ use std::borrow::Cow;
 use destack_fir::format::FormatResult;
 
 use crate::format::annotation::{
-    block_infix_annotations, format_dangling_comments, infix_or_postfix_annotations,
-    prefix_annotations,
+    FormatLeadingComments, block_infix_annotations, format_dangling_comments,
+    infix_or_postfix_annotations, prefix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::context::MemoizeFormatExt;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AssignPattern, AssignPatternField, Declarator, DecoratorPosition, LocalNodeId, Mutability,
-    Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, TypeExpression,
+    AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
+    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
+    TypeExpression,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -690,21 +692,83 @@ fn format_object_assign_pattern_like<'ast>(
     Ok(())
 }
 
+/// Format one binding assignment pattern in assignment-pattern order.
+fn format_pattern_assignment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    pattern: LocalNodeId<Pattern>,
+    value: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let left = pattern.memoized();
+    left.inspect(f)?;
+
+    let value_start = f.context().span(value).start;
+    let comments = f
+        .context()
+        .comments()
+        .own_line_comments_before(value_start)
+        .to_vec();
+
+    write!(
+        f,
+        [
+            FormatLeadingComments::Comments(&comments),
+            group(&left),
+            space(),
+            token("="),
+            space(),
+            value
+        ]
+    )
+}
+
+/// Format one assignment-target default in assignment-pattern order.
+fn format_assign_pattern_assignment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    pattern: LocalNodeId<AssignPattern>,
+    value: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let left = pattern.memoized();
+    left.inspect(f)?;
+
+    let value_start = f.context().span(value).start;
+    let comments = f
+        .context()
+        .comments()
+        .own_line_comments_before(value_start)
+        .to_vec();
+
+    write!(
+        f,
+        [
+            FormatLeadingComments::Comments(&comments),
+            group(&left),
+            space(),
+            token("="),
+            space(),
+            value
+        ]
+    )
+}
+
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
         node_id: LocalNodeId<Pattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if let Pattern::Assign { pattern, value } = self {
+            format_pattern_assignment(f, *pattern, *value)?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
+            return Ok(());
+        }
+
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
 
-            Pattern::Assign { pattern, value } => {
-                write!(f, [pattern, space(), token("="), space(), value])?;
-            }
+            Pattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
 
             Pattern::ReferenceOf { right, mutability } => {
                 format_prefixed_pattern(f, "&", *right, *mutability)?;
@@ -863,6 +927,12 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
         node_id: LocalNodeId<AssignPattern>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if let AssignPattern::Assign { pattern, value } = self {
+            format_assign_pattern_assignment(f, *pattern, *value)?;
+            write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
+            return Ok(());
+        }
+
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         match self {
@@ -870,9 +940,7 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
                 write!(f, [value])?;
             }
 
-            AssignPattern::Assign { pattern, value } => {
-                write!(f, [pattern, space(), token("="), space(), value])?;
-            }
+            AssignPattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
 
             AssignPattern::Array { fields } => {
                 format_assign_pattern_field_list(f, node_id, "[", "]", fields, false)?;

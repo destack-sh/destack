@@ -23,7 +23,7 @@ use destack_ast::{
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return whether an argument can be emitted directly without argument-node formatting.
 pub(crate) fn argument_is_plain_call_argument(
@@ -211,7 +211,7 @@ fn argument_value_trailing_span(
     if let Some(body_id) = function.body {
         if let Some(body_span) = context
             .tree
-            .get_side_span(*declaration_id, NodeSpanType::Body)
+            .get_side_span(*declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
         {
             let start = value_span.start;
             let end = body_span.end.max(context.span(body_id).end);
@@ -220,10 +220,10 @@ fn argument_value_trailing_span(
         }
     }
 
-    if let Some(parameter_span) = context
-        .tree
-        .get_side_span(*declaration_id, NodeSpanType::Parameters)
-    {
+    if let Some(parameter_span) = context.tree.get_side_span(
+        *declaration_id,
+        NodeSpanType::Region(NodeSpanRegion::Parameters),
+    ) {
         return Span::new(value_span.file, value_span.start, parameter_span.end);
     }
 
@@ -331,15 +331,6 @@ pub(crate) fn format_call_arguments<'ast>(
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     format_call_arguments_impl(f, call_node_id, arguments, true)
-}
-
-/// Format call arguments when the surrounding context selects the layout policy.
-pub(crate) fn format_call_arguments_in_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
-    arguments: &[LocalNodeId<Argument>],
-) -> FormatResult<()> {
-    format_call_arguments_impl(f, call_node_id, arguments, false)
 }
 
 /// Format call arguments with explicit long-curried-call handling control.

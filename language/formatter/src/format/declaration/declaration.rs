@@ -1,6 +1,5 @@
 use crate::format::annotation::{
-    format_comment, format_trailing_comments, infix_or_postfix_annotations, postfix_annotations,
-    prefix_annotations,
+    format_comment, infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
 };
 use crate::format::collection::literal::format_scalar_literal;
 use crate::format::collection::member::format_block_of_members;
@@ -727,14 +726,6 @@ fn format_type_declaration<'ast>(
             write!(
                 f,
                 [infix_or_postfix_annotations(f.context(), declaration.value)]
-            )?;
-            write!(
-                f,
-                [format_trailing_comments(
-                    f.context().span(node_id),
-                    f.context().span(declaration.value),
-                    0
-                )]
             )
         } else {
             write_type_expression_with_inline_prefix_annotations(f, declaration.value)

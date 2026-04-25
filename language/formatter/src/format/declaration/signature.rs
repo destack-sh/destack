@@ -3,6 +3,7 @@ use crate::format::annotation::{
     prefix_annotations,
 };
 use crate::format::collection::{TrailingSeparator, separated_entries};
+use crate::format::context::MemoizeFormatExt;
 use crate::format::expression::write_type_expression_node;
 use crate::format::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
@@ -18,7 +19,7 @@ use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
@@ -112,7 +113,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
         let type_span = f
             .context()
             .tree
-            .get_side_span(node_id, NodeSpanType::Type)
+            .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("generic parameter constraint should have a type span");
         let group_id = f.group_id("constraint");
         let leading_comments = f
@@ -208,7 +209,11 @@ where
 {
     // declared type
     if let Some(declared_type) = declared_type {
-        if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+        if let Some(type_span) = f
+            .context()
+            .tree
+            .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
+        {
             write_type_annotation_prefix(f, type_span.start)?;
             write_type_expression_with_inline_prefix_annotations(f, declared_type)?;
         } else {
@@ -242,7 +247,11 @@ where
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    if let Some(type_span) = f.context().tree.get_side_span(node_id, NodeSpanType::Type) {
+    if let Some(type_span) = f
+        .context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
+    {
         let return_type_span = f.context().span::<TypeExpression>(return_type);
         let separator_comments = f
             .context()
@@ -434,9 +443,12 @@ fn write_named_parameter<'ast>(
 
         // trailers
         write_parameter_type(f, parameter_id, declared_type)
-    });
+    })
+    .memoized();
 
     if let Some(default) = default {
+        left.inspect(f)?;
+
         let leading_comments = f
             .context()
             .comments()
@@ -469,9 +481,12 @@ fn write_pattern_parameter<'ast>(
 
         // trailers
         write_parameter_type(f, parameter_id, declared_type)
-    });
+    })
+    .memoized();
 
     if let Some(default) = default {
+        left.inspect(f)?;
+
         let leading_comments = f
             .context()
             .comments()
@@ -833,12 +848,28 @@ pub(crate) fn format_where_clause_with_break<'ast>(
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     let body = separated_entries(",", where_clauses, TrailingSeparator::Omit, None);
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if where_clauses.len() > 1 {
+            write!(
+                f,
+                [group(&format_args![
+                    token("("),
+                    soft_block_indent(&body),
+                    token(")")
+                ])]
+            )
+        } else {
+            write!(f, [body])
+        }
+    });
+
     write!(
         f,
         [group(&format_args![
             soft_line_break_or_space(),
             Keyword::Where,
-            indent(&format_args![soft_line_break_or_space(), body])
+            space(),
+            body
         ])]
     )
 }
