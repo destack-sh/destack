@@ -75,7 +75,7 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 - As with logic, symmetry in naming across related logic is simpler 
 - Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context).
-- Abstraction salad names like "seam", "lane" are to be treated with high suspicion and almost certainly wrong.
+- Abstraction sludge names like "seam", "lane", "info", "factory", .. and friends are to be treated with high suspicion and almost certainly wrong.
 
 ### Logic
 
