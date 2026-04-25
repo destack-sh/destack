@@ -1,6 +1,7 @@
 # Formatter Test Fixtures
 
-This directory contains formatter test fixtures with three fixture groups:
+This directory contains formatter test fixtures with two fixture groups: transform and roundtrip tests. 
+They test exactly what the name implies.
 
 ## Transform Tests (`.md` files)
 
@@ -26,11 +27,6 @@ expected formatted output
 Pre-formatted code that should remain unchanged when formatted.
 
 Roundtrip fixtures cover canonicalized shared JS, JSX, TS, and TSX code as well as reviewed Destack local syntax.
-
-## External Conformance Suites (`conformance/staging/**`)
-
-External corpora fetched from Biome, Prettier, and oxfmt live under `conformance/staging/` for formatter local utilities.
-The dedicated `conformance-formatter` test binary uses the separate shared conformance fixture tree.
 
 ## Running Tests
 

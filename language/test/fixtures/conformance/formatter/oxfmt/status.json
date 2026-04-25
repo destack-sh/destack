@@ -8,6 +8,12 @@
             "note": "unsupported legacy `with` statement syntax"
         },
         {
+            "patterns": ["js/arguments/empty-lines.js"],
+            "status": "known-fail",
+            "reason": "upstream",
+            "note": "Oxc itself is non-idempotent for this fixture; first pass matches oxfmt, second pass collapses grouped call arguments"
+        },
+        {
             "patterns": [
                 "js/comments/assignments.js",
                 "ts/comments/assignments.ts"
@@ -25,6 +31,12 @@
             "status": "ignore",
             "reason": "scope",
             "note": "unsupported inline JSDoc `@type` and `@satisfies` cast semantics"
+        },
+        {
+            "patterns": ["js/jsdoc/**"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "JSDoc body formatting is out of scope unless we port Oxc's optional JSDoc formatter subsystem"
         },
         {
             "patterns": ["js/jsdoc/inline-type-cast.js"],
@@ -51,6 +63,42 @@
         },
         {
             "patterns": ["ts/static-members/non-null-expression.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported legacy TypeScript angle-bracket assertion syntax"
+        },
+        {
+            "patterns": ["ts/class/decorators.ts", "ts/class/issue-20519.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "we keep statement-like decorators on their own line before the decorated item"
+        },
+        {
+            "patterns": ["ts/parenthesis/type-assertion.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported legacy TypeScript angle-bracket assertion syntax"
+        },
+        {
+            "patterns": ["ts/semicolons/assignment.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported legacy TypeScript angle-bracket assertion syntax"
+        },
+        {
+            "patterns": ["ts/comments/union.ts"],
+            "status": "known-fail",
+            "reason": "upstream",
+            "note": "Oxc itself is non-idempotent for this fixture"
+        },
+        {
+            "patterns": ["ts/variable-declarations/issue-16193.ts"],
+            "status": "known-fail",
+            "reason": "upstream",
+            "note": "Oxc itself is non-idempotent for this fixture"
+        },
+        {
+            "patterns": ["ts/union/issue-16902.ts"],
             "status": "ignore",
             "reason": "scope",
             "note": "unsupported legacy TypeScript angle-bracket assertion syntax"

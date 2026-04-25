@@ -30,6 +30,25 @@ class   Foo   extends   Bar   {   }
 class Foo extends Bar {}
 ```
 
+### class extends with commented type arguments
+
+Comments inside class heritage type arguments keep the type arguments multiline.
+
+```ts:main.ts
+export class ClassTest extends Modal<
+  // comment
+  string | number | undefined
+> {
+}
+```
+
+```ts expected
+export class ClassTest extends Modal<
+    // comment
+    string | number | undefined
+> {}
+```
+
 ### class with implements
 
 Multiple implemented interfaces are separated by comma and space.

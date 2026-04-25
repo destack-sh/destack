@@ -174,6 +174,20 @@ Non-null assertions do not require parentheses on assignment.
 pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 ```
 
+### type assertion assignments keep required parentheses
+
+`as` and `satisfies` assertions keep parentheses when used as assignment targets.
+
+```ts:main.ts
+(pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED
+(pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED
+```
+
+```ts expected
+(pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED;
+(pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED;
+```
+
 ### wrapping and saturating assignments
 
 Wrapping and saturating assignments keep spaces around the operator.
