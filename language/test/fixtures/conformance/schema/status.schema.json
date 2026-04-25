@@ -164,6 +164,11 @@
           "const": "known-fail"
         },
         {
+          "description": "The case is a known idempotence-only failure.",
+          "type": "string",
+          "const": "known-fail-idempotence"
+        },
+        {
           "description": "The case is intentionally ignored.",
           "type": "string",
           "const": "ignore"
