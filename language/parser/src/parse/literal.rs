@@ -8,7 +8,7 @@ use destack_ast::{
     Argument, Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
     ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType, TypeExpression, TypeMember,
 };
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Return true when the current token starts a template literal.
@@ -879,8 +879,11 @@ impl Parser {
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
-            let element_expression_context =
-                self.options.not_in_position().not_in_left_precedence();
+            let element_expression_context = self
+                .options
+                .not_in_position()
+                .not_in_left_precedence()
+                .not_in_sequence_expression();
             self.with_options(
                 self.options
                     .with_expression_context(element_expression_context),
@@ -1209,12 +1212,12 @@ impl Parser {
                 continue;
             }
 
-            // skip whitespace-only tree strings (entire tokens, not content inside strings)
+            // skip non-meaningful whitespace-only tree strings
             if token.token.ty == TokenType::Literal
                 && token.token.literal == Some(LiteralType::TreeString)
             {
                 let content = self.get_span_str(token.span);
-                if content.trim().is_empty() {
+                if content.trim().is_empty() && content.contains('\n') {
                     if in_tree_child {
                         self.bump_tree_child();
                     } else {
@@ -1323,16 +1326,19 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // body (either />, or > with child elements)
+        let opening_span: Span;
         let elements: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without children (/>)
             if self.peek_is(TokenType::Divide) {
                 self.bump(); // eat /
                 self.eat_tree_tag_close(in_tree_child)?;
+                opening_span = self.get_span_from(&start);
                 None
             }
             // fragment with children (>)
             else {
                 self.eat_tree_tag_close(true)?;
+                opening_span = self.get_span_from(&start);
                 self.skip_tree_whitespace_with_child_context(true)?; // skip whitespace-only tree content
 
                 // eat children until closing fragment
@@ -1435,7 +1441,14 @@ impl Parser {
             arguments,
             elements,
         };
-        Ok(self.insert_node(expression, self.get_span_from(&start)))
+        let expression_id = self.insert_node(expression, self.get_span_from(&start));
+        self.tree.set_side_span(
+            expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Opening),
+            opening_span,
+        );
+
+        Ok(expression_id)
     }
 
     /// Return true when a tree literal path combines namespace and member syntax.
@@ -1970,6 +1983,39 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_array_literal_disallows_sequence_elements() {
+        let mut test = TestParser::new("[1, 2, 3]");
+        let mut parser = test.prepare();
+
+        let elements = parser.eat_array_literal().unwrap();
+        assert_eq!(elements.len(), 3);
+
+        assert_node!(
+            parser.tree,
+            elements[0],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            }
+        );
+
+        assert_node!(
+            parser.tree,
+            elements[1],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            }
+        );
+
+        assert_node!(
+            parser.tree,
+            elements[2],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+            }
+        );
+    }
+
+    #[test]
     fn test_parse_sparse_array_middle_hole() {
         let mut test = TestParser::new("[1, , 3]");
         let mut parser = test.prepare();
@@ -2083,6 +2129,24 @@ mod tests {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
             assert!(elements.is_none());
+        });
+    }
+
+    /// Parse inline whitespace-only tree text as a meaningful child.
+    #[test]
+    fn test_parse_tree_inline_whitespace_text_child() {
+        let mut test = TestParser::new_with_options("<Text> </Text>", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected child elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, " ");
+                });
+            });
         });
     }
 

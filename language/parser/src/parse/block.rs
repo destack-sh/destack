@@ -3,7 +3,7 @@ use destack_ast::{
     Keyword, LetKind, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 use destack_core::StringId;
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
@@ -718,13 +718,18 @@ impl Parser {
     #[inline]
     fn classify_statement_expression(
         &mut self,
-        _start: &ParserMark,
+        start: &ParserMark,
         expression_id: LocalNodeId<Expression>,
         block_context: Option<(BlockFormat, BlockContext)>,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+                self.get_span_from(start),
+            );
             return Ok((expression_id, true));
         }
 
@@ -757,18 +762,38 @@ impl Parser {
                 let error = ParseError::unexpected(self.peek()?.span);
                 self.error(&error);
 
+                self.tree.set_side_span(
+                    expression_id,
+                    NodeSpanType::Region(NodeSpanRegion::Statement),
+                    self.get_span_from(start),
+                );
+
                 return Ok((expression_id, true));
             }
 
             let error = ParseError::unexpected(self.peek()?.span);
             let recovery_start = self.mark_span();
             self.try_recover_in_statement(&recovery_start, Some(error))?;
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+                self.get_span_from(start),
+            );
 
             return Ok((expression_id, true));
         }
 
         if is_statement && keeps_value_tail && (stops_at_block_terminator || !has_separator) {
             return Ok((expression_id, false));
+        }
+
+        let is_statement_position = is_statement || has_separator || stops_at_block_terminator;
+        if is_statement_position {
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+                self.get_span_from(start),
+            );
         }
 
         Ok((expression_id, is_statement))
@@ -1095,7 +1120,7 @@ mod tests {
         BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionKind,
         IfKind, LetKind, NodeType, ScalarLiteral, TokenType, YieldCardinality,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::{
         ParserSettings, TestParser, assert_comment, assert_expression_path, assert_node,
@@ -1737,6 +1762,79 @@ const value = 1
                 });
             });
         });
+    }
+
+    /// Record statement source spans when parenthesized wrappers are skipped.
+    #[test]
+    fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
+        let mut test = TestParser::new_with_options("(() => value);", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+
+        let (expression_id, is_statement) =
+            parser.try_eat_statement_expression_classified().unwrap();
+        let statement_span = parser
+            .tree
+            .get_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+            )
+            .expect("missing statement span");
+
+        assert!(is_statement);
+        assert_eq!(parser.get_span_str(statement_span), "(() => value);");
+    }
+
+    /// Record statement source spans for root tail statements.
+    #[test]
+    fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
+        let mut test = TestParser::new_with_options("(() => value);", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+
+        let expressions = parser.parse();
+        let statement_span = parser
+            .tree
+            .get_side_span(
+                expressions[0],
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+            )
+            .expect("missing statement span");
+
+        assert_eq!(expressions.len(), 1);
+        assert_eq!(parser.get_span_str(statement_span), "(() => value);");
+    }
+
+    /// Record root expression statement spans before skipped wrappers.
+    #[test]
+    fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
+        let mut test = TestParser::new_with_options(
+            "const a = 1\n\n;(function() {})()",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.apply_settings(ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        });
+
+        let expressions = parser.parse();
+        let statement_span = parser
+            .tree
+            .get_side_span(
+                expressions[1],
+                NodeSpanType::Region(NodeSpanRegion::Statement),
+            )
+            .expect("missing statement span");
+
+        assert_eq!(expressions.len(), 2);
+        assert_eq!(parser.get_span_str(statement_span), "(function() {})()");
     }
 
     /// Parse if-body block tails as value expressions.

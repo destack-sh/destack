@@ -207,7 +207,6 @@ impl Parser {
         // semicolon statement forms allow a trailing then semicolon
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();
-            self.eat_newlines_maybe()?;
         }
 
         // optional else branch

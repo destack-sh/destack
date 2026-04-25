@@ -11,6 +11,8 @@ use destack_ast::{
 };
 use destack_source::Span;
 
+const VALUE_TERNARY_PRECEDENCE: u16 = 900;
+
 /// The normalized token facts for one continuation step.
 #[derive(Clone, Copy, Debug)]
 struct ContinuationToken {
@@ -1973,9 +1975,11 @@ impl Parser {
         let left_precedence = self.options.left_precedence;
         let mut tail_cursor = self.scanner_cursor_from(self.pos_index());
 
-        // ternary is the lowest precedence value continuation
+        // ternary sits between assignment and short-circuit expressions
         // type conditionals already consume `?` in type-space continuation parsing
-        if left_precedence.is_none() && tail_cursor.token_type == TokenType::Maybe {
+        if left_precedence.is_none_or(|left_precedence| left_precedence < VALUE_TERNARY_PRECEDENCE)
+            && tail_cursor.token_type == TokenType::Maybe
+        {
             if tail_cursor.index != self.pos_index() {
                 self.advance_to(tail_cursor.index);
             }
