@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanType, Span,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanList,
+    NodeSpanType, Span,
 };
 
 use crate::validate::Validator;
@@ -345,8 +346,11 @@ impl Parser {
         for (index, span) in segment_spans.iter().copied().enumerate() {
             let segment_index = u16::try_from(index)
                 .unwrap_or_else(|_| panic!("too many segment spans for node {}", id.id));
-            self.tree
-                .set_side_span(id, NodeSpanType::Segment(segment_index), span);
+            self.tree.set_side_span(
+                id,
+                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
+                span,
+            );
         }
     }
 

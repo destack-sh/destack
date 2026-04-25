@@ -1,6 +1,6 @@
 use destack_source::Span;
 
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block,
@@ -204,8 +204,11 @@ impl Parser {
                 .set_text_span(function_id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(function_id, keyword_span);
             self.tree.set_main_span(function_id, name_span);
-            self.tree
-                .set_side_span(function_id, NodeSpanType::Type, signature_span);
+            self.tree.set_side_span(
+                function_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                signature_span,
+            );
             self.tree.set_attribute_spans(function_id, attribute_spans);
             self.tree
                 .set_function_parameter_spans(function_id, parameter_spans);
@@ -239,8 +242,11 @@ impl Parser {
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
-        self.tree
-            .set_side_span(id, NodeSpanType::Type, signature_span);
+        self.tree.set_side_span(
+            id,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            signature_span,
+        );
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_function_parameter_spans(id, parameter_spans);
         let (_, value_types) = Function::parameter_state(&parameters);
@@ -589,8 +595,11 @@ impl Parser {
         self.tree
             .set_text_span(local_id, self.span_from_parse_start(local_start));
         self.tree.set_main_span(local_id, local_span);
-        self.tree
-            .set_side_span(local_id, NodeSpanType::Type, type_span);
+        self.tree.set_side_span(
+            local_id,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            type_span,
+        );
 
         Ok(local_id)
     }

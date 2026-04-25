@@ -1,4 +1,4 @@
-use destack_source::{NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
@@ -408,7 +408,8 @@ impl Parser {
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
-        self.tree.set_side_span(id, NodeSpanType::Type, type_span);
+        self.tree
+            .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
         self.tree
             .metadata
             .layout
@@ -493,7 +494,8 @@ impl Parser {
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
-        self.tree.set_side_span(id, NodeSpanType::Type, type_span);
+        self.tree
+            .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.global_map.insert(name, id);
 

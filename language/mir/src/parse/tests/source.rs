@@ -1,5 +1,5 @@
 use crate::{Block, Function, Global, Local, TypeAlias, TypeReference, assert_node};
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use super::tests::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
 
@@ -42,11 +42,11 @@ entry0:
     );
 
     assert_eq!(
-        tree.get_side_span(type_alias_id, NodeSpanType::Type),
+        tree.get_side_span(type_alias_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text(source, "() => void"))
     );
     assert_eq!(
-        tree.get_side_span(global_id, NodeSpanType::Type),
+        tree.get_side_span(global_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text_in(
             source,
             "global Count: int32, readonly = 1int32",
@@ -54,7 +54,7 @@ entry0:
         ))
     );
     assert_eq!(
-        tree.get_side_span(function_id, NodeSpanType::Type),
+        tree.get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text(source, "(): void"))
     );
 
@@ -112,7 +112,7 @@ entry0(input0: int32):
             Some(span_for_text(source, "result1"))
         );
         assert_eq!(
-            tree.get_side_span(instruction_id, NodeSpanType::Type),
+            tree.get_side_span(instruction_id, NodeSpanType::Region(NodeSpanRegion::Type)),
             Some(span_for_text_in(
                 source,
                 "result1: int32 = int.add input0, input0",
@@ -120,7 +120,7 @@ entry0(input0: int32):
             ))
         );
         assert_eq!(
-            tree.get_side_span(instruction_id, NodeSpanType::Segment(0)),
+            tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 0)),
             Some(span_for_text_in(
                 source,
                 "result1: int32 = int.add input0, input0",
@@ -128,7 +128,7 @@ entry0(input0: int32):
             ))
         );
         assert_eq!(
-            tree.get_side_span(instruction_id, NodeSpanType::Segment(1)),
+            tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 1)),
             Some(span_for_text_in(
                 source,
                 "result1: int32 = int.add input0, input0",
@@ -136,7 +136,7 @@ entry0(input0: int32):
             ))
         );
         assert_eq!(
-            tree.get_side_span(instruction_id, NodeSpanType::Segment(2)),
+            tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 2)),
             Some(span_for_text_in_after(
                 source,
                 "result1: int32 = int.add input0, input0",
@@ -180,7 +180,7 @@ entry0:
         Some(span_for_text(source, "local0"))
     );
     assert_eq!(
-        tree.get_side_span(local_id, NodeSpanType::Type),
+        tree.get_side_span(local_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text_in(source, "local local0: int32", "int32"))
     );
 }
