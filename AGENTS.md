@@ -76,6 +76,7 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 - Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context).
 - Abstraction sludge names like "seam", "lane", "info", "factory", .. and friends are to be treated with high suspicion and almost certainly wrong.
+- The same logic applies for module and file names too (single part file names are clearer, "support" is sludge, etc.)
 
 ### Logic
 
