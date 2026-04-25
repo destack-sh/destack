@@ -1,6 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-/// Policy for runtime task scheduling in thread pools.
+/// Runtime scheduler mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum SchedulerMode {
+    /// Run all world progress cooperatively on one scheduler.
+    Cooperative,
+    /// Allow host-parallel progress across multiple workers.
+    #[default]
+    Parallel,
+}
+
+/// Runtime task scheduling policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum SchedulerPolicy {
     /// First-in, first-out scheduling.
@@ -11,10 +21,13 @@ pub enum SchedulerPolicy {
     /// Work-stealing scheduling for throughput.
     WorkStealing,
 }
+
 /// Runtime scheduler configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct SchedulerOptions {
-    // event loop
+    /// Runtime scheduler mode.
+    pub mode: SchedulerMode,
+    // event loop work
     /// Event loop tick budget in nanoseconds.
     pub tick_budget_ns: Option<u64>,
     /// Maximum number of microtasks per tick.
@@ -32,17 +45,11 @@ pub struct SchedulerOptions {
     /// Platform poller backend selection.
     pub poller_backend: PollerBackend,
 
-    // task pools
-    /// Scheduling policy for task pools.
+    // scheduled work
+    /// Scheduling policy for ready work.
     pub policy: SchedulerPolicy,
-    /// Number of worker threads for parallel tasks.
-    pub worker_threads: Option<u64>,
-    /// Number of I/O threads.
-    pub io_threads: Option<u64>,
-    /// Number of blocking worker threads.
-    pub blocking_threads: Option<u64>,
-    /// Maximum number of concurrent tasks.
-    pub max_tasks: Option<u64>,
+    /// Maximum number of live scheduled tasks.
+    pub task_limit: Option<u64>,
 }
 
 /// Platform poller backend selection.
@@ -86,12 +93,13 @@ impl PollerBackend {
     }
 }
 
-/// Runtime garbage collector configuration.
 /// Runtime scheduler options for JSON deserialization.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerOptionsJson {
+    /// Runtime scheduler mode.
+    pub mode: Option<SchedulerModeJson>,
     /// Event loop tick budget in nanoseconds.
     pub tick_budget_ns: Option<u64>,
     /// Maximum number of microtasks per tick.
@@ -108,21 +116,18 @@ pub struct SchedulerOptionsJson {
     pub preempt_interval_ns: Option<u64>,
     /// Platform poller backend selection.
     pub poller_backend: Option<PollerBackendJson>,
-    /// Scheduling policy for task pools.
+    /// Scheduling policy for ready work.
     pub policy: Option<SchedulerPolicyJson>,
-    /// Number of worker threads for parallel tasks.
-    pub worker_threads: Option<u64>,
-    /// Number of I/O threads.
-    pub io_threads: Option<u64>,
-    /// Number of blocking worker threads.
-    pub blocking_threads: Option<u64>,
-    /// Maximum number of concurrent tasks.
-    pub max_tasks: Option<u64>,
+    /// Maximum number of live scheduled tasks.
+    pub task_limit: Option<u64>,
 }
 
 impl SchedulerOptionsJson {
     /// Inherit unset scheduler settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
         if self.tick_budget_ns.is_none() {
             self.tick_budget_ns = parent.tick_budget_ns;
         }
@@ -150,22 +155,18 @@ impl SchedulerOptionsJson {
         if self.policy.is_none() {
             self.policy = parent.policy;
         }
-        if self.worker_threads.is_none() {
-            self.worker_threads = parent.worker_threads;
-        }
-        if self.io_threads.is_none() {
-            self.io_threads = parent.io_threads;
-        }
-        if self.blocking_threads.is_none() {
-            self.blocking_threads = parent.blocking_threads;
-        }
-        if self.max_tasks.is_none() {
-            self.max_tasks = parent.max_tasks;
+        if self.task_limit.is_none() {
+            self.task_limit = parent.task_limit;
         }
     }
 
     /// Apply scheduler overrides to a base set of options.
     pub fn apply_to(&self, options: &mut SchedulerOptions) {
+        // scheduler mode
+        if let Some(mode) = self.mode {
+            options.mode = mode.into();
+        }
+
         // apply event loop overrides
         if let Some(tick_budget_ns) = self.tick_budget_ns {
             options.tick_budget_ns = Some(tick_budget_ns);
@@ -196,17 +197,28 @@ impl SchedulerOptionsJson {
         if let Some(policy) = self.policy {
             options.policy = SchedulerPolicy::from(policy);
         }
-        if let Some(worker_threads) = self.worker_threads {
-            options.worker_threads = Some(worker_threads);
+        if let Some(task_limit) = self.task_limit {
+            options.task_limit = Some(task_limit);
         }
-        if let Some(io_threads) = self.io_threads {
-            options.io_threads = Some(io_threads);
-        }
-        if let Some(blocking_threads) = self.blocking_threads {
-            options.blocking_threads = Some(blocking_threads);
-        }
-        if let Some(max_tasks) = self.max_tasks {
-            options.max_tasks = Some(max_tasks);
+    }
+}
+
+/// Runtime scheduler mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SchedulerModeJson {
+    /// Run all world progress cooperatively on one scheduler.
+    Cooperative,
+    /// Allow host-parallel progress across multiple workers.
+    Parallel,
+}
+
+impl From<SchedulerModeJson> for SchedulerMode {
+    fn from(value: SchedulerModeJson) -> Self {
+        match value {
+            SchedulerModeJson::Cooperative => Self::Cooperative,
+            SchedulerModeJson::Parallel => Self::Parallel,
         }
     }
 }

@@ -1,9 +1,9 @@
 use destack_runtime::runtime::bindings::BindingPolicy;
 use destack_source::{ModuleId, TargetId};
-use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
-use destack_workspace::{
-    DebugMode, ExecutionMode as RuntimeExecutionMode, Repository, Revision, Target, TrustPolicy,
+use destack_vm::{
+    ExecutionMode, Isolate, IsolateId, IsolateOptions, TrustPolicy as VmTrustPolicy, Value,
 };
+use destack_workspace::{DebugMode, Repository, Revision, Target, TrustPolicy};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
@@ -36,7 +36,7 @@ pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 /// Create binding policy from target configuration.
 pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
     // map execution mode into runtime binding settings
-    let mode: RuntimeExecutionMode = target.runtime_options.execution;
+    let mode = target.runtime_options.execution_mode();
 
     // build the policy object
     BindingPolicy::new(mode)
@@ -66,7 +66,7 @@ pub fn create_isolate(
         };
 
     // construct the isolate from mir state
-    Isolate::build_with_options(tree, strings, options)
+    Isolate::build_with_options(IsolateId::new(1), tree, strings, options)
         .map_err(|error| CliError::message(error.to_string()))
 }
 

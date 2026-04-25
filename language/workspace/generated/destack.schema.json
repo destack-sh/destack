@@ -199,14 +199,10 @@
         "name": null,
         "labels": null,
         "primaryWorker": null,
-        "execution": null,
-        "world": null,
-        "access": null,
-        "rules": null,
-        "replay": null,
-        "time": null,
-        "random": null,
         "scheduler": null,
+        "effect": null,
+        "simulation": null,
+        "trace": null,
         "heap": null,
         "diagnostic": null,
         "fs": null,
@@ -1189,87 +1185,44 @@
             }
           ]
         },
-        "execution": {
-          "description": "Execution mode for runtime scheduling and replay.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ExecutionModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "world": {
-          "description": "Default world for bindings without matching world rules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeWorldJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "access": {
-          "description": "Default access policy for bindings without matching access rules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeAccessJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "rules": {
-          "description": "Ordered static runtime rules.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/RuntimeRuleJson"
-          }
-        },
-        "replay": {
-          "description": "Replay configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReplayOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "time": {
-          "description": "Runtime clock configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TimeOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "random": {
-          "description": "Runtime randomness configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RandomOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "scheduler": {
           "description": "Runtime scheduler configuration.",
           "anyOf": [
             {
               "$ref": "#/$defs/SchedulerOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect": {
+          "description": "Runtime effect configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "simulation": {
+          "description": "Runtime simulation configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SimulationOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trace": {
+          "description": "Runtime trace configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TraceOptionsJson"
             },
             {
               "type": "null"
@@ -1554,30 +1507,246 @@
         }
       }
     },
-    "ExecutionModeJson": {
-      "description": "Execution mode for JSON deserialization.",
+    "SchedulerOptionsJson": {
+      "description": "Runtime scheduler options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Runtime scheduler mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchedulerModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tickBudgetNs": {
+          "description": "Event loop tick budget in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "microtaskBudget": {
+          "description": "Maximum number of microtasks per tick.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "hostEventBudget": {
+          "description": "Maximum host semantic events dispatched in sequence before one poller event.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxMicrotaskDepth": {
+          "description": "Maximum microtask nesting depth.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "timerResolutionNs": {
+          "description": "Timer resolution in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxTimerCoalesceNs": {
+          "description": "Maximum timer coalescing window in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "preemptIntervalNs": {
+          "description": "Preemption interval for long-running tasks in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "pollerBackend": {
+          "description": "Platform poller backend selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PollerBackendJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policy": {
+          "description": "Scheduling policy for ready work.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchedulerPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "taskLimit": {
+          "description": "Maximum number of live scheduled tasks.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "SchedulerModeJson": {
+      "description": "Runtime scheduler mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Fast execution without determinism guarantees.",
+          "description": "Run all world progress cooperatively on one scheduler.",
           "type": "string",
-          "const": "fast"
+          "const": "cooperative"
         },
         {
-          "description": "Deterministic scheduling with controlled randomness.",
+          "description": "Allow host-parallel progress across multiple workers.",
           "type": "string",
-          "const": "deterministic"
-        },
-        {
-          "description": "Record external effects for replay.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay external effects from the log.",
-          "type": "string",
-          "const": "replay"
+          "const": "parallel"
         }
       ]
+    },
+    "PollerBackendJson": {
+      "description": "Poller backend options for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Choose the best available backend for the platform.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Use io_uring (Linux only).",
+          "type": "string",
+          "const": "ioUring"
+        },
+        {
+          "description": "Use epoll (Linux only).",
+          "type": "string",
+          "const": "epoll"
+        },
+        {
+          "description": "Use kqueue (BSD/macOS only).",
+          "type": "string",
+          "const": "kqueue"
+        },
+        {
+          "description": "Use poll (portable Unix backend).",
+          "type": "string",
+          "const": "poll"
+        },
+        {
+          "description": "Use the Windows readiness backend.",
+          "type": "string",
+          "const": "windows"
+        }
+      ]
+    },
+    "SchedulerPolicyJson": {
+      "description": "Scheduler policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "First-in, first-out scheduling.",
+          "type": "string",
+          "const": "fifo"
+        },
+        {
+          "description": "Fair scheduling with time slicing.",
+          "type": "string",
+          "const": "fair"
+        },
+        {
+          "description": "Work-stealing scheduling for throughput.",
+          "type": "string",
+          "const": "work_stealing"
+        }
+      ]
+    },
+    "EffectOptionsJson": {
+      "description": "Runtime effect configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "backend": {
+          "description": "Default binding backend when no rule matches.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeWorldJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "access": {
+          "description": "Default access policy for bindings without matching access rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeAccessJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rules": {
+          "description": "Ordered binding routing rules.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/RuntimeRuleJson"
+          }
+        },
+        "time": {
+          "description": "Source for time facts.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectSourceJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "random": {
+          "description": "Source for randomness facts.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectSourceJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "RuntimeWorldJson": {
       "description": "Runtime world selection for JSON deserialization.",
@@ -1842,6 +2011,31 @@
         }
       ]
     },
+    "ExecutionModeJson": {
+      "description": "Execution mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Fast execution without determinism guarantees.",
+          "type": "string",
+          "const": "fast"
+        },
+        {
+          "description": "Deterministic scheduling with controlled randomness.",
+          "type": "string",
+          "const": "deterministic"
+        },
+        {
+          "description": "Record external effects for replay.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Replay external effects from the log.",
+          "type": "string",
+          "const": "replay"
+        }
+      ]
+    },
     "BindingScopeJson": {
       "description": "Runtime rule scope selector for JSON deserialization.",
       "oneOf": [
@@ -2043,12 +2237,131 @@
         }
       ]
     },
-    "ReplayOptionsJson": {
-      "description": "Replay options for JSON deserialization.",
+    "EffectSourceJson": {
+      "description": "Effect source for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Resolve facts from the live host.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "Resolve facts from the active trace log.",
+          "type": "string",
+          "const": "trace"
+        },
+        {
+          "description": "Resolve facts from the configured simulation backend.",
+          "type": "string",
+          "const": "simulation"
+        },
+        {
+          "description": "Forbid this interaction domain.",
+          "type": "string",
+          "const": "deny"
+        }
+      ]
+    },
+    "SimulationOptionsJson": {
+      "description": "Runtime simulation configuration for JSON deserialization.",
       "type": "object",
       "properties": {
+        "time": {
+          "description": "Simulation settings for time facts.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeSimulationOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "random": {
+          "description": "Simulation settings for randomness facts.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RandomSimulationOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "TimeSimulationOptionsJson": {
+      "description": "Simulation settings for time facts for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "epochNs": {
+          "description": "Epoch in nanoseconds for simulated wall time.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "timeZone": {
+          "description": "Time zone identifier or fixed offset string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "RandomSimulationOptionsJson": {
+      "description": "Simulation settings for randomness facts for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "seed": {
+          "description": "Seed for deterministic randomness streams.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "perRunnable": {
+          "description": "Whether to use one random stream per runnable.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "TraceOptionsJson": {
+      "description": "Runtime trace configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "The configured trace mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TraceModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restore": {
+          "description": "The configured restore contract.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RestoreModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "path": {
-          "description": "Base path for replay logs (file or directory).",
+          "description": "Base path for trace logs.",
           "type": [
             "string",
             "null"
@@ -2071,7 +2384,7 @@
           "minimum": 0
         },
         "payload": {
-          "description": "Replay payload selection for record mode.",
+          "description": "Trace payload selection for recorded binding calls.",
           "anyOf": [
             {
               "$ref": "#/$defs/ReplayPayloadModeJson"
@@ -2083,281 +2396,38 @@
         }
       }
     },
-    "TimeOptionsJson": {
-      "description": "Runtime time options for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "Clock mode selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TimeModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "epochNs": {
-          "description": "Epoch in nanoseconds for virtual time.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "timeZone": {
-          "description": "Time zone identifier or fixed offset string.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "TimeModeJson": {
-      "description": "Time mode for JSON deserialization.",
+    "TraceModeJson": {
+      "description": "Trace mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Use the host clock directly.",
+          "description": "Do not record or replay one trace log.",
           "type": "string",
-          "const": "host"
+          "const": "off"
         },
         {
-          "description": "Use a virtualized clock derived from runtime state.",
+          "description": "Record one trace log from live execution.",
           "type": "string",
-          "const": "virtual"
+          "const": "record"
+        },
+        {
+          "description": "Replay one trace log as authoritative input.",
+          "type": "string",
+          "const": "replay"
         }
       ]
     },
-    "RandomOptionsJson": {
-      "description": "Runtime randomness options for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "Randomness source selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RandomModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "seed": {
-          "description": "Seed for deterministic randomness streams.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "perRunnable": {
-          "description": "Whether to use a per-runnable random stream.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        }
-      }
-    },
-    "RandomModeJson": {
-      "description": "Randomness mode for JSON deserialization.",
+    "RestoreModeJson": {
+      "description": "Restore contract for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Use the host randomness source.",
+          "description": "Restore one live logical world state.",
           "type": "string",
-          "const": "host"
+          "const": "world"
         },
         {
-          "description": "Use deterministic runtime-managed randomness.",
+          "description": "Restore one exact serialized execution image.",
           "type": "string",
-          "const": "deterministic"
-        }
-      ]
-    },
-    "SchedulerOptionsJson": {
-      "description": "Runtime garbage collector configuration.\nRuntime scheduler options for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "tickBudgetNs": {
-          "description": "Event loop tick budget in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "microtaskBudget": {
-          "description": "Maximum number of microtasks per tick.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "hostEventBudget": {
-          "description": "Maximum host semantic events dispatched in sequence before one poller event.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxMicrotaskDepth": {
-          "description": "Maximum microtask nesting depth.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "timerResolutionNs": {
-          "description": "Timer resolution in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxTimerCoalesceNs": {
-          "description": "Maximum timer coalescing window in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "preemptIntervalNs": {
-          "description": "Preemption interval for long-running tasks in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "pollerBackend": {
-          "description": "Platform poller backend selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PollerBackendJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "policy": {
-          "description": "Scheduling policy for task pools.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SchedulerPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "workerThreads": {
-          "description": "Number of worker threads for parallel tasks.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "ioThreads": {
-          "description": "Number of I/O threads.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "blockingThreads": {
-          "description": "Number of blocking worker threads.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxTasks": {
-          "description": "Maximum number of concurrent tasks.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "PollerBackendJson": {
-      "description": "Poller backend options for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Choose the best available backend for the platform.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Use io_uring (Linux only).",
-          "type": "string",
-          "const": "ioUring"
-        },
-        {
-          "description": "Use epoll (Linux only).",
-          "type": "string",
-          "const": "epoll"
-        },
-        {
-          "description": "Use kqueue (BSD/macOS only).",
-          "type": "string",
-          "const": "kqueue"
-        },
-        {
-          "description": "Use poll (portable Unix backend).",
-          "type": "string",
-          "const": "poll"
-        },
-        {
-          "description": "Use the Windows readiness backend.",
-          "type": "string",
-          "const": "windows"
-        }
-      ]
-    },
-    "SchedulerPolicyJson": {
-      "description": "Scheduler policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "First-in, first-out scheduling.",
-          "type": "string",
-          "const": "fifo"
-        },
-        {
-          "description": "Fair scheduling with time slicing.",
-          "type": "string",
-          "const": "fair"
-        },
-        {
-          "description": "Work-stealing scheduling for throughput.",
-          "type": "string",
-          "const": "work_stealing"
+          "const": "image"
         }
       ]
     },
@@ -2365,50 +2435,11 @@
       "description": "Runtime heap configuration for JSON deserialization.",
       "type": "object",
       "properties": {
-        "gc": {
-          "description": "Garbage-collection policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/HeapGcOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "limit": {
-          "description": "Hard limits.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/HeapLimitOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "layout": {
-          "description": "Layout and allocator geometry.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/HeapLayoutOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "HeapGcOptionsJson": {
-      "description": "Runtime heap GC configuration for JSON deserialization.",
-      "type": "object",
-      "properties": {
         "local": {
-          "description": "Local-heap collector pacing.",
+          "description": "Local-heap policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/LocalGcOptionsJson"
+              "$ref": "#/$defs/HeapSpaceOptionsJson"
             },
             {
               "type": "null"
@@ -2416,10 +2447,21 @@
           ]
         },
         "shared": {
-          "description": "Shared-heap collector pacing.",
+          "description": "Shared-heap policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/SharedGcOptionsJson"
+              "$ref": "#/$defs/HeapSpaceOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allocator": {
+          "description": "Allocator sizing policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeapAllocatorOptionsJson"
             },
             {
               "type": "null"
@@ -2428,21 +2470,12 @@
         }
       }
     },
-    "LocalGcOptionsJson": {
-      "description": "Runtime local-heap collector pacing for JSON deserialization.",
+    "HeapSpaceOptionsJson": {
+      "description": "Runtime heap-space policy for JSON deserialization.",
       "type": "object",
       "properties": {
         "growthPercent": {
           "description": "Heap growth target percentage.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0
-        },
-        "triggerPercent": {
-          "description": "Heap trigger as a percentage of the current goal.",
           "type": [
             "integer",
             "null"
@@ -2459,8 +2492,8 @@
           "format": "uint64",
           "minimum": 0
         },
-        "minimumHeapBytes": {
-          "description": "Minimum live heap floor in bytes.",
+        "hardLimitBytes": {
+          "description": "Hard memory limit in bytes.",
           "type": [
             "integer",
             "null"
@@ -2470,144 +2503,8 @@
         }
       }
     },
-    "SharedGcOptionsJson": {
-      "description": "Runtime shared-heap collector pacing for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "growthPercent": {
-          "description": "Heap growth target percentage.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0
-        },
-        "triggerPercent": {
-          "description": "Heap trigger as a percentage of the current goal.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0
-        },
-        "memoryLimitBytes": {
-          "description": "Soft memory limit in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "minimumHeapBytes": {
-          "description": "Minimum live heap floor in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "HeapLimitOptionsJson": {
-      "description": "Runtime heap hard-limit configuration for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "local": {
-          "description": "Local-heap hard limits.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LocalHeapLimitOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "shared": {
-          "description": "Shared-heap hard limits.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SharedHeapLimitOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "LocalHeapLimitOptionsJson": {
-      "description": "Runtime local-heap hard limits for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "maxBytes": {
-          "description": "Hard limit for total retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "managedMaxBytes": {
-          "description": "Hard limit for retained managed heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "rawMaxBytes": {
-          "description": "Hard limit for retained raw heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "SharedHeapLimitOptionsJson": {
-      "description": "Runtime shared-heap hard limits for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "maxBytes": {
-          "description": "Hard limit for total retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "managedMaxBytes": {
-          "description": "Hard limit for retained managed heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "rawMaxBytes": {
-          "description": "Hard limit for retained raw heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "HeapLayoutOptionsJson": {
-      "description": "Runtime heap layout configuration for JSON deserialization.",
+    "HeapAllocatorOptionsJson": {
+      "description": "Runtime allocator configuration for JSON deserialization.",
       "type": "object",
       "properties": {
         "sizeClasses": {
@@ -2621,8 +2518,8 @@
             }
           ]
         },
-        "managedYoungBytes": {
-          "description": "The byte width for managed young space.",
+        "youngBytes": {
+          "description": "The byte width for heap young space.",
           "type": [
             "integer",
             "null"
@@ -2630,8 +2527,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "maxManagedYoungAllocationBytes": {
-          "description": "The maximum payload size admitted into managed young space.",
+        "maxYoungAllocationBytes": {
+          "description": "The maximum payload size admitted into heap young space.",
           "type": [
             "integer",
             "null"
@@ -2639,8 +2536,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "managedSpanBytes": {
-          "description": "The byte width for managed small-allocation spans.",
+        "spanBytes": {
+          "description": "The byte width for heap small-allocation spans.",
           "type": [
             "integer",
             "null"
@@ -2666,17 +2563,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "segmentBytes": {
-          "description": "The byte width for one physical segment.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "cardBytes": {
-          "description": "The byte width for one remembered card.",
+        "arenaBytes": {
+          "description": "The byte width for one allocator arena.",
           "type": [
             "integer",
             "null"

@@ -34,6 +34,7 @@ pub struct RuntimeRule {
     /// Replay payload decision for matching bindings.
     pub replay: Option<ReplayPayloadMode>,
 }
+
 /// Runtime world selection for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

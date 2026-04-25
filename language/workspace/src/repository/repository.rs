@@ -224,7 +224,6 @@ impl Repository {
             revision_state.source.as_ref(),
             &packages,
         )?;
-        let targets_by_id = self.targets_by_id(&packages);
         let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo
         } else {
@@ -240,7 +239,7 @@ impl Repository {
             packages,
             modules,
             package_paths,
-            targets: targets_by_id,
+            targets: Default::default(),
         });
 
         let _ = revision_state.workspace.set(Arc::clone(&workspace));
