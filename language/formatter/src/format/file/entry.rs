@@ -218,7 +218,13 @@ mod tests {
 
         assert_eq!(
             formatted,
-            "@media screen {\n    .button {\n        color: red;\n        background: blue;\n    }\n}\n"
+            r#"@media screen {
+    .button {
+        color: red;
+        background: blue;
+    }
+}
+"#
         );
     }
 
@@ -239,7 +245,11 @@ mod tests {
 
         assert_eq!(
             formatted,
-            "<div>\n    <span>hello</span>\n    <p>world</p>\n</div>\n"
+            r#"<div>
+    <span>hello</span>
+    <p>world</p>
+</div>
+"#
         );
     }
 
@@ -258,6 +268,39 @@ mod tests {
         let formatted =
             format_file_source(&file, "const fresh=2", FormatterOptions::default()).unwrap();
 
-        assert_eq!(formatted, "const fresh = 2;\n");
+        assert_eq!(
+            formatted,
+            r#"const fresh = 2;
+"#
+        );
+    }
+
+    /// Parser-backed formatting should preserve trailing file comments.
+    #[test]
+    fn test_format_parser_file_source_preserves_eof_comments() {
+        let file = File::from_text(
+            FileId::new(1),
+            "main.ts".to_string(),
+            Uri::from_string("test:///main.ts"),
+            None,
+            FileType::TypeScript,
+            String::new(),
+        );
+
+        let formatted = format_file_source(
+            &file,
+            r#"const value = 1;
+// trailing
+"#,
+            FormatterOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            formatted,
+            r#"const value = 1;
+// trailing
+"#
+        );
     }
 }

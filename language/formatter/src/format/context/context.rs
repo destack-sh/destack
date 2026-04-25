@@ -23,6 +23,22 @@ use super::comment::Comments;
 /// The formatter implementation specialized for the Destack context.
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
+/// Run one formatter callback with a temporary following sibling boundary.
+pub(crate) fn with_following_span_start<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    following_span_start: u32,
+    format: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+) -> FormatResult<()> {
+    let previous_following_span_start = f
+        .context_mut()
+        .replace_following_span_start(following_span_start);
+    let result = format(f);
+    f.context_mut()
+        .replace_following_span_start(previous_following_span_start);
+
+    result
+}
+
 /// Destack format context.
 #[derive(Debug, Clone)]
 pub struct DestackFormatContext<'a> {
