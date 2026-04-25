@@ -4,6 +4,33 @@ use crate::{
 };
 use destack_source::FileType;
 
+/// Nested helper calls in broken sequence expressions should still stay flat when they fit.
+#[test]
+fn test_format_member_call_arguments_stay_flat_in_broken_sequence() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"function f() {
+  return (
+    (_this$prop3 = babelHelpers.classPrivateFieldGet2(_prop2, this)),
+    // This forces the sequence group to expand without forcing the helper call.
+    // The helper call should keep its own fitting decision.
+    class Inner {}
+  );
+}
+"#,
+        r#"function f() {
+    return (
+        (_this$prop3 = babelHelpers.classPrivateFieldGet2(_prop2, this)),
+        // This forces the sequence group to expand without forcing the helper call.
+        // The helper call should keep its own fitting decision.
+        class Inner {}
+    );
+}
+"#,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
 /// Member chains should split after the base head.
 #[test]
 fn test_format_member_chain_splits_after_base_head() {

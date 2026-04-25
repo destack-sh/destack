@@ -98,6 +98,64 @@ fn test_format_block_declaration_after_expression_no_forced_blank_line() {
     );
 }
 
+/// Source blank lines before statement comments should remain visible.
+#[test]
+fn test_format_program_preserves_blank_line_before_statement_comments() {
+    assert_format_program!(
+        r#"if (!process.stdout.isTTY) process.stdout._handle?.setBlocking?.(true);
+
+// Call the Rust CLI first
+const mode = runCli();
+"#,
+        r#"if (!process.stdout.isTTY) process.stdout._handle?.setBlocking?.(true);
+
+// Call the Rust CLI first
+const mode = runCli();
+"#,
+        FileType::TypeScript,
+    );
+}
+
+/// Blank lines before parenthesized statement expressions should be preserved.
+#[test]
+fn test_format_program_preserves_blank_line_before_parenthesized_iife() {
+    assert_format_program_reference_widths(
+        r#"const a = 1
+
+;(function() {
+  const b = 2;
+})()
+
+foo();
+[1,2,3]; // prettier-ignore
+
+bar();
+[4,5,6]; // oxfmt-ignore
+
+baz();
+[7,8,9]"#,
+        FileType::JavaScript,
+        &[(
+            80,
+            r#"const a = 1;
+
+(function () {
+  const b = 2;
+})();
+
+foo();
+[1,2,3]; // prettier-ignore
+
+bar();
+[4,5,6]; // oxfmt-ignore
+
+baz();
+[7, 8, 9];
+"#,
+        )],
+    );
+}
+
 /// Side-effect imports should keep source order and stay above regular imports at program scope.
 #[test]
 fn test_format_program_import_sorting_preserves_side_effect_order() {

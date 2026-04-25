@@ -53,7 +53,10 @@ fn test_format_pattern_union() {
 fn test_format_pattern_array_rest_disallows_trailing_comma() {
     assert_format!(
         "[a, ...rest]",
-        "[\n    a,\n    ...rest\n]",
+        r#"[
+    a,
+    ...rest
+]"#,
         |p| p.eat_pattern(),
         DestackFormatOptions::default_with_line_width(1)
     );
@@ -63,7 +66,10 @@ fn test_format_pattern_array_rest_disallows_trailing_comma() {
 fn test_format_pattern_tuple_rest_disallows_trailing_comma() {
     assert_format!(
         "(a, ...rest)",
-        "(\n    a,\n    ...rest\n)",
+        r#"(
+    a,
+    ...rest
+)"#,
         |p| p.eat_pattern(),
         DestackFormatOptions::default_with_line_width(1)
     );

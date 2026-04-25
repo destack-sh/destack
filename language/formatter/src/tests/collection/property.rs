@@ -137,14 +137,14 @@ fn test_format_object_quote_props_preserve() {
     );
 }
 
-/// TypeScript class members should stay unquoted when no sibling key requires quotes.
+/// TypeScript class fields should preserve quoted string keys.
 #[test]
 fn test_format_class_quote_props_consistent_without_required_quotes() {
     assert_format_program!(
         r#"class Example { "a" = 1; b = 2; }
 "#,
         r#"class Example {
-  a = 1;
+  "a" = 1;
   b = 2;
 }
 "#,

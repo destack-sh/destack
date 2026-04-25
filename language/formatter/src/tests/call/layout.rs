@@ -289,12 +289,12 @@ const arrayTail = call((
   return foo;
 }, value as Foo<string>);
 
-const genericStaticTail = call(<T, U>(
-  alpha: AlphaType,
-  beta: BetaType,
-): Result => {
-  return foo;
-}, value as Foo<string>);
+const genericStaticTail = call(
+  <T, U>(alpha: AlphaType, beta: BetaType): Result => {
+    return foo;
+  },
+  value as Foo<string>,
+);
 
 const arrayTail = call((alpha: AlphaType, beta: BetaType): Result => {
   return foo;

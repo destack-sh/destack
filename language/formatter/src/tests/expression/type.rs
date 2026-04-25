@@ -17,6 +17,20 @@ fn test_format_type_conditional_with_constrained_infer() {
     );
 }
 
+/// Function-type return annotations should follow Oxfmt's arrow-function parenthesis rule.
+#[test]
+fn test_format_function_type_return_parentheses() {
+    assert_format_program!(
+        r#"function f(): (value: Value) => void {}
+const g = (): (value: Value) => void => (value: Value) => {};
+"#,
+        r#"function f(): (value: Value) => void {}
+const g = (): ((value: Value) => void) => (value: Value) => {};
+"#,
+        FileType::TypeScript
+    );
+}
+
 /// Mapped types with key remaps should keep the shared layout.
 #[test]
 fn test_format_type_mapped_with_remap() {
