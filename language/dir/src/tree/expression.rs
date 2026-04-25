@@ -11,7 +11,7 @@ use crate::{
     StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeExpression, TypeLiteral,
     UnaryOperator, VarianceBound,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanList, NodeSpanType};
 
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
@@ -619,7 +619,7 @@ impl Expression {
                 if tree.get_source(current_id.id) == source_id
                     && usize::from(segment_index) < path.segments.len() =>
             {
-                NodeSpanType::Segment(segment_index)
+                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index)
             }
             _ => NodeSpanType::Main,
         }
