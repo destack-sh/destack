@@ -92,6 +92,7 @@ impl Compiler {
 
         let ast_member = match member {
             dir::TypeMember::Field {
+                is_static,
                 is_optional,
                 is_readonly,
                 key,
@@ -122,6 +123,7 @@ impl Compiler {
                 });
 
                 ast::TypeMember::Field {
+                    is_static: *is_static,
                     is_optional: *is_optional,
                     is_readonly: *is_readonly,
                     key,
@@ -129,6 +131,7 @@ impl Compiler {
                 }
             }
             dir::TypeMember::Method {
+                is_static,
                 is_optional,
                 key,
                 signature,
@@ -169,6 +172,7 @@ impl Compiler {
                 });
 
                 ast::TypeMember::Method {
+                    is_static: *is_static,
                     is_optional: *is_optional,
                     key,
                     signature,

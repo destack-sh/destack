@@ -1829,6 +1829,7 @@ impl Compiler {
                     let member = ctx.tree.get(member_id).clone();
                     let field = match member {
                         TypeMember::Field {
+                            is_static: _,
                             is_optional,
                             is_readonly,
                             key,
@@ -1928,6 +1929,7 @@ impl Compiler {
                             continue;
                         }
                         TypeMember::Method {
+                            is_static: _,
                             is_optional,
                             key,
                             signature,

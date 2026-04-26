@@ -181,6 +181,7 @@ impl Compiler {
 
         match ast_member {
             ast::TypeMember::Field {
+                is_static,
                 is_optional,
                 is_readonly,
                 key,
@@ -224,6 +225,7 @@ impl Compiler {
                 let member_id = tree.insert(
                     member_id,
                     TypeMember::Field {
+                        is_static: *is_static,
                         is_optional: *is_optional,
                         is_readonly: *is_readonly,
                         key,
@@ -235,6 +237,7 @@ impl Compiler {
                 member_id
             }
             ast::TypeMember::Method {
+                is_static,
                 is_optional,
                 key,
                 signature,
@@ -315,6 +318,7 @@ impl Compiler {
                 let member_id = tree.insert(
                     member_id,
                     TypeMember::Method {
+                        is_static: *is_static,
                         is_optional: *is_optional,
                         key,
                         signature,

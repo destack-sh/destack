@@ -1886,6 +1886,7 @@ impl Compiler {
 
             // named fields become structural fields
             TypeMember::Field {
+                is_static: _,
                 key,
                 declared_type,
                 is_optional,
@@ -2023,6 +2024,7 @@ impl Compiler {
 
             // methods contribute named callable members
             TypeMember::Method {
+                is_static: _,
                 key,
                 signature,
                 is_optional,

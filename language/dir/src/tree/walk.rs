@@ -477,6 +477,7 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
 
     match type_member {
         TypeMember::Field {
+            is_static: _,
             is_optional: _,
             is_readonly: _,
             key,
@@ -491,6 +492,7 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             }
         }
         TypeMember::Method {
+            is_static: _,
             is_optional: _,
             key,
             signature,
