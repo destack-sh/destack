@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, TrustPolicy};
 
 use super::{ComptimeOutput, ComptimePatch, collect_comptime_dependencies};
-use vm::{Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits};
+use vm::{Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits, StaticSpace};
 use {destack_dir as dir, destack_vm as vm};
 
 /// In-flight comptime results for one module build.
@@ -169,10 +169,10 @@ impl Compiler {
                 TrustPolicy::Internal => vm::TrustPolicy::Internal,
             };
             options.apply_trust_policy(trust_policy);
-            let layouts = Arc::new(mir_tree.metadata.layout.layout_table.clone());
 
             // TODO #Cleanup: figure out a nicer way to create the Isolate for comptime
             let mut isolate = vm::Isolate::build_with_options(
+                vm::IsolateId::new(1),
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
                 options,
@@ -193,9 +193,9 @@ impl Compiler {
                     message: format!("{error}"),
                 })?,
             );
-            let mut heap = Heap::with_allocator_limits_layouts_and_options(
+            let mut statics = StaticSpace::empty();
+            let mut heap = Heap::with_allocator_limits_and_options(
                 allocator.clone(),
-                layouts.clone(),
                 HeapLimits::default(),
                 local_options,
             )
@@ -203,9 +203,8 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let mut shared = SharedHeap::with_allocator_limits_layouts_and_options(
+            let mut shared = SharedHeap::with_allocator_limits_and_options(
                 allocator,
-                layouts,
                 SharedHeapLimits::default(),
                 shared_options,
             )
@@ -214,14 +213,14 @@ impl Compiler {
                 message: format!("{error}"),
             })?;
 
-            isolate
-                .initialize(&mut heap, &mut shared)
-                .map_err(|error| ExecuteError::FailedExecution {
+            isolate.initialize_statics(&mut statics).map_err(|error| {
+                ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
-                })?;
+                }
+            })?;
             let output = isolate
-                .run_function(&mut heap, &mut shared, function_id, &[])
+                .run_function(&mut statics, &mut heap, &mut shared, function_id, &[])
                 .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),

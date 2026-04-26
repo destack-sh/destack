@@ -2,25 +2,25 @@ use crate::{Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
-use {destack_dir as dir, destack_vm as vm};
+use {destack_dir as dir, destack_engine as engine, destack_vm as vm};
 
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Convert a static expression into a VM value.
+    /// Convert a static expression into an engine boundary value.
     pub(crate) fn static_expression_to_value(
         &self,
         value: &dir::StaticExpression,
-    ) -> Option<vm::Value> {
+    ) -> Option<engine::Value> {
         match value {
             dir::StaticExpression::ScalarLiteral { value } => match value {
-                dir::ScalarLiteral::Null => Some(vm::Value::raw_pointer(vm::RawPointer::NULL)),
-                dir::ScalarLiteral::Boolean(value) => Some(vm::Value::bool(*value)),
-                dir::ScalarLiteral::Integer(value) => Some(vm::Value::int64(*value)),
-                dir::ScalarLiteral::Bigint(value) => Some(vm::Value::int64(*value)),
-                dir::ScalarLiteral::Float(value) => Some(vm::Value::float64(*value)),
-                dir::ScalarLiteral::Character(value) => Some(vm::Value::char(*value)),
+                dir::ScalarLiteral::Boolean(value) => Some(engine::Value::bool(*value)),
+                dir::ScalarLiteral::Integer(value) => Some(engine::Value::int64(*value)),
+                dir::ScalarLiteral::Bigint(value) => Some(engine::Value::int64(*value)),
+                dir::ScalarLiteral::Float(value) => Some(engine::Value::float64(*value)),
+                dir::ScalarLiteral::Character(value) => Some(engine::Value::char(*value)),
                 // #Incomplete: support more complex static values in comptime
+                dir::ScalarLiteral::Null => None,
                 dir::ScalarLiteral::String(_) => None,
                 dir::ScalarLiteral::RegexString { .. } => None,
             },
@@ -28,26 +28,24 @@ impl Compiler {
         }
     }
 
-    /// Convert a VM value into a static expression.
+    /// Convert an engine boundary value into a static expression.
     pub(crate) fn value_to_static_expression(
         &self,
         _isolate: &vm::Isolate,
         _heap: &vm::Heap,
-        value: &vm::MaterializedValue,
+        value: &engine::Value,
     ) -> Option<dir::StaticExpression> {
         let scalar = match value {
-            vm::MaterializedValue::Bool(value) => dir::ScalarLiteral::Boolean(*value),
-            vm::MaterializedValue::Int { value, .. } => dir::ScalarLiteral::Integer(*value),
-            vm::MaterializedValue::UInt { value, .. } => {
+            engine::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
+            engine::Value::Int { value, .. } => dir::ScalarLiteral::Integer(*value),
+            engine::Value::UInt { value, .. } => {
                 dir::ScalarLiteral::Integer((*value).try_into().ok()?)
             }
-            vm::MaterializedValue::Float32 { bits } => {
+            engine::Value::Float32 { bits } => {
                 dir::ScalarLiteral::Float(f32::from_bits(*bits) as f64)
             }
-            vm::MaterializedValue::Float64 { bits } => {
-                dir::ScalarLiteral::Float(f64::from_bits(*bits))
-            }
-            vm::MaterializedValue::Char(value) => dir::ScalarLiteral::Character(*value),
+            engine::Value::Float64 { bits } => dir::ScalarLiteral::Float(f64::from_bits(*bits)),
+            engine::Value::Char(value) => dir::ScalarLiteral::Character(*value),
 
             _ => return None, // #Incomplete: support more complex static values in comptime
         };
