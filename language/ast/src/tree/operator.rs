@@ -6,21 +6,26 @@ use crate::{Keyword, TokenType};
 ///
 /// Precedence:
 /// ```
-/// x() x[] x{} x? x! x++ x--            // postfix
-/// !x -x -%x ~x *x &x ..x ++x --x       // prefix
-/// * / % *% *|                          // multiplication
-/// + - +% -% +| -|                      // addition
-/// << >> <<|                            // shift
-/// & ^ |                                // elementwise
-/// == != < > <= >=                      // comparison
-/// && || ??                             // boolean
-/// in of                                // container
-/// =                                    // assignment
-/// *= /= %= **= *%= *|=                 // assignment multiplication
-/// += -= +%= -%= +|= -|=                // assignment addition
-/// <<= >>= <<|=                         // assignment shift
-/// &= ^= |=                             // assignment elementwise
-/// &&= ||=                              // assignment logical
+/// x() x[] x{} x? x! x++ x--       // postfix
+/// !x -x -%x ~x *x &x ..x ++x --x  // prefix
+/// ** **% **|                       // exponentiation
+/// * / % *% *|                      // multiplication
+/// + - +% -% +| -|                 // addition
+/// << >> <<|                        // shift
+/// < > <= >= in instanceof          // comparison
+/// == != === !==                    // equality
+/// &                                // bitwise and
+/// ^                                // bitwise xor
+/// |                                // bitwise or
+/// &&                               // logical and
+/// ||                               // logical or
+/// ??                               // nullish coalescing
+/// =                                // assignment
+/// *= /= %= **= *%= *|=             // assignment multiplication
+/// += -= +%= -%= +|= -|=            // assignment addition
+/// <<= >>= <<|=                     // assignment shift
+/// &= ^= |=                         // assignment elementwise
+/// &&= ||=                          // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OperatorPrecedence {
@@ -30,8 +35,11 @@ pub enum OperatorPrecedence {
     /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
+    /// Exponentiation-related binary operators.
+    /// `** **% **|`
+    Exponentiation = 1800,
     /// Multiplication-related binary operators.
-    /// `* / % ** *% *| **% **|`
+    /// `* / % *% *|`
     Multiplication = 1700,
     /// Addition-related binary operators.
     /// `+ - +% -% +| -|`
@@ -39,18 +47,30 @@ pub enum OperatorPrecedence {
     /// Shift-related binary operators.
     /// `<< >> <<|`
     Shift = 1500,
-    /// Elementwise-related binary operators.
-    /// `& ^ |`
-    Elementwise = 1400,
     /// Comparison-related binary operators.
-    /// `== != < > <= >=`
-    Comparison = 1300,
-    /// Boolean-logical binary operators.
-    /// `&& ||`
-    Boolean = 1200,
-    /// Container operators.
-    /// `in` `of`
-    Container = 1100,
+    /// `< > <= >= in instanceof`
+    Comparison = 1400,
+    /// Equality-related binary operators.
+    /// `== != === !==`
+    Equality = 1300,
+    /// Bitwise-and binary operator.
+    /// `&`
+    BitwiseAnd = 1250,
+    /// Bitwise-xor binary operator.
+    /// `^`
+    BitwiseXor = 1240,
+    /// Bitwise-or binary operator.
+    /// `|`
+    BitwiseOr = 1230,
+    /// Logical-and binary operator.
+    /// `&&`
+    LogicalAnd = 1200,
+    /// Logical-or binary operator.
+    /// `||`
+    LogicalOr = 1190,
+    /// Nullish-coalescing binary operator.
+    /// `??`
+    NullishCoalescing = 1180,
     /// Assignment-related binary operators.
     /// `=`
     Assignment = 800,
@@ -184,23 +204,25 @@ impl UnaryOperator {
 /// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BinaryOperator {
+    // exponentiation
+    /// `**`
+    Exponent = 1802,
+    /// `**%`
+    WrappingExponent = 1801,
+    /// `**|`
+    SaturatingExponent = 1800,
+
     // multiplication
     /// `*`
-    Multiply = 1708,
+    Multiply = 1703,
     /// `*%`
-    WrappingMultiply = 1707,
+    WrappingMultiply = 1702,
     /// `*|`
-    SaturatingMultiply = 1706,
-    /// `**`
-    Exponent = 1705,
-    /// `**%`
-    WrappingExponent = 1704,
-    /// `**|`
-    SaturatingExponent = 1703,
+    SaturatingMultiply = 1701,
     /// `/`
-    Divide = 1702,
+    Divide = 1704,
     /// `%`
-    Remainder = 1701,
+    Remainder = 1700,
 
     // addition
     /// `+`
@@ -226,43 +248,43 @@ pub enum BinaryOperator {
     /// `>>>`
     UnsignedShiftRight = 1503,
 
-    // elementwise
+    // bitwise
     /// `&`
-    ElementwiseAnd = 1402,
+    ElementwiseAnd = 1250,
     /// `^`
-    ElementwiseXor = 1401,
+    ElementwiseXor = 1240,
     /// `|`
-    ElementwiseOr = 1400,
+    ElementwiseOr = 1230,
 
     // comparison
     /// `==`
-    Equal = 1307,
+    Equal = 1303,
     /// `!=`
-    NotEqual = 1306,
+    NotEqual = 1302,
     /// `===`
-    EqualStrict = 1305,
+    EqualStrict = 1301,
     /// `!==`
-    NotEqualStrict = 1304,
+    NotEqualStrict = 1300,
     /// `<`
-    LessThan = 1303,
+    LessThan = 1403,
     /// `<=`
-    LessThanOrEqual = 1302,
+    LessThanOrEqual = 1402,
     /// `>`
-    GreaterThan = 1301,
+    GreaterThan = 1401,
     /// `>=`
-    GreaterThanOrEqual = 1300,
+    GreaterThanOrEqual = 1400,
 
     // boolean
     /// `&&`
-    And = 1202,
+    And = 1200,
     /// `||`
-    Or = 1201,
+    Or = 1190,
     /// `??`
-    Coalesce = 1200,
+    Coalesce = 1180,
 
-    // container
+    // comparison
     /// `in`
-    In = 1102,
+    In = 1404,
 }
 
 impl BinaryOperator {
@@ -270,13 +292,15 @@ impl BinaryOperator {
     #[inline]
     pub fn precedence_group(&self) -> OperatorPrecedence {
         match self {
+            // exponentiation
+            BinaryOperator::Exponent => OperatorPrecedence::Exponentiation,
+            BinaryOperator::WrappingExponent => OperatorPrecedence::Exponentiation,
+            BinaryOperator::SaturatingExponent => OperatorPrecedence::Exponentiation,
+
             // multiplication
             BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
             BinaryOperator::WrappingMultiply => OperatorPrecedence::Multiplication,
             BinaryOperator::SaturatingMultiply => OperatorPrecedence::Multiplication,
-            BinaryOperator::Exponent => OperatorPrecedence::Multiplication,
-            BinaryOperator::WrappingExponent => OperatorPrecedence::Multiplication,
-            BinaryOperator::SaturatingExponent => OperatorPrecedence::Multiplication,
             BinaryOperator::Divide => OperatorPrecedence::Multiplication,
             BinaryOperator::Remainder => OperatorPrecedence::Multiplication,
 
@@ -294,34 +318,34 @@ impl BinaryOperator {
             BinaryOperator::ShiftRight => OperatorPrecedence::Shift,
             BinaryOperator::UnsignedShiftRight => OperatorPrecedence::Shift,
 
-            // elementwise
-            BinaryOperator::ElementwiseAnd => OperatorPrecedence::Elementwise,
-            BinaryOperator::ElementwiseXor => OperatorPrecedence::Elementwise,
-            BinaryOperator::ElementwiseOr => OperatorPrecedence::Elementwise,
+            // bitwise
+            BinaryOperator::ElementwiseAnd => OperatorPrecedence::BitwiseAnd,
+            BinaryOperator::ElementwiseXor => OperatorPrecedence::BitwiseXor,
+            BinaryOperator::ElementwiseOr => OperatorPrecedence::BitwiseOr,
+
+            // equality
+            BinaryOperator::Equal => OperatorPrecedence::Equality,
+            BinaryOperator::NotEqual => OperatorPrecedence::Equality,
+            BinaryOperator::EqualStrict => OperatorPrecedence::Equality,
+            BinaryOperator::NotEqualStrict => OperatorPrecedence::Equality,
 
             // comparison
-            BinaryOperator::Equal => OperatorPrecedence::Comparison,
-            BinaryOperator::NotEqual => OperatorPrecedence::Comparison,
-            BinaryOperator::EqualStrict => OperatorPrecedence::Comparison,
-            BinaryOperator::NotEqualStrict => OperatorPrecedence::Comparison,
             BinaryOperator::LessThan => OperatorPrecedence::Comparison,
             BinaryOperator::LessThanOrEqual => OperatorPrecedence::Comparison,
             BinaryOperator::GreaterThan => OperatorPrecedence::Comparison,
             BinaryOperator::GreaterThanOrEqual => OperatorPrecedence::Comparison,
+            BinaryOperator::In => OperatorPrecedence::Comparison,
 
             // logical
-            BinaryOperator::And => OperatorPrecedence::Boolean,
-            BinaryOperator::Or => OperatorPrecedence::Boolean,
-            BinaryOperator::Coalesce => OperatorPrecedence::Boolean,
-
-            // container
-            BinaryOperator::In => OperatorPrecedence::Container,
+            BinaryOperator::And => OperatorPrecedence::LogicalAnd,
+            BinaryOperator::Or => OperatorPrecedence::LogicalOr,
+            BinaryOperator::Coalesce => OperatorPrecedence::NullishCoalescing,
         }
     }
 
     /// Get the precedence of the binary operator.
     pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u8
+        // just transmute the enum value to an u16
         self as u16
     }
 

@@ -3,7 +3,7 @@ use crate::declaration::expression_is_in_statement_position;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_ast::{
     AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition, IfKind,
-    LocalNodeId, NodeType, OperatorPrecedence,
+    LocalNodeId, MatchCase, NodeType, OperatorPrecedence,
 };
 use destack_source::Span;
 
@@ -48,6 +48,21 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
             | Expression::Satisfies { .. }
             | Expression::Must { .. }
     )
+}
+
+/// Return whether one expression is a match case expression body.
+fn expression_is_match_case_body(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::MatchCase {
+        return false;
+    }
+
+    let case_id = LocalNodeId::<MatchCase>::new(parent_id);
+    matches!(context.tree.get(case_id), MatchCase::Expression { body, .. } if *body == parent_child_id)
 }
 
 /// Return whether one parent requires type-cast-like parentheses for a child.
@@ -507,7 +522,10 @@ fn expression_binary_like_needs_parentheses_in_parent(
 fn binary_operator_is_bitwise_or_shift(operator: BinaryOperator) -> bool {
     matches!(
         operator.precedence_group(),
-        OperatorPrecedence::Elementwise | OperatorPrecedence::Shift
+        OperatorPrecedence::BitwiseOr
+            | OperatorPrecedence::BitwiseXor
+            | OperatorPrecedence::BitwiseAnd
+            | OperatorPrecedence::Shift
     )
 }
 
@@ -664,6 +682,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     // statement position
     if parent_type != NodeType::Expression {
         let is_class_extends = is_class_extends(context, parent_id, parent_type, parent_child_id);
+        let is_match_case_body =
+            expression_is_match_case_body(context, parent_id, parent_type, parent_child_id);
         if is_class_extends && class_extends_expression_needs_parentheses(context.tree.get(node_id))
         {
             return true;
@@ -683,7 +703,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                 true
             }
             Expression::ObjectExpression { .. } => {
-                expression_is_in_statement_position(context, node_id)
+                is_match_case_body
+                    || expression_is_in_statement_position(context, node_id)
                     || expression_is_type_relation_left_chain_in_statement_position(
                         context, node_id,
                     )
