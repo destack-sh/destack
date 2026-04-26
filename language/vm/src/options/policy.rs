@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::{DEFAULT_MAX_INSTRUCTIONS, DEFAULT_MAX_STACK_BYTES, DEFAULT_MAX_STACK_DEPTH};
+
 /// Trust policy for runtime execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum TrustPolicy {
@@ -89,7 +91,7 @@ impl CheckPolicy {
 /// Runtime check configuration for a VM isolate.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CheckOptions {
-    /// The bounds check policy for aggregate and array access.
+    /// The bounds check policy for field and element access.
     pub bounds: CheckPolicy,
     /// The null check policy for pointer dereferences.
     pub null: CheckPolicy,
@@ -103,14 +105,9 @@ pub struct CheckOptions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LimitOptions {
     /// The maximum call stack depth before a stack overflow error.
-    /// Default is 1024.
     pub max_stack_depth: usize,
-    /// The maximum number of heap allocations before allocation fails.
-    /// Default is 100_000, roughly 10MB depending on allocation shape.
-    pub max_heap_allocations: usize,
-    /// The maximum number of raw allocations before allocation fails.
-    /// Default is 100_000, roughly 10MB depending on allocation shape.
-    pub max_raw_allocations: usize,
+    /// The maximum byte width of the VM stack arena.
+    pub max_stack_bytes: usize,
     /// The maximum number of instructions to execute before timeout.
     /// None means no limit, use with caution.
     pub max_instructions: Option<u64>,
@@ -120,10 +117,9 @@ impl Default for LimitOptions {
     fn default() -> Self {
         // use default runtime limits
         Self {
-            max_stack_depth: 1024,
-            max_heap_allocations: 100_000,
-            max_raw_allocations: 100_000,
-            max_instructions: Some(10_000_000),
+            max_stack_depth: DEFAULT_MAX_STACK_DEPTH,
+            max_stack_bytes: DEFAULT_MAX_STACK_BYTES,
+            max_instructions: Some(DEFAULT_MAX_INSTRUCTIONS),
         }
     }
 }

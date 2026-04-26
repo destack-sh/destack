@@ -1,6 +1,7 @@
 use super::{
     BorrowMode, CheckOptions, ExecutionMode, ExecutionOptions, ExternalCallPolicy, LimitOptions,
-    PolicyOptions, TelemetryOptions, TrustPolicy,
+    PolicyOptions, TEST_MAX_INSTRUCTIONS, TEST_MAX_STACK_BYTES, TEST_MAX_STACK_DEPTH,
+    TelemetryOptions, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -35,10 +36,9 @@ impl IsolateOptions {
         let mut options = Self::default();
         options.execution.mode = ExecutionMode::Debug;
         options.policy.borrow_mode = BorrowMode::Strict;
-        options.limits.max_stack_depth = 100;
-        options.limits.max_heap_allocations = 1000;
-        options.limits.max_raw_allocations = 1000;
-        options.limits.max_instructions = Some(100_000);
+        options.limits.max_stack_depth = TEST_MAX_STACK_DEPTH;
+        options.limits.max_stack_bytes = TEST_MAX_STACK_BYTES;
+        options.limits.max_instructions = Some(TEST_MAX_INSTRUCTIONS);
         options.checks.enforce_reference_kinds = true;
         options.checks.enforce_reference_mutability = true;
         options

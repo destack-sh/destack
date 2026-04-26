@@ -13,8 +13,6 @@ doctest = false
 
 [features]
 default = []
-stats = []
-perf-counters = ["dep:perf-event"]
 
 [dependencies]
 # language
@@ -28,9 +26,6 @@ destack_source = { workspace = true }
 postcard = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 smallvec = { workspace = true }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-perf-event = { workspace = true, optional = true }
 
 [dev-dependencies]
 clap = { workspace = true, features = ["derive"] }
