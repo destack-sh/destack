@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-/// Reference to one local heap allocation.
+use crate::{HeapError, HeapResult};
+
+/// Reference to one heap allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct HeapReference(pub(crate) usize);
 
@@ -33,6 +35,31 @@ impl HeapReference {
     #[inline]
     pub const fn from_bits(bits: usize) -> Self {
         Self(bits)
+    }
+
+    /// Read one heap reference from a native-width byte window.
+    #[inline]
+    pub fn read_from_bytes(bytes: &[u8]) -> HeapResult<Self> {
+        if bytes.len() != Self::BYTE_LEN {
+            return Err(HeapError::InvalidReferenceWindowWidth { bytes: bytes.len() });
+        }
+
+        let mut raw = [0u8; Self::BYTE_LEN];
+        raw.copy_from_slice(bytes);
+
+        Ok(Self::from_bits(usize::from_le_bytes(raw)))
+    }
+
+    /// Write this heap reference into a native-width byte window.
+    #[inline]
+    pub fn write_to_bytes(self, bytes: &mut [u8]) -> HeapResult<()> {
+        if bytes.len() != Self::BYTE_LEN {
+            return Err(HeapError::InvalidReferenceWindowWidth { bytes: bytes.len() });
+        }
+
+        bytes.copy_from_slice(&self.bits().to_le_bytes());
+
+        Ok(())
     }
 
     /// Return the raw address.

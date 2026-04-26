@@ -1,5 +1,5 @@
 use super::{RawLocation, RawPlace, RawSpace};
-use crate::allocator::{PageView, SpanSlot};
+use crate::allocator::SpanSlot;
 use crate::{AccountingRegion, HeapError, HeapResult, RawPointer};
 
 impl RawSpace {
@@ -58,7 +58,7 @@ impl RawSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
                 let slot_offset = checked_slot_offset(
                     slot.span_index(),
                     span.class.size_class,
@@ -106,7 +106,7 @@ impl RawSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
                 let slot_offset = checked_slot_offset(
                     slot.span_index(),
                     span.class.size_class,
@@ -169,7 +169,7 @@ impl RawSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_byte_len = page_view_capacity(&span.pages, allocator.page_bytes())?;
+                let span_byte_len = span.pages.len() * allocator.page_bytes();
                 let slot_offset = checked_slot_offset(
                     slot.span_index(),
                     span.class.size_class,
@@ -232,7 +232,7 @@ impl RawSpace {
                     self.replace_small_location_bytes(slot, bytes)?;
 
                     self.usage
-                        .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw)?;
+                        .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
 
                     return self.base_pointer(RawPlace::Small(slot));
                 }
@@ -242,7 +242,7 @@ impl RawSpace {
                     Some(new_slot) => RawPlace::Small(new_slot),
                     None => {
                         let pages = self.allocate_page_view_bytes(bytes)?;
-                        let allocation_id = self.store_large_allocation(bytes.len(), pages)?;
+                        let allocation_id = self.insert_large_allocation(bytes.len(), pages)?;
 
                         RawPlace::Large(allocation_id)
                     }
@@ -253,7 +253,7 @@ impl RawSpace {
                 let _new_location = new_location;
 
                 self.usage
-                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw)?;
+                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
 
                 self.base_pointer(new_location)
             }
@@ -261,7 +261,7 @@ impl RawSpace {
                 let next_pointer = self.replace_large_location_bytes(allocation_id, bytes)?;
 
                 self.usage
-                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw)?;
+                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
 
                 Ok(next_pointer)
             }
@@ -318,7 +318,7 @@ impl RawSpace {
         // release the previous page view after the replacement is committed
         self.unmap_page_view(&previous_pages)?;
         self.map_page_view(&next_pages, |logical_page_index| {
-            super::RawPageOwner::Large {
+            super::RawPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
             }
@@ -348,8 +348,7 @@ impl RawSpace {
                     slot.slot_index(),
                 )
                 .ok()?;
-                let span_byte_len =
-                    page_view_capacity(&span.pages, self.allocator().page_bytes()).ok()?;
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
                 let read_offset =
                     checked_place_offset(slot_offset, byte_offset, span_byte_len).ok()?;
 
@@ -448,17 +447,5 @@ fn checked_slot_offset(
         .ok_or(HeapError::InvalidSmallSlot {
             span_index,
             slot_index,
-        })
-}
-
-/// Return the mapped byte capacity for one page view.
-fn page_view_capacity(page_view: &PageView, page_bytes: usize) -> HeapResult<usize> {
-    page_view
-        .len()
-        .checked_mul(page_bytes)
-        .ok_or(HeapError::InvalidByteRange {
-            start: 0,
-            len: page_view.len(),
-            capacity: usize::MAX,
         })
 }

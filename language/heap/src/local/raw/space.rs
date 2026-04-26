@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use super::{LargeAllocation, LargeAllocationId, RawLocation, RawPageOwner, RawPlace, SmallSpan};
+use super::{
+    LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, SmallSpan,
+};
 use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable};
 use crate::{AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawSpaceUsage};
 
@@ -47,7 +49,7 @@ pub struct RawSpace {
     /// The raw large space.
     pub(crate) large: LargeSpace,
     /// The owning raw metadata for each visible allocator page.
-    pub(crate) page_owners: Vec<Option<RawPageOwner>>,
+    pub(crate) page_map: Vec<Option<RawPageMapEntry>>,
 
     /// The exact live raw usage.
     pub(crate) usage: AllocationUsage,
@@ -78,7 +80,7 @@ impl RawSpace {
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
-            page_owners: Vec::new(),
+            page_map: Vec::new(),
             usage: AllocationUsage::default(),
         })
     }
@@ -190,16 +192,16 @@ impl RawSpace {
         self.small.spans.get_mut(span_index)
     }
 
-    /// Return the visible owner for one physical page.
-    pub(crate) fn page_owner(&self, page_id: PageId) -> Option<RawPageOwner> {
-        self.page_owners.get(page_id.index()).copied().flatten()
+    /// Return the page map entry for one physical page.
+    pub(crate) fn page_entry(&self, page_id: PageId) -> Option<RawPageMapEntry> {
+        self.page_map.get(page_id.index()).copied().flatten()
     }
 
-    /// Record one visible owner for every page in one logical page view.
+    /// Record one page map entry for every page in one logical page view.
     pub(crate) fn map_page_view(
         &mut self,
         page_view: &PageView,
-        mut owner: impl FnMut(usize) -> RawPageOwner,
+        mut entry: impl FnMut(usize) -> RawPageMapEntry,
     ) -> HeapResult<()> {
         for logical_page_index in 0..page_view.len() {
             let Some(page_id) = page_view.page(logical_page_index) else {
@@ -209,17 +211,17 @@ impl RawSpace {
             };
             let page_index = page_id.index();
 
-            if self.page_owners.len() <= page_index {
-                self.page_owners.resize(page_index + 1, None);
+            if self.page_map.len() <= page_index {
+                self.page_map.resize(page_index + 1, None);
             }
 
-            self.page_owners[page_index] = Some(owner(logical_page_index));
+            self.page_map[page_index] = Some(entry(logical_page_index));
         }
 
         Ok(())
     }
 
-    /// Clear every visible owner for one logical page view.
+    /// Clear every page map entry for one logical page view.
     pub(crate) fn unmap_page_view(&mut self, page_view: &PageView) -> HeapResult<()> {
         for logical_page_index in 0..page_view.len() {
             let Some(page_id) = page_view.page(logical_page_index) else {
@@ -228,8 +230,8 @@ impl RawSpace {
                 });
             };
 
-            if let Some(owner) = self.page_owners.get_mut(page_id.index()) {
-                *owner = None;
+            if let Some(entry) = self.page_map.get_mut(page_id.index()) {
+                *entry = None;
             }
         }
 
@@ -239,10 +241,10 @@ impl RawSpace {
     /// Return the resolved location for one live raw pointer.
     pub(crate) fn resolve_location(&self, pointer: crate::RawPointer) -> Option<RawLocation> {
         let (page_id, page_offset) = self.allocator.address_page_position(pointer.address())?;
-        let owner = self.page_owner(page_id)?;
+        let entry = self.page_entry(page_id)?;
 
-        match owner {
-            RawPageOwner::Small {
+        match entry {
+            RawPageMapEntry::Small {
                 span_index,
                 logical_page_index,
             } => {
@@ -279,7 +281,7 @@ impl RawSpace {
                     byte_len,
                 })
             }
-            RawPageOwner::Large {
+            RawPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
             } => {
@@ -338,12 +340,38 @@ impl RawSpace {
 
         Ok(crate::RawPointer::new(base_address))
     }
+
+    /// Return the page views reachable from this live raw space.
+    pub(crate) fn live_page_views(&self) -> Vec<PageView> {
+        let mut page_views = Vec::new();
+
+        // collect raw span roots first
+        page_views.extend(self.small.spans.iter().map(|span| span.pages.clone()));
+
+        // collect live large-allocation roots next
+        page_views.extend(
+            self.large
+                .allocations
+                .iter()
+                .filter(|allocation| allocation.is_live)
+                .map(|allocation| allocation.pages.clone()),
+        );
+
+        page_views
+    }
+
+    /// Release allocator roots owned by this raw space.
+    fn close(&mut self) -> HeapResult<()> {
+        for page_view in self.live_page_views() {
+            self.release_page_view(page_view)?;
+        }
+
+        self.page_run_cache.flush(&self.allocator)
+    }
 }
 
 impl Drop for RawSpace {
     fn drop(&mut self) {
-        self.page_run_cache
-            .flush(&self.allocator)
-            .unwrap_or_else(|error| panic!("raw page-run cache flush failed: {error}"));
+        let _ = self.close();
     }
 }

@@ -4,16 +4,17 @@ use destack_mir::ReferenceMap;
 
 use super::Promotion;
 use crate::local::space::{
-    GcKind, GcStats, HeapLocation, HeapPageOwner, HeapPlace, HeapSpace, HeapYoungId,
-    LargeAllocationId, LocalGcPhase,
+    GcKind, GcStats, HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId,
+    LocalGcPhase, LocalTraceWork,
 };
 use crate::{
-    AccountingRegion, HeapError, HeapReference, HeapResult, ScanSource, SharedHeapReference,
-    TraceQueue, slot_reference_map, visit_heap_references_in_reader,
-    visit_heap_references_in_reader_range, visit_shared_references_in_reader,
+    AccountingRegion, GcProgress, HeapError, HeapReference, HeapResult, RootSlot, RootSlots,
+    ScanSource, SharedHeapReference, TraceQueue, slot_reference_map,
+    visit_heap_references_in_reader, visit_heap_references_in_reader_range,
+    visit_shared_references_in_reader,
 };
 
-/// Collector queue for local heap references.
+/// Collector queue for heap references.
 type HeapTraceQueue = TraceQueue<HeapReference>;
 
 impl HeapSpace {
@@ -26,13 +27,13 @@ impl HeapSpace {
     pub fn live_references(&self) -> HeapResult<Vec<HeapReference>> {
         let mut references = Vec::new();
 
-        for allocation_index in 0..self.young.allocations.len() {
+        for allocation_index in 0..self.young.ranges.len() {
             if !self.young.live.contains(allocation_index) {
                 continue;
             }
-            let allocation = &self.young.allocations[allocation_index];
+            let allocation = &self.young.ranges[allocation_index];
 
-            let allocation_offset = self.young_allocation_offset(allocation);
+            let allocation_offset = self.young_range_offset(allocation);
             let base_address =
                 self.allocator()
                     .page_view_ptr(&self.young.pages, allocation_offset)? as usize;
@@ -98,16 +99,16 @@ impl HeapSpace {
     pub(crate) fn scan_shared_edge_step(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
-        work_items: usize,
+        step_budget: usize,
     ) -> HeapResult<usize> {
-        if !self.is_scanning_shared_edges || work_items == 0 {
+        if !self.is_scanning_shared_edges || step_budget == 0 {
             return Ok(0);
         }
 
         let mut work_done = 0usize;
 
         // drain queued rescans first
-        while work_done < work_items {
+        while work_done < step_budget {
             let Some(reference) = self.shared_edge_queue.pop() else {
                 break;
             };
@@ -118,7 +119,7 @@ impl HeapSpace {
         }
 
         // then continue the tracked shared-edge walk
-        while work_done < work_items {
+        while work_done < step_budget {
             let Some(reference) = self.next_shared_edge_root()? else {
                 break;
             };
@@ -211,7 +212,9 @@ impl HeapSpace {
             });
         }
 
-        self.major_trace_queue.extend(references);
+        for reference in references {
+            self.enqueue_major_reference(reference)?;
+        }
 
         Ok(())
     }
@@ -244,7 +247,7 @@ impl HeapSpace {
         Ok(reference_map.has_shared_reference())
     }
 
-    /// Trace shared heap roots from one local heap reference.
+    /// Trace shared heap roots from one heap reference.
     fn trace_shared_edges(
         &mut self,
         reference: HeapReference,
@@ -284,11 +287,14 @@ impl HeapSpace {
         Ok(())
     }
 
-    /// Perform one young-generation collection over explicit heap roots.
-    pub fn collect_minor(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
+    /// Perform one young-generation collection over mutable heap roots.
+    pub fn collect_minor<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    where
+        R: RootSlots,
+    {
         // reject overlapping collection work
         if self.is_collecting {
-            return Err(HeapError::HeapCollectionActive);
+            return Err(HeapError::HeapCollectionActive.into());
         }
 
         // prepare reusable collection state
@@ -312,30 +318,49 @@ impl HeapSpace {
         result
     }
 
-    /// Perform one full heap collection over explicit heap roots.
-    pub fn collect_full(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
+    /// Perform one full heap collection over mutable heap roots.
+    pub fn collect_full<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    where
+        R: RootSlots,
+    {
         let _minor = self.collect_minor(roots)?;
 
         self.start_major_gc(roots)?;
 
         loop {
-            let Some(stats) = self.step_major_gc(roots, usize::MAX)? else {
-                continue;
-            };
-
-            return Ok(stats);
+            match self.step_major_gc(roots, usize::MAX)? {
+                GcProgress::Complete(stats) => return Ok(stats),
+                GcProgress::Active => continue,
+                GcProgress::Idle => {
+                    return Err(HeapError::InvariantViolation {
+                        context: "local full collection made no progress",
+                    }
+                    .into());
+                }
+            }
         }
     }
 
     /// Perform one prepared minor collection cycle.
-    fn collect_minor_cycle(
+    fn collect_minor_cycle<R>(
         &mut self,
-        roots: &mut [HeapReference],
+        roots: &mut R,
         pinned: impl Iterator<Item = HeapReference>,
         pending: &mut HeapTraceQueue,
         promotions: &mut Vec<Promotion>,
-    ) -> HeapResult<GcStats> {
-        self.mark_reachable_young_references(roots.iter().copied().chain(pinned), pending)?;
+    ) -> Result<GcStats, R::Error>
+    where
+        R: RootSlots,
+    {
+        // root slots
+        roots.visit_root_slots(&mut |slot: RootSlot<'_>| {
+            let reference = slot.load()?;
+
+            self.enqueue_young_reference(reference, pending)
+        })?;
+
+        // pins
+        self.mark_reachable_young_references(pinned, pending)?;
         let (freed_allocations, freed_bytes) = self.promote_or_free_young_references(promotions)?;
 
         // rewrite roots and traced mature payloads before resetting young space
@@ -353,9 +378,12 @@ impl HeapSpace {
     }
 
     /// Start one local major collection.
-    pub(crate) fn start_major_gc(&mut self, roots: &mut [HeapReference]) -> HeapResult<()> {
+    pub(crate) fn start_major_gc<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    where
+        R: RootSlots,
+    {
         if self.is_collecting {
-            return Err(HeapError::HeapCollectionActive);
+            return Err(HeapError::HeapCollectionActive.into());
         }
 
         self.clear_mark_bits()?;
@@ -367,48 +395,66 @@ impl HeapSpace {
         self.major_phase = LocalGcPhase::Mark;
         self.is_collecting = true;
 
-        self.seed_major_roots(roots);
+        self.seed_major_roots(roots)?;
 
         Ok(())
     }
 
     /// Perform bounded work for one active local major collection.
-    pub(crate) fn step_major_gc(
+    pub(crate) fn step_major_gc<R>(
         &mut self,
-        roots: &mut [HeapReference],
-        work_items: usize,
-    ) -> HeapResult<Option<GcStats>> {
-        if work_items == 0 || self.major_phase == LocalGcPhase::Idle {
-            return Ok(None);
+        roots: &mut R,
+        step_budget: usize,
+    ) -> Result<GcProgress, R::Error>
+    where
+        R: RootSlots,
+    {
+        if step_budget == 0 || self.major_phase == LocalGcPhase::Idle {
+            return Ok(GcProgress::Idle);
         }
 
         match self.major_phase {
-            LocalGcPhase::Idle => Ok(None),
+            LocalGcPhase::Idle => Ok(GcProgress::Idle),
             LocalGcPhase::Mark => {
-                self.seed_major_roots(roots);
-                let mark_work = self.mark_reachable_references_step(work_items)?;
+                self.seed_major_roots(roots)?;
+                let mark_work = self.mark_reachable_references_step(step_budget)?;
 
                 if self.major_trace_queue.is_empty() {
                     self.major_sweep_references = self.live_references()?;
                     self.major_sweep_cursor = 0;
                     self.major_phase = LocalGcPhase::Sweep;
 
-                    let sweep_work = work_items.saturating_sub(mark_work);
+                    let sweep_work = step_budget.saturating_sub(mark_work);
                     if sweep_work > 0 {
-                        return self.sweep_unreachable_references_step(sweep_work);
+                        return Ok(self.sweep_unreachable_references_step(sweep_work)?);
                     }
                 }
 
-                Ok(None)
+                Ok(GcProgress::Active)
             }
-            LocalGcPhase::Sweep => self.sweep_unreachable_references_step(work_items),
+            LocalGcPhase::Sweep => Ok(self.sweep_unreachable_references_step(step_budget)?),
         }
     }
 
     /// Seed the active major trace queue from explicit roots and pins.
-    fn seed_major_roots(&mut self, roots: &mut [HeapReference]) {
-        self.major_trace_queue.extend(roots.iter().copied());
-        self.major_trace_queue.extend(self.pins.references());
+    fn seed_major_roots<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    where
+        R: RootSlots,
+    {
+        // root slots
+        roots.visit_root_slots(&mut |slot: RootSlot<'_>| {
+            let reference = slot.load()?;
+
+            self.enqueue_major_reference(reference)
+        })?;
+
+        // pins
+        let pins = self.pins.references().collect::<Vec<_>>();
+        for reference in pins {
+            self.enqueue_major_reference(reference)?;
+        }
+
+        Ok(())
     }
 
     /// Finish the active local major collection.
@@ -429,23 +475,30 @@ impl HeapSpace {
     }
 
     /// Rewrite roots and traced mature payloads through one completed promotion set.
-    fn rewrite_promoted_references(
+    fn rewrite_promoted_references<R>(
         &mut self,
-        roots: &mut [HeapReference],
+        roots: &mut R,
         promotions: &[Promotion],
-    ) -> HeapResult<()> {
+    ) -> Result<(), R::Error>
+    where
+        R: RootSlots,
+    {
         if promotions.is_empty() {
             return Ok(());
         }
 
         let references = self.promotion_references(promotions)?;
 
-        // rewrite the explicit root set first
-        for reference in roots.iter_mut() {
-            if let Some(next_reference) = references.get(reference).copied() {
-                *reference = next_reference;
+        // rewrite root slots first
+        roots.visit_root_slots(&mut |mut slot: RootSlot<'_>| {
+            let reference = slot.load()?;
+
+            if let Some(next_reference) = references.get(&reference).copied() {
+                slot.store(next_reference)?;
             }
-        }
+
+            Ok(())
+        })?;
 
         // then rewrite every pinned reference
         self.pins.rewrite(&references)?;
@@ -489,7 +542,7 @@ impl HeapSpace {
                 continue;
             };
 
-            if matches!(location.place, HeapPlace::Young(_)) {
+            if matches!(location.place, HeapPlace::Young { .. }) {
                 continue;
             }
 
@@ -583,14 +636,14 @@ impl HeapSpace {
         };
 
         // mature references already have stable addresses
-        let HeapPlace::Young(young_id) = location.place else {
+        let HeapPlace::Young { first_offset } = location.place else {
             return Ok(reference);
         };
 
         // stage the young to mature relocation
         let mut promotions = Vec::with_capacity(1);
 
-        self.stage_young_promotion(reference, young_id, &mut promotions)?;
+        self.stage_young_promotion(reference, first_offset, &mut promotions)?;
 
         // publish the mature location only after staging succeeds
         if let Err(error) = self.commit_young_promotions(&promotions) {
@@ -601,13 +654,10 @@ impl HeapSpace {
         self.charge_young_promotions(&promotions)?;
 
         // retire the old nursery source after the promoted reference points at mature place
-        if self.young_allocation(young_id).is_none() {
-            return Err(HeapError::MissingYoungAllocation {
-                generation: young_id.generation(),
-                allocation_index: young_id.index(),
-            });
-        }
-        self.young.live.clear(young_id.index() as usize);
+        let Some((allocation_index, _allocation)) = self.young_range_by_offset(first_offset) else {
+            return Err(HeapError::MissingYoungRange { first_offset });
+        };
+        self.young.live.clear(allocation_index);
 
         // remember the new mature location conservatively
         let Some(promotion) = promotions.first().copied() else {
@@ -643,24 +693,22 @@ impl HeapSpace {
     fn stage_young_promotion(
         &mut self,
         reference: HeapReference,
-        young_id: HeapYoungId,
+        first_offset: usize,
         promotions: &mut Vec<Promotion>,
     ) -> HeapResult<()> {
-        let Some(allocation) = self.young_allocation(young_id).cloned() else {
+        let Some((_allocation_index, allocation)) = self.young_range_by_offset(first_offset) else {
             return Err(HeapError::HeapPromotionFailed {
                 reference,
-                error: Box::new(HeapError::MissingYoungAllocation {
-                    generation: young_id.generation(),
-                    allocation_index: young_id.index(),
-                }),
+                error: Box::new(HeapError::MissingYoungRange { first_offset }),
             });
         };
+        let allocation = allocation.clone();
 
         // resolve the shared source range once before relocating the allocation
-        let young_offset = self.young_allocation_offset(&allocation);
+        let young_offset = self.young_range_offset(&allocation);
         let young_pages = self.young.pages.clone();
         let reference_map = self
-            .young_allocation_reference_map(young_id)
+            .young_range_reference_map(first_offset)
             .map_err(|error| HeapError::HeapPromotionFailed {
                 reference,
                 error: Box::new(error),
@@ -726,7 +774,7 @@ impl HeapSpace {
             }
 
             let allocation_id = self
-                .store_large_allocation(allocation.byte_len, pages, reference_map, false)
+                .insert_large_allocation(allocation.byte_len, pages, reference_map, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -737,7 +785,7 @@ impl HeapSpace {
 
         promotions.push(Promotion {
             reference,
-            source: HeapPlace::Young(young_id),
+            source: HeapPlace::Young { first_offset },
             target: location,
         });
 
@@ -764,10 +812,9 @@ impl HeapSpace {
         for promotion in promotions.iter().rev() {
             let reference = promotion.reference;
             let result = match promotion.target {
-                HeapPlace::Young(young_id) => Err(HeapError::MissingYoungAllocation {
-                    generation: young_id.generation(),
-                    allocation_index: young_id.index(),
-                }),
+                HeapPlace::Young { first_offset } => {
+                    Err(HeapError::MissingYoungRange { first_offset })
+                }
                 HeapPlace::Small(slot) => self.release_small_slot(slot),
                 HeapPlace::Large(allocation_id) => {
                     let Some(allocation) = self.large_allocation_mut(allocation_id) else {
@@ -817,12 +864,13 @@ impl HeapSpace {
             let Some(location) = self.resolve_location(reference) else {
                 continue;
             };
-            let HeapPlace::Young(young_id) = location.place else {
+            let HeapPlace::Young { first_offset } = location.place else {
                 continue;
             };
 
             if self.is_marked_place(location.place)? {
-                if let Err(error) = self.stage_young_promotion(reference, young_id, promotions) {
+                if let Err(error) = self.stage_young_promotion(reference, first_offset, promotions)
+                {
                     self.discard_young_promotions(promotions)?;
 
                     return Err(error);
@@ -870,38 +918,33 @@ impl HeapSpace {
         Ok((freed_allocations, freed_bytes))
     }
 
-    /// Reconcile allocation accounting after young allocations move to mature storage.
+    /// Reconcile allocation accounting after young allocations move to mature space.
     fn charge_young_promotions(&mut self, promotions: &[Promotion]) -> HeapResult<()> {
         for promotion in promotions {
-            let HeapPlace::Young(young_id) = promotion.source else {
+            let HeapPlace::Young { first_offset } = promotion.source else {
                 return Err(HeapError::InvalidHeapReference {
                     reference: promotion.reference,
                 });
             };
-            let Some(allocation) = self.young_allocation(young_id) else {
-                return Err(HeapError::MissingYoungAllocation {
-                    generation: young_id.generation(),
-                    allocation_index: young_id.index(),
-                });
+            let Some((_allocation_index, allocation)) = self.young_range_by_offset(first_offset)
+            else {
+                return Err(HeapError::MissingYoungRange { first_offset });
             };
             let source_len = allocation.byte_len;
             let target_len = self.place_byte_len(promotion.target)?;
 
             self.usage
-                .resize(source_len, target_len, AccountingRegion::Heap)?;
+                .resize(source_len, target_len, AccountingRegion::Heap);
         }
 
         Ok(())
     }
 
     /// Sweep bounded unreachable references during one local major collection.
-    fn sweep_unreachable_references_step(
-        &mut self,
-        work_items: usize,
-    ) -> HeapResult<Option<GcStats>> {
+    fn sweep_unreachable_references_step(&mut self, step_budget: usize) -> HeapResult<GcProgress> {
         let mut work_done = 0usize;
 
-        while work_done < work_items && self.major_sweep_cursor < self.major_sweep_references.len()
+        while work_done < step_budget && self.major_sweep_cursor < self.major_sweep_references.len()
         {
             let reference = self.major_sweep_references[self.major_sweep_cursor];
             self.major_sweep_cursor += 1;
@@ -939,10 +982,10 @@ impl HeapSpace {
         }
 
         if self.major_sweep_cursor >= self.major_sweep_references.len() {
-            return self.finish_major_gc().map(Some);
+            return self.finish_major_gc().map(GcProgress::Complete);
         }
 
-        Ok(None)
+        Ok(GcProgress::Active)
     }
 
     /// Reset the young space after one collection cycle.
@@ -959,13 +1002,13 @@ impl HeapSpace {
         // remove the old nursery ownership before its pages reenter the allocator cache
         self.unmap_page_view(&previous_pages)?;
 
-        // release the old nursery pages once the page-owner table is clean
+        // release the old nursery pages once the page-map table is clean
         if let Err(error) = self
             .page_run_cache
             .release_page_view(&allocator, previous_pages.clone())
         {
-            self.map_page_view(&previous_pages, |logical_page_index| HeapPageOwner::Young {
-                logical_page_index,
+            self.map_page_view(&previous_pages, |logical_page_index| {
+                HeapPageMapEntry::Young { logical_page_index }
             })?;
             self.page_run_cache
                 .release_page_view(&allocator, next_pages)?;
@@ -985,7 +1028,7 @@ impl HeapSpace {
                 })?;
         self.young.next_offset = 0;
         self.young.pages = next_pages;
-        self.young.allocations.clear();
+        self.young.ranges.clear();
         self.young.live.clear_all();
         self.young.marked.clear_all();
         self.young.local_reference_bits.clear_all();
@@ -993,7 +1036,7 @@ impl HeapSpace {
 
         let next_pages = self.young.pages.clone();
 
-        self.map_page_view(&next_pages, |logical_page_index| HeapPageOwner::Young {
+        self.map_page_view(&next_pages, |logical_page_index| HeapPageMapEntry::Young {
             logical_page_index,
         })
     }
@@ -1012,76 +1055,15 @@ impl HeapSpace {
         // seed the work queue from remembered mature writes
         self.enqueue_dirty_young_references(pending)?;
 
-        // drain the young-allocation queue
+        // drain the young reference queue
         while let Some(reference) = pending.pop() {
             let Some(location) = self.resolve_location(reference) else {
                 return Err(HeapError::InvalidHeapReference { reference });
             };
 
-            // skip references that are already reached
-            if !self.mark_place(location.place)? {
+            if !matches!(location.place, HeapPlace::Young { .. }) {
                 continue;
             }
-            if !matches!(location.place, HeapPlace::Young(_)) {
-                continue;
-            }
-
-            let reference_map = self.place_reference_map(location.place).map_err(|error| {
-                HeapError::HeapScanFailed {
-                    source: ScanSource::Reference(reference),
-                    error: Box::new(error),
-                }
-            })?;
-
-            let mut first_edge_error = None;
-
-            // enqueue every non-null young edge discovered in this payload
-            let trace_result = visit_heap_references_in_reader(
-                &reference_map,
-                |start, buffer| self.read_bytes_into(reference, start, buffer),
-                |reference: HeapReference| {
-                    if first_edge_error.is_some() {
-                        return;
-                    }
-
-                    if let Err(error) = self.enqueue_young_reference(reference, pending) {
-                        first_edge_error = Some(error);
-                    }
-                },
-            );
-
-            if let Err(error) = trace_result {
-                return Err(HeapError::HeapScanFailed {
-                    source: ScanSource::Reference(reference),
-                    error: Box::new(error),
-                });
-            }
-
-            if let Some(error) = first_edge_error {
-                return Err(error);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Mark bounded reachable heap references from the active major queue.
-    fn mark_reachable_references_step(&mut self, work_items: usize) -> HeapResult<usize> {
-        let mut work_done = 0usize;
-
-        while work_done < work_items {
-            let Some(reference) = self.major_trace_queue.pop() else {
-                break;
-            };
-            let Some(location) = self.resolve_location(reference) else {
-                return Err(HeapError::InvalidHeapReference { reference });
-            };
-
-            // skip references that are already reached
-            if !self.mark_place(location.place)? {
-                continue;
-            }
-            work_done += 1;
 
             let reference_map = self.place_reference_map(location.place).map_err(|error| {
                 HeapError::HeapScanFailed {
@@ -1092,7 +1074,7 @@ impl HeapSpace {
 
             let mut references = Vec::new();
 
-            // collect every non-null edge discovered in this payload
+            // enqueue every non-null young edge discovered in this payload
             let trace_result = visit_heap_references_in_reader(
                 &reference_map,
                 |start, buffer| self.read_bytes_into(reference, start, buffer),
@@ -1108,22 +1090,188 @@ impl HeapSpace {
                 });
             }
 
-            // validate and enqueue after the read borrow has ended
             for reference in references {
-                if !reference.is_null() && self.resolve_location(reference).is_none() {
-                    return Err(HeapError::InvalidHeapReference { reference });
+                self.enqueue_young_reference(reference, pending)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Mark bounded reachable heap references from the active major queue.
+    fn mark_reachable_references_step(&mut self, step_budget: usize) -> HeapResult<usize> {
+        let mut work_done = 0usize;
+
+        while work_done < step_budget {
+            // claim the next bounded mark item
+            let Some(work) = self.major_trace_queue.pop() else {
+                break;
+            };
+
+            match work {
+                // large allocations are scanned page by page
+                LocalTraceWork::LargeRange { reference, start } => {
+                    self.trace_large_range(reference, start)?;
+                    work_done += 1;
+
+                    continue;
                 }
 
-                self.major_trace_queue.push(reference);
+                // small and young allocations are scanned as one mark item
+                LocalTraceWork::Reference(reference) => {
+                    let Some(location) = self.resolve_location(reference) else {
+                        return Err(HeapError::InvalidHeapReference { reference });
+                    };
+
+                    work_done += 1;
+
+                    let reference_map =
+                        self.place_reference_map(location.place).map_err(|error| {
+                            HeapError::HeapScanFailed {
+                                source: ScanSource::Reference(reference),
+                                error: Box::new(error),
+                            }
+                        })?;
+
+                    let mut references = Vec::new();
+
+                    // collect every local edge discovered in this payload
+                    let trace_result = visit_heap_references_in_reader(
+                        &reference_map,
+                        |start, buffer| self.read_bytes_into(reference, start, buffer),
+                        |reference: HeapReference| {
+                            references.push(reference);
+                        },
+                    );
+
+                    if let Err(error) = trace_result {
+                        return Err(HeapError::HeapScanFailed {
+                            source: ScanSource::Reference(reference),
+                            error: Box::new(error),
+                        });
+                    }
+
+                    // validate and enqueue after the read borrow has ended
+                    for reference in references {
+                        if !reference.is_null() && self.resolve_location(reference).is_none() {
+                            return Err(HeapError::InvalidHeapReference { reference });
+                        }
+
+                        self.enqueue_major_reference(reference)?;
+                    }
+                }
             }
         }
 
         Ok(work_done)
     }
 
+    /// Trace one page-sized range from one local large allocation.
+    fn trace_large_range(&mut self, reference: HeapReference, start: usize) -> HeapResult<()> {
+        // resolve and verify the large allocation
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+        let HeapPlace::Large(_) = location.place else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
+        // skip empty ranges and noscan payloads
+        let reference_map = self.place_reference_map(location.place).map_err(|error| {
+            HeapError::HeapScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(error),
+            }
+        })?;
+        if !reference_map.has_local_reference() || start >= location.byte_len {
+            return Ok(());
+        }
+
+        // scan at most one allocator page
+        let range_len = self.allocator().page_bytes().min(location.byte_len - start);
+        let mut references = Vec::new();
+        let trace_result = visit_heap_references_in_reader_range(
+            &reference_map,
+            start,
+            range_len,
+            |start, buffer| self.read_bytes_into(reference, start, buffer),
+            |reference: HeapReference| {
+                references.push(reference);
+            },
+        );
+
+        if let Err(error) = trace_result {
+            return Err(HeapError::HeapScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(error),
+            });
+        }
+
+        // enqueue discovered local edges after the read borrow ends
+        for reference in references {
+            if !reference.is_null() && self.resolve_location(reference).is_none() {
+                return Err(HeapError::InvalidHeapReference { reference });
+            }
+
+            self.enqueue_major_reference(reference)?;
+        }
+
+        // continue this large allocation on a later step
+        let next_start = start
+            .checked_add(range_len)
+            .ok_or(HeapError::TraceOffsetOverflow {
+                start,
+                width: range_len,
+            })?;
+        if next_start < location.byte_len {
+            self.major_trace_queue.push(LocalTraceWork::LargeRange {
+                reference,
+                start: next_start,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Queue one major collection reference after marking it.
+    fn enqueue_major_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
+        if reference.is_null() {
+            return Ok(());
+        }
+
+        // mark the referenced allocation before queueing scan work
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
+        if self.mark_place(location.place)? {
+            // marked noscan allocations need no queued scan work
+            let reference_map = self.place_reference_map(location.place)?;
+            if !reference_map.has_local_reference() {
+                return Ok(());
+            }
+
+            // large allocations must not monopolize one safepoint
+            if matches!(location.place, HeapPlace::Large(_)) {
+                self.major_trace_queue.push(LocalTraceWork::LargeRange {
+                    reference,
+                    start: 0,
+                });
+
+                return Ok(());
+            }
+
+            // smaller allocations are one mark item
+            self.major_trace_queue
+                .push(LocalTraceWork::Reference(reference));
+        }
+
+        Ok(())
+    }
+
     /// Queue one young reference when it currently points into the young space.
     fn enqueue_young_reference(
-        &self,
+        &mut self,
         reference: HeapReference,
         pending: &mut HeapTraceQueue,
     ) -> HeapResult<()> {
@@ -1135,7 +1283,7 @@ impl HeapSpace {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        if matches!(location.place, HeapPlace::Young(_)) {
+        if matches!(location.place, HeapPlace::Young { .. }) && self.mark_place(location.place)? {
             pending.push(reference);
         }
 
@@ -1172,19 +1320,14 @@ impl HeapSpace {
     /// Return whether one heap place is marked in the active cycle.
     fn is_marked_place(&self, place: HeapPlace) -> HeapResult<bool> {
         match place {
-            HeapPlace::Young(young_id) => {
-                if young_id.generation() != self.young.generation {
-                    return Ok(false);
-                }
+            HeapPlace::Young { first_offset } => {
+                let Some((allocation_index, _allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
+                };
 
-                if self.young_allocation(young_id).is_none() {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
-                }
-
-                Ok(self.young.marked.contains(young_id.index() as usize))
+                Ok(self.young.marked.contains(allocation_index))
             }
             HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -1214,22 +1357,14 @@ impl HeapSpace {
         }
 
         match place {
-            HeapPlace::Young(young_id) => {
-                if young_id.generation() != self.young.generation {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
-                }
+            HeapPlace::Young { first_offset } => {
+                let Some((allocation_index, _allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
+                };
 
-                if self.young_allocation(young_id).is_none() {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
-                }
-
-                self.young.marked.set(young_id.index() as usize);
+                self.young.marked.set(allocation_index);
             }
             HeapPlace::Small(slot) => {
                 let Some(span) = self.span_mut(slot.span_index()) else {
@@ -1305,7 +1440,11 @@ impl HeapSpace {
 
             let card_end = card_start.saturating_add(card_len);
 
-            for slot_index in 0..slot_count {
+            let first_slot = card_start / size_class;
+            let last_slot = card_end.saturating_sub(1) / size_class;
+            let end_slot = last_slot.saturating_add(1).min(slot_count);
+
+            for slot_index in first_slot..end_slot {
                 if !occupied.contains(slot_index) {
                     continue;
                 }
@@ -1332,6 +1471,7 @@ impl HeapSpace {
 
                 let local_start = overlap_start.saturating_sub(slot_start);
                 let local_len = overlap_end.saturating_sub(overlap_start);
+                let mut references = Vec::new();
                 let result = visit_heap_references_in_reader_range(
                     &reference_map,
                     local_start,
@@ -1343,15 +1483,7 @@ impl HeapSpace {
                             buffer,
                         )
                     },
-                    |reference| {
-                        if first_error.is_some() {
-                            return;
-                        }
-
-                        if let Err(error) = self.enqueue_young_reference(reference, pending) {
-                            first_error = Some(error);
-                        }
-                    },
+                    |reference| references.push(reference),
                 );
 
                 if let Err(error) = result {
@@ -1360,6 +1492,13 @@ impl HeapSpace {
                         error: Box::new(error),
                     });
                     return;
+                }
+
+                for reference in references {
+                    if let Err(error) = self.enqueue_young_reference(reference, pending) {
+                        first_error = Some(error);
+                        return;
+                    }
                 }
             }
         });
@@ -1403,20 +1542,13 @@ impl HeapSpace {
                 return;
             }
 
+            let mut references = Vec::new();
             let result = visit_heap_references_in_reader_range(
                 &reference_map,
                 card_start,
                 card_len,
                 |start, buffer| self.allocator().fill_bytes_from(&pages, start, buffer),
-                |reference| {
-                    if first_error.is_some() {
-                        return;
-                    }
-
-                    if let Err(error) = self.enqueue_young_reference(reference, pending) {
-                        first_error = Some(error);
-                    }
-                },
+                |reference| references.push(reference),
             );
 
             if let Err(error) = result {
@@ -1424,6 +1556,14 @@ impl HeapSpace {
                     source: ScanSource::LargeAllocation(allocation_id.id()),
                     error: Box::new(error),
                 });
+                return;
+            }
+
+            for reference in references {
+                if let Err(error) = self.enqueue_young_reference(reference, pending) {
+                    first_error = Some(error);
+                    return;
+                }
             }
         });
 

@@ -44,34 +44,22 @@ pub struct HeapUsage {
 impl HeapUsage {
     /// Return the exact total live allocated bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        self.heap
-            .allocated_bytes
-            .checked_add(self.raw.allocated_bytes)
-            .unwrap_or_else(|| panic!("heap usage overflow: allocated bytes"))
+        self.heap.allocated_bytes + self.raw.allocated_bytes
     }
 
     /// Return the exact total active heap bytes.
     pub fn active_bytes(&self) -> u64 {
-        self.heap
-            .active_bytes
-            .checked_add(self.raw.active_bytes)
-            .unwrap_or_else(|| panic!("heap usage overflow: active bytes"))
+        self.heap.active_bytes + self.raw.active_bytes
     }
 
     /// Return the exact total mapped heap bytes.
     pub fn mapped_bytes(&self) -> u64 {
-        self.heap
-            .mapped_bytes
-            .checked_add(self.raw.mapped_bytes)
-            .unwrap_or_else(|| panic!("heap usage overflow: mapped bytes"))
+        self.heap.mapped_bytes + self.raw.mapped_bytes
     }
 
     /// Return the exact total borrowed image bytes.
     pub fn borrowed_bytes(&self) -> u64 {
-        self.heap
-            .borrowed_bytes
-            .checked_add(self.raw.borrowed_bytes)
-            .unwrap_or_else(|| panic!("heap usage overflow: borrowed bytes"))
+        self.heap.borrowed_bytes + self.raw.borrowed_bytes
     }
 }
 

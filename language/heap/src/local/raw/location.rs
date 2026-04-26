@@ -12,9 +12,9 @@ pub(crate) enum RawPlace {
     Large(LargeAllocationId),
 }
 
-/// One physical page owner in local raw space.
+/// One page map entry in local raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum RawPageOwner {
+pub(crate) enum RawPageMapEntry {
     /// One small-span page and its logical page index.
     Small {
         /// The owning span index.
@@ -34,7 +34,7 @@ pub(crate) enum RawPageOwner {
 /// One resolved raw location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RawLocation {
-    /// The owning raw place.
+    /// The raw allocation place.
     pub(crate) place: RawPlace,
     /// The base pointer for the owning allocation.
     pub(crate) base: crate::RawPointer,

@@ -6,12 +6,9 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    AllocationLayout, GcPacer, GcState, GcStats, HeapLimits, HeapOptions, HeapReference,
-    HeapResult, Payload, RawPointer, SharedHeapReference,
+    AllocationLayout, GcPacer, GcProgress, GcState, GcStats, HeapLimits, HeapOptions,
+    HeapReference, HeapResult, Payload, RawPointer, RootSlots, SharedHeapReference,
 };
-
-/// The default local major collection work budget per safepoint.
-const DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS: usize = 64;
 
 /// One pending local GC request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +19,7 @@ pub(super) enum GcRequest {
     Full,
 }
 
-/// One live local heap rooted in one shared allocator.
+/// One live heap rooted in one shared allocator.
 #[derive(Debug)]
 pub struct Heap {
     /// The shared page allocator for every local byte payload.
@@ -130,22 +127,22 @@ impl Heap {
     pub fn scan_shared_edge_step(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
-        work_items: usize,
+        step_budget: usize,
     ) -> HeapResult<usize> {
-        self.heap.scan_shared_edge_step(roots, work_items)
+        self.heap.scan_shared_edge_step(roots, step_budget)
     }
 
-    /// Stabilize one local heap reference in mature storage.
+    /// Stabilize one heap reference in mature space.
     pub fn stabilize_heap(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
         self.heap.stabilize(reference)
     }
 
-    /// Pin one local heap reference against movement.
+    /// Pin one heap reference against movement.
     pub fn pin_heap(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
         self.heap.pin(reference)
     }
 
-    /// Release one local heap pin.
+    /// Release one heap pin.
     pub fn unpin_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
         self.heap.unpin(reference)
     }
@@ -158,16 +155,22 @@ impl Heap {
         gc_pacer
     }
 
-    /// Perform one minor heap collection over explicit roots.
-    pub fn collect_minor(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
+    /// Perform one minor heap collection over mutable roots.
+    pub fn collect_minor<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    where
+        R: RootSlots,
+    {
         let stats = self.heap.collect_minor(roots)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
     }
 
-    /// Perform one full heap collection over explicit roots.
-    pub fn collect_full(&mut self, roots: &mut [HeapReference]) -> HeapResult<GcStats> {
+    /// Perform one full heap collection over mutable roots.
+    pub fn collect_full<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    where
+        R: RootSlots,
+    {
         let stats = self.heap.collect_full(roots)?;
         self.on_after_gc_cycle(stats);
 
@@ -185,44 +188,65 @@ impl Heap {
     }
 
     /// Run one pacing-driven local collection step at one safepoint.
-    pub fn gc_step(&mut self, roots: &mut [HeapReference]) -> HeapResult<Option<GcStats>> {
+    pub fn gc_step<R>(&mut self, roots: &mut R) -> Result<GcProgress, R::Error>
+    where
+        R: RootSlots,
+    {
+        // service major GC work
         if self.heap.major_gc_active() {
-            let stats = self
-                .heap
-                .step_major_gc(roots, DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS)?;
-
-            if let Some(stats) = stats {
+            let step_budget = self.take_major_gc_step_budget();
+            let progress = self.heap.step_major_gc(roots, step_budget)?;
+            if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             }
 
-            return Ok(stats);
+            return Ok(progress);
         }
 
+        // check if there is an active GC request
         let Some(gc_request) = self.gc_request.take() else {
-            return Ok(None);
+            return Ok(GcProgress::Idle);
         };
 
         // full cycles first clear young debt, then continue as incremental major work
         if gc_request == GcRequest::Full {
+            // service minor first
             let _minor = self.heap.collect_minor(roots)?;
-            self.heap.start_major_gc(roots)?;
-            let stats = self
-                .heap
-                .step_major_gc(roots, DEFAULT_LOCAL_MAJOR_GC_WORK_ITEMS)?;
 
-            if let Some(stats) = stats {
+            // begin / service major
+            self.heap.start_major_gc(roots)?;
+            let step_budget = self.take_major_gc_step_budget();
+            let progress = self.heap.step_major_gc(roots, step_budget)?;
+
+            if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             } else {
                 self.gc_request = Some(GcRequest::Full);
             }
 
-            return Ok(stats);
+            Ok(progress)
         }
-
         // minor cycles keep the steady-state path short
-        let stats = self.collect_minor(roots)?;
+        else {
+            let stats = self.collect_minor(roots)?;
+            Ok(GcProgress::Complete(stats))
+        }
+    }
 
-        Ok(Some(stats))
+    /// Return the local major collection work budget for one safepoint.
+    fn take_major_gc_step_budget(&mut self) -> usize {
+        // scale with current heap size and worst-case span density
+        let page_bytes = self.allocator.page_bytes().max(1);
+        let heap_pages = (self.heap_allocated_bytes() as usize).div_ceil(page_bytes);
+        let span_pages = self.options.small_span_pages();
+        let heap_spans = heap_pages.div_ceil(span_pages).max(1);
+        let span_slots = self.options.minimum_small_span_slots();
+        let base_budget = heap_spans.max(span_slots);
+        let assist_steps = self
+            .gc_pacer
+            .take_assist_work(base_budget.saturating_mul(page_bytes), page_bytes);
+
+        base_budget.saturating_add(assist_steps)
     }
 
     /// Allocate one managed heap allocation.
@@ -238,6 +262,7 @@ impl Heap {
 
         // then allocate through heap space
         let reference = self.heap.allocate(layout, allocation)?;
+        self.accrue_assist_debt(layout.byte_len);
         self.refresh_gc_request();
 
         Ok(reference)
@@ -440,6 +465,18 @@ impl Heap {
     fn on_after_gc_cycle(&mut self, stats: GcStats) {
         self.gc_pacer.update(self.options.gc, stats.allocated_bytes);
         self.gc_request = None;
+        self.gc_pacer.clear_assist_debt();
         self.refresh_gc_request();
+    }
+
+    /// Accrue local collector work from heap allocation pressure.
+    fn accrue_assist_debt(&mut self, allocated_bytes: usize) {
+        self.refresh_gc_pacer();
+        let heap_bytes = self.heap_allocated_bytes();
+        if heap_bytes < self.gc_pacer.trigger_bytes && !self.heap.major_gc_active() {
+            return;
+        }
+
+        self.gc_pacer.add_assist_debt(allocated_bytes);
     }
 }
