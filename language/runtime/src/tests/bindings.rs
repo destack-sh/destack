@@ -1,3 +1,4 @@
+use destack_engine::Value;
 use destack_mir::ModuleBuilder;
 use destack_vm::Isolate;
 
@@ -54,6 +55,7 @@ fn run_vm_random_call(
     // runtime and isolate setup
     let mut isolate =
         Isolate::build(destack_vm::IsolateId::new(1), tree, strings).expect("isolate init");
+    let mut statics = destack_vm::StaticSpace::empty();
     let mut heap = destack_vm::Heap::with_allocator_limits_and_options(
         std::sync::Arc::new(
             destack_vm::Allocator::try_new(
@@ -66,7 +68,7 @@ fn run_vm_random_call(
         destack_vm::HeapOptions::local(),
     )
     .expect("test vm heap should build");
-    let mut shared = destack_vm::SharedHeap::with_allocator_limits_and_options(
+    let shared = destack_vm::SharedHeap::with_allocator_limits_and_options(
         std::sync::Arc::new(
             destack_vm::Allocator::try_new(
                 destack_vm::HeapOptions::shared().page_bytes,
@@ -79,14 +81,17 @@ fn run_vm_random_call(
     )
     .expect("test vm shared heap should build");
     runtime.install_vm_defaults(&mut isolate);
+    isolate
+        .initialize_statics(&mut statics)
+        .expect("isolate statics should initialize");
 
     // execute entry function
     let output = runtime
         .with_native_call_context(|_| {
-            isolate.run_function_by_name(&mut heap, &mut shared, "main", &[])
+            isolate.run_function_by_name(&mut statics, &mut heap, &shared, "main", &[])
         })
         .expect("vm execution");
-    let destack_engine::MaterializedValue::UInt { value, width } = output.value else {
+    let Value::UInt { value, width } = output.value else {
         panic!("u64 result")
     };
     assert_eq!(width, 64);

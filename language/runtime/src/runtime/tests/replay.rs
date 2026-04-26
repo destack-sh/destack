@@ -446,7 +446,10 @@ fn test_record_replay_world_commands_mixed() {
         Command::RunEntrypoint {
             runtime_id: RuntimeId(7),
             entry: Entry::new("test.entry"),
-            args: vec![destack_vm::Value::int32(11)],
+            args: vec![destack_vm::Value::Int {
+                value: 11,
+                width: 32,
+            }],
         },
         Command::RemoveRuntime {
             runtime_id: RuntimeId(9),
