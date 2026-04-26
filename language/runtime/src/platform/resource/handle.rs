@@ -16,11 +16,11 @@ pub struct ResourceId(
 );
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: destack_vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: destack_vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> destack_vm::Value {
+    fn encode(self) -> destack_vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -118,11 +118,11 @@ macro_rules! define_resource_handle_types {
             }
 
             impl VmValueCodec for $handle {
-                fn decode(value: destack_vm::Value) -> RuntimeResult<Self> {
+                fn decode(value: destack_vm::Word) -> RuntimeResult<Self> {
                     Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
                 }
 
-                fn encode(self) -> destack_vm::Value {
+                fn encode(self) -> destack_vm::Word {
                     <ResourceId as VmValueCodec>::encode(self.0)
                 }
             }

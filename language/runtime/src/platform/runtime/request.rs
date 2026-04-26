@@ -13,7 +13,7 @@ use crate::runtime::control::inspect::{
 };
 use crate::runtime::observe::ObservationOptions;
 use destack_workspace::{
-    ExecutionMode, RuntimeAuthority, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld,
+    EffectSource, ExecutionMode, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld,
 };
 
 use super::RuntimeHandleCodec;
@@ -97,16 +97,16 @@ impl RuntimeRequestCodec {
 
         // optional world kind
         if let Some(world) = options.world {
-            runtime_options.policy.world = match world {
+            runtime_options.effect.backend = match world {
                 RuntimeWorldKind::Host => RuntimeWorld::Host,
                 RuntimeWorldKind::Simulation => RuntimeWorld::Simulation,
             };
         }
 
         // simulation worlds default to virtual time
-        if runtime_options.policy.world == RuntimeWorld::Simulation {
-            runtime_options.policy.time.authority = RuntimeAuthority::Simulation;
-            runtime_options.policy.random.authority = RuntimeAuthority::Simulation;
+        if runtime_options.effect.backend == RuntimeWorld::Simulation {
+            runtime_options.effect.time = EffectSource::Simulation;
+            runtime_options.effect.random = EffectSource::Simulation;
         }
 
         let labels = Self::labels_from_value(options.labels);

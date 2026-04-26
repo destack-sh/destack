@@ -929,7 +929,7 @@ impl NativeSocketAddressArg {
 /// Decode a VM socket address aggregate value.
 fn socket_address_vm_from_value(
     context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
+    value: vm::Word,
 ) -> RuntimeResult<SocketAddressVm> {
     SocketAddressVm::decode_with_context(&context.read(), value)
 }

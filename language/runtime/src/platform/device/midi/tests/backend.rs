@@ -162,14 +162,14 @@ fn test_midi_backend_vm_codec_preserves_exact_backend_wire_values() {
         // vm encoding
         let encoded = <MidiBackend as VmValueCodec>::encode(backend);
         assert_eq!(
-            encoded.as_int_with_width(),
-            Some((raw_wire_value as i64, 32)),
+            encoded.as_int(),
+            raw_wire_value as i64,
             "midi backend VM encoding should use the generated 32 bit enum wire value",
         );
 
         // vm decoding
         let decoded =
-            <MidiBackend as VmValueCodec>::decode(vm::Value::int(raw_wire_value as i64, 32))
+            <MidiBackend as VmValueCodec>::decode(vm::Word::int(raw_wire_value as i64, 32))
                 .expect("midi backend VM decoding should accept declared wire values");
         assert_eq!(
             decoded, backend,
@@ -186,9 +186,8 @@ fn test_midi_backend_vm_codec_rejects_unknown_backend_wire_values() {
     let invalid_wire_values = [8u8, 9u8, 254u8];
 
     for raw_wire_value in invalid_wire_values {
-        let error =
-            <MidiBackend as VmValueCodec>::decode(vm::Value::int(raw_wire_value as i64, 32))
-                .expect_err("midi backend VM decoding should reject unknown wire values");
+        let error = <MidiBackend as VmValueCodec>::decode(vm::Word::int(raw_wire_value as i64, 32))
+            .expect_err("midi backend VM decoding should reject unknown wire values");
 
         // exact failure class
         assert_eq!(

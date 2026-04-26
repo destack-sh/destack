@@ -180,9 +180,8 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output.push('\n');
 
         // value encoder
-        self.output.push_str(
-            "    /// Encode one materialized value into one native or VM harness payload.\n",
-        );
+        self.output
+            .push_str("    /// Encode one value into one native or VM harness payload.\n");
         self.output
             .push_str("    pub(crate) fn harness_value_from<Native, Vm>(\n");
         self.output.push_str("        &mut self,\n");
@@ -216,9 +215,8 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output.push('\n');
 
         // value decoder
-        self.output.push_str(
-            "    /// Decode one native or VM harness payload into one materialized value.\n",
-        );
+        self.output
+            .push_str("    /// Decode one native or VM harness payload into one value.\n");
         self.output
             .push_str("    pub(crate) fn harness_value_into<Native, Vm>(\n");
         self.output.push_str("        &mut self,\n");

@@ -191,14 +191,14 @@ impl AbiRenderer<'_> {
                 let inner_vm_type = codegen.vm_type_for_binding(inner);
                 output.push_str(&format!("impl VmAggregateCodec for {name}Abi<VmAbi> {{\n"));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
             );
                 output.push_str(&format!(
                 "        Ok(Self(<{inner_vm_type} as VmAggregateCodec>::decode_with_context(context, value)?))\n"
             ));
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Word> {\n",
             );
                 output.push_str(&format!(
                 "        <{inner_vm_type} as VmAggregateCodec>::encode_with_context(self.0, context)\n"
@@ -275,12 +275,12 @@ impl AbiRenderer<'_> {
             output.push_str(&format!("pub type {name}Vm = {name};\n\n"));
 
             output.push_str(&format!("impl VmValueCodec for {name} {{\n"));
-            output.push_str("    fn decode(value: vm::Value) -> RuntimeResult<Self> {\n");
+            output.push_str("    fn decode(value: vm::Word) -> RuntimeResult<Self> {\n");
             output.push_str(&format!(
                 "        Ok(Self(<{inner_type} as VmValueCodec>::decode(value)?))\n"
             ));
             output.push_str("    }\n\n");
-            output.push_str("    fn encode(self) -> vm::Value {\n");
+            output.push_str("    fn encode(self) -> vm::Word {\n");
             output.push_str(&format!(
                 "        <{inner_type} as VmValueCodec>::encode(self.0)\n"
             ));
@@ -352,7 +352,7 @@ impl AbiRenderer<'_> {
                 }
                 let arms = arms.join(", ");
                 output.push_str(&format!("impl VmValueCodec for {name} {{\n"));
-                output.push_str("    fn decode(value: vm::Value) -> RuntimeResult<Self> {\n");
+                output.push_str("    fn decode(value: vm::Word) -> RuntimeResult<Self> {\n");
                 output.push_str(&format!(
                     "        let raw = <{backing_type} as VmValueCodec>::decode(value)?;\n"
                 ));
@@ -364,7 +364,7 @@ impl AbiRenderer<'_> {
                 output.push_str("        };\n");
                 output.push_str("        Ok(decoded)\n");
                 output.push_str("    }\n\n");
-                output.push_str("    fn encode(self) -> vm::Value {\n");
+                output.push_str("    fn encode(self) -> vm::Word {\n");
                 output.push_str(&format!(
                     "        <{backing_type} as VmValueCodec>::encode(self as {backing_type})\n"
                 ));
@@ -477,7 +477,7 @@ impl AbiRenderer<'_> {
                 codegen.named_type_metadata_name(codegen.module(), union_name);
             output.push_str(&format!("impl VmAggregateCodec for {vm_union_type} {{\n"));
             output.push_str(
-            "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+            "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
         );
             output.push_str(
             "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
@@ -513,7 +513,7 @@ impl AbiRenderer<'_> {
             output.push_str("        Ok(decoded)\n");
             output.push_str("    }\n\n");
             output.push_str(
-            "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
+            "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Word> {\n",
         );
             output.push_str("        match self {\n");
             for (variant, tag) in variants.iter().zip(variant_tags.iter().copied()) {
@@ -711,7 +711,7 @@ impl AbiRenderer<'_> {
                     "impl VmAggregateCodec for {struct_name}Abi<VmAbi> {{\n"
                 ));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
             );
                 output.push_str(
                 "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
@@ -751,7 +751,7 @@ impl AbiRenderer<'_> {
                 output.push_str("        })\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Word> {\n",
             );
                 output.push_str(&format!(
                     "        let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",
@@ -866,7 +866,7 @@ impl AbiRenderer<'_> {
 
                 output.push_str(&format!("impl VmAggregateCodec for {struct_name} {{\n"));
                 output.push_str(
-                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+                "    fn decode_with_context(context: &vm::ExternalReadContext<'_, '_>, value: vm::Word) -> RuntimeResult<Self> {\n",
             );
                 output.push_str(
                 "        let value_ref = context.value_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
@@ -906,7 +906,7 @@ impl AbiRenderer<'_> {
                 output.push_str("        })\n");
                 output.push_str("    }\n\n");
                 output.push_str(
-                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Value> {\n",
+                "    fn encode_with_context(self, context: &mut vm::ExternalWriteContext<'_, '_>) -> RuntimeResult<vm::Word> {\n",
             );
                 output.push_str(&format!(
                     "        let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;\n",

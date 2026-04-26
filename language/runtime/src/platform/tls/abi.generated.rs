@@ -32,7 +32,7 @@ pub enum TlsHandshakeStatus {
 }
 
 impl VmValueCodec for TlsHandshakeStatus {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Complete,
@@ -49,7 +49,7 @@ impl VmValueCodec for TlsHandshakeStatus {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -102,7 +102,7 @@ pub enum TlsHostnameVerificationMode {
 }
 
 impl VmValueCodec for TlsHostnameVerificationMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Strict,
@@ -119,7 +119,7 @@ impl VmValueCodec for TlsHostnameVerificationMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -170,7 +170,7 @@ pub enum TlsRole {
 }
 
 impl VmValueCodec for TlsRole {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Client,
@@ -186,7 +186,7 @@ impl VmValueCodec for TlsRole {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -241,7 +241,7 @@ pub enum TlsSessionResumptionMode {
 }
 
 impl VmValueCodec for TlsSessionResumptionMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Disabled,
@@ -259,7 +259,7 @@ impl VmValueCodec for TlsSessionResumptionMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -310,7 +310,7 @@ pub enum TlsSessionResumptionState {
 }
 
 impl VmValueCodec for TlsSessionResumptionState {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Fresh,
@@ -326,7 +326,7 @@ impl VmValueCodec for TlsSessionResumptionState {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -377,7 +377,7 @@ pub enum TlsVersion {
 }
 
 impl VmValueCodec for TlsVersion {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             771i32 => Self::Tls12,
@@ -393,7 +393,7 @@ impl VmValueCodec for TlsVersion {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -475,7 +475,7 @@ impl Clone for TlsContextOptionsAbi<VmAbi> {
 impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -519,7 +519,7 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tls::TlsContextOptions")
             .map_err(Box::<RuntimeError>::from)?;

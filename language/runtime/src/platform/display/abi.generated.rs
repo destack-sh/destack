@@ -31,11 +31,11 @@ pub struct DisplayBackendCapabilityFlags(
 pub type DisplayBackendCapabilityFlagsVm = DisplayBackendCapabilityFlags;
 
 impl VmValueCodec for DisplayBackendCapabilityFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct DisplayDragOperationMask(
 pub type DisplayDragOperationMaskVm = DisplayDragOperationMask;
 
 impl VmValueCodec for DisplayDragOperationMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct DisplayDragSessionHandle(
 pub type DisplayDragSessionHandleVm = DisplayDragSessionHandle;
 
 impl VmValueCodec for DisplayDragSessionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -196,11 +196,11 @@ pub struct DisplayHandle(
 pub type DisplayHandleVm = DisplayHandle;
 
 impl VmValueCodec for DisplayHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -251,11 +251,11 @@ pub struct DisplayMetricChangedMask(
 pub type DisplayMetricChangedMaskVm = DisplayMetricChangedMask;
 
 impl VmValueCodec for DisplayMetricChangedMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -306,11 +306,11 @@ pub struct DisplayMonitorEventKindMask(
 pub type DisplayMonitorEventKindMaskVm = DisplayMonitorEventKindMask;
 
 impl VmValueCodec for DisplayMonitorEventKindMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -361,11 +361,11 @@ pub struct DisplayPixelFormat(
 pub type DisplayPixelFormatVm = DisplayPixelFormat;
 
 impl VmValueCodec for DisplayPixelFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -419,7 +419,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -429,7 +429,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -496,7 +496,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -506,7 +506,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -570,11 +570,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -625,11 +625,11 @@ pub struct WindowEventKindMask(
 pub type WindowEventKindMaskVm = WindowEventKindMask;
 
 impl VmValueCodec for WindowEventKindMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -680,11 +680,11 @@ pub struct WindowHandle(
 pub type WindowHandleVm = WindowHandle;
 
 impl VmValueCodec for WindowHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -739,7 +739,7 @@ pub enum BackendSupport {
 }
 
 impl VmValueCodec for BackendSupport {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Available,
@@ -757,7 +757,7 @@ impl VmValueCodec for BackendSupport {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -820,7 +820,7 @@ pub enum DisplayBackend {
 }
 
 impl VmValueCodec for DisplayBackend {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -842,7 +842,7 @@ impl VmValueCodec for DisplayBackend {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -893,7 +893,7 @@ pub enum DisplayBackendSelectionPolicy {
 }
 
 impl VmValueCodec for DisplayBackendSelectionPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Strict,
@@ -909,7 +909,7 @@ impl VmValueCodec for DisplayBackendSelectionPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -968,7 +968,7 @@ pub enum DisplayColorSpace {
 }
 
 impl VmValueCodec for DisplayColorSpace {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -988,7 +988,7 @@ impl VmValueCodec for DisplayColorSpace {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1041,7 +1041,7 @@ pub enum DisplayDragItemKind {
 }
 
 impl VmValueCodec for DisplayDragItemKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::String,
@@ -1058,7 +1058,7 @@ impl VmValueCodec for DisplayDragItemKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1113,7 +1113,7 @@ pub enum DisplayDragOperation {
 }
 
 impl VmValueCodec for DisplayDragOperation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::None,
@@ -1131,7 +1131,7 @@ impl VmValueCodec for DisplayDragOperation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1184,7 +1184,7 @@ pub enum DisplayEventOverflowPolicy {
 }
 
 impl VmValueCodec for DisplayEventOverflowPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::DropOldest,
@@ -1201,7 +1201,7 @@ impl VmValueCodec for DisplayEventOverflowPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1256,7 +1256,7 @@ pub enum DisplayHdrMode {
 }
 
 impl VmValueCodec for DisplayHdrMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1274,7 +1274,7 @@ impl VmValueCodec for DisplayHdrMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1331,7 +1331,7 @@ pub enum DisplayOrientation {
 }
 
 impl VmValueCodec for DisplayOrientation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1350,7 +1350,7 @@ impl VmValueCodec for DisplayOrientation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1403,7 +1403,7 @@ pub enum DisplaySupportStatus {
 }
 
 impl VmValueCodec for DisplaySupportStatus {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1420,7 +1420,7 @@ impl VmValueCodec for DisplaySupportStatus {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1471,7 +1471,7 @@ pub enum WindowAttentionLevel {
 }
 
 impl VmValueCodec for WindowAttentionLevel {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Informational,
@@ -1487,7 +1487,7 @@ impl VmValueCodec for WindowAttentionLevel {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1540,7 +1540,7 @@ pub enum WindowChromeKind {
 }
 
 impl VmValueCodec for WindowChromeKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Standard,
@@ -1557,7 +1557,7 @@ impl VmValueCodec for WindowChromeKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1660,7 +1660,7 @@ pub enum WindowCursorIcon {
 }
 
 impl VmValueCodec for WindowCursorIcon {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Default,
@@ -1702,7 +1702,7 @@ impl VmValueCodec for WindowCursorIcon {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1757,7 +1757,7 @@ pub enum WindowCursorMode {
 }
 
 impl VmValueCodec for WindowCursorMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Normal,
@@ -1775,7 +1775,7 @@ impl VmValueCodec for WindowCursorMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1826,7 +1826,7 @@ pub enum WindowIconPixelFormat {
 }
 
 impl VmValueCodec for WindowIconPixelFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Rgba8,
@@ -1842,7 +1842,7 @@ impl VmValueCodec for WindowIconPixelFormat {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1895,7 +1895,7 @@ pub enum WindowOcclusionState {
 }
 
 impl VmValueCodec for WindowOcclusionState {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1912,7 +1912,7 @@ impl VmValueCodec for WindowOcclusionState {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1973,7 +1973,7 @@ pub enum WindowRenderState {
 }
 
 impl VmValueCodec for WindowRenderState {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1994,7 +1994,7 @@ impl VmValueCodec for WindowRenderState {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2057,7 +2057,7 @@ pub enum WindowResizeEdge {
 }
 
 impl VmValueCodec for WindowResizeEdge {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::North,
@@ -2079,7 +2079,7 @@ impl VmValueCodec for WindowResizeEdge {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2132,7 +2132,7 @@ pub enum WindowRole {
 }
 
 impl VmValueCodec for WindowRole {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Toplevel,
@@ -2149,7 +2149,7 @@ impl VmValueCodec for WindowRole {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2206,7 +2206,7 @@ pub enum WindowTheme {
 }
 
 impl VmValueCodec for WindowTheme {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -2225,7 +2225,7 @@ impl VmValueCodec for WindowTheme {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2280,7 +2280,7 @@ pub enum WindowVisibility {
 }
 
 impl VmValueCodec for WindowVisibility {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Hidden,
@@ -2298,7 +2298,7 @@ impl VmValueCodec for WindowVisibility {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2377,7 +2377,7 @@ impl Clone for DisplayMonitorEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2438,7 +2438,7 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::DisplayAddedEvent(value) => {
                 let tag_value =
@@ -2704,7 +2704,7 @@ impl Clone for OsPathAbi<VmAbi> {
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2750,7 +2750,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
@@ -2946,7 +2946,7 @@ impl Clone for WindowEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3004,7 +3004,7 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::WindowAspectRatioChangedEvent(value) => {
                 let tag_value =
@@ -4128,7 +4128,7 @@ impl Clone for WindowModeOptionsAbi<VmAbi> {
 impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4161,7 +4161,7 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::WindowBorderlessModeOptions(value) => {
                 let tag_value =
@@ -4371,7 +4371,7 @@ impl Clone for DisplayAddedEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4411,7 +4411,7 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayAddedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4542,7 +4542,7 @@ impl Clone for DisplayAddedPayloadAbi<VmAbi> {
 impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4574,7 +4574,7 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayAddedPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4683,7 +4683,7 @@ impl Clone for DisplayBackendDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4729,7 +4729,7 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayBackendDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4881,7 +4881,7 @@ pub type DisplayBeginFrameEventVm = DisplayBeginFrameEvent;
 impl VmAggregateCodec for DisplayBeginFrameEvent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4942,7 +4942,7 @@ impl VmAggregateCodec for DisplayBeginFrameEvent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayBeginFrameEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5058,7 +5058,7 @@ pub type DisplayBeginFrameFilterVm = DisplayBeginFrameFilter;
 impl VmAggregateCodec for DisplayBeginFrameFilter {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5090,7 +5090,7 @@ impl VmAggregateCodec for DisplayBeginFrameFilter {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayBeginFrameFilter")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5161,7 +5161,7 @@ pub type DisplayBeginFrameOpenOptionsVm = DisplayBeginFrameOpenOptions;
 impl VmAggregateCodec for DisplayBeginFrameOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5206,7 +5206,7 @@ impl VmAggregateCodec for DisplayBeginFrameOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayBeginFrameOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5292,7 +5292,7 @@ pub type DisplayColorStateVm = DisplayColorState;
 impl VmAggregateCodec for DisplayColorState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5329,7 +5329,7 @@ impl VmAggregateCodec for DisplayColorState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayColorState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5461,7 +5461,7 @@ impl Clone for DisplayDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5558,7 +5558,7 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5941,7 +5941,7 @@ impl Clone for DisplayDescriptorChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5982,7 +5982,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDescriptorChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6129,7 +6129,7 @@ impl Clone for DisplayDescriptorChangedPayloadAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6170,7 +6170,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDescriptorChangedPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6321,7 +6321,7 @@ impl Clone for DisplayDragBeginOptionsAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6373,7 +6373,7 @@ impl VmAggregateCodec for DisplayDragBeginOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragBeginOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6585,7 +6585,7 @@ impl Clone for DisplayDragItemDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6631,7 +6631,7 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragItemDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6764,7 +6764,7 @@ pub type DisplayDragPositionVm = DisplayDragPosition;
 impl VmAggregateCodec for DisplayDragPosition {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6795,7 +6795,7 @@ impl VmAggregateCodec for DisplayDragPosition {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragPosition")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6890,7 +6890,7 @@ impl Clone for DisplayDragPreviewAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6935,7 +6935,7 @@ impl VmAggregateCodec for DisplayDragPreviewAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragPreview")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7090,7 +7090,7 @@ impl Clone for DisplayDragSourceItemAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragSourceItemAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7142,7 +7142,7 @@ impl VmAggregateCodec for DisplayDragSourceItemAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragSourceItem")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7316,7 +7316,7 @@ impl Clone for DisplayDragTransferAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7371,7 +7371,7 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayDragTransfer")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7568,7 +7568,7 @@ pub type DisplayEventQueueOptionsVm = DisplayEventQueueOptions;
 impl VmAggregateCodec for DisplayEventQueueOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7603,7 +7603,7 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayEventQueueOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7696,7 +7696,7 @@ impl Clone for DisplayGammaRampAbi<VmAbi> {
 impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7732,7 +7732,7 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayGammaRamp")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7835,7 +7835,7 @@ pub type DisplayModeVm = DisplayMode;
 impl VmAggregateCodec for DisplayMode {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7878,7 +7878,7 @@ impl VmAggregateCodec for DisplayMode {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMode")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7981,7 +7981,7 @@ impl Clone for DisplayModeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8022,7 +8022,7 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayModeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8145,7 +8145,7 @@ pub type DisplayModeChangedPayloadVm = DisplayModeChangedPayload;
 impl VmAggregateCodec for DisplayModeChangedPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8180,7 +8180,7 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayModeChangedPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8271,7 +8271,7 @@ impl Clone for DisplayMonitorEventFilterAbi<VmAbi> {
 impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8308,7 +8308,7 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMonitorEventFilter")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8448,7 +8448,7 @@ impl Clone for DisplayMonitorEventMetadataAbi<VmAbi> {
 impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8492,7 +8492,7 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMonitorEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8649,7 +8649,7 @@ impl Clone for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
 impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8694,7 +8694,7 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMonitorEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8832,7 +8832,7 @@ pub type DisplayMonitorListRequestVm = DisplayMonitorListRequest;
 impl VmAggregateCodec for DisplayMonitorListRequest {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8867,7 +8867,7 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMonitorListRequest")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8938,7 +8938,7 @@ pub type DisplayMonitorOpenOptionsVm = DisplayMonitorOpenOptions;
 impl VmAggregateCodec for DisplayMonitorOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8973,7 +8973,7 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayMonitorOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9066,7 +9066,7 @@ impl Clone for DisplayPrimaryChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9107,7 +9107,7 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayPrimaryChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9242,7 +9242,7 @@ impl Clone for DisplayPrimaryPayloadAbi<VmAbi> {
 impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9279,7 +9279,7 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayPrimaryPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9414,7 +9414,7 @@ impl Clone for DisplayRemovedEventAbi<VmAbi> {
 impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9455,7 +9455,7 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayRemovedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9590,7 +9590,7 @@ impl Clone for DisplayRemovedPayloadAbi<VmAbi> {
 impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9626,7 +9626,7 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::DisplayRemovedPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9746,7 +9746,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9781,7 +9781,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9888,7 +9888,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9923,7 +9923,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10009,7 +10009,7 @@ pub type WindowAspectRatioVm = WindowAspectRatio;
 impl VmAggregateCodec for WindowAspectRatio {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10042,7 +10042,7 @@ impl VmAggregateCodec for WindowAspectRatio {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowAspectRatio")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10132,7 +10132,7 @@ impl Clone for WindowAspectRatioChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10173,7 +10173,7 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowAspectRatioChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10284,7 +10284,7 @@ pub type WindowAspectRatioPayloadVm = WindowAspectRatioPayload;
 impl VmAggregateCodec for WindowAspectRatioPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10321,7 +10321,7 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowAspectRatioPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10414,7 +10414,7 @@ impl Clone for WindowBorderlessModeOptionsAbi<VmAbi> {
 impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10450,7 +10450,7 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowBorderlessModeOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10573,7 +10573,7 @@ impl Clone for WindowChromeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10613,7 +10613,7 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowChromeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10716,7 +10716,7 @@ pub type WindowChromePayloadVm = WindowChromePayload;
 impl VmAggregateCodec for WindowChromePayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10753,7 +10753,7 @@ impl VmAggregateCodec for WindowChromePayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowChromePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10846,7 +10846,7 @@ impl Clone for WindowCloseRequestedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10882,7 +10882,7 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowCloseRequestedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10995,7 +10995,7 @@ impl Clone for WindowContentRectChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowContentRectChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11036,7 +11036,7 @@ impl VmAggregateCodec for WindowContentRectChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowContentRectChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11147,7 +11147,7 @@ pub type WindowContentRectPayloadVm = WindowContentRectPayload;
 impl VmAggregateCodec for WindowContentRectPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11184,7 +11184,7 @@ impl VmAggregateCodec for WindowContentRectPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowContentRectPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11277,7 +11277,7 @@ impl Clone for WindowCreatedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11313,7 +11313,7 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowCreatedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11454,7 +11454,7 @@ impl Clone for WindowDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11542,7 +11542,7 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11856,7 +11856,7 @@ impl Clone for WindowDestroyedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11892,7 +11892,7 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDestroyedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12005,7 +12005,7 @@ impl Clone for WindowDisplayChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12046,7 +12046,7 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDisplayChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12149,7 +12149,7 @@ pub type WindowDisplayPayloadVm = WindowDisplayPayload;
 impl VmAggregateCodec for WindowDisplayPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12186,7 +12186,7 @@ impl VmAggregateCodec for WindowDisplayPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDisplayPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12283,7 +12283,7 @@ impl Clone for WindowDragEnteredEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDragEnteredEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12323,7 +12323,7 @@ impl VmAggregateCodec for WindowDragEnteredEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDragEnteredEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12449,7 +12449,7 @@ impl Clone for WindowDragExitedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDragExitedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12489,7 +12489,7 @@ impl VmAggregateCodec for WindowDragExitedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDragExitedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12615,7 +12615,7 @@ impl Clone for WindowDragUpdatedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDragUpdatedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12655,7 +12655,7 @@ impl VmAggregateCodec for WindowDragUpdatedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDragUpdatedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12781,7 +12781,7 @@ impl Clone for WindowDroppedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowDroppedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12821,7 +12821,7 @@ impl VmAggregateCodec for WindowDroppedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowDroppedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12924,7 +12924,7 @@ pub type WindowEventFilterVm = WindowEventFilter;
 impl VmAggregateCodec for WindowEventFilter {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12961,7 +12961,7 @@ impl VmAggregateCodec for WindowEventFilter {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowEventFilter")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13040,7 +13040,7 @@ pub type WindowEventMetadataVm = WindowEventMetadata;
 impl VmAggregateCodec for WindowEventMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13083,7 +13083,7 @@ impl VmAggregateCodec for WindowEventMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13172,7 +13172,7 @@ pub type WindowEventOpenOptionsVm = WindowEventOpenOptions;
 impl VmAggregateCodec for WindowEventOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13217,7 +13217,7 @@ impl VmAggregateCodec for WindowEventOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowEventOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13323,7 +13323,7 @@ impl Clone for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
 impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13364,7 +13364,7 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowExclusiveFullscreenModeOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13504,7 +13504,7 @@ impl Clone for WindowFocusChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13544,7 +13544,7 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowFocusChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13645,7 +13645,7 @@ pub type WindowFocusPayloadVm = WindowFocusPayload;
 impl VmAggregateCodec for WindowFocusPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13678,7 +13678,7 @@ impl VmAggregateCodec for WindowFocusPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowFocusPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13769,7 +13769,7 @@ impl Clone for WindowFramebufferSizeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowFramebufferSizeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13810,7 +13810,7 @@ impl VmAggregateCodec for WindowFramebufferSizeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowFramebufferSizeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13925,7 +13925,7 @@ pub type WindowFramebufferSizePayloadVm = WindowFramebufferSizePayload;
 impl VmAggregateCodec for WindowFramebufferSizePayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13962,7 +13962,7 @@ impl VmAggregateCodec for WindowFramebufferSizePayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowFramebufferSizePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14059,7 +14059,7 @@ impl Clone for WindowIconImageAbi<VmAbi> {
 impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14100,7 +14100,7 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowIconImage")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14238,7 +14238,7 @@ impl Clone for WindowIconSetAbi<VmAbi> {
 impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14270,7 +14270,7 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowIconSet")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14356,7 +14356,7 @@ pub type WindowLogicalRectVm = WindowLogicalRect;
 impl VmAggregateCodec for WindowLogicalRect {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14393,7 +14393,7 @@ impl VmAggregateCodec for WindowLogicalRect {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowLogicalRect")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14467,7 +14467,7 @@ pub type WindowLogicalSizeVm = WindowLogicalSize;
 impl VmAggregateCodec for WindowLogicalSize {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14500,7 +14500,7 @@ impl VmAggregateCodec for WindowLogicalSize {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowLogicalSize")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14589,7 +14589,7 @@ impl Clone for WindowModalChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14629,7 +14629,7 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowModalChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14730,7 +14730,7 @@ pub type WindowModalPayloadVm = WindowModalPayload;
 impl VmAggregateCodec for WindowModalPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14763,7 +14763,7 @@ impl VmAggregateCodec for WindowModalPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowModalPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14854,7 +14854,7 @@ impl Clone for WindowModeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14894,7 +14894,7 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowModeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15016,7 +15016,7 @@ impl Clone for WindowModePayloadAbi<VmAbi> {
 impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15053,7 +15053,7 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowModePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15188,7 +15188,7 @@ impl Clone for WindowMousePassthroughChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15229,7 +15229,7 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowMousePassthroughChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15344,7 +15344,7 @@ pub type WindowMousePassthroughPayloadVm = WindowMousePassthroughPayload;
 impl VmAggregateCodec for WindowMousePassthroughPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15377,7 +15377,7 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowMousePassthroughPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15472,7 +15472,7 @@ impl Clone for WindowOcclusionChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15513,7 +15513,7 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowOcclusionChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15618,7 +15618,7 @@ pub type WindowOcclusionPayloadVm = WindowOcclusionPayload;
 impl VmAggregateCodec for WindowOcclusionPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15655,7 +15655,7 @@ impl VmAggregateCodec for WindowOcclusionPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowOcclusionPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15750,7 +15750,7 @@ impl Clone for WindowOpacityChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15791,7 +15791,7 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowOpacityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15894,7 +15894,7 @@ pub type WindowOpacityPayloadVm = WindowOpacityPayload;
 impl VmAggregateCodec for WindowOpacityPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15927,7 +15927,7 @@ impl VmAggregateCodec for WindowOpacityPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowOpacityPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16062,7 +16062,7 @@ impl Clone for WindowOptionsAbi<VmAbi> {
 impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16178,7 +16178,7 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16640,7 +16640,7 @@ impl Clone for WindowParentChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16680,7 +16680,7 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowParentChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16783,7 +16783,7 @@ pub type WindowParentPayloadVm = WindowParentPayload;
 impl VmAggregateCodec for WindowParentPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16820,7 +16820,7 @@ impl VmAggregateCodec for WindowParentPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowParentPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16894,7 +16894,7 @@ pub type WindowPhysicalSizeVm = WindowPhysicalSize;
 impl VmAggregateCodec for WindowPhysicalSize {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16927,7 +16927,7 @@ impl VmAggregateCodec for WindowPhysicalSize {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowPhysicalSize")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16993,7 +16993,7 @@ pub type WindowPositionVm = WindowPosition;
 impl VmAggregateCodec for WindowPosition {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17024,7 +17024,7 @@ impl VmAggregateCodec for WindowPosition {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowPosition")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17113,7 +17113,7 @@ impl Clone for WindowPositionChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17154,7 +17154,7 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowPositionChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17259,7 +17259,7 @@ pub type WindowPositionPayloadVm = WindowPositionPayload;
 impl VmAggregateCodec for WindowPositionPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17296,7 +17296,7 @@ impl VmAggregateCodec for WindowPositionPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowPositionPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17391,7 +17391,7 @@ impl Clone for WindowRenderStateChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowRenderStateChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17432,7 +17432,7 @@ impl VmAggregateCodec for WindowRenderStateChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowRenderStateChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17543,7 +17543,7 @@ pub type WindowRenderStatePayloadVm = WindowRenderStatePayload;
 impl VmAggregateCodec for WindowRenderStatePayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17580,7 +17580,7 @@ impl VmAggregateCodec for WindowRenderStatePayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowRenderStatePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17675,7 +17675,7 @@ impl Clone for WindowSafeAreaChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17716,7 +17716,7 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSafeAreaChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17825,7 +17825,7 @@ pub type WindowSafeAreaInsetsVm = WindowSafeAreaInsets;
 impl VmAggregateCodec for WindowSafeAreaInsets {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17864,7 +17864,7 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSafeAreaInsets")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17938,7 +17938,7 @@ pub type WindowSafeAreaPayloadVm = WindowSafeAreaPayload;
 impl VmAggregateCodec for WindowSafeAreaPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17975,7 +17975,7 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSafeAreaPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18072,7 +18072,7 @@ impl Clone for WindowScaleFactorChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18113,7 +18113,7 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowScaleFactorChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18224,7 +18224,7 @@ pub type WindowScaleFactorPayloadVm = WindowScaleFactorPayload;
 impl VmAggregateCodec for WindowScaleFactorPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18257,7 +18257,7 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowScaleFactorPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18352,7 +18352,7 @@ impl Clone for WindowSizeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18392,7 +18392,7 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSizeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18493,7 +18493,7 @@ pub type WindowSizeConstraintsVm = WindowSizeConstraints;
 impl VmAggregateCodec for WindowSizeConstraints {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18530,7 +18530,7 @@ impl VmAggregateCodec for WindowSizeConstraints {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSizeConstraints")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18604,7 +18604,7 @@ pub type WindowSizePayloadVm = WindowSizePayload;
 impl VmAggregateCodec for WindowSizePayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18651,7 +18651,7 @@ impl VmAggregateCodec for WindowSizePayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowSizePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18781,7 +18781,7 @@ pub type WindowStateVm = WindowState;
 impl VmAggregateCodec for WindowState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18905,7 +18905,7 @@ impl VmAggregateCodec for WindowState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19129,7 +19129,7 @@ impl Clone for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19170,7 +19170,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowTaskbarVisibilityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19285,7 +19285,7 @@ pub type WindowTaskbarVisibilityPayloadVm = WindowTaskbarVisibilityPayload;
 impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19318,7 +19318,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowTaskbarVisibilityPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19411,7 +19411,7 @@ impl Clone for WindowThemeChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19451,7 +19451,7 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowThemeChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19552,7 +19552,7 @@ pub type WindowThemePayloadVm = WindowThemePayload;
 impl VmAggregateCodec for WindowThemePayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19585,7 +19585,7 @@ impl VmAggregateCodec for WindowThemePayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowThemePayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19676,7 +19676,7 @@ impl Clone for WindowTransientChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19717,7 +19717,7 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowTransientChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19822,7 +19822,7 @@ pub type WindowTransientPayloadVm = WindowTransientPayload;
 impl VmAggregateCodec for WindowTransientPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19859,7 +19859,7 @@ impl VmAggregateCodec for WindowTransientPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowTransientPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19956,7 +19956,7 @@ impl Clone for WindowVisibilityChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19997,7 +19997,7 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowVisibilityChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20105,7 +20105,7 @@ pub type WindowVisibilityPayloadVm = WindowVisibilityPayload;
 impl VmAggregateCodec for WindowVisibilityPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20142,7 +20142,7 @@ impl VmAggregateCodec for WindowVisibilityPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowVisibilityPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20233,7 +20233,7 @@ impl Clone for WindowWindowedModeOptionsAbi<VmAbi> {
 impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20262,7 +20262,7 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("display::WindowWindowedModeOptions")
             .map_err(Box::<RuntimeError>::from)?;

@@ -28,11 +28,11 @@ pub struct MemoryProtection(
 pub type MemoryProtectionVm = MemoryProtection;
 
 impl VmValueCodec for MemoryProtection {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -83,11 +83,11 @@ pub struct MemoryRemapFlags(
 pub type MemoryRemapFlagsVm = MemoryRemapFlags;
 
 impl VmValueCodec for MemoryRemapFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -138,11 +138,11 @@ pub struct MemoryReserveFlags(
 pub type MemoryReserveFlagsVm = MemoryReserveFlags;
 
 impl VmValueCodec for MemoryReserveFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -199,7 +199,7 @@ pub enum MemoryAdvice {
 }
 
 impl VmValueCodec for MemoryAdvice {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Normal,
@@ -218,7 +218,7 @@ impl VmValueCodec for MemoryAdvice {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -273,7 +273,7 @@ pub type MemoryRangeVm = MemoryRange;
 impl VmAggregateCodec for MemoryRange {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -306,7 +306,7 @@ impl VmAggregateCodec for MemoryRange {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("memory::MemoryRange")
             .map_err(Box::<RuntimeError>::from)?;
@@ -372,7 +372,7 @@ pub type ProtectedMemoryRangeVm = ProtectedMemoryRange;
 impl VmAggregateCodec for ProtectedMemoryRange {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -405,7 +405,7 @@ impl VmAggregateCodec for ProtectedMemoryRange {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("memory::ProtectedMemoryRange")
             .map_err(Box::<RuntimeError>::from)?;

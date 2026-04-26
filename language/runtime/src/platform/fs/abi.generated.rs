@@ -30,11 +30,11 @@ pub struct AccessMode(
 pub type AccessModeVm = AccessMode;
 
 impl VmValueCodec for AccessMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -85,11 +85,11 @@ pub struct AllocFlags(
 pub type AllocFlagsVm = AllocFlags;
 
 impl VmValueCodec for AllocFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -140,11 +140,11 @@ pub struct AtFlags(
 pub type AtFlagsVm = AtFlags;
 
 impl VmValueCodec for AtFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -195,11 +195,11 @@ pub struct CopyFlags(
 pub type CopyFlagsVm = CopyFlags;
 
 impl VmValueCodec for CopyFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -250,11 +250,11 @@ pub struct FdFlags(
 pub type FdFlagsVm = FdFlags;
 
 impl VmValueCodec for FdFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -305,11 +305,11 @@ pub struct FileLockFlags(
 pub type FileLockFlagsVm = FileLockFlags;
 
 impl VmValueCodec for FileLockFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -360,11 +360,11 @@ pub struct FileMode(
 pub type FileModeVm = FileMode;
 
 impl VmValueCodec for FileMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -415,11 +415,11 @@ pub struct FileOffset(
 pub type FileOffsetVm = FileOffset;
 
 impl VmValueCodec for FileOffset {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<i64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -470,11 +470,11 @@ pub struct FileSize(
 pub type FileSizeVm = FileSize;
 
 impl VmValueCodec for FileSize {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -525,11 +525,11 @@ pub struct MmapFlags(
 pub type MmapFlagsVm = MmapFlags;
 
 impl VmValueCodec for MmapFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -580,11 +580,11 @@ pub struct MmapProt(
 pub type MmapProtVm = MmapProt;
 
 impl VmValueCodec for MmapProt {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -635,11 +635,11 @@ pub struct MmapSyncFlags(
 pub type MmapSyncFlagsVm = MmapSyncFlags;
 
 impl VmValueCodec for MmapSyncFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -690,11 +690,11 @@ pub struct NodeDevice(
 pub type NodeDeviceVm = NodeDevice;
 
 impl VmValueCodec for NodeDevice {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -745,11 +745,11 @@ pub struct OpenFlags(
 pub type OpenFlagsVm = OpenFlags;
 
 impl VmValueCodec for OpenFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -800,11 +800,11 @@ pub struct OpenResolveFlags(
 pub type OpenResolveFlagsVm = OpenResolveFlags;
 
 impl VmValueCodec for OpenResolveFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -858,7 +858,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -868,7 +868,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -935,7 +935,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -945,7 +945,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -1009,11 +1009,11 @@ pub struct ReadWriteFlags(
 pub type ReadWriteFlagsVm = ReadWriteFlags;
 
 impl VmValueCodec for ReadWriteFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1064,11 +1064,11 @@ pub struct RenameFlags(
 pub type RenameFlagsVm = RenameFlags;
 
 impl VmValueCodec for RenameFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1119,11 +1119,11 @@ pub struct SpliceFlags(
 pub type SpliceFlagsVm = SpliceFlags;
 
 impl VmValueCodec for SpliceFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1174,11 +1174,11 @@ pub struct StatFsFlags(
 pub type StatFsFlagsVm = StatFsFlags;
 
 impl VmValueCodec for StatFsFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1229,11 +1229,11 @@ pub struct StatusFlags(
 pub type StatusFlagsVm = StatusFlags;
 
 impl VmValueCodec for StatusFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1284,11 +1284,11 @@ pub struct StatxFlags(
 pub type StatxFlagsVm = StatxFlags;
 
 impl VmValueCodec for StatxFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1339,11 +1339,11 @@ pub struct StatxMask(
 pub type StatxMaskVm = StatxMask;
 
 impl VmValueCodec for StatxMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1394,11 +1394,11 @@ pub struct SyncFlags(
 pub type SyncFlagsVm = SyncFlags;
 
 impl VmValueCodec for SyncFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1449,11 +1449,11 @@ pub struct WatchMask(
 pub type WatchMaskVm = WatchMask;
 
 impl VmValueCodec for WatchMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1504,11 +1504,11 @@ pub struct XattrFlags(
 pub type XattrFlagsVm = XattrFlags;
 
 impl VmValueCodec for XattrFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1571,7 +1571,7 @@ pub enum DirentKind {
 }
 
 impl VmValueCodec for DirentKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::File,
@@ -1593,7 +1593,7 @@ impl VmValueCodec for DirentKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1652,7 +1652,7 @@ pub enum FileAdvice {
 }
 
 impl VmValueCodec for FileAdvice {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Normal,
@@ -1672,7 +1672,7 @@ impl VmValueCodec for FileAdvice {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1729,7 +1729,7 @@ pub enum MmapAdvice {
 }
 
 impl VmValueCodec for MmapAdvice {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Normal,
@@ -1748,7 +1748,7 @@ impl VmValueCodec for MmapAdvice {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1801,7 +1801,7 @@ pub enum SeekWhence {
 }
 
 impl VmValueCodec for SeekWhence {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Set,
@@ -1818,7 +1818,7 @@ impl VmValueCodec for SeekWhence {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1871,7 +1871,7 @@ pub enum SymlinkType {
 }
 
 impl VmValueCodec for SymlinkType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -1888,7 +1888,7 @@ impl VmValueCodec for SymlinkType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1961,7 +1961,7 @@ impl Clone for DirentNextAbi<VmAbi> {
 impl VmAggregateCodec for DirentNextAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2007,7 +2007,7 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::DirentNextEnd(value) => {
                 let tag_value =
@@ -2149,7 +2149,7 @@ impl Clone for OsPathAbi<VmAbi> {
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2195,7 +2195,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
@@ -2345,7 +2345,7 @@ impl Clone for WatchEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2411,7 +2411,7 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::WatchCreateEvent(value) => {
                 let tag_value =
@@ -2678,7 +2678,7 @@ impl Clone for DirentAbi<VmAbi> {
 impl VmAggregateCodec for DirentAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2711,7 +2711,7 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::Dirent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2815,7 +2815,7 @@ impl Clone for DirentNextEndAbi<VmAbi> {
 impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2844,7 +2844,7 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::DirentNextEnd")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2940,7 +2940,7 @@ impl Clone for DirentNextEntryAbi<VmAbi> {
 impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2974,7 +2974,7 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::DirentNextEntry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3061,7 +3061,7 @@ pub type OpenOptionsVm = OpenOptions;
 impl VmAggregateCodec for OpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3098,7 +3098,7 @@ impl VmAggregateCodec for OpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::OpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3191,7 +3191,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3225,7 +3225,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3332,7 +3332,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3366,7 +3366,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3450,7 +3450,7 @@ pub type SpliceCursorVm = SpliceCursor;
 impl VmAggregateCodec for SpliceCursor {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3481,7 +3481,7 @@ impl VmAggregateCodec for SpliceCursor {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::SpliceCursor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3568,7 +3568,7 @@ pub type StatVm = Stat;
 impl VmAggregateCodec for Stat {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3637,7 +3637,7 @@ impl VmAggregateCodec for Stat {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::Stat")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3768,7 +3768,7 @@ pub type StatFsVm = StatFs;
 impl VmAggregateCodec for StatFs {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3825,7 +3825,7 @@ impl VmAggregateCodec for StatFs {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::StatFs")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3956,7 +3956,7 @@ pub type StatxVm = Statx;
 impl VmAggregateCodec for Statx {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4037,7 +4037,7 @@ impl VmAggregateCodec for Statx {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::Statx")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4188,7 +4188,7 @@ impl Clone for WatchBatchAbi<VmAbi> {
 impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4222,7 +4222,7 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchBatch")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4333,7 +4333,7 @@ impl Clone for WatchCreateEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4371,7 +4371,7 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchCreateEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4467,7 +4467,7 @@ pub type WatchEventMetadataVm = WatchEventMetadata;
 impl VmAggregateCodec for WatchEventMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4497,7 +4497,7 @@ impl VmAggregateCodec for WatchEventMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4582,7 +4582,7 @@ impl Clone for WatchMetadataEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4620,7 +4620,7 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchMetadataEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4741,7 +4741,7 @@ impl Clone for WatchModifyEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4779,7 +4779,7 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchModifyEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4880,7 +4880,7 @@ pub type WatchOptionsVm = WatchOptions;
 impl VmAggregateCodec for WatchOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4916,7 +4916,7 @@ impl VmAggregateCodec for WatchOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5008,7 +5008,7 @@ impl Clone for WatchOverflowEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5043,7 +5043,7 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchOverflowEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5154,7 +5154,7 @@ impl Clone for WatchRemoveEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5192,7 +5192,7 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchRemoveEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5315,7 +5315,7 @@ impl Clone for WatchRenameEventAbi<VmAbi> {
 impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5356,7 +5356,7 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("fs::WatchRenameEvent")
             .map_err(Box::<RuntimeError>::from)?;

@@ -31,11 +31,11 @@ pub struct GpuBindGroupLayoutHandle(
 pub type GpuBindGroupLayoutHandleVm = GpuBindGroupLayoutHandle;
 
 impl VmValueCodec for GpuBindGroupLayoutHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct GpuBufferHandle(
 pub type GpuBufferHandleVm = GpuBufferHandle;
 
 impl VmValueCodec for GpuBufferHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct GpuBufferUsageMask(
 pub type GpuBufferUsageMaskVm = GpuBufferUsageMask;
 
 impl VmValueCodec for GpuBufferUsageMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -196,11 +196,11 @@ pub struct GpuBufferUseMask(
 pub type GpuBufferUseMaskVm = GpuBufferUseMask;
 
 impl VmValueCodec for GpuBufferUseMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -251,11 +251,11 @@ pub struct GpuColorWriteMask(
 pub type GpuColorWriteMaskVm = GpuColorWriteMask;
 
 impl VmValueCodec for GpuColorWriteMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -306,11 +306,11 @@ pub struct GpuExternalTextureHandle(
 pub type GpuExternalTextureHandleVm = GpuExternalTextureHandle;
 
 impl VmValueCodec for GpuExternalTextureHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -361,11 +361,11 @@ pub struct GpuPipelineLayoutHandle(
 pub type GpuPipelineLayoutHandleVm = GpuPipelineLayoutHandle;
 
 impl VmValueCodec for GpuPipelineLayoutHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -416,11 +416,11 @@ pub struct GpuPipelineStatisticsMask(
 pub type GpuPipelineStatisticsMaskVm = GpuPipelineStatisticsMask;
 
 impl VmValueCodec for GpuPipelineStatisticsMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -471,11 +471,11 @@ pub struct GpuQuerySetHandle(
 pub type GpuQuerySetHandleVm = GpuQuerySetHandle;
 
 impl VmValueCodec for GpuQuerySetHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -526,11 +526,11 @@ pub struct GpuSamplerHandle(
 pub type GpuSamplerHandleVm = GpuSamplerHandle;
 
 impl VmValueCodec for GpuSamplerHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -581,11 +581,11 @@ pub struct GpuShaderHandle(
 pub type GpuShaderHandleVm = GpuShaderHandle;
 
 impl VmValueCodec for GpuShaderHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -636,11 +636,11 @@ pub struct GpuShaderVisibilityMask(
 pub type GpuShaderVisibilityMaskVm = GpuShaderVisibilityMask;
 
 impl VmValueCodec for GpuShaderVisibilityMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -691,11 +691,11 @@ pub struct GpuSurfaceHandle(
 pub type GpuSurfaceHandleVm = GpuSurfaceHandle;
 
 impl VmValueCodec for GpuSurfaceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -746,11 +746,11 @@ pub struct GpuSurfaceTimingCapabilityFlags(
 pub type GpuSurfaceTimingCapabilityFlagsVm = GpuSurfaceTimingCapabilityFlags;
 
 impl VmValueCodec for GpuSurfaceTimingCapabilityFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -801,11 +801,11 @@ pub struct GpuTextureFormat(
 pub type GpuTextureFormatVm = GpuTextureFormat;
 
 impl VmValueCodec for GpuTextureFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -856,11 +856,11 @@ pub struct GpuTextureFormatFeatureFlags(
 pub type GpuTextureFormatFeatureFlagsVm = GpuTextureFormatFeatureFlags;
 
 impl VmValueCodec for GpuTextureFormatFeatureFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -911,11 +911,11 @@ pub struct GpuTextureHandle(
 pub type GpuTextureHandleVm = GpuTextureHandle;
 
 impl VmValueCodec for GpuTextureHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -966,11 +966,11 @@ pub struct GpuTextureUsageMask(
 pub type GpuTextureUsageMaskVm = GpuTextureUsageMask;
 
 impl VmValueCodec for GpuTextureUsageMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1021,11 +1021,11 @@ pub struct GpuTextureUseMask(
 pub type GpuTextureUseMaskVm = GpuTextureUseMask;
 
 impl VmValueCodec for GpuTextureUseMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1076,11 +1076,11 @@ pub struct GpuTextureViewHandle(
 pub type GpuTextureViewHandleVm = GpuTextureViewHandle;
 
 impl VmValueCodec for GpuTextureViewHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1131,11 +1131,11 @@ pub struct GpuVertexFormat(
 pub type GpuVertexFormatVm = GpuVertexFormat;
 
 impl VmValueCodec for GpuVertexFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1186,11 +1186,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1249,7 +1249,7 @@ pub enum DisplayColorSpace {
 }
 
 impl VmValueCodec for DisplayColorSpace {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1269,7 +1269,7 @@ impl VmValueCodec for DisplayColorSpace {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1324,7 +1324,7 @@ pub enum DisplayHdrMode {
 }
 
 impl VmValueCodec for DisplayHdrMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1342,7 +1342,7 @@ impl VmValueCodec for DisplayHdrMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1399,7 +1399,7 @@ pub enum GpuAdapterType {
 }
 
 impl VmValueCodec for GpuAdapterType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Other,
@@ -1418,7 +1418,7 @@ impl VmValueCodec for GpuAdapterType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1473,7 +1473,7 @@ pub enum GpuAddressMode {
 }
 
 impl VmValueCodec for GpuAddressMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::ClampToEdge,
@@ -1491,7 +1491,7 @@ impl VmValueCodec for GpuAddressMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1552,7 +1552,7 @@ pub enum GpuBackend {
 }
 
 impl VmValueCodec for GpuBackend {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -1573,7 +1573,7 @@ impl VmValueCodec for GpuBackend {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1654,7 +1654,7 @@ pub enum GpuBlendFactor {
 }
 
 impl VmValueCodec for GpuBlendFactor {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Zero,
@@ -1685,7 +1685,7 @@ impl VmValueCodec for GpuBlendFactor {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1742,7 +1742,7 @@ pub enum GpuBlendOperation {
 }
 
 impl VmValueCodec for GpuBlendOperation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Add,
@@ -1761,7 +1761,7 @@ impl VmValueCodec for GpuBlendOperation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1814,7 +1814,7 @@ pub enum GpuBufferBindingType {
 }
 
 impl VmValueCodec for GpuBufferBindingType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Uniform,
@@ -1831,7 +1831,7 @@ impl VmValueCodec for GpuBufferBindingType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1884,7 +1884,7 @@ pub enum GpuBufferMapState {
 }
 
 impl VmValueCodec for GpuBufferMapState {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Unmapped,
@@ -1901,7 +1901,7 @@ impl VmValueCodec for GpuBufferMapState {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1964,7 +1964,7 @@ pub enum GpuCompareFunction {
 }
 
 impl VmValueCodec for GpuCompareFunction {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Never,
@@ -1986,7 +1986,7 @@ impl VmValueCodec for GpuCompareFunction {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2039,7 +2039,7 @@ pub enum GpuCompilationMessageKind {
 }
 
 impl VmValueCodec for GpuCompilationMessageKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Info,
@@ -2056,7 +2056,7 @@ impl VmValueCodec for GpuCompilationMessageKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2113,7 +2113,7 @@ pub enum GpuCompositeAlphaMode {
 }
 
 impl VmValueCodec for GpuCompositeAlphaMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -2132,7 +2132,7 @@ impl VmValueCodec for GpuCompositeAlphaMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2185,7 +2185,7 @@ pub enum GpuCullMode {
 }
 
 impl VmValueCodec for GpuCullMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -2202,7 +2202,7 @@ impl VmValueCodec for GpuCullMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2261,7 +2261,7 @@ pub enum GpuDeviceLossReason {
 }
 
 impl VmValueCodec for GpuDeviceLossReason {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -2281,7 +2281,7 @@ impl VmValueCodec for GpuDeviceLossReason {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2334,7 +2334,7 @@ pub enum GpuErrorFilter {
 }
 
 impl VmValueCodec for GpuErrorFilter {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Validation,
@@ -2351,7 +2351,7 @@ impl VmValueCodec for GpuErrorFilter {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2404,7 +2404,7 @@ pub enum GpuExternalTextureFormat {
 }
 
 impl VmValueCodec for GpuExternalTextureFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Rgba,
@@ -2421,7 +2421,7 @@ impl VmValueCodec for GpuExternalTextureFormat {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2614,7 +2614,7 @@ pub enum GpuFeatureId {
 }
 
 impl VmValueCodec for GpuFeatureId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             65536i32 => Self::DepthClipControl,
@@ -2701,7 +2701,7 @@ impl VmValueCodec for GpuFeatureId {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2752,7 +2752,7 @@ pub enum GpuFenceMode {
 }
 
 impl VmValueCodec for GpuFenceMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Binary,
@@ -2768,7 +2768,7 @@ impl VmValueCodec for GpuFenceMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2819,7 +2819,7 @@ pub enum GpuFilterMode {
 }
 
 impl VmValueCodec for GpuFilterMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Nearest,
@@ -2835,7 +2835,7 @@ impl VmValueCodec for GpuFilterMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2886,7 +2886,7 @@ pub enum GpuFrontFace {
 }
 
 impl VmValueCodec for GpuFrontFace {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Ccw,
@@ -2902,7 +2902,7 @@ impl VmValueCodec for GpuFrontFace {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2953,7 +2953,7 @@ pub enum GpuIndexFormat {
 }
 
 impl VmValueCodec for GpuIndexFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Uint16,
@@ -2969,7 +2969,7 @@ impl VmValueCodec for GpuIndexFormat {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3022,7 +3022,7 @@ pub enum GpuLoadOp {
 }
 
 impl VmValueCodec for GpuLoadOp {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Load,
@@ -3039,7 +3039,7 @@ impl VmValueCodec for GpuLoadOp {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3090,7 +3090,7 @@ pub enum GpuMapMode {
 }
 
 impl VmValueCodec for GpuMapMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Read,
@@ -3106,7 +3106,7 @@ impl VmValueCodec for GpuMapMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3159,7 +3159,7 @@ pub enum GpuMemoryHint {
 }
 
 impl VmValueCodec for GpuMemoryHint {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Performance,
@@ -3176,7 +3176,7 @@ impl VmValueCodec for GpuMemoryHint {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3227,7 +3227,7 @@ pub enum GpuMipmapFilterMode {
 }
 
 impl VmValueCodec for GpuMipmapFilterMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Nearest,
@@ -3243,7 +3243,7 @@ impl VmValueCodec for GpuMipmapFilterMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3300,7 +3300,7 @@ pub enum GpuPipelineStatisticsFlag {
 }
 
 impl VmValueCodec for GpuPipelineStatisticsFlag {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::VertexShaderInvocations,
@@ -3319,7 +3319,7 @@ impl VmValueCodec for GpuPipelineStatisticsFlag {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3372,7 +3372,7 @@ pub enum GpuPolygonMode {
 }
 
 impl VmValueCodec for GpuPolygonMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Fill,
@@ -3389,7 +3389,7 @@ impl VmValueCodec for GpuPolygonMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3442,7 +3442,7 @@ pub enum GpuPowerPreference {
 }
 
 impl VmValueCodec for GpuPowerPreference {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -3459,7 +3459,7 @@ impl VmValueCodec for GpuPowerPreference {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3518,7 +3518,7 @@ pub enum GpuPresentMode {
 }
 
 impl VmValueCodec for GpuPresentMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::AutoVsync,
@@ -3538,7 +3538,7 @@ impl VmValueCodec for GpuPresentMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3591,7 +3591,7 @@ pub enum GpuPresentationOverflowPolicy {
 }
 
 impl VmValueCodec for GpuPresentationOverflowPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::DropOldest,
@@ -3608,7 +3608,7 @@ impl VmValueCodec for GpuPresentationOverflowPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3663,7 +3663,7 @@ pub enum GpuPresentationResult {
 }
 
 impl VmValueCodec for GpuPresentationResult {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Presented,
@@ -3681,7 +3681,7 @@ impl VmValueCodec for GpuPresentationResult {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3738,7 +3738,7 @@ pub enum GpuPrimitiveTopology {
 }
 
 impl VmValueCodec for GpuPrimitiveTopology {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::PointList,
@@ -3757,7 +3757,7 @@ impl VmValueCodec for GpuPrimitiveTopology {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3810,7 +3810,7 @@ pub enum GpuSamplerBindingType {
 }
 
 impl VmValueCodec for GpuSamplerBindingType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Filtering,
@@ -3827,7 +3827,7 @@ impl VmValueCodec for GpuSamplerBindingType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3882,7 +3882,7 @@ pub enum GpuSamplerBorderColor {
 }
 
 impl VmValueCodec for GpuSamplerBorderColor {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::TransparentBlack,
@@ -3900,7 +3900,7 @@ impl VmValueCodec for GpuSamplerBorderColor {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -3957,7 +3957,7 @@ pub enum GpuShaderFormat {
 }
 
 impl VmValueCodec for GpuShaderFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Wgsl,
@@ -3976,7 +3976,7 @@ impl VmValueCodec for GpuShaderFormat {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4031,7 +4031,7 @@ pub enum GpuShaderVisibilityFlag {
 }
 
 impl VmValueCodec for GpuShaderVisibilityFlag {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -4049,7 +4049,7 @@ impl VmValueCodec for GpuShaderVisibilityFlag {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4112,7 +4112,7 @@ pub enum GpuStencilOperation {
 }
 
 impl VmValueCodec for GpuStencilOperation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Keep,
@@ -4134,7 +4134,7 @@ impl VmValueCodec for GpuStencilOperation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4189,7 +4189,7 @@ pub enum GpuStorageTextureAccess {
 }
 
 impl VmValueCodec for GpuStorageTextureAccess {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::WriteOnly,
@@ -4207,7 +4207,7 @@ impl VmValueCodec for GpuStorageTextureAccess {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4258,7 +4258,7 @@ pub enum GpuStoreOp {
 }
 
 impl VmValueCodec for GpuStoreOp {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Store,
@@ -4274,7 +4274,7 @@ impl VmValueCodec for GpuStoreOp {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4333,7 +4333,7 @@ pub enum GpuSurfaceAcquireStatus {
 }
 
 impl VmValueCodec for GpuSurfaceAcquireStatus {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Good,
@@ -4353,7 +4353,7 @@ impl VmValueCodec for GpuSurfaceAcquireStatus {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4412,7 +4412,7 @@ pub enum GpuSurfaceStatus {
 }
 
 impl VmValueCodec for GpuSurfaceStatus {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -4432,7 +4432,7 @@ impl VmValueCodec for GpuSurfaceStatus {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4491,7 +4491,7 @@ pub enum GpuTextureAspect {
 }
 
 impl VmValueCodec for GpuTextureAspect {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::All,
@@ -4511,7 +4511,7 @@ impl VmValueCodec for GpuTextureAspect {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4564,7 +4564,7 @@ pub enum GpuTextureDimension {
 }
 
 impl VmValueCodec for GpuTextureDimension {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::D1,
@@ -4581,7 +4581,7 @@ impl VmValueCodec for GpuTextureDimension {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4638,7 +4638,7 @@ pub enum GpuTextureSampleType {
 }
 
 impl VmValueCodec for GpuTextureSampleType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Float,
@@ -4657,7 +4657,7 @@ impl VmValueCodec for GpuTextureSampleType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4716,7 +4716,7 @@ pub enum GpuTextureViewDimension {
 }
 
 impl VmValueCodec for GpuTextureViewDimension {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::D1,
@@ -4736,7 +4736,7 @@ impl VmValueCodec for GpuTextureViewDimension {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4789,7 +4789,7 @@ pub enum GpuTraceMode {
 }
 
 impl VmValueCodec for GpuTraceMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Off,
@@ -4806,7 +4806,7 @@ impl VmValueCodec for GpuTraceMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4857,7 +4857,7 @@ pub enum GpuVertexStepMode {
 }
 
 impl VmValueCodec for GpuVertexStepMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Vertex,
@@ -4873,7 +4873,7 @@ impl VmValueCodec for GpuVertexStepMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -4960,7 +4960,7 @@ impl Clone for GpuBindGroupLayoutResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4995,7 +4995,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::GpuBindGroupLayoutBufferResource(value) => {
                 let tag_value =
@@ -5300,7 +5300,7 @@ impl Clone for GpuBindGroupResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5334,7 +5334,7 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::GpuBindGroupBufferResource(value) => {
                 let tag_value =
@@ -5581,7 +5581,7 @@ impl Clone for GpuQuerySetTypeAbi<VmAbi> {
 impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5632,7 +5632,7 @@ impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::GpuOcclusionQueryType(value) => {
                 let tag_value =
@@ -5806,7 +5806,7 @@ pub type GpuAdapterFormatCapabilitiesVm = GpuAdapterFormatCapabilities;
 impl VmAggregateCodec for GpuAdapterFormatCapabilities {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5847,7 +5847,7 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuAdapterFormatCapabilities")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5974,7 +5974,7 @@ impl Clone for GpuAdapterInfoAbi<VmAbi> {
 impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6063,7 +6063,7 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuAdapterInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6465,7 +6465,7 @@ pub type GpuAdapterLimitsVm = GpuAdapterLimits;
 impl VmAggregateCodec for GpuAdapterLimits {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6653,7 +6653,7 @@ impl VmAggregateCodec for GpuAdapterLimits {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuAdapterLimits")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7043,7 +7043,7 @@ pub type GpuAdapterRequestVm = GpuAdapterRequest;
 impl VmAggregateCodec for GpuAdapterRequest {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7089,7 +7089,7 @@ impl VmAggregateCodec for GpuAdapterRequest {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuAdapterRequest")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7201,7 +7201,7 @@ impl Clone for GpuBindGroupBufferResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7243,7 +7243,7 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupBufferResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7379,7 +7379,7 @@ impl Clone for GpuBindGroupEntryAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7417,7 +7417,7 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupEntry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7551,7 +7551,7 @@ impl Clone for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7587,7 +7587,7 @@ impl VmAggregateCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupExternalTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7714,7 +7714,7 @@ impl Clone for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7756,7 +7756,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutBufferResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7912,7 +7912,7 @@ impl Clone for GpuBindGroupLayoutEntryAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7955,7 +7955,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutEntry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8122,7 +8122,7 @@ impl Clone for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8151,7 +8151,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutExternalTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8247,7 +8247,7 @@ impl Clone for GpuBindGroupLayoutOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8281,7 +8281,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8393,7 +8393,7 @@ impl Clone for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8437,7 +8437,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutSampledTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8594,7 +8594,7 @@ impl Clone for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8630,7 +8630,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutSamplerResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8756,7 +8756,7 @@ impl Clone for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8802,7 +8802,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupLayoutStorageTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8974,7 +8974,7 @@ impl Clone for GpuBindGroupOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9008,7 +9008,7 @@ impl VmAggregateCodec for GpuBindGroupOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9114,7 +9114,7 @@ impl Clone for GpuBindGroupSamplerResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9150,7 +9150,7 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupSamplerResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9267,7 +9267,7 @@ impl Clone for GpuBindGroupTextureResourceAbi<VmAbi> {
 impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9303,7 +9303,7 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBindGroupTextureResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9405,7 +9405,7 @@ pub type GpuBlendComponentVm = GpuBlendComponent;
 impl VmAggregateCodec for GpuBlendComponent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9442,7 +9442,7 @@ impl VmAggregateCodec for GpuBlendComponent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBlendComponent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9515,7 +9515,7 @@ pub type GpuBlendStateVm = GpuBlendState;
 impl VmAggregateCodec for GpuBlendState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9550,7 +9550,7 @@ impl VmAggregateCodec for GpuBlendState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBlendState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9618,7 +9618,7 @@ pub type GpuBufferCopyVm = GpuBufferCopy;
 impl VmAggregateCodec for GpuBufferCopy {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9654,7 +9654,7 @@ impl VmAggregateCodec for GpuBufferCopy {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBufferCopy")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9726,7 +9726,7 @@ pub type GpuBufferCopyLayoutVm = GpuBufferCopyLayout;
 impl VmAggregateCodec for GpuBufferCopyLayout {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9762,7 +9762,7 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBufferCopyLayout")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9836,7 +9836,7 @@ pub type GpuBufferInfoVm = GpuBufferInfo;
 impl VmAggregateCodec for GpuBufferInfo {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9874,7 +9874,7 @@ impl VmAggregateCodec for GpuBufferInfo {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBufferInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9973,7 +9973,7 @@ impl Clone for GpuBufferOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuBufferOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10017,7 +10017,7 @@ impl VmAggregateCodec for GpuBufferOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBufferOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10142,7 +10142,7 @@ pub type GpuBufferTransitionVm = GpuBufferTransition;
 impl VmAggregateCodec for GpuBufferTransition {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10178,7 +10178,7 @@ impl VmAggregateCodec for GpuBufferTransition {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuBufferTransition")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10269,7 +10269,7 @@ impl Clone for GpuCapturedErrorAbi<VmAbi> {
 impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10304,7 +10304,7 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuCapturedError")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10403,7 +10403,7 @@ pub type GpuColorVm = GpuColor;
 impl VmAggregateCodec for GpuColor {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10438,7 +10438,7 @@ impl VmAggregateCodec for GpuColor {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuColor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10514,7 +10514,7 @@ pub type GpuColorTargetStateVm = GpuColorTargetState;
 impl VmAggregateCodec for GpuColorTargetState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10553,7 +10553,7 @@ impl VmAggregateCodec for GpuColorTargetState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuColorTargetState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10646,7 +10646,7 @@ impl Clone for GpuCommandBufferOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuCommandBufferOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10675,7 +10675,7 @@ impl VmAggregateCodec for GpuCommandBufferOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuCommandBufferOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10771,7 +10771,7 @@ impl Clone for GpuCommandEncoderOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10805,7 +10805,7 @@ impl VmAggregateCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuCommandEncoderOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10909,7 +10909,7 @@ impl Clone for GpuCompilationInfoAbi<VmAbi> {
 impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10941,7 +10941,7 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuCompilationInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11059,7 +11059,7 @@ impl Clone for GpuCompilationMessageAbi<VmAbi> {
 impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11107,7 +11107,7 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuCompilationMessage")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11257,7 +11257,7 @@ impl Clone for GpuComputePassOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuComputePassOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11296,7 +11296,7 @@ impl VmAggregateCodec for GpuComputePassOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuComputePassOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11433,7 +11433,7 @@ impl Clone for GpuComputePipelineOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11473,7 +11473,7 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuComputePipelineOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11619,7 +11619,7 @@ impl Clone for GpuComputeStateAbi<VmAbi> {
 impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11661,7 +11661,7 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuComputeState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11796,7 +11796,7 @@ pub type GpuDepthStencilStateVm = GpuDepthStencilState;
 impl VmAggregateCodec for GpuDepthStencilState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11860,7 +11860,7 @@ impl VmAggregateCodec for GpuDepthStencilState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuDepthStencilState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12004,7 +12004,7 @@ impl Clone for GpuDeviceInfoAbi<VmAbi> {
 impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12056,7 +12056,7 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuDeviceInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12284,7 +12284,7 @@ impl Clone for GpuDeviceOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12350,7 +12350,7 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuDeviceOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12618,7 +12618,7 @@ impl Clone for GpuDeviceStatusAbi<VmAbi> {
 impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12661,7 +12661,7 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuDeviceStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12793,7 +12793,7 @@ pub type GpuExtent3DVm = GpuExtent3D;
 impl VmAggregateCodec for GpuExtent3D {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12829,7 +12829,7 @@ impl VmAggregateCodec for GpuExtent3D {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuExtent3D")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12939,7 +12939,7 @@ impl Clone for GpuExternalTextureOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuExternalTextureOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13006,7 +13006,7 @@ impl VmAggregateCodec for GpuExternalTextureOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuExternalTextureOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13281,7 +13281,7 @@ pub type GpuExternalTextureTransferFunctionVm = GpuExternalTextureTransferFuncti
 impl VmAggregateCodec for GpuExternalTextureTransferFunction {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13316,7 +13316,7 @@ impl VmAggregateCodec for GpuExternalTextureTransferFunction {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuExternalTextureTransferFunction")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13392,7 +13392,7 @@ pub type GpuFenceOptionsVm = GpuFenceOptions;
 impl VmAggregateCodec for GpuFenceOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13428,7 +13428,7 @@ impl VmAggregateCodec for GpuFenceOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuFenceOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13525,7 +13525,7 @@ impl Clone for GpuFragmentStateAbi<VmAbi> {
 impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13572,7 +13572,7 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuFragmentState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13716,7 +13716,7 @@ pub type GpuManualMemoryHintVm = GpuManualMemoryHint;
 impl VmAggregateCodec for GpuManualMemoryHint {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13751,7 +13751,7 @@ impl VmAggregateCodec for GpuManualMemoryHint {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuManualMemoryHint")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13825,7 +13825,7 @@ pub type GpuMappedBufferRangeVm = GpuMappedBufferRange;
 impl VmAggregateCodec for GpuMappedBufferRange {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13861,7 +13861,7 @@ impl VmAggregateCodec for GpuMappedBufferRange {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuMappedBufferRange")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13933,7 +13933,7 @@ pub type GpuMultisampleStateVm = GpuMultisampleState;
 impl VmAggregateCodec for GpuMultisampleState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13969,7 +13969,7 @@ impl VmAggregateCodec for GpuMultisampleState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuMultisampleState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14061,7 +14061,7 @@ impl Clone for GpuOcclusionQueryTypeAbi<VmAbi> {
 impl VmAggregateCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14090,7 +14090,7 @@ impl VmAggregateCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuOcclusionQueryType")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14167,7 +14167,7 @@ pub type GpuPassTimestampWritesVm = GpuPassTimestampWrites;
 impl VmAggregateCodec for GpuPassTimestampWrites {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14205,7 +14205,7 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPassTimestampWrites")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14305,7 +14305,7 @@ impl Clone for GpuPipelineConstantAbi<VmAbi> {
 impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14339,7 +14339,7 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPipelineConstant")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14449,7 +14449,7 @@ impl Clone for GpuPipelineLayoutOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14488,7 +14488,7 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPipelineLayoutOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14635,7 +14635,7 @@ impl Clone for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
 impl VmAggregateCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14671,7 +14671,7 @@ impl VmAggregateCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPipelineStatisticsQueryType")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14776,7 +14776,7 @@ pub type GpuPresentationOptionsVm = GpuPresentationOptions;
 impl VmAggregateCodec for GpuPresentationOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14815,7 +14815,7 @@ impl VmAggregateCodec for GpuPresentationOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPresentationOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14904,7 +14904,7 @@ pub type GpuPrimitiveStateVm = GpuPrimitiveState;
 impl VmAggregateCodec for GpuPrimitiveState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14955,7 +14955,7 @@ impl VmAggregateCodec for GpuPrimitiveState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuPrimitiveState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15073,7 +15073,7 @@ impl Clone for GpuQuerySetInfoAbi<VmAbi> {
 impl VmAggregateCodec for GpuQuerySetInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15107,7 +15107,7 @@ impl VmAggregateCodec for GpuQuerySetInfoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuQuerySetInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15219,7 +15219,7 @@ impl Clone for GpuQuerySetOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuQuerySetOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15260,7 +15260,7 @@ impl VmAggregateCodec for GpuQuerySetOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuQuerySetOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15399,7 +15399,7 @@ impl Clone for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15452,7 +15452,7 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderBundleEncoderOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15642,7 +15642,7 @@ impl Clone for GpuRenderBundleOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuRenderBundleOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15671,7 +15671,7 @@ impl VmAggregateCodec for GpuRenderBundleOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderBundleOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15752,7 +15752,7 @@ pub type GpuRenderPassColorAttachmentVm = GpuRenderPassColorAttachment;
 impl VmAggregateCodec for GpuRenderPassColorAttachment {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15795,7 +15795,7 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderPassColorAttachment")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15897,7 +15897,7 @@ pub type GpuRenderPassDepthStencilAttachmentVm = GpuRenderPassDepthStencilAttach
 impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15961,7 +15961,7 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderPassDepthStencilAttachment")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16101,7 +16101,7 @@ impl Clone for GpuRenderPassOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16146,7 +16146,7 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderPassOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16361,7 +16361,7 @@ impl Clone for GpuRenderPipelineOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16413,7 +16413,7 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderPipelineOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16589,7 +16589,7 @@ pub type GpuRenderStateVm = GpuRenderState;
 impl VmAggregateCodec for GpuRenderState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16630,7 +16630,7 @@ impl VmAggregateCodec for GpuRenderState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuRenderState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16753,7 +16753,7 @@ impl Clone for GpuSamplerOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuSamplerOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16826,7 +16826,7 @@ impl VmAggregateCodec for GpuSamplerOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSamplerOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17089,7 +17089,7 @@ impl Clone for GpuShaderOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17137,7 +17137,7 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuShaderOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17288,7 +17288,7 @@ pub type GpuShaderRuntimeChecksVm = GpuShaderRuntimeChecks;
 impl VmAggregateCodec for GpuShaderRuntimeChecks {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17330,7 +17330,7 @@ impl VmAggregateCodec for GpuShaderRuntimeChecks {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuShaderRuntimeChecks")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17423,7 +17423,7 @@ pub type GpuStencilFaceStateVm = GpuStencilFaceState;
 impl VmAggregateCodec for GpuStencilFaceState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17467,7 +17467,7 @@ impl VmAggregateCodec for GpuStencilFaceState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuStencilFaceState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17545,7 +17545,7 @@ pub type GpuSubmitOptionsVm = GpuSubmitOptions;
 impl VmAggregateCodec for GpuSubmitOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17573,7 +17573,7 @@ impl VmAggregateCodec for GpuSubmitOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSubmitOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17670,7 +17670,7 @@ impl Clone for GpuSurfaceCapabilitiesAbi<VmAbi> {
 impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17737,7 +17737,7 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfaceCapabilities")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18051,7 +18051,7 @@ impl Clone for GpuSurfaceConfigurationAbi<VmAbi> {
 impl VmAggregateCodec for GpuSurfaceConfigurationAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18126,7 +18126,7 @@ impl VmAggregateCodec for GpuSurfaceConfigurationAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfaceConfiguration")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18410,7 +18410,7 @@ pub type GpuSurfaceFrameVm = GpuSurfaceFrame;
 impl VmAggregateCodec for GpuSurfaceFrame {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18450,7 +18450,7 @@ impl VmAggregateCodec for GpuSurfaceFrame {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfaceFrame")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18532,7 +18532,7 @@ pub type GpuSurfaceHdrMetadataVm = GpuSurfaceHdrMetadata;
 impl VmAggregateCodec for GpuSurfaceHdrMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18571,7 +18571,7 @@ impl VmAggregateCodec for GpuSurfaceHdrMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfaceHdrMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18676,7 +18676,7 @@ pub type GpuSurfacePresentationEventVm = GpuSurfacePresentationEvent;
 impl VmAggregateCodec for GpuSurfacePresentationEvent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18739,7 +18739,7 @@ impl VmAggregateCodec for GpuSurfacePresentationEvent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfacePresentationEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18859,7 +18859,7 @@ pub type GpuSurfacePresentationOpenOptionsVm = GpuSurfacePresentationOpenOptions
 impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -18894,7 +18894,7 @@ impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfacePresentationOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -18978,7 +18978,7 @@ pub type GpuSurfaceStatusInfoVm = GpuSurfaceStatusInfo;
 impl VmAggregateCodec for GpuSurfaceStatusInfo {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19043,7 +19043,7 @@ impl VmAggregateCodec for GpuSurfaceStatusInfo {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuSurfaceStatusInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19168,7 +19168,7 @@ pub type GpuTextureCopyVm = GpuTextureCopy;
 impl VmAggregateCodec for GpuTextureCopy {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19216,7 +19216,7 @@ impl VmAggregateCodec for GpuTextureCopy {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureCopy")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19314,7 +19314,7 @@ pub type GpuTextureInfoVm = GpuTextureInfo;
 impl VmAggregateCodec for GpuTextureInfo {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19368,7 +19368,7 @@ impl VmAggregateCodec for GpuTextureInfo {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19503,7 +19503,7 @@ impl Clone for GpuTextureOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19569,7 +19569,7 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19773,7 +19773,7 @@ pub type GpuTextureSubresourceRangeVm = GpuTextureSubresourceRange;
 impl VmAggregateCodec for GpuTextureSubresourceRange {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19812,7 +19812,7 @@ impl VmAggregateCodec for GpuTextureSubresourceRange {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureSubresourceRange")
             .map_err(Box::<RuntimeError>::from)?;
@@ -19892,7 +19892,7 @@ pub type GpuTextureTransitionVm = GpuTextureTransition;
 impl VmAggregateCodec for GpuTextureTransition {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -19933,7 +19933,7 @@ impl VmAggregateCodec for GpuTextureTransition {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureTransition")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20048,7 +20048,7 @@ impl Clone for GpuTextureViewOptionsAbi<VmAbi> {
 impl VmAggregateCodec for GpuTextureViewOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20113,7 +20113,7 @@ impl VmAggregateCodec for GpuTextureViewOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTextureViewOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20355,7 +20355,7 @@ impl Clone for GpuTimestampQueryTypeAbi<VmAbi> {
 impl VmAggregateCodec for GpuTimestampQueryTypeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20384,7 +20384,7 @@ impl VmAggregateCodec for GpuTimestampQueryTypeAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuTimestampQueryType")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20461,7 +20461,7 @@ pub type GpuVertexAttributeVm = GpuVertexAttribute;
 impl VmAggregateCodec for GpuVertexAttribute {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20498,7 +20498,7 @@ impl VmAggregateCodec for GpuVertexAttribute {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuVertexAttribute")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20595,7 +20595,7 @@ impl Clone for GpuVertexBufferLayoutAbi<VmAbi> {
 impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20637,7 +20637,7 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuVertexBufferLayout")
             .map_err(Box::<RuntimeError>::from)?;
@@ -20784,7 +20784,7 @@ impl Clone for GpuVertexStateAbi<VmAbi> {
 impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -20831,7 +20831,7 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("gpu::GpuVertexState")
             .map_err(Box::<RuntimeError>::from)?;

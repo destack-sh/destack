@@ -13,7 +13,7 @@ use crate::platform::runtime::{
 };
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
-use crate::runtime::engine::EngineImage;
+use crate::runtime::engine::Image;
 use crate::runtime::observe::{ObservationCategory, ObservationRecord};
 use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{Outcome, TraceRecord};
@@ -302,7 +302,7 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned heap descriptor from one captured worker image.
     pub(crate) fn heap_descriptor(worker: &runtime::WorkerImage) -> RuntimeResult<HeapDescriptor> {
-        let page_count = u32::try_from(worker.heap_image.page_count()).map_err(|_| {
+        let page_count = u32::try_from(worker.heap.page_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "pageCount",
                 "heap page count exceeds uint32",
@@ -311,9 +311,9 @@ impl RuntimeDescriptorCodec {
         })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: worker.heap_image.local_allocated_bytes()?,
+            heap_bytes: worker.heap.allocated_bytes()?,
             page_count,
-            gc_cycles: worker.heap_image.gc_state().completed_cycles,
+            gc_cycles: worker.heap.gc_state().completed_cycles,
         })
     }
 
@@ -322,7 +322,7 @@ impl RuntimeDescriptorCodec {
         worker: &runtime::WorkerImage,
     ) -> RuntimeResult<EngineDescriptor> {
         match &worker.engine_image {
-            EngineImage::Vm(image) => {
+            Image::Vm(image) => {
                 let call_stack_depth =
                     u32::try_from(image.interpreter.stack.len()).map_err(|_| {
                         RuntimeError::from(PlatformError::invalid_argument_value(
@@ -335,13 +335,13 @@ impl RuntimeDescriptorCodec {
                     .interpreter
                     .stack
                     .iter()
-                    .map(|frame| frame.value_count)
+                    .map(|frame| frame.bytes.len())
                     .sum::<usize>();
                 let local_slots = image
                     .interpreter
                     .stack
                     .iter()
-                    .map(|frame| frame.local_count)
+                    .map(|_frame| 0)
                     .sum::<usize>();
                 let value_stack_depth = u32::try_from(value_slots).map_err(|_| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
@@ -384,6 +384,13 @@ impl RuntimeDescriptorCodec {
                     image_bytes: Some(image_bytes),
                 })
             }
+            Image::Native(_) => Ok(EngineDescriptor {
+                kind: EngineDescriptorKind::Native,
+                call_stack_depth: None,
+                value_stack_depth: None,
+                local_stack_depth: None,
+                image_bytes: None,
+            }),
         }
     }
 

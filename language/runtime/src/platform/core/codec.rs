@@ -315,7 +315,7 @@ pub(crate) fn bytes_array_array_to_vm(
     }
 
     Ok(VmArray {
-        data: vm::Value::heap_reference(data),
+        data: vm::Word::heap_reference(data),
         len: len_u32,
         capacity: len_u32,
         _marker: std::marker::PhantomData,
@@ -434,7 +434,7 @@ pub(crate) fn string_array_to_vm(
     }
 
     Ok(VmArray {
-        data: vm::Value::heap_reference(data),
+        data: vm::Word::heap_reference(data),
         len: len_u32,
         capacity: len_u32,
         _marker: std::marker::PhantomData,
@@ -472,7 +472,7 @@ pub(crate) fn string_slice_to_vm(
     }
 
     Ok(VmSlice {
-        data: vm::Value::heap_reference(data),
+        data: vm::Word::heap_reference(data),
         len: len_u32,
         _marker: std::marker::PhantomData,
     })

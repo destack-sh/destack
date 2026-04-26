@@ -216,6 +216,7 @@ pub(crate) struct AndroidHostBluetoothSessionEventHeader {
 }
 
 /// Callback table for Android host Bluetooth interop.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub(crate) struct AndroidHostBluetoothCallbacks {

@@ -31,11 +31,11 @@ pub struct AcceptFlags(
 pub type AcceptFlagsVm = AcceptFlags;
 
 impl VmValueCodec for AcceptFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct NetInterfaceFlags(
 pub type NetInterfaceFlagsVm = NetInterfaceFlags;
 
 impl VmValueCodec for NetInterfaceFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct PacketBackendCapabilityFlags(
 pub type PacketBackendCapabilityFlagsVm = PacketBackendCapabilityFlags;
 
 impl VmValueCodec for PacketBackendCapabilityFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -199,7 +199,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -209,7 +209,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -276,7 +276,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -286,7 +286,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -350,11 +350,11 @@ pub struct ResolveFlags(
 pub type ResolveFlagsVm = ResolveFlags;
 
 impl VmValueCodec for ResolveFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -405,11 +405,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -460,11 +460,11 @@ pub struct ReverseLookupFlags(
 pub type ReverseLookupFlagsVm = ReverseLookupFlags;
 
 impl VmValueCodec for ReverseLookupFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -518,7 +518,7 @@ pub type SocketControlBufferVm = SocketControlBufferAbi<VmAbi>;
 impl VmAggregateCodec for SocketControlBufferAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -528,7 +528,7 @@ impl VmAggregateCodec for SocketControlBufferAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -592,11 +592,11 @@ pub struct SocketHandle(
 pub type SocketHandleVm = SocketHandle;
 
 impl VmValueCodec for SocketHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -647,11 +647,11 @@ pub struct SocketMessageFlags(
 pub type SocketMessageFlagsVm = SocketMessageFlags;
 
 impl VmValueCodec for SocketMessageFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -702,11 +702,11 @@ pub struct SocketOptionLevel(
 pub type SocketOptionLevelVm = SocketOptionLevel;
 
 impl VmValueCodec for SocketOptionLevel {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -757,11 +757,11 @@ pub struct SocketOptionName(
 pub type SocketOptionNameVm = SocketOptionName;
 
 impl VmValueCodec for SocketOptionName {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -812,11 +812,11 @@ pub struct SocketProtocol(
 pub type SocketProtocolVm = SocketProtocol;
 
 impl VmValueCodec for SocketProtocol {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<i32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -867,11 +867,11 @@ pub struct SocketType(
 pub type SocketTypeVm = SocketType;
 
 impl VmValueCodec for SocketType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -922,11 +922,11 @@ pub struct TransferredHandle(
 pub type TransferredHandleVm = TransferredHandle;
 
 impl VmValueCodec for TransferredHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -977,11 +977,11 @@ pub struct UdpMessageFlags(
 pub type UdpMessageFlagsVm = UdpMessageFlags;
 
 impl VmValueCodec for UdpMessageFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1038,7 +1038,7 @@ pub enum PacketBackend {
 }
 
 impl VmValueCodec for PacketBackend {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -1057,7 +1057,7 @@ impl VmValueCodec for PacketBackend {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1108,7 +1108,7 @@ pub enum PacketBackendSelectionPolicy {
 }
 
 impl VmValueCodec for PacketBackendSelectionPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Strict,
@@ -1124,7 +1124,7 @@ impl VmValueCodec for PacketBackendSelectionPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1183,7 +1183,7 @@ pub enum PacketFanoutMode {
 }
 
 impl VmValueCodec for PacketFanoutMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Hash,
@@ -1203,7 +1203,7 @@ impl VmValueCodec for PacketFanoutMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1258,7 +1258,7 @@ pub enum PacketTimestampClock {
 }
 
 impl VmValueCodec for PacketTimestampClock {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -1276,7 +1276,7 @@ impl VmValueCodec for PacketTimestampClock {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1329,7 +1329,7 @@ pub enum PacketTimestampMode {
 }
 
 impl VmValueCodec for PacketTimestampMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Disabled,
@@ -1346,7 +1346,7 @@ impl VmValueCodec for PacketTimestampMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1403,7 +1403,7 @@ pub enum RouteKind {
 }
 
 impl VmValueCodec for RouteKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Unicast,
@@ -1422,7 +1422,7 @@ impl VmValueCodec for RouteKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1475,7 +1475,7 @@ pub enum SocketFamily {
 }
 
 impl VmValueCodec for SocketFamily {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unspecified,
@@ -1492,7 +1492,7 @@ impl VmValueCodec for SocketFamily {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1545,7 +1545,7 @@ pub enum SocketShutdown {
 }
 
 impl VmValueCodec for SocketShutdown {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Read,
@@ -1562,7 +1562,7 @@ impl VmValueCodec for SocketShutdown {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1615,7 +1615,7 @@ pub enum SocketTimestampingMode {
 }
 
 impl VmValueCodec for SocketTimestampingMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Off,
@@ -1632,7 +1632,7 @@ impl VmValueCodec for SocketTimestampingMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1705,7 +1705,7 @@ impl Clone for OsPathAbi<VmAbi> {
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1751,7 +1751,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
@@ -1895,7 +1895,7 @@ impl Clone for UdsAddressAbi<VmAbi> {
 impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1946,7 +1946,7 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::UdsAbstractAddress(value) => {
                 let tag_value =
@@ -2106,7 +2106,7 @@ pub type KeepAliveConfigVm = KeepAliveConfig;
 impl VmAggregateCodec for KeepAliveConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2145,7 +2145,7 @@ impl VmAggregateCodec for KeepAliveConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::KeepAliveConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2222,7 +2222,7 @@ pub type LingerVm = Linger;
 impl VmAggregateCodec for Linger {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2255,7 +2255,7 @@ impl VmAggregateCodec for Linger {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::Linger")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2350,7 +2350,7 @@ impl Clone for NetInterfaceAbi<VmAbi> {
 impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2399,7 +2399,7 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::NetInterface")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2566,7 +2566,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2601,7 +2601,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2708,7 +2708,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2743,7 +2743,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2856,7 +2856,7 @@ impl Clone for PacketBackendDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2901,7 +2901,7 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketBackendDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3039,7 +3039,7 @@ pub type PacketCaptureOptionsVm = PacketCaptureOptions;
 impl VmAggregateCodec for PacketCaptureOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3086,7 +3086,7 @@ impl VmAggregateCodec for PacketCaptureOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketCaptureOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3181,7 +3181,7 @@ pub type PacketCaptureRecordVm = PacketCaptureRecord;
 impl VmAggregateCodec for PacketCaptureRecord {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3225,7 +3225,7 @@ impl VmAggregateCodec for PacketCaptureRecord {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketCaptureRecord")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3310,7 +3310,7 @@ pub type PacketCaptureStatsVm = PacketCaptureStats;
 impl VmAggregateCodec for PacketCaptureStats {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3346,7 +3346,7 @@ impl VmAggregateCodec for PacketCaptureStats {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketCaptureStats")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3423,7 +3423,7 @@ pub type PacketFanoutOptionsVm = PacketFanoutOptions;
 impl VmAggregateCodec for PacketFanoutOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3460,7 +3460,7 @@ impl VmAggregateCodec for PacketFanoutOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketFanoutOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3537,7 +3537,7 @@ pub type PacketRingOptionsVm = PacketRingOptions;
 impl VmAggregateCodec for PacketRingOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3579,7 +3579,7 @@ impl VmAggregateCodec for PacketRingOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::PacketRingOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3685,7 +3685,7 @@ impl Clone for ResolveQueryAbi<VmAbi> {
 impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3727,7 +3727,7 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::ResolveQuery")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3864,7 +3864,7 @@ impl Clone for ReverseLookupNameAbi<VmAbi> {
 impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3899,7 +3899,7 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::ReverseLookupName")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4016,7 +4016,7 @@ impl Clone for RouteEntryAbi<VmAbi> {
 impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4066,7 +4066,7 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::RouteEntry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4230,7 +4230,7 @@ impl Clone for SocketAddressAbi<VmAbi> {
 impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4266,7 +4266,7 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketAddress")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4363,7 +4363,7 @@ pub type SocketCredentialsVm = SocketCredentials;
 impl VmAggregateCodec for SocketCredentials {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4399,7 +4399,7 @@ impl VmAggregateCodec for SocketCredentials {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketCredentials")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4469,7 +4469,7 @@ pub type SocketPairVm = SocketPair;
 impl VmAggregateCodec for SocketPair {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4504,7 +4504,7 @@ impl VmAggregateCodec for SocketPair {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketPair")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4595,7 +4595,7 @@ impl Clone for SocketRecvBatchRequestAbi<VmAbi> {
 impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4629,7 +4629,7 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketRecvBatchRequest")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4745,7 +4745,7 @@ impl Clone for SocketRecvFromAbi<VmAbi> {
 impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4783,7 +4783,7 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketRecvFrom")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4919,7 +4919,7 @@ impl Clone for SocketRecvMessageAbi<VmAbi> {
 impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4978,7 +4978,7 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketRecvMessage")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5196,7 +5196,7 @@ impl Clone for SocketSendBatchEntryAbi<VmAbi> {
 impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5230,7 +5230,7 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketSendBatchEntry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5343,7 +5343,7 @@ impl Clone for SocketSendMessageAbi<VmAbi> {
 impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5393,7 +5393,7 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketSendMessage")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5562,7 +5562,7 @@ impl Clone for SocketSendToAbi<VmAbi> {
 impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5597,7 +5597,7 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::SocketSendTo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5706,7 +5706,7 @@ impl Clone for UdpReceiveAbi<VmAbi> {
 impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5744,7 +5744,7 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdpReceive")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5865,7 +5865,7 @@ impl Clone for UdpSourceMembershipV4Abi<VmAbi> {
 impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5905,7 +5905,7 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdpSourceMembershipV4")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6038,7 +6038,7 @@ impl Clone for UdpSourceMembershipV6Abi<VmAbi> {
 impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6076,7 +6076,7 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdpSourceMembershipV6")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6194,7 +6194,7 @@ impl Clone for UdsAbstractAddressAbi<VmAbi> {
 impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6228,7 +6228,7 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdsAbstractAddress")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6340,7 +6340,7 @@ impl Clone for UdsPathAddressAbi<VmAbi> {
 impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6374,7 +6374,7 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdsPathAddress")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6479,7 +6479,7 @@ impl Clone for UdsUnnamedAddressAbi<VmAbi> {
 impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6508,7 +6508,7 @@ impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("net::UdsUnnamedAddress")
             .map_err(Box::<RuntimeError>::from)?;

@@ -17,11 +17,11 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         output.push_str("/// Read a positional argument value.\n");
         output.push_str("#[allow(dead_code)]\n");
         output.push_str("fn arg_value(\n");
-        output.push_str("    args: &[vm::Value],\n");
+        output.push_str("    args: &[vm::Word],\n");
         output.push_str("    index: usize,\n");
         output.push_str("    name: &'static str,\n");
         output.push_str("    expected: &'static str,\n");
-        output.push_str(") -> RuntimeResult<vm::Value> {\n");
+        output.push_str(") -> RuntimeResult<vm::Word> {\n");
         output.push_str("    let value = args.get(index).copied().ok_or_else(|| {\n");
         output.push_str("        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()\n");
         output.push_str("    })?;\n");
@@ -33,13 +33,11 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a boolean argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_bool(\n");
-            output.push_str("    value: vm::Value,\n");
-            output.push_str("    name: &'static str,\n");
-            output.push_str("    expected: &'static str,\n");
+            output.push_str("    value: vm::Word,\n");
+            output.push_str("    _name: &'static str,\n");
+            output.push_str("    _expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<bool> {\n");
-            output.push_str("    value\n");
-            output.push_str("        .as_bool()\n");
-            output.push_str("        .ok_or_else(|| RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed())\n");
+            output.push_str("    Ok(value.as_bool())\n");
             output.push_str("}\n\n");
         }
 
@@ -47,19 +45,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a signed integer argument with an explicit width.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_int(\n");
-            output.push_str("    value: vm::Value,\n");
-            output.push_str("    name: &'static str,\n");
-            output.push_str("    expected: &'static str,\n");
-            output.push_str("    bits: u8,\n");
+            output.push_str("    value: vm::Word,\n");
+            output.push_str("    _name: &'static str,\n");
+            output.push_str("    _expected: &'static str,\n");
+            output.push_str("    _bits: u8,\n");
             output.push_str(") -> RuntimeResult<i64> {\n");
-            output.push_str("    let (raw, width) = value\n");
-            output.push_str("        .as_int_with_width()\n");
-            output.push_str("        .ok_or_else(|| RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed())?;\n");
-            output.push_str("    if width != bits {\n");
-            output.push_str("        return Err(RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed());\n");
-            output.push_str("    }\n");
-            output.push_str("\n");
-            output.push_str("    Ok(raw)\n");
+            output.push_str("    Ok(value.as_int())\n");
             output.push_str("}\n\n");
         }
 
@@ -67,19 +58,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an unsigned integer argument with an explicit width.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_uint(\n");
-            output.push_str("    value: vm::Value,\n");
-            output.push_str("    name: &'static str,\n");
-            output.push_str("    expected: &'static str,\n");
-            output.push_str("    bits: u8,\n");
+            output.push_str("    value: vm::Word,\n");
+            output.push_str("    _name: &'static str,\n");
+            output.push_str("    _expected: &'static str,\n");
+            output.push_str("    _bits: u8,\n");
             output.push_str(") -> RuntimeResult<u64> {\n");
-            output.push_str("    let (raw, width) = value\n");
-            output.push_str("        .as_uint_with_width()\n");
-            output.push_str("        .ok_or_else(|| RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed())?;\n");
-            output.push_str("    if width != bits {\n");
-            output.push_str("        return Err(RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed());\n");
-            output.push_str("    }\n");
-            output.push_str("\n");
-            output.push_str("    Ok(raw)\n");
+            output.push_str("    Ok(value.as_uint())\n");
             output.push_str("}\n\n");
         }
 
@@ -87,7 +71,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an i8 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_int8(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<i8> {\n");
@@ -98,7 +82,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an i16 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_int16(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<i16> {\n");
@@ -109,7 +93,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an i32 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_int32(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<i32> {\n");
@@ -120,7 +104,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an i64 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_int64(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<i64> {\n");
@@ -132,7 +116,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a u8 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_uint8(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<u8> {\n");
@@ -143,7 +127,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a u16 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_uint16(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<u16> {\n");
@@ -154,7 +138,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a u32 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_uint32(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<u32> {\n");
@@ -165,7 +149,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a u64 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_uint64(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<u64> {\n");
@@ -177,7 +161,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an f32 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_float32(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<f32> {\n");
@@ -190,7 +174,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an f64 argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_float64(\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<f64> {\n");
@@ -205,7 +189,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_string(\n");
             output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<vm::StringHandle> {\n");
@@ -220,7 +204,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_slice<T>(\n");
             output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<VmSlice<T>> {\n");
@@ -233,7 +217,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_array<T>(\n");
             output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
-            output.push_str("    value: vm::Value,\n");
+            output.push_str("    value: vm::Word,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<VmArray<T>> {\n");
@@ -264,7 +248,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 output.push_str(&format!("/// Decode arguments for {}.\n", extern_name));
                 output.push_str("#[inline]\n");
                 output.push_str(&format!(
-                "fn {decode_helper}(\n    {decode_context_name}: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
+                "fn {decode_helper}(\n    {decode_context_name}: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Word],\n) -> RuntimeResult<{}> {{\n",
                 codegen.vm_args_tuple_type(&entry.parameters)
                 ));
                 if decode_uses_context {
@@ -313,7 +297,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str(&format!("/// Encode the result for {}.\n", extern_name));
             output.push_str("#[inline]\n");
             output.push_str(&format!(
-            "fn {encode_helper}(\n    {encode_context_name}: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
+            "fn {encode_helper}(\n    {encode_context_name}: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Word> {{\n",
             codegen.vm_return_type(&entry.return_binding)
         ));
             if encode_uses_context {

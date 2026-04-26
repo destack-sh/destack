@@ -35,7 +35,7 @@ pub type ThreadCpuVm = ThreadCpu;
 impl VmAggregateCodec for ThreadCpu {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -68,7 +68,7 @@ impl VmAggregateCodec for ThreadCpu {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("thread::ThreadCpu")
             .map_err(Box::<RuntimeError>::from)?;
@@ -153,7 +153,7 @@ impl Clone for ThreadCpuSetAbi<VmAbi> {
 impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -182,7 +182,7 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("thread::ThreadCpuSet")
             .map_err(Box::<RuntimeError>::from)?;
@@ -257,7 +257,7 @@ pub type ThreadOptionsVm = ThreadOptions;
 impl VmAggregateCodec for ThreadOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -290,7 +290,7 @@ impl VmAggregateCodec for ThreadOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("thread::ThreadOptions")
             .map_err(Box::<RuntimeError>::from)?;

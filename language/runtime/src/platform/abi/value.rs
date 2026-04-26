@@ -6,10 +6,10 @@ use crate::platform::diagnostic::PlatformError;
 /// Codec for VM values inside replay helpers.
 pub trait VmValueCodec: Copy {
     /// Decode a value from a VM slot.
-    fn decode(value: vm::Value) -> RuntimeResult<Self>;
+    fn decode(value: vm::Word) -> RuntimeResult<Self>;
 
     /// Encode a value into a VM slot.
-    fn encode(self) -> vm::Value;
+    fn encode(self) -> vm::Word;
 }
 
 /// Context-aware codec for VM values that can require heap access.
@@ -17,7 +17,7 @@ pub trait VmAggregateCodec: Copy {
     /// Decode a value from a VM slot with context access.
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self>;
 
     /// Decode one value from one VM value view with context access.
@@ -54,7 +54,7 @@ pub trait VmAggregateCodec: Copy {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value>;
+    ) -> RuntimeResult<vm::Word>;
 }
 
 /// Storage strategy for VM collection elements.
@@ -75,7 +75,7 @@ pub trait VmCollectionElement: VmAggregateCodec {
 impl<T: VmValueCodec> VmAggregateCodec for T {
     fn decode_with_context(
         _context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         T::decode(value)
     }
@@ -83,7 +83,7 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
     fn encode_with_context(
         self,
         _context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         Ok(T::encode(self))
     }
 }
@@ -91,9 +91,9 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
 impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
-        if value.tag() == vm::ValueTag::Void {
+        if value == vm::Word::VOID {
             return Ok(None);
         }
 
@@ -111,174 +111,148 @@ impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Some(value) => T::encode_with_context(value, context),
-            None => Ok(vm::Value::VOID),
+            None => Ok(vm::Word::VOID),
         }
     }
 }
 
 /// Decode an integer value with an expected width.
-fn decode_int(value: vm::Value, bits: u8) -> RuntimeResult<i64> {
-    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type("value", "int")).boxed()
-    })?;
-    if width != bits {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "int")).boxed(),
-        );
-    }
-
-    Ok(raw)
+fn decode_int(value: vm::Word, _bits: u8) -> RuntimeResult<i64> {
+    Ok(value.as_int())
 }
 
 /// Decode an unsigned integer value with an expected width.
-fn decode_uint(value: vm::Value, bits: u8) -> RuntimeResult<u64> {
-    let (raw, width) = value.as_uint_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type("value", "uint")).boxed()
-    })?;
-    if width != bits {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "uint")).boxed(),
-        );
-    }
-
-    Ok(raw)
+fn decode_uint(value: vm::Word, _bits: u8) -> RuntimeResult<u64> {
+    Ok(value.as_uint())
 }
 
 impl VmValueCodec for bool {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        value.as_bool().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "bool")).boxed()
-        })
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
+        Ok(value.as_bool())
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::bool(self)
+    fn encode(self) -> vm::Word {
+        vm::Word::bool(self)
     }
 }
 
 impl VmValueCodec for i8 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_int(value, 8)? as i8)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::int(self as i64, 8)
+    fn encode(self) -> vm::Word {
+        vm::Word::int(self as i64, 8)
     }
 }
 
 impl VmValueCodec for i16 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_int(value, 16)? as i16)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::int(self as i64, 16)
+    fn encode(self) -> vm::Word {
+        vm::Word::int(self as i64, 16)
     }
 }
 
 impl VmValueCodec for i32 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_int(value, 32)? as i32)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::int(self as i64, 32)
+    fn encode(self) -> vm::Word {
+        vm::Word::int(self as i64, 32)
     }
 }
 
 impl VmValueCodec for i64 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         decode_int(value, 64)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::int(self, 64)
+    fn encode(self) -> vm::Word {
+        vm::Word::int(self, 64)
     }
 }
 
 impl VmValueCodec for u8 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_uint(value, 8)? as u8)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::uint(self as u64, 8)
+    fn encode(self) -> vm::Word {
+        vm::Word::uint(self as u64, 8)
     }
 }
 
 impl VmValueCodec for u16 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_uint(value, 16)? as u16)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::uint(self as u64, 16)
+    fn encode(self) -> vm::Word {
+        vm::Word::uint(self as u64, 16)
     }
 }
 
 impl VmValueCodec for u32 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(decode_uint(value, 32)? as u32)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::uint(self as u64, 32)
+    fn encode(self) -> vm::Word {
+        vm::Word::uint(self as u64, 32)
     }
 }
 
 impl VmValueCodec for u64 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         decode_uint(value, 64)
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::uint(self, 64)
+    fn encode(self) -> vm::Word {
+        vm::Word::uint(self, 64)
     }
 }
 
 impl VmValueCodec for f32 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        value.as_float32().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "float32")).boxed()
-        })
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
+        Ok(value.as_float32())
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::float32(self)
+    fn encode(self) -> vm::Word {
+        vm::Word::float32(self)
     }
 }
 
 impl VmValueCodec for f64 {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        value.as_float64().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "float64")).boxed()
-        })
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
+        Ok(value.as_float64())
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::float64(self)
+    fn encode(self) -> vm::Word {
+        vm::Word::float64(self)
     }
 }
 
 impl VmValueCodec for vm::RawPointer {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        value.as_raw_pointer().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "raw pointer")).boxed()
-        })
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
+        Ok(value.as_raw_pointer())
     }
 
-    fn encode(self) -> vm::Value {
-        vm::Value::raw_pointer(self)
+    fn encode(self) -> vm::Word {
+        vm::Word::raw_pointer(self)
     }
 }
 
 impl VmAggregateCodec for vm::StringHandle {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         context
             .string_handle_from_value(value)
@@ -288,7 +262,7 @@ impl VmAggregateCodec for vm::StringHandle {
     fn encode_with_context(
         self,
         _context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         Ok(self.value())
     }
 }

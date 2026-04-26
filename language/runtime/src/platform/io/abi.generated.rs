@@ -31,11 +31,11 @@ pub struct DescriptorControlCommand(
 pub type DescriptorControlCommandVm = DescriptorControlCommand;
 
 impl VmValueCodec for DescriptorControlCommand {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct DescriptorControlFlags(
 pub type DescriptorControlFlagsVm = DescriptorControlFlags;
 
 impl VmValueCodec for DescriptorControlFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct EventToken(
 pub type EventTokenVm = EventToken;
 
 impl VmValueCodec for EventToken {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -196,11 +196,11 @@ pub struct PollInterest(
 pub type PollInterestVm = PollInterest;
 
 impl VmValueCodec for PollInterest {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -251,11 +251,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -306,11 +306,11 @@ pub struct TimerFdFlags(
 pub type TimerFdFlagsVm = TimerFdFlags;
 
 impl VmValueCodec for TimerFdFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -361,11 +361,11 @@ pub struct TimerFdSetFlags(
 pub type TimerFdSetFlagsVm = TimerFdSetFlags;
 
 impl VmValueCodec for TimerFdSetFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -428,7 +428,7 @@ pub enum CompletionOperationKind {
 }
 
 impl VmValueCodec for CompletionOperationKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Read,
@@ -450,7 +450,7 @@ impl VmValueCodec for CompletionOperationKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -505,7 +505,7 @@ pub enum PollBackend {
 }
 
 impl VmValueCodec for PollBackend {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -523,7 +523,7 @@ impl VmValueCodec for PollBackend {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -576,7 +576,7 @@ pub enum TimerFdClock {
 }
 
 impl VmValueCodec for TimerFdClock {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Realtime,
@@ -593,7 +593,7 @@ impl VmValueCodec for TimerFdClock {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -650,7 +650,7 @@ pub type CompletionEventVm = CompletionEvent;
 impl VmAggregateCodec for CompletionEvent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -686,7 +686,7 @@ impl VmAggregateCodec for CompletionEvent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::CompletionEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -768,7 +768,7 @@ pub type CompletionOperationVm = CompletionOperation;
 impl VmAggregateCodec for CompletionOperation {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -821,7 +821,7 @@ impl VmAggregateCodec for CompletionOperation {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::CompletionOperation")
             .map_err(Box::<RuntimeError>::from)?;
@@ -938,7 +938,7 @@ impl Clone for DescriptorRequestAbi<VmAbi> {
 impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -977,7 +977,7 @@ impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::DescriptorRequest")
             .map_err(Box::<RuntimeError>::from)?;
@@ -1104,7 +1104,7 @@ impl Clone for DescriptorResultAbi<VmAbi> {
 impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1137,7 +1137,7 @@ impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::DescriptorResult")
             .map_err(Box::<RuntimeError>::from)?;
@@ -1225,7 +1225,7 @@ pub type PollEventVm = PollEvent;
 impl VmAggregateCodec for PollEvent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1261,7 +1261,7 @@ impl VmAggregateCodec for PollEvent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::PollEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -1332,7 +1332,7 @@ pub type TimerFdSpecVm = TimerFdSpec;
 impl VmAggregateCodec for TimerFdSpec {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1365,7 +1365,7 @@ impl VmAggregateCodec for TimerFdSpec {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::TimerFdSpec")
             .map_err(Box::<RuntimeError>::from)?;
@@ -1438,7 +1438,7 @@ pub type UringFeaturesVm = UringFeatures;
 impl VmAggregateCodec for UringFeatures {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1480,7 +1480,7 @@ impl VmAggregateCodec for UringFeatures {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::UringFeatures")
             .map_err(Box::<RuntimeError>::from)?;
@@ -1565,7 +1565,7 @@ pub type UringParametersVm = UringParameters;
 impl VmAggregateCodec for UringParameters {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1601,7 +1601,7 @@ impl VmAggregateCodec for UringParameters {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("io::UringParameters")
             .map_err(Box::<RuntimeError>::from)?;

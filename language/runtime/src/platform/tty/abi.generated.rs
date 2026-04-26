@@ -31,11 +31,11 @@ pub struct PtyHandle(
 pub type PtyHandleVm = PtyHandle;
 
 impl VmValueCodec for PtyHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct TtyHandle(
 pub type TtyHandleVm = TtyHandle;
 
 impl VmValueCodec for TtyHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -200,7 +200,7 @@ pub enum TtyTermiosFlowAction {
 }
 
 impl VmValueCodec for TtyTermiosFlowAction {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::SuspendOutput,
@@ -218,7 +218,7 @@ impl VmValueCodec for TtyTermiosFlowAction {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -271,7 +271,7 @@ pub enum TtyTermiosQueue {
 }
 
 impl VmValueCodec for TtyTermiosQueue {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Input,
@@ -288,7 +288,7 @@ impl VmValueCodec for TtyTermiosQueue {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -341,7 +341,7 @@ pub enum TtyTermiosSetAction {
 }
 
 impl VmValueCodec for TtyTermiosSetAction {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Now,
@@ -358,7 +358,7 @@ impl VmValueCodec for TtyTermiosSetAction {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -413,7 +413,7 @@ pub type PtyPairVm = PtyPair;
 impl VmAggregateCodec for PtyPair {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -449,7 +449,7 @@ impl VmAggregateCodec for PtyPair {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::PtyPair")
             .map_err(Box::<RuntimeError>::from)?;
@@ -523,7 +523,7 @@ pub type TtyModeVm = TtyMode;
 impl VmAggregateCodec for TtyMode {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -562,7 +562,7 @@ impl VmAggregateCodec for TtyMode {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtyMode")
             .map_err(Box::<RuntimeError>::from)?;
@@ -644,7 +644,7 @@ pub type TtySizeVm = TtySize;
 impl VmAggregateCodec for TtySize {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -683,7 +683,7 @@ impl VmAggregateCodec for TtySize {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtySize")
             .map_err(Box::<RuntimeError>::from)?;
@@ -788,7 +788,7 @@ impl Clone for TtyTermiosAttributesAbi<VmAbi> {
 impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -836,7 +836,7 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("tty::TtyTermiosAttributes")
             .map_err(Box::<RuntimeError>::from)?;

@@ -131,11 +131,11 @@ mod tests {
         let opened_tag = ModuleCodegen::tagged_union_variant_tag("ExampleEvent", "ExampleOpened");
 
         // stable 32 bit tags
-        assert!(rendered.contains(format!("vm::Value::uint({closed_tag}u64, 32)").as_str()));
-        assert!(rendered.contains(format!("vm::Value::uint({opened_tag}u64, 32)").as_str()));
+        assert!(rendered.contains(format!("vm::Word::uint({closed_tag}u64, 32)").as_str()));
+        assert!(rendered.contains(format!("vm::Word::uint({opened_tag}u64, 32)").as_str()));
 
         // not ordinal tags
-        assert!(!rendered.contains("vm::Value::uint(1, 8)"));
-        assert!(!rendered.contains("vm::Value::uint(2, 8)"));
+        assert!(!rendered.contains("vm::Word::uint(1, 8)"));
+        assert!(!rendered.contains("vm::Word::uint(2, 8)"));
     }
 }
