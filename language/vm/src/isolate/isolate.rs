@@ -3,31 +3,26 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine::{self as engine, StaticSpace};
+use destack_mir as mir;
 
-use super::{
-    ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, RootSet, RootVisitor,
-};
+use super::{ExternalCallContext, ExternalFn, ExternalHandler, RootSet, RootVisitor};
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
-use crate::interpreter::{
-    Continuation, Interpreter, RunOutcome, RunOutput, visit_materialized_value_roots,
-};
-use crate::module::Module;
+use crate::interpreter::{Continuation, Interpreter, Outcome, Output};
 use crate::options::IsolateOptions;
+use crate::program::Program;
 use crate::snapshot::{ContinuationImage, IsolateImage};
-use crate::{SharedHeap, Value};
-use destack_heap::{Heap, HeapReference, SharedRawLimits};
+use crate::{SharedHeap, Word};
+use destack_heap::{Heap, HeapReference, HeapResult, RootSlot, SharedRawLimits};
 
-/// VM isolate with globals and execution state.
+/// VM isolate with static data and execution state.
 pub struct Isolate {
     /// Unique id used to validate continuation ownership.
-    isolate_id: engine::IsolateId,
-    /// Immutable module shared by this isolate.
-    module: Arc<Module>,
+    isolate_id: engine::EngineId,
+    /// Immutable program shared by this isolate.
+    program: Arc<Program>,
     /// Configuration options for this isolate.
     options: IsolateOptions,
-    /// Global variable storage.
-    globals: GlobalStorage,
     /// External function handlers.
     externals: HashMap<String, ExternalFn>,
     /// Interpreter engine backing this isolate.
@@ -37,8 +32,7 @@ pub struct Isolate {
 impl fmt::Debug for Isolate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Isolate")
-            .field("module", &self.module)
-            .field("globals", &format!("<{} globals>", self.globals.len()))
+            .field("program", &self.program)
             .field("externals", &format!("<{} handlers>", self.externals.len()))
             .field("options", &self.options)
             .finish_non_exhaustive()
@@ -49,24 +43,22 @@ impl fmt::Debug for Isolate {
 impl Isolate {
     /// Create a new isolate from one shared immutable image.
     pub fn new(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
-        let module = Arc::new(Module::new(image.tree.clone(), image.strings.clone())?);
+        let program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
         let mut isolate = Self {
             isolate_id: image.isolate_id,
-            module,
+            program,
             options: image.options.clone(),
-            globals: image.globals.clone(),
             externals: HashMap::new(),
             interpreter: Interpreter::new(),
         };
-        isolate.interpreter =
-            Interpreter::from_image(&isolate.module.functions, &image.interpreter)?;
+        isolate.interpreter = Interpreter::from_image(&isolate.program, &image.interpreter)?;
 
         Ok(isolate)
     }
 
     /// Build a new isolate with default options.
     pub fn build(
-        isolate_id: engine::IsolateId,
+        isolate_id: engine::EngineId,
         tree: mir::NodeTree,
         strings: ImmutableStringPool,
     ) -> RuntimeResult<Self> {
@@ -75,13 +67,13 @@ impl Isolate {
 
     /// Build a new isolate with custom options.
     pub fn build_with_options(
-        isolate_id: engine::IsolateId,
+        isolate_id: engine::EngineId,
         tree: mir::NodeTree,
         strings: ImmutableStringPool,
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
-        let module = Arc::new(Module::new(tree, strings)?);
-        let native_pointer_bytes = module.tree.metadata.layout.storage.native_pointer_bytes;
+        let program = Arc::new(Program::new(tree, strings)?);
+        let native_pointer_bytes = program.tree.metadata.layout.storage.native_pointer_bytes;
         let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
 
         // host execution only supports native-width pointers
@@ -94,25 +86,18 @@ impl Isolate {
 
         Ok(Self {
             isolate_id,
-            module,
+            program,
             options,
-            globals: GlobalStorage::new(),
             externals: HashMap::new(),
             interpreter: Interpreter::new(),
         })
     }
 
-    /// Initialize isolate globals against one explicit heap.
-    pub fn initialize(&mut self, heap: &mut Heap, shared: &SharedHeap) -> RuntimeResult<()> {
-        // initialize globals
-        self.interpreter.initialize_globals(
-            self.module.as_ref(),
-            &mut self.globals,
-            heap,
-            shared,
-        )?;
-
-        self.stabilize_globals(heap)
+    /// Initialize worker static bytes for this isolate.
+    pub fn initialize_statics(&mut self, statics: &mut StaticSpace) -> RuntimeResult<()> {
+        // initialize static data
+        self.interpreter
+            .initialize_statics(self.program.as_ref(), statics)
     }
 
     /// Get the isolate options.
@@ -125,42 +110,13 @@ impl Isolate {
         &mut self.options
     }
 
-    /// Set whether to collect execution statistics.
-    pub fn set_collect_stats(&mut self, collect: bool) {
-        self.options.telemetry.collect_stats = collect;
-    }
-
-    /// Enable instruction profiling with the given sampling interval.
-    #[cfg(feature = "stats")]
-    pub fn enable_instruction_profile(&mut self, sample_interval: std::time::Duration) {
-        self.interpreter.enable_instruction_profile(sample_interval);
-    }
-
-    /// Reset instruction profiling samples without disabling sampling.
-    #[cfg(feature = "stats")]
-    pub fn reset_instruction_profile(&mut self) {
-        self.interpreter.reset_instruction_profile();
-    }
-
-    /// Clear instruction profiling data and disable sampling.
-    #[cfg(feature = "stats")]
-    pub fn clear_instruction_profile(&mut self) {
-        self.interpreter.clear_instruction_profile();
-    }
-
-    /// Return a compact instruction profile report if available.
-    #[cfg(feature = "stats")]
-    pub fn instruction_profile_report(&mut self, target_percent: f64) -> Option<String> {
-        self.interpreter.instruction_profile_report(target_percent)
-    }
-
     /// Register a VM binding handler.
     pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
         self.externals.insert(name.to_string(), Arc::new(handler));
     }
 
-    // FUGU #Architecture: remove once generated ABI stops registering runtime aggregate schemas
-    /// Accept generated runtime aggregate registrations.
+    // FUGU #Architecture: remove once generated ABI stops registering runtime payload schemas
+    /// Accept generated runtime payload registrations.
     pub fn register_named_aggregate_type(
         &mut self,
         _name: &str,
@@ -176,14 +132,17 @@ impl Isolate {
         shared: &SharedHeap,
         shared_raw_limits: SharedRawLimits,
         run: F,
-    ) -> R
+    ) -> Result<R, Error>
     where
-        F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> R,
+        F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> Result<R, Error>,
     {
         // borrow the isolate state needed by the external context
-        let module = self.module.as_ref();
-        let mut context = ExternalCallContext::new(module, heap, shared, shared_raw_limits);
-        run(&mut context)
+        let program = self.program.as_ref();
+        let mut context = ExternalCallContext::new(program, heap, shared, shared_raw_limits);
+        let result = run(&mut context);
+        context.release_pins()?;
+
+        result
     }
 
     /// Resolve a function id by name.
@@ -192,7 +151,7 @@ impl Isolate {
         name: &str,
     ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
         let func_id = self
-            .module
+            .program
             .function_id_by_name
             .get(name)
             .copied()
@@ -208,16 +167,17 @@ impl Isolate {
     /// Run a function by name and return its output.
     pub fn run_function_by_name(
         &mut self,
+        statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         name: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<RunOutput> {
+        arguments: &[Word],
+    ) -> RuntimeResult<Output> {
         self.interpreter.run_function_by_name(
             self.isolate_id,
-            self.module.as_ref(),
+            self.program.as_ref(),
             &self.options,
-            &mut self.globals,
+            statics,
             &self.externals,
             heap,
             shared,
@@ -229,16 +189,17 @@ impl Isolate {
     /// Run a function by name and allow yielding.
     pub fn run_function_by_name_yielding(
         &mut self,
+        statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         name: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<RunOutcome> {
+        arguments: &[Word],
+    ) -> RuntimeResult<Outcome> {
         self.interpreter.run_function_by_name_yielding(
             self.isolate_id,
-            self.module.as_ref(),
+            self.program.as_ref(),
             &self.options,
-            &mut self.globals,
+            statics,
             &self.externals,
             heap,
             shared,
@@ -250,16 +211,17 @@ impl Isolate {
     /// Run a function by id and return its output.
     pub fn run_function(
         &mut self,
+        statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> RuntimeResult<RunOutput> {
+        arguments: &[Word],
+    ) -> RuntimeResult<Output> {
         self.interpreter.run_function(
             self.isolate_id,
-            self.module.as_ref(),
+            self.program.as_ref(),
             &self.options,
-            &mut self.globals,
+            statics,
             &self.externals,
             heap,
             shared,
@@ -271,16 +233,17 @@ impl Isolate {
     /// Run a function by id and allow yielding.
     pub fn run_function_yielding(
         &mut self,
+        statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> RuntimeResult<RunOutcome> {
+        arguments: &[Word],
+    ) -> RuntimeResult<Outcome> {
         self.interpreter.run_function_yielding(
             self.isolate_id,
-            self.module.as_ref(),
+            self.program.as_ref(),
             &self.options,
-            &mut self.globals,
+            statics,
             &self.externals,
             heap,
             shared,
@@ -292,16 +255,17 @@ impl Isolate {
     /// Resume a previously yielded coroutine.
     pub fn resume(
         &mut self,
+        statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         continuation: Continuation,
-        resume_value: engine::MaterializedValue,
-    ) -> RuntimeResult<RunOutcome> {
+        resume_value: engine::Value,
+    ) -> RuntimeResult<Outcome> {
         self.interpreter.resume(
             self.isolate_id,
-            self.module.as_ref(),
+            self.program.as_ref(),
             &self.options,
-            &mut self.globals,
+            statics,
             &self.externals,
             heap,
             shared,
@@ -310,22 +274,12 @@ impl Isolate {
         )
     }
 
-    /// Visit roots retained by one materialized boundary value.
-    pub fn visit_materialized_value_roots(
-        &self,
-        value: &engine::MaterializedValue,
-        roots: &mut impl RootVisitor,
-    ) -> RuntimeResult<()> {
-        visit_materialized_value_roots(value, self.module.as_ref(), roots)
-            .map_err(RuntimeError::new)
-    }
-
     /// Capture one continuation as one immutable image.
     pub fn continuation_image(
         &self,
         continuation: &Continuation,
     ) -> RuntimeResult<ContinuationImage> {
-        continuation.image(&self.module)
+        continuation.image(&self.program)
     }
 
     /// Restore one continuation from one immutable image.
@@ -334,18 +288,22 @@ impl Isolate {
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
         let mut continuation =
-            Continuation::from_image(image, &self.module, &self.module.functions)?;
+            Continuation::from_image(image, &self.program, &self.program.functions)?;
         continuation.isolate_id = self.isolate_id;
 
         Ok(continuation)
     }
 
     /// Collect one complete root set from live state and optional continuations.
-    pub fn root_set(&mut self, continuations: &[Continuation]) -> RuntimeResult<RootSet> {
+    pub fn root_set(
+        &mut self,
+        statics: &StaticSpace,
+        continuations: &[Continuation],
+    ) -> RuntimeResult<RootSet> {
         let mut roots = RootSet::default();
 
         self.interpreter
-            .visit_roots(&self.module, &self.globals, continuations, &mut roots)?;
+            .visit_roots(&self.program, statics, continuations, &mut roots)?;
 
         Ok(roots)
     }
@@ -353,11 +311,23 @@ impl Isolate {
     /// Visit one complete root set from live state and optional continuations.
     pub fn visit_state_roots(
         &mut self,
+        statics: &StaticSpace,
         continuations: &[Continuation],
         roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         self.interpreter
-            .visit_roots(&self.module, &self.globals, continuations, roots)
+            .visit_roots(&self.program, statics, continuations, roots)
+    }
+
+    /// Visit mutable local root slots from live state and optional continuations.
+    pub fn visit_root_slots(
+        &mut self,
+        statics: &mut StaticSpace,
+        continuations: &mut [Continuation],
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        self.interpreter
+            .visit_root_slots(&self.program, statics, continuations, visit)
     }
 
     /// Collect roots from one live continuation.
@@ -375,7 +345,18 @@ impl Isolate {
         roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         continuation
-            .visit_roots(&self.module, roots)
+            .visit_roots(&self.program, roots)
+            .map_err(|error| self.make_error(error))
+    }
+
+    /// Visit mutable local root slots from one live continuation.
+    pub fn visit_continuation_root_slots(
+        &mut self,
+        continuation: &mut Continuation,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        continuation
+            .visit_root_slots(&self.program, visit)
             .map_err(|error| self.make_error(error))
     }
 
@@ -397,22 +378,29 @@ impl Isolate {
         image: &ContinuationImage,
         roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
-        Continuation::visit_image_roots(image, &self.module, roots)
+        Continuation::visit_image_roots(image, &self.program, roots)
+            .map_err(|error| self.make_error(error))
+    }
+
+    /// Visit mutable local root slots from one captured continuation image.
+    pub fn visit_image_root_slots(
+        &mut self,
+        image: &mut ContinuationImage,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        Continuation::visit_image_root_slots(image, &self.program, visit)
             .map_err(|error| self.make_error(error))
     }
 
     /// Capture one immutable VM image.
     pub fn image(&mut self) -> RuntimeResult<IsolateImage> {
-        // capture the mutable isolate state
-        let globals = self.globals.clone();
         let interpreter = self.interpreter.image();
 
         Ok(IsolateImage {
-            tree: self.module.tree.clone(),
-            strings: self.module.strings.clone(),
+            tree: self.program.tree.clone(),
+            strings: self.program.strings.clone(),
             options: self.options.clone(),
             isolate_id: self.isolate_id,
-            globals,
             interpreter,
         })
     }
@@ -421,53 +409,22 @@ impl Isolate {
     pub fn fork(&self) -> RuntimeResult<Self> {
         Ok(Self {
             isolate_id: self.isolate_id,
-            module: self.module.clone(),
+            program: self.program.clone(),
             options: self.options.clone(),
-            globals: self.globals.clone(),
             externals: self.externals.clone(),
             interpreter: self.interpreter.fork(),
         })
     }
 
     /// Restore this isolate from one immutable VM image.
-    pub fn restore_image(&mut self, heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
-        self.module = Arc::new(Module::new(image.tree.clone(), image.strings.clone())?);
+    pub fn restore_image(&mut self, _heap: &mut Heap, image: &IsolateImage) -> RuntimeResult<()> {
+        self.program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
         self.options = image.options.clone();
 
-        // restore isolate-owned mutable state first
         self.isolate_id = image.isolate_id;
-        self.globals = image.globals.clone();
 
         // rebuild interpreter state over the restored isolate
-        let _ = heap;
-        self.interpreter = Interpreter::from_image(&self.module.functions, &image.interpreter)?;
-
-        Ok(())
-    }
-
-    /// Stabilize one live continuation before it escapes the running interpreter.
-    pub fn stabilize_boundary_continuation(
-        &mut self,
-        heap: &mut Heap,
-        continuation: &mut Continuation,
-    ) -> RuntimeResult<()> {
-        continuation.stabilize(&self.module, heap)
-    }
-
-    /// Stabilize one materialized boundary value before it escapes the running interpreter.
-    pub fn stabilize_boundary_value(
-        &mut self,
-        heap: &mut Heap,
-        value: &mut destack_engine::MaterializedValue,
-    ) -> RuntimeResult<()> {
-        crate::interpreter::stabilize_materialized_value(&self.module, heap, value)
-    }
-
-    /// Stabilize every global heap reference after initialization.
-    fn stabilize_globals(&mut self, heap: &mut Heap) -> RuntimeResult<()> {
-        for value in self.globals.values_mut() {
-            crate::interpreter::stabilize_value(heap, value).map_err(RuntimeError::new)?;
-        }
+        self.interpreter = Interpreter::from_image(&self.program, &image.interpreter)?;
 
         Ok(())
     }
@@ -480,11 +437,11 @@ impl Isolate {
     // collect call stack info for error reporting
     fn get_call_stack_info(&self) -> Vec<FrameInfo> {
         self.interpreter
-            .stack()
+            .frames()
             .iter()
             .map(|f| {
-                let func = self.module.tree.get(f.function);
-                let name = self.module.strings.get(func.name).to_string();
+                let func = self.program.tree.get(f.function);
+                let name = self.program.strings.get(func.name).to_string();
                 FrameInfo {
                     function: f.function,
                     block: f.current_block,
@@ -496,31 +453,25 @@ impl Isolate {
 
     /// Borrow the canonical runtime layout table.
     pub fn layout_table(&self) -> &mir::LayoutTable {
-        self.module.layouts()
+        self.program.layouts()
     }
 
     /// Return the canonical layout id for one MIR type.
-    #[cfg(test)]
-    pub(crate) fn layout_id_for_type(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Option<mir::LayoutId> {
-        self.module.layout_id_for_type(ty)
+    pub fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::LayoutId> {
+        self.program.layout_id_for_type(ty)
     }
 
     /// Return the heap allocation facts for one layout id.
-    #[cfg(test)]
-    pub(crate) fn allocation_layout(
+    pub fn allocation_layout(
         &self,
         layout_id: mir::LayoutId,
     ) -> crate::Result<destack_heap::AllocationLayout<'_>> {
-        self.module.allocation_layout(layout_id)
+        self.program.allocation_layout(layout_id)
     }
 
-    /// Borrow the module MIR tree.
-    #[cfg(test)]
-    pub(crate) fn tree(&self) -> &mir::NodeTree {
-        &self.module.tree
+    /// Borrow the program MIR tree.
+    pub fn tree(&self) -> &mir::NodeTree {
+        &self.program.tree
     }
 }
 

@@ -206,6 +206,15 @@ impl Program {
         self.layout(self.type_for_id(ty))
     }
 
+    /// Encode one global initializer into its declared bytes.
+    pub(crate) fn initializer_bytes(
+        &self,
+        initializer: &mir::GlobalInitializer,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<Vec<u8>> {
+        initializer_bytes(&self.tree, &self.type_layouts, initializer, ty)
+    }
+
     /// Return the MIR layouts for this program.
     pub(crate) fn layouts(&self) -> &LayoutTable {
         &self.layouts
@@ -355,13 +364,243 @@ impl fmt::Debug for Program {
 
 /// One initialized byte range inside a global payload.
 #[derive(Clone, Copy, Debug)]
-struct StaticInitializerEntry {
+struct InitializerRange {
     /// The value type for this range.
     ty: mir::LocalNodeId<mir::Type>,
     /// The byte offset inside the payload.
     offset: usize,
     /// The byte width of this range.
     byte_len: usize,
+}
+
+/// Encode one static initializer into bytes.
+fn initializer_bytes(
+    tree: &mir::NodeTree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    initializer: &mir::GlobalInitializer,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<Vec<u8>> {
+    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+        expected: "compiled initializer layout".to_string(),
+        actual: format!("{ty:?}"),
+    })?;
+
+    if layout.is_scalar() {
+        return scalar_initializer_bytes(tree, initializer, ty, layout.byte_len);
+    }
+
+    match initializer {
+        mir::GlobalInitializer::Zero => {
+            validate_zero_initializer(tree, layouts, ty)?;
+
+            Ok(vec![0; layout.byte_len])
+        }
+        mir::GlobalInitializer::Bytes(bytes) => {
+            if bytes.len() != layout.byte_len {
+                return Err(Error::TypeMismatch {
+                    expected: format!("{} initializer bytes", layout.byte_len),
+                    actual: format!("{} initializer bytes", bytes.len()),
+                });
+            }
+
+            Ok(bytes.clone())
+        }
+        mir::GlobalInitializer::Aggregate(elements) => {
+            payload_initializer_bytes(tree, layouts, elements, ty)
+        }
+        mir::GlobalInitializer::Scalar(_) => Err(Error::TypeMismatch {
+            expected: "payload initializer".to_string(),
+            actual: "scalar initializer".to_string(),
+        }),
+    }
+}
+
+/// Encode one scalar initializer into bytes.
+fn scalar_initializer_bytes(
+    tree: &mir::NodeTree,
+    initializer: &mir::GlobalInitializer,
+    ty: mir::LocalNodeId<mir::Type>,
+    byte_len: usize,
+) -> Result<Vec<u8>> {
+    match initializer {
+        mir::GlobalInitializer::Zero => {
+            validate_zero_scalar_type(tree, ty)?;
+
+            Ok(vec![0; byte_len])
+        }
+        mir::GlobalInitializer::Bytes(bytes) => {
+            if bytes.len() != byte_len {
+                return Err(Error::TypeMismatch {
+                    expected: format!("{byte_len} initializer bytes"),
+                    actual: format!("{} initializer bytes", bytes.len()),
+                });
+            }
+
+            Ok(bytes.clone())
+        }
+        mir::GlobalInitializer::Scalar(constant) => {
+            if byte_len > Word::BYTE_LEN {
+                return Err(Error::TypeMismatch {
+                    expected: format!("at most {} scalar bytes", Word::BYTE_LEN),
+                    actual: format!("{byte_len} scalar bytes"),
+                });
+            }
+
+            let value = Word::from(constant);
+            let bytes = value.to_byte_array();
+
+            Ok(bytes[..byte_len].to_vec())
+        }
+        mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
+            expected: "scalar initializer".to_string(),
+            actual: format!("{ty:?}"),
+        }),
+    }
+}
+
+/// Validate one zero initializer against the declared type.
+fn validate_zero_initializer(
+    tree: &mir::NodeTree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<()> {
+    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+        expected: "compiled initializer layout".to_string(),
+        actual: format!("{ty:?}"),
+    })?;
+
+    if layout.is_scalar() {
+        validate_zero_scalar_type(tree, ty)?;
+
+        return Ok(());
+    }
+
+    for range in initializer_ranges(layouts, ty)? {
+        validate_zero_initializer(tree, layouts, range.ty)?;
+    }
+
+    Ok(())
+}
+
+/// Validate whether one scalar type accepts a zero initializer.
+fn validate_zero_scalar_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<()> {
+    let ty_node = tree.get(ty).clone();
+
+    match ty_node {
+        mir::Type::Void
+        | mir::Type::Int { .. }
+        | mir::Type::Isize
+        | mir::Type::Usize
+        | mir::Type::Float { .. }
+        | mir::Type::Boolean => Ok(()),
+        mir::Type::Reference {
+            kind: _,
+            address_space: _,
+            mutability: _,
+            is_nullable,
+            ..
+        } => {
+            if !is_nullable {
+                return Err(Error::UnsupportedZeroValue {
+                    ty: format!("{ty_node:?}"),
+                });
+            }
+
+            Ok(())
+        }
+        _ => Err(Error::UnsupportedZeroValue {
+            ty: format!("{ty_node:?}"),
+        }),
+    }
+}
+
+/// Encode one payload initializer into bytes.
+fn payload_initializer_bytes(
+    tree: &mir::NodeTree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    elements: &[mir::GlobalInitializer],
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<Vec<u8>> {
+    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+        expected: "compiled payload layout".to_string(),
+        actual: format!("{ty:?}"),
+    })?;
+    let ranges = initializer_ranges(layouts, ty)?;
+    if elements.len() != ranges.len() {
+        return Err(Error::TypeMismatch {
+            expected: format!("{} initializer elements", ranges.len()),
+            actual: format!("{} initializer elements", elements.len()),
+        });
+    }
+
+    let mut bytes = vec![0u8; layout.byte_len];
+    for (element, range) in elements.iter().zip(ranges.into_iter()) {
+        let value_bytes = initializer_bytes(tree, layouts, element, range.ty)?;
+        if value_bytes.len() != range.byte_len {
+            return Err(Error::TypeMismatch {
+                expected: format!("{} initializer bytes", range.byte_len),
+                actual: format!("{} initializer bytes", value_bytes.len()),
+            });
+        }
+
+        let end = range
+            .offset
+            .checked_add(range.byte_len)
+            .ok_or(Error::InvalidInstruction)?;
+        let target = bytes
+            .get_mut(range.offset..end)
+            .ok_or(Error::InvalidInstruction)?;
+        target.copy_from_slice(&value_bytes);
+    }
+
+    Ok(bytes)
+}
+
+/// Return initializer byte ranges for one payload type.
+fn initializer_ranges(
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<Vec<InitializerRange>> {
+    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+        expected: "compiled payload layout".to_string(),
+        actual: format!("{ty:?}"),
+    })?;
+
+    if let Some(field_count) = layout.field_count() {
+        let mut ranges = Vec::with_capacity(field_count);
+        for index in 0..field_count {
+            let field = layout
+                .field(index as u32)
+                .ok_or(Error::InvalidInstruction)?;
+            ranges.push(InitializerRange {
+                ty: field.ty,
+                offset: field.offset,
+                byte_len: field.byte_len,
+            });
+        }
+
+        return Ok(ranges);
+    }
+
+    let element = layout.element().ok_or_else(|| Error::TypeMismatch {
+        expected: "indexed initializer layout".to_string(),
+        actual: format!("{ty:?}"),
+    })?;
+    let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+    let mut ranges = Vec::with_capacity(element_count);
+    for index in 0..element_count {
+        let offset = element
+            .stride
+            .checked_mul(index)
+            .ok_or(Error::InvalidInstruction)?;
+        ranges.push(InitializerRange {
+            ty: element.ty,
+            offset,
+            byte_len: element.byte_len,
+        });
+    }
+
+    Ok(ranges)
 }
 
 /// Build one program from one MIR tree and immutable string pool.
@@ -503,7 +742,7 @@ impl ProgramBuilder {
             }
 
             let bytes = match global.initializer.as_ref() {
-                Some(initializer) => self.static_initializer_bytes(initializer, ty, layouts)?,
+                Some(initializer) => initializer_bytes(&self.tree, layouts, initializer, ty)?,
                 None => vec![0; layout.byte_len],
             };
             self.define_static_bytes(&mut data, global_id, ty, layout.alignment(), false, &bytes)?;
@@ -548,173 +787,6 @@ impl ProgramBuilder {
         }
 
         self.define_static_bytes(data, global, ty, Word::BYTE_LEN, false, &bytes)
-    }
-
-    /// Encode one static initializer into bytes.
-    fn static_initializer_bytes(
-        &self,
-        initializer: &mir::GlobalInitializer,
-        ty: mir::LocalNodeId<mir::Type>,
-        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Result<Vec<u8>> {
-        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
-            expected: "compiled initializer layout".to_string(),
-            actual: format!("{ty:?}"),
-        })?;
-
-        if layout.is_scalar() {
-            return self.static_scalar_initializer_bytes(initializer, ty, layout.byte_len);
-        }
-
-        match initializer {
-            mir::GlobalInitializer::Zero => Ok(vec![0; layout.byte_len]),
-            mir::GlobalInitializer::Bytes(bytes) => {
-                if bytes.len() != layout.byte_len {
-                    return Err(Error::TypeMismatch {
-                        expected: format!("{} initializer bytes", layout.byte_len),
-                        actual: format!("{} initializer bytes", bytes.len()),
-                    });
-                }
-
-                Ok(bytes.clone())
-            }
-            mir::GlobalInitializer::Aggregate(elements) => {
-                self.static_payload_initializer_bytes(elements, ty, layouts)
-            }
-            mir::GlobalInitializer::Scalar(_) => Err(Error::TypeMismatch {
-                expected: "payload initializer".to_string(),
-                actual: "scalar initializer".to_string(),
-            }),
-        }
-    }
-
-    /// Encode one scalar static initializer into bytes.
-    fn static_scalar_initializer_bytes(
-        &self,
-        initializer: &mir::GlobalInitializer,
-        ty: mir::LocalNodeId<mir::Type>,
-        byte_len: usize,
-    ) -> Result<Vec<u8>> {
-        match initializer {
-            mir::GlobalInitializer::Zero => Ok(vec![0; byte_len]),
-            mir::GlobalInitializer::Bytes(bytes) => {
-                if bytes.len() != byte_len {
-                    return Err(Error::TypeMismatch {
-                        expected: format!("{byte_len} initializer bytes"),
-                        actual: format!("{} initializer bytes", bytes.len()),
-                    });
-                }
-
-                Ok(bytes.clone())
-            }
-            mir::GlobalInitializer::Scalar(constant) => {
-                if byte_len > Word::BYTE_LEN {
-                    return Err(Error::TypeMismatch {
-                        expected: format!("at most {} scalar bytes", Word::BYTE_LEN),
-                        actual: format!("{byte_len} scalar bytes"),
-                    });
-                }
-
-                let value = Word::from(constant);
-                let bytes = value.to_byte_array();
-
-                Ok(bytes[..byte_len].to_vec())
-            }
-            mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
-                expected: "scalar initializer".to_string(),
-                actual: format!("{ty:?}"),
-            }),
-        }
-    }
-
-    /// Encode one payload initializer into bytes.
-    fn static_payload_initializer_bytes(
-        &self,
-        elements: &[mir::GlobalInitializer],
-        ty: mir::LocalNodeId<mir::Type>,
-        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Result<Vec<u8>> {
-        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
-            expected: "compiled payload layout".to_string(),
-            actual: format!("{ty:?}"),
-        })?;
-        let entries = self.static_initializer_entries(ty, layouts)?;
-        if elements.len() != entries.len() {
-            return Err(Error::TypeMismatch {
-                expected: format!("{} initializer elements", entries.len()),
-                actual: format!("{} initializer elements", elements.len()),
-            });
-        }
-
-        let mut bytes = vec![0u8; layout.byte_len];
-        for (element, entry) in elements.iter().zip(entries.into_iter()) {
-            let value_bytes = self.static_initializer_bytes(element, entry.ty, layouts)?;
-            if value_bytes.len() != entry.byte_len {
-                return Err(Error::TypeMismatch {
-                    expected: format!("{} initializer bytes", entry.byte_len),
-                    actual: format!("{} initializer bytes", value_bytes.len()),
-                });
-            }
-
-            let end = entry
-                .offset
-                .checked_add(entry.byte_len)
-                .ok_or(Error::InvalidInstruction)?;
-            let target = bytes
-                .get_mut(entry.offset..end)
-                .ok_or(Error::InvalidInstruction)?;
-            target.copy_from_slice(&value_bytes);
-        }
-
-        Ok(bytes)
-    }
-
-    /// Return initializer byte ranges for one payload type.
-    fn static_initializer_entries(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Result<Vec<StaticInitializerEntry>> {
-        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
-            expected: "compiled payload layout".to_string(),
-            actual: format!("{ty:?}"),
-        })?;
-
-        if let Some(field_count) = layout.field_count() {
-            let mut entries = Vec::with_capacity(field_count);
-            for index in 0..field_count {
-                let field = layout
-                    .field(index as u32)
-                    .ok_or(Error::InvalidInstruction)?;
-                entries.push(StaticInitializerEntry {
-                    ty: field.ty,
-                    offset: field.offset,
-                    byte_len: field.byte_len,
-                });
-            }
-
-            return Ok(entries);
-        }
-
-        let element = layout.element().ok_or_else(|| Error::TypeMismatch {
-            expected: "indexed initializer layout".to_string(),
-            actual: format!("{ty:?}"),
-        })?;
-        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
-        let mut entries = Vec::with_capacity(element_count);
-        for index in 0..element_count {
-            let offset = element
-                .stride
-                .checked_mul(index)
-                .ok_or(Error::InvalidInstruction)?;
-            entries.push(StaticInitializerEntry {
-                ty: element.ty,
-                offset,
-                byte_len: element.byte_len,
-            });
-        }
-
-        Ok(entries)
     }
 
     /// Build the layout id map for all compiled MIR types.
