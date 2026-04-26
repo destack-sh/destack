@@ -43,8 +43,23 @@ pub(crate) struct SharedSmallSpan {
     pub(crate) scanned: Bitmap,
     /// Whether this span already has one queued scan work item.
     pub(crate) is_queued_for_scan: bool,
+    /// The allocation list this span belongs to.
+    pub(crate) list: SpanList,
     /// The allocator pages for this span.
     pub(crate) pages: PageView,
+}
+
+/// One shared small-span allocation list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpanList {
+    /// The central partial list.
+    Central,
+    /// One shared allocation front end.
+    Cached,
+    /// No allocation list because the span has no free slots.
+    Full,
+    /// No allocation list because the span has no mapped pages.
+    Released,
 }
 
 impl SharedSmallSpan {

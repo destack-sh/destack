@@ -4,16 +4,18 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    SharedHeapLargeAllocationImage, SharedHeapPageOwner, SharedHeapSmallSpanImage, SharedHeapSpace,
-    SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan,
+    SharedHeapLargeAllocationImage, SharedHeapPageMapEntry, SharedHeapSmallSpanImage,
+    SharedHeapSpace, SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan, SpanList,
 };
 use crate::allocator::PageRunCache;
 use crate::shared::gc::SharedGcState;
-use crate::shared::space::{SharedHeapState, SharedLargeSpace, SharedSmallSpace, find_free_cursor};
-use crate::{AllocationUsage, Allocator, GcState, HeapResult, PageId, SizeClassTable};
+use crate::shared::space::{
+    SharedHeapState, SharedLargeSpace, SharedSmallSpace, SharedUsage, find_free_cursor,
+};
+use crate::{Allocator, GcState, HeapResult, PageId, PageView, SizeClassTable};
 
 /// One frozen shared heap-space root.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapSpaceImage {
     /// The configured size-class table.
     size_classes: SizeClassTable,
@@ -127,6 +129,25 @@ impl SharedHeapSpaceImage {
 
         pages
     }
+
+    /// Return every live allocator page view captured by this image.
+    pub fn page_views(&self) -> Vec<PageView> {
+        let mut pages = Vec::new();
+
+        // span pages
+        for span in &*self.spans {
+            pages.push(span.pages.clone());
+        }
+
+        // large-allocation pages
+        for allocation in &*self.allocations {
+            if allocation.is_live {
+                pages.push(allocation.pages.clone());
+            }
+        }
+
+        pages
+    }
 }
 
 impl SharedHeapSpace {
@@ -172,12 +193,11 @@ impl SharedHeapSpace {
                 free_large_allocation_ids: store.large.free_large_allocation_ids.clone(),
                 next_unused_large_allocation_id: store.large.next_unused_large_allocation_id,
             },
-            page_owners: Vec::new(),
-            usage: store.usage,
+            page_map: Vec::new(),
             gc: store.gc.clone(),
         };
 
-        if let Err(error) = Self::rebuild_page_owners(&mut cloned_store) {
+        if let Err(error) = Self::rebuild_page_map(&mut cloned_store) {
             self.allocator.release_page_views(&retained_page_views)?;
 
             return Err(error);
@@ -186,6 +206,7 @@ impl SharedHeapSpace {
         Ok(Self {
             allocator: self.allocator.clone(),
             state: RwLock::new(cloned_store),
+            usage: SharedUsage::new(self.usage.allocation_count(), self.usage.allocated_bytes()),
             gc: SharedGcState::default(),
         })
     }
@@ -214,7 +235,7 @@ impl SharedHeapSpace {
                 }
             };
 
-        if let Err(error) = Self::rebuild_page_owners(&mut store) {
+        if let Err(error) = Self::rebuild_page_map(&mut store) {
             allocator.release_page_views(&retained_page_views)?;
 
             return Err(error);
@@ -223,6 +244,7 @@ impl SharedHeapSpace {
         let root = Self {
             allocator,
             state: RwLock::new(store),
+            usage: SharedUsage::new(image.allocated_count(), image.allocated_bytes()),
             gc: SharedGcState::default(),
         };
 
@@ -279,8 +301,8 @@ impl SharedHeapSpace {
                 .clone()
                 .into_boxed_slice(),
             store.large.next_unused_large_allocation_id,
-            store.usage.allocation_count(),
-            store.usage.allocated_bytes(),
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
             store.gc.clone(),
         )
     }
@@ -328,6 +350,7 @@ impl SharedHeapSpace {
                             marked: crate::Bitmap::with_capacity(span.slot_count),
                             scanned: crate::Bitmap::with_capacity(span.slot_count),
                             is_queued_for_scan: false,
+                            list: SpanList::Released,
                             pages: span.pages.clone(),
                         })))
                     })
@@ -357,8 +380,7 @@ impl SharedHeapSpace {
                 free_large_allocation_ids: image.free_large_allocation_ids.to_vec(),
                 next_unused_large_allocation_id: image.next_unused_large_allocation_id(),
             },
-            page_owners: Vec::new(),
-            usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+            page_map: Vec::new(),
             gc: image.gc_state().clone(),
         })
     }
@@ -378,6 +400,14 @@ impl SharedHeapSpace {
                 occupied_count = span.occupied_count;
                 slot_count = span.slot_count;
                 bucket_index = span.class.bucket_index(&store.small.size_classes)?;
+
+                if occupied_count == 0 {
+                    span.list = SpanList::Released;
+                } else if occupied_count >= slot_count {
+                    span.list = SpanList::Full;
+                } else {
+                    span.list = SpanList::Central;
+                }
             }
 
             if occupied_count == 0 || occupied_count >= slot_count {
@@ -392,9 +422,9 @@ impl SharedHeapSpace {
         Ok(())
     }
 
-    /// Rebuild the page-owner table from live shared allocations.
-    fn rebuild_page_owners(store: &mut SharedHeapState) -> HeapResult<()> {
-        store.page_owners.clear();
+    /// Rebuild the page-map table from live shared allocations.
+    fn rebuild_page_map(store: &mut SharedHeapState) -> HeapResult<()> {
+        store.page_map.clear();
 
         for span_index in 0..store.small.spans.len() {
             let Some(span) = store.small.spans.get(span_index).cloned() else {
@@ -410,11 +440,11 @@ impl SharedHeapSpace {
                 };
                 let page_index = page_id.index();
 
-                if store.page_owners.len() <= page_index {
-                    store.page_owners.resize(page_index + 1, None);
+                if store.page_map.len() <= page_index {
+                    store.page_map.resize(page_index + 1, None);
                 }
 
-                store.page_owners[page_index] = Some(SharedHeapPageOwner::Small {
+                store.page_map[page_index] = Some(SharedHeapPageMapEntry::Small {
                     span_index,
                     logical_page_index,
                 });
@@ -439,11 +469,11 @@ impl SharedHeapSpace {
                 };
                 let page_index = page_id.index();
 
-                if store.page_owners.len() <= page_index {
-                    store.page_owners.resize(page_index + 1, None);
+                if store.page_map.len() <= page_index {
+                    store.page_map.resize(page_index + 1, None);
                 }
 
-                store.page_owners[page_index] = Some(SharedHeapPageOwner::Large {
+                store.page_map[page_index] = Some(SharedHeapPageMapEntry::Large {
                     allocation_id,
                     logical_page_index,
                 });
