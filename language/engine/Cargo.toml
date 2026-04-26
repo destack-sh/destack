@@ -13,7 +13,6 @@ doctest = false
 
 [dependencies]
 destack_heap = { workspace = true }
-destack_mir = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [lints]
