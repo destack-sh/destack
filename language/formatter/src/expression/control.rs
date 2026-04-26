@@ -13,6 +13,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::declaration::sequence::block_statement_sequence;
 use crate::declaration::signature::expression_body_requires_head_space;
+use crate::declaration::statement::format_block;
 use crate::declaration::{
     empty_block_with_infix_annotations, statement_wrapper_needs_semicolon,
     write_statement_terminator, write_statement_terminator_after_anchor,
@@ -34,7 +35,7 @@ use destack_fir::prelude::{
     line_suffix_boundary, soft_block_indent, soft_line_indent_or_space, space, token,
 };
 use destack_fir::{format_args, write};
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Write one `if` or `while` test expression before the closing `)`.
 fn write_if_or_while_test_expression<'ast>(
@@ -214,7 +215,7 @@ fn format_statement_body_block_after_head<'ast>(
     let block = f.context().tree.get(block_id);
     if !is_statement_wrapper_block(f.context(), block_id) {
         write!(f, [space()])?;
-        return write!(f, [block_id]);
+        return format_block(f, block_id);
     }
 
     if block.is_empty() {
@@ -720,17 +721,6 @@ fn expression_has_effective_prefix_annotation(
     })
 }
 
-/// Return whether one `if` branch is an empty statement wrapper.
-fn if_then_is_empty_statement(
-    context: &DestackFormatContext<'_>,
-    then_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    matches!(
-        context.tree.get(then_expression_id),
-        Expression::Block(block_id) if is_empty_statement_block(context, *block_id)
-    )
-}
-
 /// Write one grouped `if (...) <body>` clause.
 fn write_if_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -744,64 +734,46 @@ fn write_if_clause<'ast>(
         _ => None,
     };
 
-    match condition {
-        IfCondition::Expression { condition } => {
-            let head = format_with(|f| {
+    let head = format_with(|f| {
+        match condition {
+            IfCondition::Expression { condition } => {
                 write_if_or_while_test_expression(f, *condition)?;
-
-                if let Some(empty_statement_body) = empty_statement_body {
-                    write_comments_for_empty_statement_body(f, empty_statement_body)?;
+            }
+            IfCondition::Let {
+                kind,
+                mutability: _,
+                declarator,
+            } => {
+                match kind {
+                    LetKind::Let => write!(f, [Keyword::Let])?,
+                    LetKind::Var => write!(f, [Keyword::Var])?,
+                    LetKind::Const => write!(f, [Keyword::Const])?,
                 }
 
-                Ok(())
-            });
-            let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
-
-            write!(
-                f,
-                [group(&format_args![
-                    Keyword::If,
-                    space(),
-                    token("("),
-                    group(&soft_block_indent(&head)),
-                    token(")"),
-                    body,
-                ])]
-            )
+                write!(f, [space()])?;
+                format_declarator(f, f.context().tree, *declarator)?;
+            }
         }
-        IfCondition::Let {
-            kind,
-            mutability: _,
-            declarator,
-        } => {
-            let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
 
-            write!(
-                f,
-                [group(&format_args![
-                    Keyword::If,
-                    space(),
-                    format_with(|f| {
-                        match kind {
-                            LetKind::Let => write!(f, [Keyword::Let])?,
-                            LetKind::Var => write!(f, [Keyword::Var])?,
-                            LetKind::Const => write!(f, [Keyword::Const])?,
-                        }
-
-                        write!(f, [space()])?;
-                        format_declarator(f, f.context().tree, *declarator)?;
-
-                        if let Some(empty_statement_body) = empty_statement_body {
-                            write_comments_for_empty_statement_body(f, empty_statement_body)?;
-                        }
-
-                        Ok(())
-                    }),
-                    body,
-                ])]
-            )
+        if let Some(empty_statement_body) = empty_statement_body {
+            write_comments_for_empty_statement_body(f, empty_statement_body)?;
         }
-    }
+
+        Ok(())
+    });
+    let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
+
+    write!(
+        f,
+        [group(&format_args![
+            Keyword::If,
+            space(),
+            token("("),
+            group(&soft_block_indent(&head)),
+            token(")"),
+            body,
+        ])]
+    )
 }
 
 /// Write one control branch after its head.
@@ -852,7 +824,6 @@ fn write_if_else_separator<'ast>(
     if_expression_id: LocalNodeId<Expression>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
-    _then_is_empty_statement: bool,
 ) -> FormatResult<bool> {
     let else_has_effective_prefix_annotation =
         expression_has_effective_prefix_annotation(f.context(), else_expression_id);
@@ -862,23 +833,25 @@ fn write_if_else_separator<'ast>(
         write!(f, [postfix_annotations(f.context(), if_expression_id)])?;
     }
 
-    let alternate_start = f.context().span(else_expression_id).start;
-    let comments = f
+    let else_clause_span = f
+        .context()
+        .tree
+        .get_side_span(
+            if_expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Clause),
+        )
+        .expect("if expressions with else branches must record the else clause span");
+    let else_start = else_clause_span.start;
+    let comments = f.context().comments().comments_before(else_start).to_vec();
+    let has_line_comment = comments.iter().any(|comment| comment.is_line());
+    let then_end = f.context().span(then_expression_id).end;
+    let has_boundary_comment_before_else = f
         .context()
         .comments()
-        .comments_before(alternate_start)
-        .to_vec();
-    let has_line_comment = comments.iter().any(|comment| comment.is_line());
-    let has_dangling_comments = comments
+        .printed_comments()
         .last()
-        .or(f.context().comments().printed_comments().last())
-        .is_some_and(|last_comment| {
-            f.context()
-                .source_text()
-                .slice_range(last_comment.span.end, alternate_start)
-                .trim()
-                == "else"
-        });
+        .is_some_and(|comment| comment.span.start >= then_end && comment.span.end <= else_start);
+    let has_dangling_comments = !comments.is_empty() || has_boundary_comment_before_else;
     let then_is_explicit_block = matches!(
         f.context().tree.get(then_expression_id),
         Expression::Block(block_id)
@@ -942,15 +915,9 @@ fn format_if_else_alternate<'ast>(
     if_expression_id: LocalNodeId<Expression>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
-    then_is_empty_statement: bool,
 ) -> FormatResult<Option<LocalNodeId<Expression>>> {
-    let else_has_effective_prefix_annotation = write_if_else_separator(
-        f,
-        if_expression_id,
-        then_expression_id,
-        else_expression_id,
-        then_is_empty_statement,
-    )?;
+    let else_has_effective_prefix_annotation =
+        write_if_else_separator(f, if_expression_id, then_expression_id, else_expression_id)?;
 
     match f.context().tree.get(else_expression_id) {
         Expression::If { .. } => {
@@ -965,7 +932,7 @@ fn format_if_else_alternate<'ast>(
         {
             write!(f, [prefix_annotations(f.context(), else_expression_id)])?;
             write!(f, [Keyword::Else, space()])?;
-            format_statement_body_block(f, *else_block_id)?;
+            format_block(f, *else_block_id)?;
 
             if f.context().has_postfix_annotation(else_expression_id) {
                 write!(f, [postfix_annotations(f.context(), else_expression_id)])?;
@@ -1022,8 +989,6 @@ pub(crate) fn format_if_else_chain<'ast>(
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
             } => {
-                let then_is_empty_statement =
-                    if_then_is_empty_statement(f.context(), *then_expression_id);
                 write_if_clause(f, condition, *then_expression_id)?;
 
                 // next node
@@ -1033,7 +998,6 @@ pub(crate) fn format_if_else_chain<'ast>(
                         next_if_id,
                         *then_expression_id,
                         *else_expression,
-                        then_is_empty_statement,
                     )? {
                         Some(next_else_if_id) => {
                             next_if_id = next_else_if_id;
