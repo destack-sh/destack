@@ -212,7 +212,9 @@ fn is_type_expression_breakable(
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match tree.get(expression_id) {
-        TypeExpression::Tuple { elements } => !elements.is_empty(),
+        TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
+            !elements.is_empty()
+        }
         TypeExpression::Object { members } => !members.is_empty(),
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
             !elements.is_empty()
