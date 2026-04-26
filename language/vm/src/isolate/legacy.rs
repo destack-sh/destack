@@ -3,19 +3,19 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::Value;
+use crate::Word;
 use crate::diagnostic::Error;
-use crate::execute::storage::{decode_raw_value, encode_raw_value};
-use crate::module::{Layout, repr_type};
+use crate::execute::bytes::{decode_raw_value, encode_raw_value};
+use crate::program::{Layout, repr_type};
 use destack_heap::{HeapReference, Payload};
 use destack_mir as mir;
 
 use super::{ExternalCallContext, ExternalReadContext, ExternalWriteContext};
 
 // FUGU #Architecture: remove generated ABI shims once VM and native ABI share normal MIR payloads
-/// One typed member inside one aggregate payload.
+/// One typed field inside one aggregate payload.
 #[derive(Clone, Copy, Debug)]
-struct AggregateMember {
+struct AggregateField {
     /// The stored value type.
     ty: mir::LocalNodeId<mir::Type>,
     /// The byte offset of the value payload.
@@ -46,17 +46,17 @@ impl fmt::Display for StringRef<'_> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StringHandle {
     /// The VM value for this string payload.
-    value: Value,
+    value: Word,
 }
 
 impl StringHandle {
     /// Create a string handle from one VM value.
-    pub const fn new(value: Value) -> Self {
+    pub const fn new(value: Word) -> Self {
         Self { value }
     }
 
     /// Return the wrapped VM value.
-    pub const fn value(self) -> Value {
+    pub const fn value(self) -> Word {
         self.value
     }
 }
@@ -105,38 +105,38 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
             .ok_or(Error::InvalidHeapReference)
     }
 
-    /// Return the member layouts for the known MIR type.
-    fn members(&self) -> Result<Vec<AggregateMember>, Error> {
+    /// Return the field layouts for the known MIR type.
+    fn fields(&self) -> Result<Vec<AggregateField>, Error> {
         let ty = self.ty.ok_or(Error::InvalidHeapReference)?;
         let layout = self.context_ref().layout(ty)?;
 
-        aggregate_members(layout)
+        aggregate_fields(layout)
     }
 
     /// Return the semantic field count for this value.
     pub fn field_count(&self) -> usize {
-        if let Ok(members) = self.members() {
-            return members.len();
+        if let Ok(fields) = self.fields() {
+            return fields.len();
         }
 
-        self.byte_len / Value::BYTE_LEN
+        self.byte_len / Word::BYTE_LEN
     }
 
     /// Return one nested VM value view for one field.
     pub fn field_ref(&self, index: u32) -> Result<Self, Error> {
-        let members = self.members()?;
-        let member = members
+        let fields = self.fields()?;
+        let field = fields
             .get(index as usize)
             .copied()
             .ok_or(Error::InvalidHeapReference)?;
-        let layout = self.context_ref().layout(member.ty)?;
+        let layout = self.context_ref().layout(field.ty)?;
         if layout.is_scalar() {
             return Err(Error::InvalidHeapReference);
         }
 
         let start = self
             .start
-            .checked_add(member.offset)
+            .checked_add(field.offset)
             .ok_or(Error::InvalidHeapReference)?;
         let end = start
             .checked_add(layout.byte_len)
@@ -147,7 +147,7 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
 
         Ok(Self {
             context: self.context,
-            ty: Some(member.ty),
+            ty: Some(field.ty),
             bytes: self.bytes.clone(),
             start,
             byte_len: layout.byte_len,
@@ -156,25 +156,25 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
     }
 
     /// Decode one field value from this view.
-    pub fn field_value(&self, index: u32) -> Result<Value, Error> {
-        if let Ok(members) = self.members() {
-            let member = members
+    pub fn field_value(&self, index: u32) -> Result<Word, Error> {
+        if let Ok(fields) = self.fields() {
+            let field = fields
                 .get(index as usize)
                 .copied()
                 .ok_or(Error::InvalidHeapReference)?;
-            let layout = self.context_ref().layout(member.ty)?;
-            let bytes = self.byte_window(member.offset, layout.byte_len)?.to_vec();
+            let layout = self.context_ref().layout(field.ty)?;
+            let bytes = self.byte_window(field.offset, layout.byte_len)?.to_vec();
 
             return self
                 .context_mut()
-                .materialize_value_from_bytes(member.ty, &bytes);
+                .materialize_value_from_bytes(field.ty, &bytes);
         }
 
         let start = (index as usize)
-            .checked_mul(Value::BYTE_LEN)
+            .checked_mul(Word::BYTE_LEN)
             .ok_or(Error::InvalidHeapReference)?;
-        let bytes = self.byte_window(start, Value::BYTE_LEN)?;
-        let value = Value::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
+        let bytes = self.byte_window(start, Word::BYTE_LEN)?;
+        let value = Word::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
 
         self.context_mut().capture_value(value)
     }
@@ -188,7 +188,7 @@ pub struct VmValueBuilder<'ctx> {
     /// The target MIR type.
     ty: mir::LocalNodeId<mir::Type>,
     /// The staged field values.
-    fields: Vec<Option<Value>>,
+    fields: Vec<Option<Word>>,
     /// The lifetime marker for the call context.
     _marker: PhantomData<&'ctx ExternalCallContext<'ctx>>,
 }
@@ -200,7 +200,7 @@ impl VmValueBuilder<'_> {
     }
 
     /// Write one field value.
-    pub fn write_field(&mut self, index: u32, value: Value) -> Result<(), Error> {
+    pub fn write_field(&mut self, index: u32, value: Word) -> Result<(), Error> {
         let Some(field) = self.fields.get_mut(index as usize) else {
             return Err(Error::InvalidHeapReference);
         };
@@ -211,7 +211,7 @@ impl VmValueBuilder<'_> {
     }
 
     /// Finish the value and allocate its typed heap payload.
-    pub fn finish(self) -> Result<Value, Error> {
+    pub fn finish(self) -> Result<Word, Error> {
         let context = unsafe { &mut *self.context };
         let mut values = Vec::with_capacity(self.fields.len());
 
@@ -246,7 +246,7 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
 }
 
 /// Return the typed value byte ranges for one aggregate layout.
-fn aggregate_members(layout: &Layout) -> Result<Vec<AggregateMember>, Error> {
+fn aggregate_fields(layout: &Layout) -> Result<Vec<AggregateField>, Error> {
     if let Some(field_count) = layout.field_count() {
         let mut values = Vec::with_capacity(field_count);
 
@@ -255,7 +255,7 @@ fn aggregate_members(layout: &Layout) -> Result<Vec<AggregateMember>, Error> {
             let field = layout
                 .field(index as u32)
                 .ok_or(Error::InvalidInstruction)?;
-            values.push(AggregateMember {
+            values.push(AggregateField {
                 ty: field.ty,
                 offset: field.offset,
             });
@@ -274,7 +274,7 @@ fn aggregate_members(layout: &Layout) -> Result<Vec<AggregateMember>, Error> {
             .stride
             .checked_mul(index)
             .ok_or(Error::InvalidHeapReference)?;
-        values.push(AggregateMember {
+        values.push(AggregateField {
             ty: element.ty,
             offset,
         });
@@ -284,9 +284,9 @@ fn aggregate_members(layout: &Layout) -> Result<Vec<AggregateMember>, Error> {
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
-    /// Return one named MIR type from module metadata.
+    /// Return one named MIR type from program metadata.
     fn named_type(&self, name: &str) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-        self.module()
+        self.program()
             .type_by_display_name(name)
             .ok_or_else(|| Error::TypeMismatch {
                 expected: format!("MIR type named {name}"),
@@ -299,37 +299,37 @@ impl<'ctx> ExternalCallContext<'ctx> {
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
-    ) -> Result<Value, Error> {
+    ) -> Result<Word, Error> {
         if self.layout(ty)?.is_scalar() {
-            return decode_raw_value(&self.module().tree, ty, bytes);
+            return decode_raw_value(&self.program().tree, ty, bytes);
         }
 
-        let members = aggregate_members(self.layout(ty)?)?;
-        let mut values = Vec::with_capacity(members.len());
+        let fields = aggregate_fields(self.layout(ty)?)?;
+        let mut values = Vec::with_capacity(fields.len());
 
-        for member in members {
-            let layout = self.layout(member.ty)?;
-            let end = member
+        for field in fields {
+            let layout = self.layout(field.ty)?;
+            let end = field
                 .offset
                 .checked_add(layout.byte_len)
                 .ok_or(Error::InvalidHeapReference)?;
             let bytes = bytes
-                .get(member.offset..end)
+                .get(field.offset..end)
                 .ok_or(Error::InvalidHeapReference)?;
-            let value = self.materialize_value_from_bytes(member.ty, bytes)?;
+            let value = self.materialize_value_from_bytes(field.ty, bytes)?;
             values.push(value);
         }
 
         self.materialize_heap_value(ty, values)
     }
 
-    /// Build one named value builder from the module type table.
+    /// Build one named value builder from the program type table.
     fn begin_named_aggregate_builder(
         &mut self,
         type_name: &str,
     ) -> Result<VmValueBuilder<'ctx>, Error> {
         let ty = self.named_type(type_name)?;
-        let field_count = aggregate_members(self.layout(ty)?)?.len();
+        let field_count = aggregate_fields(self.layout(ty)?)?.len();
 
         Ok(VmValueBuilder {
             context: self as *mut Self,
@@ -345,22 +345,17 @@ impl<'ctx> ExternalCallContext<'ctx> {
         handle: HeapReference,
         start: usize,
         ty: mir::LocalNodeId<mir::Type>,
-        value: Value,
+        value: Word,
     ) -> Result<(), Error> {
         // write scalars directly into the target payload
         if self.layout(ty)?.is_scalar() {
-            let bytes = encode_raw_value(&self.module().tree, ty, value)?;
+            let bytes = encode_raw_value(&self.program().tree, ty, value)?;
             self.write_heap_bytes(handle, start, &bytes)?;
 
             return Ok(());
         }
 
-        let source = value
-            .as_heap_reference()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "heap aggregate".to_string(),
-                actual: format!("{value:?}"),
-            })?;
+        let source = value.as_heap_reference();
         let byte_len = self.layout(ty)?.byte_len;
         let mut bytes = vec![0u8; byte_len];
         self.heap_ref()
@@ -372,7 +367,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Return the callable box payload layout.
     fn callable_payload_layout(&self) -> (usize, usize, usize) {
-        let pointer_bytes = self.module().tree.pointer_bytes() as usize;
+        let pointer_bytes = self.program().tree.pointer_bytes() as usize;
         let function_offset = 0usize;
         let environment_offset = align_offset(pointer_bytes, pointer_bytes);
         let byte_len = environment_offset + pointer_bytes;
@@ -381,7 +376,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Return one encoded callable payload from function and environment values.
-    fn callable_payload(&self, values: Vec<Value>) -> Result<Vec<u8>, Error> {
+    fn callable_payload(&self, values: Vec<Word>) -> Result<Vec<u8>, Error> {
         if values.len() != 2 {
             return Err(Error::TypeMismatch {
                 expected: "2 callable values".to_string(),
@@ -390,21 +385,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
         }
 
         let (function_offset, environment_offset, _) = self.callable_payload_layout();
-        let function = values[0]
-            .as_function_pointer()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "function pointer".to_string(),
-                actual: format!("{:?}", values[0]),
-            })?;
-        let environment = values[1]
-            .as_heap_reference()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "heap reference".to_string(),
-                actual: format!("{:?}", values[1]),
-            })?;
-        let function_bytes = (function.id as u64).to_le_bytes();
+        let function = values[0].as_function_pointer();
+        let environment = values[1].as_heap_reference();
+        let function_bytes = (function.bits() as u64).to_le_bytes();
         let environment_bytes = (environment.bits() as u64).to_le_bytes();
-        let pointer_bytes = self.module().tree.pointer_bytes() as usize;
+        let pointer_bytes = self.program().tree.pointer_bytes() as usize;
         let (_, _, byte_len) = self.callable_payload_layout();
         let mut bytes = vec![0; byte_len];
 
@@ -420,10 +405,10 @@ impl<'ctx> ExternalCallContext<'ctx> {
     fn materialize_callable(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        values: Vec<Value>,
-    ) -> Result<Value, Error> {
+        values: Vec<Word>,
+    ) -> Result<Word, Error> {
         let layout_id = self
-            .module()
+            .program()
             .layout_id_for_type(ty)
             .ok_or(Error::InvalidInstruction)?;
         let bytes = self.callable_payload(values)?;
@@ -431,51 +416,51 @@ impl<'ctx> ExternalCallContext<'ctx> {
         let handle = self.capture_heap_reference(handle)?;
         self.record_heap_type(handle, ty);
 
-        Ok(Value::heap_reference(handle))
+        Ok(Word::heap_reference(handle))
     }
 
     /// Materialize one typed aggregate value on the heap.
     pub(crate) fn materialize_heap_value(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        values: Vec<Value>,
-    ) -> Result<Value, Error> {
+        values: Vec<Word>,
+    ) -> Result<Word, Error> {
         if matches!(
-            self.module().tree.get(repr_type(&self.module().tree, ty)),
+            self.program().tree.get(repr_type(&self.program().tree, ty)),
             mir::Type::Callable { .. }
         ) {
             return self.materialize_callable(ty, values);
         }
 
         let layout_id = self
-            .module()
+            .program()
             .layout_id_for_type(ty)
             .ok_or(Error::InvalidInstruction)?;
         let handle = self.allocate_heap_layout(layout_id, Payload::Zeroed)?;
         let handle = self.capture_heap_reference(handle)?;
         self.record_heap_type(handle, ty);
-        let value_layouts = aggregate_members(self.layout(ty)?)?;
+        let reprs = aggregate_fields(self.layout(ty)?)?;
 
-        if values.len() != value_layouts.len() {
+        if values.len() != reprs.len() {
             return Err(Error::TypeMismatch {
-                expected: format!("{} aggregate values", value_layouts.len()),
+                expected: format!("{} aggregate values", reprs.len()),
                 actual: format!("{} aggregate values", values.len()),
             });
         }
 
         // write each value directly into the aggregate payload
-        for (value_layout, value) in value_layouts.into_iter().zip(values) {
-            self.write_heap_value_field(handle, value_layout.offset, value_layout.ty, value)?;
+        for (repr, value) in reprs.into_iter().zip(values) {
+            self.write_heap_value_field(handle, repr.offset, repr.ty, value)?;
         }
 
-        Ok(Value::heap_reference(handle))
+        Ok(Word::heap_reference(handle))
     }
 
     /// Store UTF-8 bytes in raw VM storage and return the value.
-    pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
+    pub fn intern_string(&mut self, value: &str) -> Result<Word, Error> {
         let pointer = self.allocate_raw_bytes(value.as_bytes())?;
 
-        Ok(Value::raw_pointer(pointer))
+        Ok(Word::raw_pointer(pointer))
     }
 
     /// Store UTF-8 bytes in raw VM storage and return a handle.
@@ -486,8 +471,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Validate one VM value as a string handle.
-    pub fn string_handle_from_value(&self, value: Value) -> Result<StringHandle, Error> {
-        if value.as_raw_pointer().is_some() {
+    pub fn string_handle_from_value(&self, value: Word) -> Result<StringHandle, Error> {
+        if !value.as_raw_pointer().is_null() {
             return Ok(StringHandle::new(value));
         }
 
@@ -500,10 +485,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     /// Read one UTF-8 string view by handle.
     pub fn string_ref(&self, value: StringHandle) -> Result<StringRef<'_>, Error> {
         let value = value.value();
-        let pointer = value.as_raw_pointer().ok_or_else(|| Error::TypeMismatch {
-            expected: "string byte storage".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        let pointer = value.as_raw_pointer();
         let bytes = self.raw_bytes_ref(pointer)?.into_owned();
         let value = String::from_utf8(bytes).map_err(|error| Error::TypeMismatch {
             expected: "valid UTF-8 string".to_string(),
@@ -516,7 +498,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Read one UTF-8 string value.
-    pub fn string_value(&self, value: Value) -> Result<String, Error> {
+    pub fn string_value(&self, value: Word) -> Result<String, Error> {
         let handle = self.string_handle_from_value(value)?;
 
         Ok(self.string_ref(handle)?.to_string())
@@ -525,13 +507,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
 impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     /// Return one cached VM value view.
-    pub fn value_ref(&self, value: Value) -> Result<VmValueRef<'call, 'ctx>, Error> {
-        let reference = value
-            .as_heap_reference()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "heap aggregate".to_string(),
-                actual: format!("{value:?}"),
-            })?;
+    pub fn value_ref(&self, value: Word) -> Result<VmValueRef<'call, 'ctx>, Error> {
+        let reference = value.as_heap_reference();
         let bytes = self.context().heap_ref().read_heap_bytes(reference)?;
         let ty = self.context().heap_type(reference);
         let byte_len = bytes.len();
@@ -547,7 +524,7 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     }
 
     /// Return one VM string handle from one value.
-    pub fn string_handle_from_value(&self, value: Value) -> Result<StringHandle, Error> {
+    pub fn string_handle_from_value(&self, value: Word) -> Result<StringHandle, Error> {
         self.context().string_handle_from_value(value)
     }
 
@@ -574,32 +551,30 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
     /// Materialize one builtin slice value.
     pub fn materialize_builtin_slice_value(
         &mut self,
-        data: Value,
+        data: Word,
         len: usize,
-    ) -> Result<Value, Error> {
-        let len = Value::uint(len as u64, usize::BITS as u8);
+    ) -> Result<Word, Error> {
+        let len = Word::uint(len as u64, usize::BITS as u8);
         self.materialize_named_aggregate("Slice", vec![data, len])
     }
 
     /// Materialize one builtin array value.
     pub fn materialize_builtin_array_value(
         &mut self,
-        len: usize,
+        slice: Word,
         capacity: usize,
-        data: Value,
-    ) -> Result<Value, Error> {
-        let len = Value::uint(len as u64, usize::BITS as u8);
-        let capacity = Value::uint(capacity as u64, usize::BITS as u8);
+    ) -> Result<Word, Error> {
+        let capacity = Word::uint(capacity as u64, usize::BITS as u8);
 
-        self.materialize_named_aggregate("Array", vec![data, len, capacity])
+        self.materialize_named_aggregate("Array", vec![slice, capacity])
     }
 
     /// Materialize one named runtime aggregate value.
     pub fn materialize_named_aggregate(
         &mut self,
         aggregate_type: &str,
-        values: Vec<Value>,
-    ) -> Result<Value, Error> {
+        values: Vec<Word>,
+    ) -> Result<Word, Error> {
         let ty = self.context_mut().named_type(aggregate_type)?;
 
         self.context_mut().materialize_heap_value(ty, values)
@@ -609,13 +584,13 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
     pub fn materialize_named_aggregate_array<const N: usize>(
         &mut self,
         aggregate_type: &str,
-        values: [Value; N],
-    ) -> Result<Value, Error> {
+        values: [Word; N],
+    ) -> Result<Word, Error> {
         self.materialize_named_aggregate(aggregate_type, values.to_vec())
     }
 
     /// Intern one string into VM ABI storage.
-    pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
+    pub fn intern_string(&mut self, value: &str) -> Result<Word, Error> {
         self.context_mut().intern_string(value)
     }
 

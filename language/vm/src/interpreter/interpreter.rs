@@ -1,145 +1,157 @@
-#[cfg(feature = "stats")]
-use std::time::Duration;
-
+use destack_engine::{self as engine, StaticSpace};
 use destack_mir as mir;
 
+use crate::Word;
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::interpreter::Continuation;
-use crate::isolate::{ExternalCallContext, GlobalStorage, RootVisitor};
-use crate::module::{FunctionTable, Module};
+use crate::isolate::RootVisitor;
+use crate::options::IsolateOptions;
+use crate::program::Program;
 use crate::snapshot::InterpreterImage;
-use crate::telemetry::Statistics;
-use crate::{ReferenceAddressSpace, ReferenceMeta, SharedHeap, Value};
-use destack_heap::{
-    Heap, HeapReference, RawPointer, SharedHeapReference, SharedRawLimits, SharedRawPointer,
-};
+use destack_heap::{HeapResult, RootSlot};
 
 use super::Frame;
-#[cfg(feature = "stats")]
-use crate::telemetry::InstructionProfile;
+
+/// Align one stack byte count.
+pub(super) fn align_stack_bytes(offset: usize, alignment: usize) -> Option<usize> {
+    if alignment <= 1 {
+        return Some(offset);
+    }
+
+    let remainder = offset % alignment;
+    if remainder == 0 {
+        Some(offset)
+    } else {
+        offset.checked_add(alignment - remainder)
+    }
+}
 
 /// Interpreter execution engine.
 #[derive(Debug)]
 pub struct Interpreter {
     /// Explicit frame stack used for execution and root walking.
-    pub(crate) stack: Vec<Frame>,
-    /// Execution statistics.
-    pub(crate) statistics: Statistics,
-    /// Optional instruction profiling sampler.
-    #[cfg(feature = "stats")]
-    pub(crate) instruction_profile: Option<InstructionProfile>,
+    pub(crate) frames: Vec<Frame>,
+    /// Byte arena backing all live frame bytes.
+    pub(crate) stack: Vec<u8>,
 }
 
 impl Interpreter {
     /// Create a new interpreter engine.
     pub(crate) fn new() -> Self {
         Self {
+            frames: Vec::new(),
             stack: Vec::new(),
-            statistics: Statistics::new(),
-            #[cfg(feature = "stats")]
-            instruction_profile: None,
         }
     }
 
-    /// Get the current frame stack for this engine.
-    pub(crate) fn stack(&self) -> &[Frame] {
-        &self.stack
+    /// Prepare the stack arena for one top-level run.
+    pub(crate) fn reset_stack(&mut self, options: &IsolateOptions) {
+        self.frames.clear();
+
+        if self.stack.capacity() < options.limits.max_stack_bytes {
+            self.stack = Vec::with_capacity(options.limits.max_stack_bytes);
+        }
+        self.stack.clear();
+    }
+
+    /// Allocate one frame byte record in the stack arena.
+    pub(crate) fn allocate_frame(
+        &mut self,
+        layout: &engine::FrameLayout,
+        options: &IsolateOptions,
+    ) -> RuntimeResult<(usize, *mut u8)> {
+        let base = align_stack_bytes(self.stack.len(), Word::BYTE_LEN)
+            .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
+        let end = base
+            .checked_add(layout.byte_len as usize)
+            .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
+        if end > options.limits.max_stack_bytes {
+            return Err(RuntimeError::new(Error::StackOverflow));
+        }
+
+        self.stack.resize(end, 0);
+
+        let frame_base = unsafe { self.stack.as_mut_ptr().add(base) };
+
+        Ok((base, frame_base))
+    }
+
+    /// Release stack bytes above one frame base.
+    pub(crate) fn truncate_stack(&mut self, stack_offset: usize) {
+        debug_assert!(stack_offset <= self.stack.len());
+        self.stack.truncate(stack_offset);
+    }
+
+    /// Return the current frames for this engine.
+    pub(crate) fn frames(&self) -> &[Frame] {
+        &self.frames
     }
 
     /// Capture one immutable interpreter image.
     pub(crate) fn image(&self) -> InterpreterImage {
-        let stack = self.stack.iter().map(Frame::image).collect();
+        let stack = self.frames.iter().map(Frame::image).collect();
 
-        InterpreterImage {
-            stack,
-            statistics: self.statistics.clone(),
-        }
+        InterpreterImage { stack }
     }
 
     /// Fork this interpreter for one child isolate.
     pub(crate) fn fork(&self) -> Self {
-        // clone the live frame stack for the child isolate
-        let stack = self.stack.iter().map(Frame::clone_for_fork).collect();
-        Self {
-            stack,
-            statistics: self.statistics.clone(),
-            #[cfg(feature = "stats")]
-            instruction_profile: None,
+        let mut stack = self.stack.clone();
+        let mut frames: Vec<_> = self.frames.iter().map(Frame::clone_for_fork).collect();
+
+        // point cloned frames at the cloned stack bytes
+        let stack_base = stack.as_mut_ptr();
+        for frame in &mut frames {
+            frame.remap_bytes(stack_base);
         }
+
+        Self { frames, stack }
     }
 
     /// Create one interpreter from an immutable image.
-    pub(crate) fn from_image(
-        functions: &FunctionTable,
-        image: &InterpreterImage,
-    ) -> RuntimeResult<Self> {
+    pub(crate) fn from_image(program: &Program, image: &InterpreterImage) -> RuntimeResult<Self> {
         let mut interpreter = Self::new();
 
-        // restore the mutable execution state
-        let stack = image
-            .stack
-            .iter()
-            .map(|frame| Frame::from_image(frame, functions))
-            .collect::<RuntimeResult<Vec<_>>>()?;
+        // restore frame bytes before frame metadata points into them
+        for frame_image in &image.stack {
+            let layout = program
+                .frame_layout_by_id(frame_image.frame_layout)
+                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            let base = align_stack_bytes(interpreter.stack.len(), Word::BYTE_LEN)
+                .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
+            let end = base
+                .checked_add(frame_image.bytes.len())
+                .ok_or_else(|| RuntimeError::new(Error::StackOverflow))?;
+            interpreter.stack.resize(end, 0);
+            interpreter.stack[base..end].copy_from_slice(&frame_image.bytes);
 
-        interpreter.stack = stack;
-        interpreter.statistics = image.statistics.clone();
+            let frame_base = unsafe { interpreter.stack.as_mut_ptr().add(base) };
+            let frame =
+                Frame::from_image(frame_image, &program.functions, layout, base, frame_base)?;
 
-        #[cfg(feature = "stats")]
-        {
-            interpreter.instruction_profile = None;
+            interpreter.frames.push(frame);
         }
 
         Ok(interpreter)
     }
 
-    /// Enable instruction profiling with the given sampling interval.
-    #[cfg(feature = "stats")]
-    pub(crate) fn enable_instruction_profile(&mut self, sample_interval: Duration) {
-        self.instruction_profile = Some(InstructionProfile::new(sample_interval));
-    }
-
-    /// Reset instruction profiling samples without disabling sampling.
-    #[cfg(feature = "stats")]
-    pub(crate) fn reset_instruction_profile(&mut self) {
-        if let Some(profile) = self.instruction_profile.as_mut() {
-            profile.reset();
-        }
-    }
-
-    /// Clear instruction profiling data and disable sampling.
-    #[cfg(feature = "stats")]
-    pub(crate) fn clear_instruction_profile(&mut self) {
-        self.instruction_profile = None;
-    }
-
-    /// Return a compact instruction profile report if available.
-    #[cfg(feature = "stats")]
-    pub(crate) fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
-        self.instruction_profile
-            .as_ref()
-            .map(|profile| profile.summary_target(target_percent).format_compact())
-    }
-
     /// Create an error with current call stack.
     #[cold]
-    pub(crate) fn make_error(&self, module: &Module, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(self.get_call_stack_info(module))
+    pub(crate) fn make_error(&self, program: &Program, error: Error) -> RuntimeError {
+        RuntimeError::new(error).with_call_stack(self.get_call_stack_info(program))
     }
 
-    /// Initialize global variables from the MIR tree.
-    pub(crate) fn initialize_globals(
+    /// Initialize static data from MIR globals.
+    pub(crate) fn initialize_statics(
         &mut self,
-        module: &Module,
-        globals: &mut GlobalStorage,
-        heap: &mut Heap,
-        shared: &SharedHeap,
+        program: &Program,
+        statics: &mut StaticSpace,
     ) -> RuntimeResult<()> {
-        // seed empty global storage
-        let mut initialized_globals = GlobalStorage::new();
+        // allocate static bytes
+        let mut initialized_statics = StaticSpace::allocator();
 
-        // snapshot globals to avoid borrowing module during initialization
-        let global_entries: Vec<_> = module
+        // snapshot globals before writing static bytes
+        let global_entries: Vec<_> = program
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
@@ -151,268 +163,55 @@ impl Interpreter {
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        // populate globals from initializers
+        // populate static bytes from global initializers
         for (id, ty, is_import, initializer) in global_entries {
             // skip imported globals
-            if is_import {
+            if is_import || program.contains_static(id) {
                 continue;
             }
 
-            // materialize initializer when present
-            let value = match initializer.as_ref() {
-                Some(init) => {
-                    self.materialize_global_initializer(module, heap, shared, init, ty)?
-                }
-                None => Value::VOID,
+            let layout = program.layout(ty).ok_or_else(|| {
+                self.make_error(
+                    program,
+                    Error::TypeMismatch {
+                        expected: "compiled global layout".to_string(),
+                        actual: format!("{ty:?}"),
+                    },
+                )
+            })?;
+            let bytes = match initializer.as_ref() {
+                Some(init) => program
+                    .initializer_bytes(init, ty)
+                    .map_err(|error| self.make_error(program, error))?,
+                None => vec![0; layout.byte_len],
             };
-            initialized_globals.set(id, value);
+            if initialized_statics
+                .define(
+                    program.static_id(id),
+                    program.type_id(ty),
+                    layout.alignment(),
+                    program.tree.get(id).is_mutable(),
+                    &bytes,
+                )
+                .is_none()
+            {
+                return Err(self.make_error(program, Error::InvalidInstruction));
+            }
         }
 
-        // store initialized globals
-        *globals = initialized_globals;
+        // store initialized static data
+        *statics = initialized_statics.finish();
 
         Ok(())
     }
 
-    /// Materialize one global initializer into its declared heap value.
-    fn materialize_global_initializer(
-        &mut self,
-        module: &Module,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        init: &mir::GlobalInitializer,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> RuntimeResult<Value> {
-        // select initializer strategy
-        match init {
-            mir::GlobalInitializer::Zero => self.zero_value(module, heap, shared, ty),
-            mir::GlobalInitializer::Scalar(constant) => Ok(self.scalar_constant_value(constant)),
-            mir::GlobalInitializer::Bytes(bytes) => {
-                // materialize bytes as u8 values
-                let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
-
-                // allocate heap value for the declared global type
-                self.allocate_initializer_heap_value(module, heap, shared, ty, values)
-            }
-            mir::GlobalInitializer::Aggregate(elements) => {
-                // resolve the declared aggregate value types
-                let value_types = self.aggregate_member_types(module, ty)?;
-                if elements.len() != value_types.len() {
-                    return Err(self.make_error(
-                        module,
-                        Error::TypeMismatch {
-                            expected: format!(
-                                "initializer with {} aggregate values",
-                                value_types.len()
-                            ),
-                            actual: format!("initializer with {} aggregate values", elements.len()),
-                        },
-                    ));
-                }
-
-                // materialize each element using the declared value type
-                let values = elements
-                    .iter()
-                    .zip(value_types.into_iter())
-                    .map(|(element, value_type)| {
-                        self.materialize_global_initializer(
-                            module, heap, shared, element, value_type,
-                        )
-                    })
-                    .collect::<RuntimeResult<Vec<_>>>()?;
-
-                // allocate heap value for the declared global type
-                self.allocate_initializer_heap_value(module, heap, shared, ty, values)
-            }
-        }
-    }
-
-    /// Resolve the declared aggregate member types for one layout-backed aggregate.
-    fn aggregate_member_types(
-        &self,
-        module: &Module,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> RuntimeResult<Vec<mir::LocalNodeId<mir::Type>>> {
-        let layout = module.layout(ty).ok_or_else(|| {
-            self.make_error(
-                module,
-                Error::TypeMismatch {
-                    expected: "layout-backed aggregate type".to_string(),
-                    actual: format!("{ty:?}"),
-                },
-            )
-        })?;
-        if let Some(field_count) = layout.field_count() {
-            let mut value_types = Vec::with_capacity(field_count);
-
-            // collect field types in source order
-            for index in 0..field_count {
-                let field = layout.field(index as u32).ok_or_else(|| {
-                    self.make_error(
-                        module,
-                        Error::TypeMismatch {
-                            expected: "field layout".to_string(),
-                            actual: format!("{ty:?}"),
-                        },
-                    )
-                })?;
-                value_types.push(field.ty);
-            }
-
-            return Ok(value_types);
-        }
-
-        let Some(element) = layout.element() else {
-            return Err(self.make_error(
-                module,
-                Error::TypeMismatch {
-                    expected: "aggregate layout".to_string(),
-                    actual: format!("{ty:?}"),
-                },
-            ));
-        };
-        let element_count = layout.element_count().ok_or_else(|| {
-            self.make_error(
-                module,
-                Error::TypeMismatch {
-                    expected: "indexed layout".to_string(),
-                    actual: format!("{ty:?}"),
-                },
-            )
-        })?;
-
-        Ok(vec![element.ty; element_count])
-    }
-
-    /// Allocate one initializer aggregate through the heap allocation path.
-    fn allocate_initializer_heap_value(
-        &mut self,
-        module: &Module,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        ty: mir::LocalNodeId<mir::Type>,
-        values: Vec<Value>,
-    ) -> RuntimeResult<Value> {
-        let mut context =
-            ExternalCallContext::new(module, heap, shared, SharedRawLimits::default());
-        context
-            .materialize_heap_value(ty, values)
-            .map_err(|error| self.make_error(module, error))
-    }
-
-    /// Build one scalar runtime value from one MIR constant.
-    fn scalar_constant_value(&mut self, constant: &mir::Constant) -> Value {
-        Value::from(constant)
-    }
-
-    /// Create a zero value for a given type.
-    fn zero_value(
-        &mut self,
-        module: &Module,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> RuntimeResult<Value> {
-        // materialize one zeroed aggregate through the heap path
-        if module.layout(ty).is_some_and(|layout| !layout.is_scalar()) {
-            let value_types = self.aggregate_member_types(module, ty)?;
-            let values = value_types
-                .into_iter()
-                .map(|value_type| self.zero_value(module, heap, shared, value_type))
-                .collect::<RuntimeResult<Vec<_>>>()?;
-
-            return self.allocate_initializer_heap_value(module, heap, shared, ty, values);
-        }
-
-        // resolve the type node
-        let ty_node = module.tree.get(ty).clone();
-
-        // build a zero value based on type
-        match ty_node {
-            mir::Type::Void => Ok(Value::VOID),
-            mir::Type::Int { width, is_signed } => {
-                // select signed or unsigned zero
-                if is_signed {
-                    Ok(Value::int(0, width as u8))
-                } else {
-                    Ok(Value::uint(0, width as u8))
-                }
-            }
-            mir::Type::Isize => Ok(Value::int(0, usize::BITS as u8)),
-            mir::Type::Usize => Ok(Value::uint(0, usize::BITS as u8)),
-            mir::Type::Float { width } => {
-                // select float width
-                if width == 32 {
-                    Ok(Value::float32(0.0))
-                } else {
-                    Ok(Value::float64(0.0))
-                }
-            }
-            mir::Type::Boolean => Ok(Value::bool(false)),
-            mir::Type::TypeDescriptor | mir::Type::TypeId => Err(self.make_error(
-                module,
-                Error::UnsupportedZeroValue {
-                    ty: format!("{ty_node:?}"),
-                },
-            )),
-            mir::Type::Reference {
-                kind,
-                ref address_space,
-                mutability,
-                is_nullable,
-                ..
-            } => {
-                if !is_nullable {
-                    return Err(self.make_error(
-                        module,
-                        Error::UnsupportedZeroValue {
-                            ty: format!("{ty_node:?}"),
-                        },
-                    ));
-                }
-
-                let meta = ReferenceMeta::new(kind, address_space.clone(), mutability, is_nullable);
-                match kind {
-                    mir::ReferenceKind::Managed | mir::ReferenceKind::Owned
-                        if matches!(meta.address_space(), ReferenceAddressSpace::Shared) =>
-                    {
-                        Ok(Value::shared_heap_reference_with_meta(
-                            SharedHeapReference::NULL,
-                            meta,
-                        ))
-                    }
-                    mir::ReferenceKind::Managed | mir::ReferenceKind::Owned => {
-                        Ok(Value::heap_reference_with_meta(HeapReference::NULL, meta))
-                    }
-                    mir::ReferenceKind::Borrowed | mir::ReferenceKind::Raw
-                        if matches!(meta.address_space(), ReferenceAddressSpace::Shared) =>
-                    {
-                        Ok(Value::shared_raw_pointer_with_meta(
-                            SharedRawPointer::NULL,
-                            meta,
-                        ))
-                    }
-                    mir::ReferenceKind::Borrowed | mir::ReferenceKind::Raw => {
-                        Ok(Value::raw_pointer_with_meta(RawPointer::NULL, meta))
-                    }
-                }
-            }
-            _ => Err(self.make_error(
-                module,
-                Error::UnsupportedZeroValue {
-                    ty: format!("{ty_node:?}"),
-                },
-            )),
-        }
-    }
-
     /// Get call stack info for error reporting.
-    fn get_call_stack_info(&self, module: &Module) -> Vec<FrameInfo> {
-        self.stack
+    fn get_call_stack_info(&self, program: &Program) -> Vec<FrameInfo> {
+        self.frames
             .iter()
             .map(|f| {
-                let func = module.tree.get(f.function);
-                let name = module.strings.get(func.name).to_string();
+                let func = program.tree.get(f.function);
+                let name = program.strings.get(func.name).to_string();
                 FrameInfo {
                     function: f.function,
                     block: f.current_block,
@@ -425,34 +224,71 @@ impl Interpreter {
     /// Visit one complete root set from active state and suspended continuations.
     pub(crate) fn visit_roots(
         &mut self,
-        module: &Module,
-        globals: &GlobalStorage,
+        program: &Program,
+        statics: &StaticSpace,
         continuations: &[Continuation],
         roots: &mut impl RootVisitor,
     ) -> RuntimeResult<()> {
         // active frames
-        for frame in &self.stack {
+        for frame in &self.frames {
             frame
-                .visit_roots(module, roots)
-                .map_err(|error| self.make_error(module, error))?;
+                .visit_roots(program, roots)
+                .map_err(|error| self.make_error(program, error))?;
         }
 
         // suspended continuations
         for continuation in continuations {
             continuation
-                .visit_roots(module, roots)
-                .map_err(|error| self.make_error(module, error))?;
+                .visit_roots(program, roots)
+                .map_err(|error| self.make_error(program, error))?;
         }
 
-        // globals
-        for value in globals.values() {
-            if let Some(reference) = value.as_heap_reference() {
-                roots.push_heap(reference);
-            }
+        // statics
+        for (_id, region, bytes) in statics.iter_regions() {
+            Frame::visit_byte_roots(program, program.type_for_id(region.ty), bytes, roots)
+                .map_err(|error| self.make_error(program, error))?;
+        }
 
-            if let Some(reference) = value.as_shared_heap_reference() {
-                roots.push_shared(reference);
+        Ok(())
+    }
+
+    /// Visit mutable local root slots from active state and suspended continuations.
+    pub(crate) fn visit_root_slots(
+        &mut self,
+        program: &Program,
+        statics: &mut StaticSpace,
+        continuations: &mut [Continuation],
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        // active frames
+        for frame in &mut self.frames {
+            let result = frame.visit_root_slots(program, visit);
+            if let Err(error) = result {
+                return Err(self.make_error(program, error));
             }
+        }
+
+        // suspended continuations
+        for continuation in continuations {
+            continuation
+                .visit_root_slots(program, visit)
+                .map_err(|error| self.make_error(program, error))?;
+        }
+
+        let static_ids: Vec<_> = statics.ids().collect();
+
+        // statics
+        for id in static_ids {
+            let region = statics
+                .region(id)
+                .cloned()
+                .ok_or_else(|| self.make_error(program, Error::InvalidInstruction))?;
+            let bytes = statics
+                .bytes_mut(id)
+                .ok_or_else(|| self.make_error(program, Error::InvalidInstruction))?;
+
+            Frame::visit_byte_root_slots(program, program.type_for_id(region.ty), bytes, visit)
+                .map_err(|error| self.make_error(program, error))?;
         }
 
         Ok(())

@@ -1,16 +1,25 @@
-use std::collections::BTreeMap;
+use std::mem;
 use std::ptr::NonNull;
 
 use destack_mir::ReferenceMap;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::module::{Block, Function, FunctionTable, Module, repr_type};
+use crate::program::{Block, Function, FunctionTable, Program, repr_type};
 use crate::snapshot::FrameImage;
-use crate::{RootVisitor, Value};
-use destack_heap::{Heap, HeapReference, SharedHeapReference};
+use crate::{FramePointer, RootVisitor, Word};
+use destack_heap::{HeapReference, HeapResult, RootSlot, SharedHeapReference};
 
-use super::StackAllocation;
+/// Heap reference carried by one scalar type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScalarRoot {
+    /// No heap root.
+    None,
+    /// Worker-local heap root.
+    Local,
+    /// World-shared heap root.
+    Shared,
+}
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -23,29 +32,21 @@ pub struct Frame {
     pub(crate) function_ptr: NonNull<Function>,
     /// Pointer to the current block.
     pub(crate) block_ptr: NonNull<Block>,
-    /// The entry block of the function.
-    pub(crate) entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
     pub(crate) current_block: mir::LocalNodeId<mir::Block>,
-    /// Current block index.
-    pub(crate) block_index: usize,
-    /// Module counter within the current block.
+    /// Program counter within the current block.
     pub(crate) resume_pc: usize,
     /// The pending transfer owned by this frame while one callee runs.
     pub(crate) transfer: Option<engine::ControlTransfer>,
-    /// Count of SSA values in this frame.
-    pub(crate) value_count: usize,
-    /// Count of local variables in this frame.
-    pub(crate) local_count: usize,
-    /// Frame-owned slot storage.
-    slots: Vec<Value>,
-    /// Stack-allocated byte buffers, freed when the frame pops.
-    pub(crate) stack_allocations: Vec<Option<StackAllocation>>,
-    /// Callable environment pointer for this frame.
-    pub(crate) environment: Value,
+    /// The byte offset in the interpreter stack arena.
+    pub(crate) stack_offset: usize,
+    /// The frame byte width.
+    pub(crate) byte_len: usize,
+    /// Pointer to the frame bytes in the interpreter stack arena.
+    base: *mut u8,
 }
 
-// the raw function and block pointers always point into immutable module storage
+// the raw function and block pointers always point into immutable program data
 // that stays alive for the duration of the owning isolate
 unsafe impl Send for Frame {}
 
@@ -57,496 +58,507 @@ impl Frame {
         function: mir::LocalNodeId<mir::Function>,
         function_ptr: NonNull<Function>,
         block_ptr: NonNull<Block>,
-        entry_block: mir::LocalNodeId<mir::Block>,
-        block_index: usize,
-        value_count: usize,
-        local_count: usize,
-        environment: Value,
+        current_block: mir::LocalNodeId<mir::Block>,
+        layout: &engine::FrameLayout,
+        stack_offset: usize,
+        base: *mut u8,
     ) -> Self {
-        let slot_count = value_count + local_count;
-
-        // assemble frame state
         Self {
             frame_layout,
             function,
             function_ptr,
             block_ptr,
-            entry_block,
-            current_block: entry_block,
-            block_index,
+            current_block,
             resume_pc: 0,
             transfer: None,
-            value_count,
-            local_count,
-            slots: vec![Value::VOID; slot_count],
-            stack_allocations: Vec::new(),
-            environment,
+            stack_offset,
+            byte_len: layout.byte_len as usize,
+            base,
         }
     }
 
-    /// Borrow all frame slots mutably.
-    #[inline]
-    pub(crate) fn slots_mut(&mut self) -> &mut [Value] {
-        self.slots.as_mut_slice()
+    /// Repoint this frame after its backing stack arena has moved.
+    pub(crate) fn remap_bytes(&mut self, stack_base: *mut u8) {
+        self.base = unsafe { stack_base.add(self.stack_offset) };
     }
 
-    /// Return one raw mutable pointer to the frame slots.
-    #[inline]
-    pub(crate) fn slots_mut_ptr(&mut self) -> *mut Value {
-        self.slots.as_mut_ptr()
+    /// Replace this frame's byte range.
+    pub(crate) fn replace_bytes(&mut self, stack_offset: usize, byte_len: usize, base: *mut u8) {
+        self.stack_offset = stack_offset;
+        self.byte_len = byte_len;
+        self.base = base;
     }
 
-    /// Reset the frame slot storage for one new layout shape.
-    pub(crate) fn reset_slots(&mut self, value_count: usize, local_count: usize) {
-        let slot_count = value_count + local_count;
+    /// Extend this frame's stack-owned byte range.
+    pub(crate) fn extend_bytes_to(&mut self, stack_end: usize) {
+        if stack_end > self.stack_offset {
+            self.byte_len = stack_end - self.stack_offset;
+        }
+    }
 
-        // resize storage first
-        self.slots.resize(slot_count, Value::VOID);
+    /// Return the native address of this frame's byte range.
+    #[inline]
+    pub(crate) fn base_address(&self) -> usize {
+        self.base as usize
+    }
 
-        // clear all live slots
-        self.slots.fill(Value::VOID);
+    /// Return this frame's byte range.
+    #[inline]
+    pub(crate) fn bytes(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.base, self.byte_len) }
+    }
 
-        // store the new frame shape
-        self.value_count = value_count;
-        self.local_count = local_count;
+    /// Return this frame's byte range mutably.
+    #[inline]
+    pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.base, self.byte_len) }
+    }
+
+    /// Return a pointer to one frame region.
+    #[inline(always)]
+    pub(crate) fn region_address(&self, region: &engine::FrameRegion) -> usize {
+        self.base_address() + region.offset as usize
+    }
+
+    /// Read one word from a region.
+    #[inline(always)]
+    pub(crate) fn read_word(&self, region: &engine::FrameRegion) -> Word {
+        debug_assert!(region.byte_len as usize >= Word::BYTE_LEN);
+        debug_assert_eq!((self.region_address(region) % mem::align_of::<Word>()), 0);
+
+        unsafe { std::ptr::read(self.region_address(region) as *const Word) }
+    }
+
+    /// Write one word into a region.
+    #[inline(always)]
+    pub(crate) fn write_word(&mut self, region: &engine::FrameRegion, value: Word) {
+        debug_assert!(region.byte_len as usize >= Word::BYTE_LEN);
+        debug_assert_eq!((self.region_address(region) % mem::align_of::<Word>()), 0);
+
+        unsafe {
+            std::ptr::write(self.region_address(region) as *mut Word, value);
+        }
+    }
+
+    /// Read one word or frame address from a region.
+    #[inline(always)]
+    pub(crate) fn read_operand(&self, region: &engine::FrameRegion) -> Word {
+        if region.is_word {
+            return self.read_word(region);
+        }
+
+        Word::frame_pointer(FramePointer::from_address(self.region_address(region)))
+    }
+
+    /// Borrow one region byte range.
+    pub(crate) fn region_bytes(&self, region: &engine::FrameRegion) -> &[u8] {
+        let start = region.offset as usize;
+        let end = start + region.byte_len as usize;
+
+        &self.bytes()[start..end]
+    }
+
+    /// Borrow one region byte range mutably.
+    pub(crate) fn region_bytes_mut(&mut self, region: &engine::FrameRegion) -> &mut [u8] {
+        let start = region.offset as usize;
+        let end = start + region.byte_len as usize;
+
+        &mut self.bytes_mut()[start..end]
     }
 
     /// Get a value from this frame.
     #[inline]
-    pub fn get_value(&self, value: mir::Value) -> RuntimeResult<Value> {
-        // forward to value lookup
-        self.get_value_or_error(value).map_err(RuntimeError::new)
+    pub fn get_value(
+        &self,
+        layout: &engine::FrameLayout,
+        value: mir::Value,
+    ) -> RuntimeResult<Word> {
+        self.get_value_or_error(layout, value)
+            .map_err(RuntimeError::new)
     }
 
     /// Get a value from this frame without call stack context.
     #[inline]
-    pub fn get_value_or_error(&self, value: mir::Value) -> Result<Value, Error> {
-        // compute value index
-        let index = value.0 as usize;
+    pub fn get_value_or_error(
+        &self,
+        layout: &engine::FrameLayout,
+        value: mir::Value,
+    ) -> Result<Word, Error> {
+        let region = layout
+            .value_index(value.0)
+            .ok_or(Error::UndefinedValue { value })?;
 
-        // reject out of bounds values
-        if index >= self.value_count {
-            return Err(Error::UndefinedValue { value });
+        Ok(self.read_operand(region))
+    }
+
+    /// Write one word into a scalar SSA value.
+    #[inline]
+    pub(crate) fn write_value_word(
+        &mut self,
+        layout: &engine::FrameLayout,
+        value: mir::Value,
+        word: Word,
+    ) -> Result<(), Error> {
+        let region = layout
+            .value_index(value.0)
+            .ok_or(Error::UndefinedValue { value })?;
+        if !region.is_word {
+            return Err(Error::TypeMismatch {
+                expected: "word value".to_string(),
+                actual: format!("frame-backed value: {value:?}"),
+            });
         }
 
-        // read value slot
-        self.slots
-            .as_slice()
-            .get(index)
-            .copied()
-            .ok_or(Error::UndefinedValue { value })
-    }
+        self.write_word(region, word);
 
-    /// Set a value in this frame.
-    #[inline]
-    pub fn set_value(&mut self, value: mir::Value, val: Value) {
-        // compute value index
-        let index = value.0 as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(
-            index < self.value_count,
-            "ssa value out of bounds: {value:?}"
-        );
-
-        // write value slot
-        self.slots[index] = val;
-    }
-
-    /// Get a local variable.
-    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> RuntimeResult<Value> {
-        // forward to local lookup
-        self.get_local_or_error(local).map_err(RuntimeError::new)
-    }
-
-    /// Get a local variable without call stack context.
-    #[inline]
-    pub fn get_local_or_error(&self, local: mir::LocalNodeId<mir::Local>) -> Result<Value, Error> {
-        // compute local index
-        let index = local.id as usize;
-
-        // reject out of bounds locals
-        if index >= self.local_count {
-            return Err(Error::UndefinedLocal { local });
-        }
-
-        // read local slot
-        self.slots
-            .as_slice()
-            .get(self.value_count + index)
-            .copied()
-            .ok_or(Error::UndefinedLocal { local })
-    }
-
-    /// Set a local variable.
-    pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, value: Value) {
-        // compute local index
-        let index = local.id as usize;
-
-        // validate bounds in debug builds
-        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
-
-        // write local slot
-        self.slots[self.value_count + index] = value;
+        Ok(())
     }
 
     /// Check if a value is defined in this frame.
     #[inline]
-    pub fn has_value(&self, value: mir::Value) -> bool {
-        // check value bounds
-        let index = value.0 as usize;
-        index < self.value_count
+    pub fn has_value(&self, layout: &engine::FrameLayout, value: mir::Value) -> bool {
+        layout.value_index(value.0).is_some()
+    }
+
+    /// Get a local variable.
+    pub fn get_local(
+        &self,
+        layout: &engine::FrameLayout,
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> RuntimeResult<Word> {
+        self.get_local_or_error(layout, local)
+            .map_err(RuntimeError::new)
+    }
+
+    /// Get a local variable without call stack context.
+    #[inline]
+    pub fn get_local_or_error(
+        &self,
+        layout: &engine::FrameLayout,
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> Result<Word, Error> {
+        let region = layout
+            .local_index(local.id)
+            .ok_or(Error::UndefinedLocal { local })?;
+
+        Ok(self.read_operand(region))
+    }
+
+    /// Return the address of one local value.
+    pub(crate) fn local_address(
+        &self,
+        layout: &engine::FrameLayout,
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> Result<usize, Error> {
+        let region = layout
+            .local_index(local.id)
+            .ok_or(Error::UndefinedLocal { local })?;
+
+        Ok(self.region_address(region))
+    }
+
+    /// Return the callable environment for this frame.
+    pub(crate) fn environment(&self, layout: &engine::FrameLayout) -> Result<Word, Error> {
+        let Some(region) = layout.environment.as_ref() else {
+            return Ok(Word::VOID);
+        };
+
+        Ok(self.read_word(region))
+    }
+
+    /// Store the callable environment for this frame.
+    pub(crate) fn set_environment(&mut self, layout: &engine::FrameLayout, value: Word) {
+        if let Some(region) = layout.environment.as_ref() {
+            self.write_word(region, value);
+        }
     }
 
     /// Clear all values (but keep locals).
-    pub fn clear_values(&mut self) {
-        // clear value slots
-        self.slots[..self.value_count].fill(Value::VOID);
+    pub fn clear_values(&mut self, layout: &engine::FrameLayout) {
+        for region in &layout.values {
+            self.region_bytes_mut(region).fill(0);
+        }
     }
 
-    /// Allocate a new stack allocation, returning its slot index.
-    pub(crate) fn allocate_stack_allocation(&mut self, allocation: StackAllocation) -> usize {
-        let slot = self.stack_allocations.len();
-        self.stack_allocations.push(Some(allocation));
-        slot
-    }
-
-    /// Retire one stack allocation by slot index.
-    pub(crate) fn retire_stack_allocation(&mut self, slot: usize) -> bool {
-        let Some(buffer) = self.stack_allocations.get_mut(slot) else {
-            return false;
+    /// Return whether this frame owns one stack byte range.
+    pub(crate) fn owns_stack_range(&self, address: usize, byte_len: usize) -> bool {
+        let start = self.base_address();
+        let end = match address.checked_add(byte_len) {
+            Some(end) => end,
+            None => return false,
         };
+        let stack_end = start.saturating_add(self.byte_len);
 
-        buffer.take().is_some()
-    }
-
-    /// Return whether this frame still owns any live stack allocation.
-    pub fn has_live_stack_allocations(&self) -> bool {
-        self.stack_allocations.iter().any(Option::is_some)
-    }
-
-    /// Return one logical frame slot value.
-    pub fn slot_value(&self, slot: u32) -> Option<Value> {
-        if (slot as usize) < self.value_count {
-            return self.slots.as_slice().get(slot as usize).copied();
-        }
-
-        let local_start = self.value_count as u32;
-        if let Some(index) = slot.checked_sub(local_start)
-            && (index as usize) < self.local_count
-        {
-            return self
-                .slots
-                .as_slice()
-                .get(self.value_count + index as usize)
-                .copied();
-        }
-
-        let environment_slot = local_start + self.local_count as u32;
-        if slot == environment_slot {
-            return Some(self.environment);
-        }
-
-        None
-    }
-
-    /// Get a stack allocation by slot index.
-    #[inline]
-    pub(crate) fn stack_allocation(&self, slot: usize) -> Option<&StackAllocation> {
-        self.stack_allocations.get(slot).and_then(Option::as_ref)
-    }
-
-    /// Get a mutable reference to a stack allocation by slot index.
-    #[inline]
-    pub(crate) fn stack_allocation_mut(&mut self, slot: usize) -> Option<&mut StackAllocation> {
-        self.stack_allocations
-            .get_mut(slot)
-            .and_then(Option::as_mut)
+        start <= address && end <= stack_end
     }
 
     /// Visit all heap references from this frame for GC roots.
     pub(crate) fn visit_roots(
         &self,
-        module: &Module,
+        program: &Program,
         roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
         let layout =
-            module
+            program
                 .frame_layout(self.function)
                 .ok_or_else(|| Error::InvariantViolation {
                     context: format!("missing frame layout for frame: {:?}", self.function),
                 })?;
 
-        // slice value and local ranges
-        let slots = self.slots.as_slice();
-        let value_slice = &slots[..self.value_count];
-        let local_slice = &slots[self.value_count..self.value_count + self.local_count];
-
-        // value slots
-        for (index, value) in value_slice.iter().enumerate() {
-            let slot = layout.value_slots.start + index as u32;
-            if Self::slot_holds_direct_heap_roots(module, layout, slot)? {
-                if let Some(reference) = value.as_heap_reference() {
-                    roots.push_heap(reference);
-                }
-
-                if let Some(reference) = value.as_shared_heap_reference() {
-                    roots.push_shared(reference);
-                }
-            }
+        // ssa values
+        for region in &layout.values {
+            self.visit_region_roots(program, region, roots)?;
         }
 
-        // local slots
-        for (index, value) in local_slice.iter().enumerate() {
-            let slot = layout.local_slots.start + index as u32;
-            if Self::slot_holds_direct_heap_roots(module, layout, slot)? {
-                if let Some(reference) = value.as_heap_reference() {
-                    roots.push_heap(reference);
-                }
-
-                if let Some(reference) = value.as_shared_heap_reference() {
-                    roots.push_shared(reference);
-                }
-            }
+        // locals
+        for region in &layout.locals {
+            self.visit_region_roots(program, region, roots)?;
         }
 
         // callable environment
-        if let Some(slot) = layout.environment_slot
-            && Self::slot_holds_direct_heap_roots(module, layout, slot)?
-        {
-            if let Some(reference) = self.environment.as_heap_reference() {
-                roots.push_heap(reference);
-            }
-
-            if let Some(reference) = self.environment.as_shared_heap_reference() {
-                roots.push_shared(reference);
-            }
-        }
-
-        // dynamic stack allocations
-        for allocation in self.stack_allocations.iter().flatten() {
-            Self::visit_storage_roots(
-                module,
-                allocation.storage_type(),
-                allocation.bytes(),
-                roots,
-            )?;
+        if let Some(region) = layout.environment.as_ref() {
+            self.visit_region_roots(program, region, roots)?;
         }
 
         Ok(())
     }
 
-    /// Collect every local heap reference reachable from this frame.
-    pub(crate) fn collect_escape_heap_references(
-        &self,
-        module: &Module,
-        references: &mut Vec<HeapReference>,
-    ) -> Result<(), Error> {
-        // slot values
-        for value in self.slots.as_slice() {
-            collect_value_reference(*value, references)?;
-        }
-
-        // callable environment
-        collect_value_reference(self.environment, references)?;
-
-        // stack allocations
-        for allocation in self.stack_allocations.iter().flatten() {
-            Self::collect_storage_heap_references(
-                module,
-                allocation.storage_type(),
-                allocation.bytes(),
-                references,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    /// Rewrite every local heap reference in this frame through one stable mapping.
-    pub(crate) fn rewrite_escape_heap_references(
+    /// Visit mutable local root slots in this frame.
+    pub(crate) fn visit_root_slots(
         &mut self,
-        module: &Module,
-        heap: &mut Heap,
-        references: &BTreeMap<HeapReference, HeapReference>,
+        program: &Program,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        // slot values
-        for value in &mut self.slots {
-            rewrite_value_reference(value, references)?;
+        let layout =
+            program
+                .frame_layout(self.function)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!("missing frame layout for frame: {:?}", self.function),
+                })?;
+
+        // ssa values
+        for region in &layout.values {
+            self.visit_region_root_slots(program, region, visit)?;
+        }
+
+        // locals
+        for region in &layout.locals {
+            self.visit_region_root_slots(program, region, visit)?;
         }
 
         // callable environment
-        rewrite_value_reference(&mut self.environment, references)?;
-
-        // stack allocations
-        for allocation in self.stack_allocations.iter_mut().flatten() {
-            Self::rewrite_storage_references(
-                module,
-                allocation.storage_type(),
-                allocation.bytes_mut(),
-                references,
-            )?;
-        }
-
-        let layout = module
-            .frame_layout_by_id(self.frame_layout)
-            .ok_or(Error::InvalidInstruction)?;
-
-        for slot_index in layout.value_slots.clone().chain(layout.local_slots.clone()) {
-            let slot = layout.slot(slot_index).ok_or(Error::InvalidInstruction)?;
-            let Some(value) = self.slots.as_slice().get(slot_index as usize).copied() else {
-                return Err(Error::InvalidInstruction);
-            };
-
-            Self::rewrite_heap_payload_references(module, heap, slot.ty, value, references)?;
-        }
-
-        if let Some(slot_index) = layout.environment_slot {
-            let slot = layout.slot(slot_index).ok_or(Error::InvalidInstruction)?;
-
-            Self::rewrite_heap_payload_references(
-                module,
-                heap,
-                slot.ty,
-                self.environment,
-                references,
-            )?;
+        if let Some(region) = layout.environment.as_ref() {
+            self.visit_region_root_slots(program, region, visit)?;
         }
 
         Ok(())
     }
 
-    /// Rewrite heap payload references for one aggregate slot value.
-    fn rewrite_heap_payload_references(
-        module: &Module,
-        heap: &mut Heap,
+    /// Visit one heap root stored in one typed value.
+    pub(crate) fn visit_value_root(
+        program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
-        value: Value,
-        references: &BTreeMap<HeapReference, HeapReference>,
+        value: Word,
+        roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
-        let layout = module.layout(ty).ok_or(Error::InvalidInstruction)?;
-        if layout.is_scalar() {
-            return Ok(());
+        Self::visit_scalar_root(Self::type_scalar_root(program, ty)?, value, roots)
+    }
+
+    /// Visit one scalar root after its reference domain is known.
+    fn visit_scalar_root(
+        root: ScalarRoot,
+        value: Word,
+        roots: &mut impl RootVisitor,
+    ) -> Result<(), Error> {
+        match root {
+            ScalarRoot::None => {}
+            ScalarRoot::Local => {
+                let reference = HeapReference::from_bits(value.bits() as usize);
+                if !reference.is_null() {
+                    roots.push_heap(reference);
+                }
+            }
+            ScalarRoot::Shared => {
+                let reference = SharedHeapReference::from_bits(value.bits() as usize);
+                if !reference.is_null() {
+                    roots.push_shared(reference);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Visit heap roots stored in one frame region.
+    fn visit_region_roots(
+        &self,
+        program: &Program,
+        region: &engine::FrameRegion,
+        roots: &mut impl RootVisitor,
+    ) -> Result<(), Error> {
+        let layout = program
+            .layout_for_id(region.ty)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!(
+                    "missing frame region layout for root scan: type={:?}",
+                    region.ty
+                ),
+            })?;
+        if !layout.is_scalar() {
+            return Self::visit_byte_roots(
+                program,
+                program.type_for_id(region.ty),
+                self.region_bytes(region),
+                roots,
+            );
         }
 
-        let Some(reference) = value.as_heap_reference() else {
-            return Ok(());
-        };
-        if reference.is_null() {
-            return Ok(());
+        Self::visit_value_root(
+            program,
+            program.type_for_id(region.ty),
+            self.read_word(region),
+            roots,
+        )
+    }
+
+    /// Visit local root slots stored in one frame region.
+    fn visit_region_root_slots(
+        &mut self,
+        program: &Program,
+        region: &engine::FrameRegion,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<(), Error> {
+        let layout = program
+            .layout_for_id(region.ty)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!(
+                    "missing frame region layout for heap roots: type={:?}",
+                    region.ty
+                ),
+            })?;
+        if !layout.is_scalar() {
+            return Self::visit_byte_root_slots(
+                program,
+                program.type_for_id(region.ty),
+                self.region_bytes_mut(region),
+                visit,
+            );
         }
 
-        let mut bytes = vec![0u8; layout.byte_len];
-        heap.read_heap_bytes_into(reference, 0, &mut bytes)?;
-        Self::rewrite_storage_references(module, ty, &mut bytes, references)?;
-        heap.write_heap_bytes(reference, 0, &bytes)?;
-        heap.write_barrier(reference, 0, bytes.len())?;
+        if Self::type_scalar_root(program, program.type_for_id(region.ty))? == ScalarRoot::Local {
+            visit(RootSlot::Bytes(self.region_bytes_mut(region))).map_err(Error::from)?;
+        }
 
         Ok(())
     }
 
-    /// Return whether one logical frame slot carries one direct heap root value.
-    fn slot_holds_direct_heap_roots(
-        module: &Module,
-        layout: &engine::FrameLayout,
-        slot: u32,
-    ) -> Result<bool, Error> {
-        let slot = layout.slot(slot).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing frame slot for root scan: slot={slot}"),
-        })?;
-        let slot_layout = module
-            .layout(slot.ty)
+    /// Return the heap reference domain carried by one scalar type.
+    fn type_scalar_root(
+        program: &Program,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<ScalarRoot, Error> {
+        let layout = program
+            .layout(ty)
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing frame slot layout for root scan: slot={slot:?}"),
+                context: format!("missing scalar layout for root scan: type={ty:?}"),
             })?;
-        if !slot_layout.is_scalar() {
-            return Ok(true);
+        if !layout.is_scalar() {
+            return Ok(ScalarRoot::None);
         }
 
-        let repr_ty = repr_type(&module.tree, slot.ty);
+        let repr_ty = repr_type(&program.tree, ty);
 
-        Ok(matches!(
-            module.tree.get(repr_ty),
+        match program.tree.get(repr_ty) {
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                address_space: mir::AddressSpace::Local,
                 ..
-            } | mir::Type::TensorView {
+            }
+            | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                address_space: mir::AddressSpace::Local,
                 ..
-            } | mir::Type::Callable { .. }
-        ))
+            }
+            | mir::Type::Callable { .. } => Ok(ScalarRoot::Local),
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                address_space: mir::AddressSpace::Shared,
+                ..
+            }
+            | mir::Type::TensorView {
+                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                address_space: mir::AddressSpace::Shared,
+                ..
+            } => Ok(ScalarRoot::Shared),
+            _ => Ok(ScalarRoot::None),
+        }
     }
 
-    /// Visit heap roots from one storage image.
-    pub(crate) fn visit_storage_roots(
-        module: &Module,
-        storage_type: mir::LocalNodeId<mir::Type>,
+    /// Visit heap roots from one typed byte range.
+    pub(crate) fn visit_byte_roots(
+        program: &Program,
+        ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
         roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
-        let layout = module
-            .layout(storage_type)
+        let layout = program
+            .layout(ty)
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing layout for storage root scan: storage_type={storage_type:?}",
-                ),
+                context: format!("missing layout for byte root scan: type={ty:?}"),
             })?;
 
         if bytes.len() != layout.byte_len {
             return Err(Error::InvariantViolation {
                 context: format!(
-                    "storage root byte length mismatch: storage_type={storage_type:?}, bytes={}, layout_bytes={}",
+                    "byte root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
                     bytes.len(),
                     layout.byte_len,
                 ),
             });
         }
 
-        Self::collect_type_roots(module, storage_type, bytes, 0, roots)
+        Self::collect_type_roots(program, ty, bytes, 0, roots)
     }
 
-    /// Collect every local heap reference stored in one typed byte range.
-    pub(crate) fn collect_storage_heap_references(
-        module: &Module,
-        storage_type: mir::LocalNodeId<mir::Type>,
-        bytes: &[u8],
-        references: &mut Vec<HeapReference>,
+    /// Visit local root slots from one typed byte range.
+    pub(crate) fn visit_byte_root_slots(
+        program: &Program,
+        ty: mir::LocalNodeId<mir::Type>,
+        bytes: &mut [u8],
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout = module
-            .layout(storage_type)
+        let layout = program
+            .layout(ty)
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing layout for storage escape scan: storage_type={storage_type:?}",
-                ),
+                context: format!("missing layout for byte heap roots: type={ty:?}"),
             })?;
 
         if bytes.len() != layout.byte_len {
             return Err(Error::InvariantViolation {
                 context: format!(
-                    "storage escape scan byte length mismatch: storage_type={storage_type:?}, bytes={}, layout_bytes={}",
+                    "byte heap root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
                     bytes.len(),
                     layout.byte_len,
                 ),
             });
         }
 
-        Self::collect_local_type_references(module, storage_type, bytes, 0, references)
+        Self::visit_type_root_slots(program, ty, bytes, 0, visit)
     }
 
     /// Visit heap roots from one typed byte range.
     fn collect_type_roots(
-        module: &Module,
+        program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &[u8],
         base_offset: usize,
         roots: &mut impl RootVisitor,
     ) -> Result<(), Error> {
-        let layout = module.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing layout for stack root scan: type={ty:?}"),
-        })?;
-        let pointer_bytes = module.tree.pointer_bytes() as usize;
+        let layout = program
+            .layout(ty)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing layout for stack root scan: type={ty:?}"),
+            })?;
+        let pointer_bytes = program.tree.pointer_bytes() as usize;
 
         // local heap roots
         for offset in local_reference_offsets(&layout.reference_map)? {
@@ -555,10 +567,11 @@ impl Frame {
                     context: format!("stack root local offset overflow: type={ty:?}"),
                 }
             })?;
-            let bits = Self::decode_reference_bits(bytes, offset, pointer_bytes)?;
+            let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
+            let reference = HeapReference::read_from_bytes(window).map_err(Error::from)?;
 
-            if bits != 0 {
-                roots.push_heap(HeapReference::from_bits(bits as usize));
+            if !reference.is_null() {
+                roots.push_heap(reference);
             }
         }
 
@@ -569,204 +582,103 @@ impl Frame {
                     context: format!("stack root shared offset overflow: type={ty:?}"),
                 }
             })?;
-            let bits = Self::decode_reference_bits(bytes, offset, pointer_bytes)?;
+            let window = Self::reference_window(bytes, offset, pointer_bytes, "stack root scan")?;
+            let reference = SharedHeapReference::read_from_bytes(window).map_err(Error::from)?;
 
-            if bits != 0 {
-                roots.push_shared(SharedHeapReference::from_bits(bits as usize));
+            if !reference.is_null() {
+                roots.push_shared(reference);
             }
         }
 
         Ok(())
     }
 
-    /// Collect every local heap reference in one typed byte range.
-    fn collect_local_type_references(
-        module: &Module,
-        ty: mir::LocalNodeId<mir::Type>,
-        bytes: &[u8],
-        base_offset: usize,
-        references: &mut Vec<HeapReference>,
-    ) -> Result<(), Error> {
-        let layout = module.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing layout for stack escape scan: type={ty:?}"),
-        })?;
-        let pointer_bytes = module.tree.pointer_bytes() as usize;
-
-        // local heap roots
-        for offset in local_reference_offsets(&layout.reference_map)? {
-            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!("stack escape local offset overflow: type={ty:?}"),
-                }
-            })?;
-            let bits = Self::decode_reference_bits(bytes, offset, pointer_bytes)?;
-
-            if bits != 0 {
-                references.push(HeapReference::from_bits(bits as usize));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Rewrite every local heap reference in one typed byte range through one stable mapping.
-    fn rewrite_type_references(
-        module: &Module,
+    /// Visit local root slots from one typed byte range.
+    fn visit_type_root_slots(
+        program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
         bytes: &mut [u8],
         base_offset: usize,
-        references: &BTreeMap<HeapReference, HeapReference>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout = module.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing layout for stack stabilization: type={ty:?}"),
-        })?;
-        let pointer_bytes = module.tree.pointer_bytes() as usize;
-
-        // local heap roots
-        for offset in local_reference_offsets(&layout.reference_map)? {
-            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!("stack stabilization local offset overflow: type={ty:?}"),
-                }
-            })?;
-            let bits = Self::decode_reference_bits(bytes, offset, pointer_bytes)?;
-
-            if bits != 0 {
-                let reference = HeapReference::from_bits(bits as usize);
-                let reference = references.get(&reference).copied().unwrap_or(reference);
-
-                Self::encode_reference_bits(bytes, offset, pointer_bytes, reference.bits() as u64)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Rewrite every local heap reference stored in one typed byte range through one stable mapping.
-    pub(crate) fn rewrite_storage_references(
-        module: &Module,
-        storage_type: mir::LocalNodeId<mir::Type>,
-        bytes: &mut [u8],
-        references: &BTreeMap<HeapReference, HeapReference>,
-    ) -> Result<(), Error> {
-        let layout = module
-            .layout(storage_type)
+        let layout = program
+            .layout(ty)
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing layout for storage stabilization: storage_type={storage_type:?}",
-                ),
+                context: format!("missing layout for stack heap roots: type={ty:?}"),
             })?;
+        let pointer_bytes = program.tree.pointer_bytes() as usize;
 
-        if bytes.len() != layout.byte_len {
+        // local heap roots
+        for offset in local_reference_offsets(&layout.reference_map)? {
+            let offset = base_offset.checked_add(offset as usize).ok_or_else(|| {
+                Error::InvariantViolation {
+                    context: format!("stack heap root offset overflow: type={ty:?}"),
+                }
+            })?;
+            let end = offset.checked_add(pointer_bytes).ok_or_else(|| {
+                Error::InvariantViolation {
+                    context: format!(
+                        "stack heap root byte range overflow: offset={offset}, width={pointer_bytes}",
+                    ),
+                }
+            })?;
+            let bytes_len = bytes.len();
+            let Some(slot) = bytes.get_mut(offset..end) else {
+                return Err(Error::InvariantViolation {
+                    context: format!(
+                        "stack heap root byte range out of bounds: offset={offset}, width={pointer_bytes}, len={bytes_len}",
+                    ),
+                });
+            };
+
+            visit(RootSlot::Bytes(slot)).map_err(Error::from)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return one immutable reference byte window.
+    fn reference_window<'a>(
+        bytes: &'a [u8],
+        start: usize,
+        width: usize,
+        context: &'static str,
+    ) -> Result<&'a [u8], Error> {
+        if width != HeapReference::BYTE_LEN {
             return Err(Error::InvariantViolation {
-                context: format!(
-                    "storage stabilization byte length mismatch: storage_type={storage_type:?}, bytes={}, layout_bytes={}",
-                    bytes.len(),
-                    layout.byte_len,
-                ),
+                context: format!("{context} unsupported reference width: {width}"),
             });
         }
 
-        Self::rewrite_type_references(module, storage_type, bytes, 0, references)
-    }
-
-    /// Decode one pointer-sized reference payload from one typed byte range.
-    fn decode_reference_bits(bytes: &[u8], start: usize, width: usize) -> Result<u64, Error> {
         let end = start
             .checked_add(width)
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "stack root scan byte range overflow: start={start}, width={width}",
-                ),
+                context: format!("{context} byte range overflow: start={start}, width={width}"),
             })?;
-        let byte_range = bytes.get(start..end).ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "stack root scan byte range out of bounds: start={start}, width={width}, len={}",
-                bytes.len(),
-            ),
-        })?;
 
-        match width {
-            4 => {
-                let mut raw = [0u8; 4];
-                raw.copy_from_slice(byte_range);
-
-                Ok(u32::from_le_bytes(raw) as u64)
-            }
-            8 => {
-                let mut raw = [0u8; 8];
-                raw.copy_from_slice(byte_range);
-
-                Ok(u64::from_le_bytes(raw))
-            }
-            _ => Err(Error::InvariantViolation {
-                context: format!("unsupported stack root reference width: {width}"),
-            }),
-        }
-    }
-
-    /// Encode one pointer-sized reference payload into one typed byte range.
-    fn encode_reference_bits(
-        bytes: &mut [u8],
-        start: usize,
-        width: usize,
-        bits: u64,
-    ) -> Result<(), Error> {
-        let bytes_len = bytes.len();
-        let end = start
-            .checked_add(width)
+        bytes
+            .get(start..end)
             .ok_or_else(|| Error::InvariantViolation {
                 context: format!(
-                    "stack stabilization byte range overflow: start={start}, width={width}",
+                    "{context} byte range out of bounds: start={start}, width={width}, len={}",
+                    bytes.len(),
                 ),
-            })?;
-        let byte_range = bytes.get_mut(start..end).ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "stack stabilization byte range out of bounds: start={start}, width={width}, len={bytes_len}",
-            ),
-        })?;
-
-        match width {
-            4 => {
-                let bits = u32::try_from(bits).map_err(|_| Error::InvariantViolation {
-                    context: format!("stack stabilization reference bits exceed uint32: {bits}"),
-                })?;
-                byte_range.copy_from_slice(&bits.to_le_bytes());
-
-                Ok(())
-            }
-            8 => {
-                byte_range.copy_from_slice(&bits.to_le_bytes());
-
-                Ok(())
-            }
-            _ => Err(Error::InvariantViolation {
-                context: format!("unsupported stack stabilization reference width: {width}"),
-            }),
-        }
+            })
     }
 
     /// Clone this frame for a forked continuation.
     pub(crate) fn clone_for_fork(&self) -> Self {
-        // clone stack value buffers for the forked frame
-        let stack_allocations = self.stack_allocations.to_vec();
-
-        // assemble cloned frame
         Self {
             frame_layout: self.frame_layout,
             function: self.function,
             function_ptr: self.function_ptr,
             block_ptr: self.block_ptr,
-            entry_block: self.entry_block,
             current_block: self.current_block,
-            block_index: self.block_index,
             resume_pc: self.resume_pc,
             transfer: self.transfer.clone(),
-            value_count: self.value_count,
-            local_count: self.local_count,
-            slots: self.slots.clone(),
-            stack_allocations,
-            environment: self.environment,
+            stack_offset: self.stack_offset,
+            byte_len: self.byte_len,
+            base: self.base,
         }
     }
 
@@ -775,19 +687,21 @@ impl Frame {
         FrameImage {
             frame_layout: self.frame_layout,
             function: self.function,
-            block_index: self.block_index,
+            current_block: self.current_block,
             resume_pc: self.resume_pc,
             transfer: self.transfer.clone(),
-            value_count: self.value_count,
-            local_count: self.local_count,
-            slots: self.slots.as_slice().to_vec(),
-            stack_allocations: self.stack_allocations.clone(),
-            environment: self.environment,
+            bytes: self.bytes().to_vec(),
         }
     }
 
     /// Create one frame from an immutable image.
-    pub(crate) fn from_image(image: &FrameImage, functions: &FunctionTable) -> RuntimeResult<Self> {
+    pub(crate) fn from_image(
+        image: &FrameImage,
+        functions: &FunctionTable,
+        layout: &engine::FrameLayout,
+        stack_offset: usize,
+        base: *mut u8,
+    ) -> RuntimeResult<Self> {
         // resolve the lowered function for this frame
         let function_index = functions.index_for(image.function).ok_or_else(|| {
             RuntimeError::new(Error::UndefinedFunction {
@@ -803,19 +717,13 @@ impl Frame {
 
         // resolve the current block pointer from the lowered function
         let function_ref = unsafe { function_ptr.as_ref() };
-        let block = function_ref.blocks.get(image.block_index).ok_or_else(|| {
-            RuntimeError::new(Error::UndefinedBlock {
-                block: mir::LocalNodeId::new(image.block_index as u32),
-            })
-        })?;
-
-        // resolve the restored entry block
-        let entry_block = function_ref
+        let block = function_ref
             .blocks
-            .get(function_ref.entry as usize)
+            .iter()
+            .find(|block| block.mir_block == image.current_block)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedBlock {
-                    block: mir::LocalNodeId::new(function_ref.entry),
+                    block: image.current_block,
                 })
             })?;
 
@@ -824,73 +732,14 @@ impl Frame {
             function: image.function,
             function_ptr,
             block_ptr: NonNull::from(block),
-            entry_block: entry_block.mir_block,
             current_block: block.mir_block,
-            block_index: image.block_index,
             resume_pc: image.resume_pc,
             transfer: image.transfer.clone(),
-            value_count: image.value_count,
-            local_count: image.local_count,
-            slots: image.slots.clone(),
-            stack_allocations: image.stack_allocations.clone(),
-            environment: image.environment,
+            stack_offset,
+            byte_len: layout.byte_len as usize,
+            base,
         })
     }
-}
-
-/// Stabilize one local heap reference embedded in one VM value.
-pub(crate) fn stabilize_value(heap: &mut Heap, value: &mut Value) -> Result<(), Error> {
-    if !value.is_heap_reference() {
-        return Ok(());
-    }
-
-    let reference = value.as_heap_reference().ok_or(Error::InvalidInstruction)?;
-    if reference.is_null() {
-        return Ok(());
-    }
-
-    let meta = value.reference_meta();
-    let reference = heap.stabilize_heap(reference).map_err(Error::from)?;
-    *value = Value::heap_reference_with_meta(reference, meta);
-
-    Ok(())
-}
-
-/// Collect one local heap reference embedded in one VM value.
-fn collect_value_reference(value: Value, references: &mut Vec<HeapReference>) -> Result<(), Error> {
-    if !value.is_heap_reference() {
-        return Ok(());
-    }
-
-    let reference = value.as_heap_reference().ok_or(Error::InvalidInstruction)?;
-    if reference.is_null() {
-        return Ok(());
-    }
-
-    references.push(reference);
-
-    Ok(())
-}
-
-/// Rewrite one local heap reference embedded in one VM value through one stable mapping.
-fn rewrite_value_reference(
-    value: &mut Value,
-    references: &BTreeMap<HeapReference, HeapReference>,
-) -> Result<(), Error> {
-    if !value.is_heap_reference() {
-        return Ok(());
-    }
-
-    let reference = value.as_heap_reference().ok_or(Error::InvalidInstruction)?;
-    if reference.is_null() {
-        return Ok(());
-    }
-
-    let meta = value.reference_meta();
-    let reference = references.get(&reference).copied().unwrap_or(reference);
-    *value = Value::heap_reference_with_meta(reference, meta);
-
-    Ok(())
 }
 
 /// Return all local heap reference offsets in one map.
@@ -921,7 +770,7 @@ fn shared_reference_offsets(reference_map: &ReferenceMap) -> Result<Vec<u32>, Er
     }
 }
 
-/// Expand repeated reference map offsets into absolute payload offsets.
+/// Expand repeated reference map offsets into absolute byte offsets.
 fn repeated_reference_offsets(count: u32, stride: u32, offsets: &[u32]) -> Result<Vec<u32>, Error> {
     let mut result = Vec::with_capacity(count as usize * offsets.len());
 
