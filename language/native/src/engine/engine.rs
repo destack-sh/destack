@@ -1,17 +1,23 @@
 use std::sync::Arc;
 
-use crate::{Image, Program};
+use destack_engine::{self as engine, Context, Entry, Outcome, Value};
+use destack_heap as heap;
+
+use crate::{Continuation, Image, Program};
 
 /// Native backend execution error.
 #[derive(Debug)]
 pub enum Error {
+    /// Native execution has not been linked yet.
+    Unsupported {
+        /// The requested native operation.
+        operation: &'static str,
+    },
     /// The requested entry is not present in the native program.
     EntryNotFound {
         /// The missing entry name.
         name: String,
     },
-    /// Native code returned a trap status.
-    Trapped,
 }
 
 /// Worker-local native execution backend.
@@ -41,6 +47,52 @@ impl Engine {
     /// Capture one native engine image.
     pub const fn image(&self) -> Image {
         Image::empty(self.engine_id)
+    }
+}
+
+impl engine::Engine for Engine {
+    type Continuation = Continuation;
+    type Error = Error;
+    type Image = Image;
+
+    fn run(
+        &mut self,
+        _context: Context<'_>,
+        entry: &Entry,
+        _args: &[Value],
+    ) -> Result<Outcome<Self::Continuation, Value>, Self::Error> {
+        let Some(_entry) = self.program.entry_by_name(entry.name()) else {
+            return Err(Error::EntryNotFound {
+                name: entry.name().to_string(),
+            });
+        };
+
+        Err(Error::Unsupported { operation: "run" })
+    }
+
+    fn resume(
+        &mut self,
+        _context: Context<'_>,
+        _continuation: Self::Continuation,
+        _value: Value,
+    ) -> Result<Outcome<Self::Continuation, Value>, Self::Error> {
+        Err(Error::Unsupported {
+            operation: "resume",
+        })
+    }
+
+    fn fork(&mut self, _heap: &mut heap::Heap) -> Result<Self, Self::Error> {
+        Err(Error::Unsupported { operation: "fork" })
+    }
+
+    fn image(&mut self) -> Result<Self::Image, Self::Error> {
+        Ok(Engine::image(self))
+    }
+
+    fn restore(&mut self, _heap: &mut heap::Heap, _image: &Self::Image) -> Result<(), Self::Error> {
+        Err(Error::Unsupported {
+            operation: "restore",
+        })
     }
 }
 

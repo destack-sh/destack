@@ -39,6 +39,7 @@ members = [
 	"language/js",
 	"language/linter",
 	"language/linter/macros",
+	"language/native",
 	"language/vm",
 	"language/mir",
 	"language/parser",
@@ -100,6 +101,7 @@ destack_json = { path = "language/json" }
 destack_js = { path = "language/js" }
 destack_linter = { path = "language/linter" }
 destack_linter_macros = { path = "language/linter/macros" }
+destack_native = { path = "language/native" }
 destack_vm = { path = "language/vm" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }

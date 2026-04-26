@@ -1,7 +1,7 @@
 use destack_engine as engine;
 
 /// Output from one engine run.
-pub type RunOutput = engine::RunOutput<engine::MaterializedValue>;
+pub type Output = engine::Output<engine::Value>;
 
 /// Outcome from one engine run.
-pub type RunOutcome<C> = engine::RunOutcome<C, engine::MaterializedValue>;
+pub type Outcome<C> = engine::Outcome<C, engine::Value>;

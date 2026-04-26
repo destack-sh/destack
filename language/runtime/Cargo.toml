@@ -64,6 +64,7 @@ destack_engine = { workspace = true }
 destack_fir = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
+destack_native = { workspace = true }
 destack_query = { workspace = true }
 destack_linter = { workspace = true, optional = true }
 destack_session = { workspace = true, optional = true }

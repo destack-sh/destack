@@ -1,219 +1,388 @@
-use std::any::Any;
-
 use destack_core::CaptureMode;
-use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
+use {destack_engine as engine, destack_heap as heap, destack_native as native, destack_vm as vm};
 
-use super::{Continuation, EngineImage, Entry, LiveContinuation, RunOutcome};
-use crate::diagnostic::RuntimeResult;
+use super::{Context, Continuation, ContinuationImage, Entry, Image, Outcome};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::memory::RootVisitor;
 
-/// Execution engine used by one worker event loop.
-pub trait Engine: Any + Send {
-    /// Run the entrypoint function.
-    fn run(
+/// VM root visitor bridged into runtime root collection.
+struct VmRootVisitor<'a, 'b> {
+    /// The runtime root visitor.
+    roots: &'a mut RootVisitor<'b>,
+}
+
+impl vm::RootVisitor for VmRootVisitor<'_, '_> {
+    fn push_heap(&mut self, reference: heap::HeapReference) {
+        self.roots.push_heap(reference);
+    }
+
+    fn push_shared(&mut self, reference: heap::SharedHeapReference) {
+        self.roots.push_shared(reference);
+    }
+}
+
+/// Execution backend owned by one worker.
+pub enum Engine {
+    /// VM interpreter backend.
+    Vm(vm::Isolate),
+    /// Native compiled backend.
+    Native(native::Engine),
+}
+
+impl Engine {
+    /// Initialize worker-owned static bytes.
+    pub fn initialize(&mut self, context: Context<'_>) -> RuntimeResult<()> {
+        match self {
+            Self::Vm(engine) => {
+                engine::Engine::initialize(engine, context).map_err(Box::<RuntimeError>::from)
+            }
+            Self::Native(engine) => {
+                engine::Engine::initialize(engine, context).map_err(native_runtime_error)
+            }
+        }
+    }
+
+    /// Run one entrypoint.
+    pub fn run(
         &mut self,
-        heap: &mut heap::Heap,
-        shared: &heap::SharedHeap,
+        context: Context<'_>,
         entry: &Entry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>>;
+        args: &[engine::Value],
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        match self {
+            Self::Vm(engine) => {
+                let outcome = engine::Engine::run(engine, context, entry, args)
+                    .map_err(Box::<RuntimeError>::from)?;
 
-    /// Resume execution from a continuation.
-    fn resume(
+                Ok(outcome_from_vm(outcome))
+            }
+            Self::Native(engine) => {
+                let outcome = engine::Engine::run(engine, context, entry, args)
+                    .map_err(native_runtime_error)?;
+
+                Ok(outcome_from_native(outcome))
+            }
+        }
+    }
+
+    /// Resume one continuation.
+    pub fn resume(
         &mut self,
-        heap: &mut heap::Heap,
-        shared: &heap::SharedHeap,
-        continuation: LiveContinuation,
-        value: engine::MaterializedValue,
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>>;
+        context: Context<'_>,
+        continuation: Continuation,
+        value: engine::Value,
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        match (self, continuation) {
+            (Self::Vm(engine), Continuation::Vm(continuation)) => {
+                let outcome = engine::Engine::resume(engine, context, continuation, value)
+                    .map_err(Box::<RuntimeError>::from)?;
 
-    /// Visit roots from active engine-owned state.
-    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
-        Ok(())
+                Ok(outcome_from_vm(outcome))
+            }
+            (Self::Native(engine), Continuation::Native(continuation)) => {
+                let outcome = engine::Engine::resume(engine, context, continuation, value)
+                    .map_err(native_runtime_error)?;
+
+                Ok(outcome_from_native(outcome))
+            }
+            (Self::Vm(_), Continuation::Native(_)) => {
+                Err(engine_continuation_mismatch("vm", "native"))
+            }
+            (Self::Native(_), Continuation::Vm(_)) => {
+                Err(engine_continuation_mismatch("native", "vm"))
+            }
+        }
+    }
+
+    /// Visit roots from active backend state.
+    pub fn visit_roots(
+        &mut self,
+        worker_static: &engine::StaticSpace,
+        roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
+        match self {
+            Self::Vm(engine) => {
+                let mut roots = VmRootVisitor { roots };
+
+                engine
+                    .visit_state_roots(worker_static, &[], &mut roots)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            Self::Native(_) => Ok(()),
+        }
+    }
+
+    /// Visit mutable local root slots from active backend state.
+    pub fn visit_root_slots(
+        &mut self,
+        worker_static: &mut engine::StaticSpace,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        match self {
+            Self::Vm(engine) => {
+                vm::Isolate::visit_root_slots(engine, worker_static, &mut [], visit)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            Self::Native(_) => Ok(()),
+        }
     }
 
     /// Visit roots from one live continuation.
-    fn visit_live_continuation_roots(
-        &mut self,
-        _continuation: &LiveContinuation,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Visit roots from one captured continuation image.
-    fn visit_continuation_image_roots(
-        &mut self,
-        _continuation: &Continuation,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Visit roots from one materialized boundary value.
-    fn visit_materialized_value_roots(
-        &mut self,
-        _value: &engine::MaterializedValue,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Stabilize one live continuation before it escapes into runtime owned state.
-    fn stabilize_live_continuation(
-        &mut self,
-        _heap: &mut heap::Heap,
-        _continuation: &mut LiveContinuation,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Stabilize one materialized boundary value before it escapes into runtime owned state.
-    fn stabilize_materialized_value(
-        &mut self,
-        _heap: &mut heap::Heap,
-        _value: &mut engine::MaterializedValue,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Fork one live engine over one already-forked heap.
-    fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>>;
-
-    /// Capture one immutable engine image while the world is checkpoint-ready.
-    fn image(&mut self) -> RuntimeResult<EngineImage>;
-
-    /// Restore one immutable engine image while the world is checkpoint-ready.
-    fn restore_image(&mut self, heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()>;
-
-    /// Capture one continuation as one immutable continuation image.
-    fn continuation_image(
-        &mut self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<Continuation>;
-
-    /// Restore one continuation from one immutable continuation image.
-    fn restore_continuation_image(
-        &mut self,
-        image: &Continuation,
-    ) -> RuntimeResult<LiveContinuation>;
-
-    /// Capture one serialized engine image while the world is checkpoint-ready.
-    fn snapshot(&mut self) -> RuntimeResult<EngineImage>;
-
-    /// Restore one serialized engine image while the world is checkpoint-ready.
-    fn restore_snapshot(
-        &mut self,
-        heap: &mut heap::Heap,
-        snapshot: &EngineImage,
-    ) -> RuntimeResult<()>;
-}
-
-impl<E> Engine for Box<E>
-where
-    E: Engine + ?Sized,
-{
-    fn run(
-        &mut self,
-        heap: &mut heap::Heap,
-        shared: &heap::SharedHeap,
-        entry: &Entry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
-        (**self).run(heap, shared, entry, args)
-    }
-
-    fn resume(
-        &mut self,
-        heap: &mut heap::Heap,
-        shared: &heap::SharedHeap,
-        continuation: LiveContinuation,
-        value: engine::MaterializedValue,
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
-        (**self).resume(heap, shared, continuation, value)
-    }
-
-    fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
-        (**self).visit_roots(roots)
-    }
-
-    fn visit_live_continuation_roots(
-        &mut self,
-        continuation: &LiveContinuation,
-        roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        (**self).visit_live_continuation_roots(continuation, roots)
-    }
-
-    fn visit_continuation_image_roots(
+    pub fn visit_continuation_roots(
         &mut self,
         continuation: &Continuation,
         roots: &mut RootVisitor<'_>,
     ) -> RuntimeResult<()> {
-        (**self).visit_continuation_image_roots(continuation, roots)
+        match (self, continuation) {
+            (Self::Vm(engine), Continuation::Vm(continuation)) => {
+                let mut roots = VmRootVisitor { roots };
+
+                vm::Isolate::visit_continuation_roots(engine, continuation, &mut roots)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            (Self::Native(_), Continuation::Native(_)) => Ok(()),
+            (Self::Vm(_), Continuation::Native(_)) => {
+                Err(engine_continuation_mismatch("vm", "native"))
+            }
+            (Self::Native(_), Continuation::Vm(_)) => {
+                Err(engine_continuation_mismatch("native", "vm"))
+            }
+        }
     }
 
-    fn visit_materialized_value_roots(
+    /// Visit mutable local root slots from one live continuation.
+    pub fn visit_continuation_root_slots(
         &mut self,
-        value: &engine::MaterializedValue,
+        continuation: &mut Continuation,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        match (self, continuation) {
+            (Self::Vm(engine), Continuation::Vm(continuation)) => {
+                vm::Isolate::visit_continuation_root_slots(engine, continuation, visit)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            (Self::Native(_), Continuation::Native(_)) => Ok(()),
+            (Self::Vm(_), Continuation::Native(_)) | (Self::Native(_), Continuation::Vm(_)) => {
+                Ok(())
+            }
+        }
+    }
+
+    /// Visit roots from one captured continuation image.
+    pub fn visit_continuation_image_roots(
+        &mut self,
+        continuation: &ContinuationImage,
         roots: &mut RootVisitor<'_>,
     ) -> RuntimeResult<()> {
-        (**self).visit_materialized_value_roots(value, roots)
+        match self {
+            Self::Vm(engine) => {
+                let mut roots = VmRootVisitor { roots };
+
+                engine
+                    .visit_image_roots(continuation, &mut roots)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            Self::Native(_) => Ok(()),
+        }
     }
 
-    fn stabilize_live_continuation(
+    /// Visit mutable local root slots from one captured continuation image.
+    pub fn visit_continuation_image_root_slots(
         &mut self,
-        heap: &mut heap::Heap,
-        continuation: &mut LiveContinuation,
+        continuation: &mut ContinuationImage,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
-        (**self).stabilize_live_continuation(heap, continuation)
+        match self {
+            Self::Vm(engine) => vm::Isolate::visit_image_root_slots(engine, continuation, visit)
+                .map_err(Box::<RuntimeError>::from),
+            Self::Native(_) => Ok(()),
+        }
     }
 
-    fn stabilize_materialized_value(
+    /// Fork this engine over one already-forked heap.
+    pub fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Self> {
+        match self {
+            Self::Vm(engine) => {
+                let _ = heap;
+                let engine = vm::Isolate::fork(engine).map_err(Box::<RuntimeError>::from)?;
+
+                Ok(Self::Vm(engine))
+            }
+            Self::Native(engine) => {
+                let engine = engine::Engine::fork(engine, heap).map_err(native_runtime_error)?;
+
+                Ok(Self::Native(engine))
+            }
+        }
+    }
+
+    /// Capture one immutable engine image.
+    pub fn image(&mut self) -> RuntimeResult<Image> {
+        match self {
+            Self::Vm(engine) => {
+                let image = engine::Engine::image(engine).map_err(Box::<RuntimeError>::from)?;
+
+                Ok(Image::Vm(image))
+            }
+            Self::Native(engine) => {
+                let image = engine::Engine::image(engine).map_err(native_runtime_error)?;
+
+                Ok(Image::Native(image))
+            }
+        }
+    }
+
+    /// Restore one immutable engine image.
+    pub fn restore(&mut self, heap: &mut heap::Heap, image: &Image) -> RuntimeResult<()> {
+        match (self, image) {
+            (Self::Vm(engine), Image::Vm(image)) => {
+                engine::Engine::restore(engine, heap, image).map_err(Box::<RuntimeError>::from)
+            }
+            (Self::Native(engine), Image::Native(image)) => {
+                engine::Engine::restore(engine, heap, image).map_err(native_runtime_error)
+            }
+            (Self::Vm(_), Image::Native(_)) => Err(engine_image_mismatch("vm", "native")),
+            (Self::Native(_), Image::Vm(_)) => Err(engine_image_mismatch("native", "vm")),
+        }
+    }
+
+    /// Capture one continuation as one immutable continuation image.
+    pub fn continuation_image(
         &mut self,
-        heap: &mut heap::Heap,
-        value: &mut engine::MaterializedValue,
-    ) -> RuntimeResult<()> {
-        (**self).stabilize_materialized_value(heap, value)
-    }
-
-    fn fork(&mut self, heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
-        (**self).fork(heap)
-    }
-
-    fn image(&mut self) -> RuntimeResult<EngineImage> {
-        (**self).image()
-    }
-
-    fn restore_image(&mut self, heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
-        (**self).restore_image(heap, image)
-    }
-
-    fn continuation_image(
-        &mut self,
-        continuation: &LiveContinuation,
+        continuation: &Continuation,
         mode: CaptureMode,
+    ) -> RuntimeResult<ContinuationImage> {
+        let _ = mode;
+
+        match (self, continuation) {
+            (Self::Vm(engine), Continuation::Vm(continuation)) => {
+                vm::Isolate::continuation_image(engine, continuation)
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            (Self::Native(_), Continuation::Native(continuation)) => Ok(continuation.image.clone()),
+            (Self::Vm(_), Continuation::Native(_)) => {
+                Err(engine_continuation_mismatch("vm", "native"))
+            }
+            (Self::Native(_), Continuation::Vm(_)) => {
+                Err(engine_continuation_mismatch("native", "vm"))
+            }
+        }
+    }
+
+    /// Restore one continuation from one immutable continuation image.
+    pub fn restore_continuation_image(
+        &mut self,
+        image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
-        (**self).continuation_image(continuation, mode)
+        match self {
+            Self::Vm(engine) => {
+                let continuation = vm::Isolate::restore_continuation_image(engine, image)
+                    .map_err(Box::<RuntimeError>::from)?;
+
+                Ok(Continuation::Vm(continuation))
+            }
+            Self::Native(_) => Ok(Continuation::Native(native::Continuation::new(
+                image.clone(),
+            ))),
+        }
     }
 
-    fn restore_continuation_image(
-        &mut self,
-        image: &Continuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        (**self).restore_continuation_image(image)
-    }
+    /// Rebuild one runtime engine from an image.
+    pub fn from_image(image: &Image) -> RuntimeResult<Self> {
+        match image {
+            Image::Vm(image) => {
+                let engine = vm::Isolate::new(image.clone()).map_err(Box::<RuntimeError>::from)?;
 
-    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
-        (**self).snapshot()
+                Ok(Self::Vm(engine))
+            }
+            Image::Native(_) => Err(RuntimeError::EngineUnsupported {
+                engine: "native from_image".to_string(),
+            }
+            .boxed()),
+        }
     }
+}
 
-    fn restore_snapshot(
-        &mut self,
-        heap: &mut heap::Heap,
-        snapshot: &EngineImage,
-    ) -> RuntimeResult<()> {
-        (**self).restore_snapshot(heap, snapshot)
+impl std::fmt::Debug for Engine {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Vm(engine) => formatter.debug_tuple("Vm").field(engine).finish(),
+            Self::Native(engine) => formatter.debug_tuple("Native").field(engine).finish(),
+        }
+    }
+}
+
+impl From<vm::Isolate> for Engine {
+    fn from(engine: vm::Isolate) -> Self {
+        Self::Vm(engine)
+    }
+}
+
+impl From<native::Engine> for Engine {
+    fn from(engine: native::Engine) -> Self {
+        Self::Native(engine)
+    }
+}
+
+/// Convert one VM execution outcome into one runtime outcome.
+fn outcome_from_vm(outcome: vm::Outcome) -> Outcome<Continuation> {
+    match outcome {
+        vm::Outcome::Completed { output } => Outcome::Completed { output },
+        vm::Outcome::Yielded {
+            continuation,
+            value,
+        } => Outcome::Yielded {
+            continuation: Continuation::Vm(continuation),
+            value,
+        },
+    }
+}
+
+/// Convert one native execution outcome into one runtime outcome.
+fn outcome_from_native(
+    outcome: engine::Outcome<native::Continuation, engine::Value>,
+) -> Outcome<Continuation> {
+    match outcome {
+        engine::Outcome::Completed { output } => Outcome::Completed { output },
+        engine::Outcome::Yielded {
+            continuation,
+            value,
+        } => Outcome::Yielded {
+            continuation: Continuation::Native(continuation),
+            value,
+        },
+    }
+}
+
+/// Return one engine continuation mismatch.
+fn engine_continuation_mismatch(engine: &str, continuation: &str) -> Box<RuntimeError> {
+    RuntimeError::EngineContinuationMismatch {
+        engine: engine.to_string(),
+        continuation: continuation.to_string(),
+    }
+    .boxed()
+}
+
+/// Return one engine image mismatch.
+fn engine_image_mismatch(engine: &str, image: &str) -> Box<RuntimeError> {
+    RuntimeError::EngineEntryMismatch {
+        engine: engine.to_string(),
+        entry: image.to_string(),
+    }
+    .boxed()
+}
+
+/// Convert one native backend error into one runtime error.
+fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
+    match error {
+        native::Error::Unsupported { operation } => RuntimeError::EngineUnsupported {
+            engine: format!("native {operation}"),
+        }
+        .boxed(),
+        native::Error::EntryNotFound { name } => RuntimeError::EngineEntryMismatch {
+            engine: "native".to_string(),
+            entry: name,
+        }
+        .boxed(),
     }
 }

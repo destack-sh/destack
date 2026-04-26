@@ -1,13 +1,12 @@
 mod continuation;
-mod engine;
+pub(crate) mod engine;
 mod entry;
+mod image;
 mod outcome;
-mod snapshot;
-mod vm;
 
 pub use continuation::*;
-pub use destack_engine::{Continuation, RunStats};
+pub use destack_engine::Context;
 pub use engine::*;
 pub use entry::*;
+pub use image::*;
 pub use outcome::*;
-pub use snapshot::*;
