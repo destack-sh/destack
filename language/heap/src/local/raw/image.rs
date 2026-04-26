@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::{
-    LargeAllocation, LargeAllocationId, LargeAllocationImage, RawPageOwner, RawSpace, SmallSpan,
+    LargeAllocation, LargeAllocationId, LargeAllocationImage, RawPageMapEntry, RawSpace, SmallSpan,
     SmallSpanImage,
 };
 use crate::allocator::{Allocator, PageRunCache, SizeClassTable};
@@ -134,7 +134,7 @@ impl RawSpace {
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: image.next_unused_large_allocation_id(),
             },
-            page_owners: Vec::new(),
+            page_map: Vec::new(),
             usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
         };
 
@@ -159,7 +159,7 @@ impl RawSpace {
         space.large.free_large_allocation_ids = Self::free_large_allocation_ids(image);
 
         // rebuild the live root over fresh raw place
-        space.rebuild_page_owners()?;
+        space.rebuild_page_map()?;
 
         Ok(space)
     }
@@ -169,8 +169,8 @@ impl RawSpace {
         self.flush_branch_boundary()?;
 
         // capture the live raw allocations directly
-        let spans = self.capture_span_images();
-        let allocations = self.capture_large_allocation_images();
+        let spans = self.capture_span_images()?;
+        let allocations = self.capture_large_allocation_images()?;
 
         // freeze the current raw root
         Ok(RawSpaceImage::new(
@@ -266,64 +266,66 @@ impl RawSpace {
     }
 
     /// Capture every live raw span image.
-    fn capture_span_images(&self) -> Box<[SmallSpanImage]> {
+    fn capture_span_images(&self) -> HeapResult<Box<[SmallSpanImage]>> {
         self.small
             .spans
             .iter()
             .map(|span| self.capture_span_image(span))
-            .collect::<Vec<_>>()
-            .into_boxed_slice()
+            .collect::<HeapResult<Vec<_>>>()
+            .map(Vec::into_boxed_slice)
     }
 
     /// Capture one live raw span image.
-    fn capture_span_image(&self, span: &SmallSpan) -> SmallSpanImage {
+    fn capture_span_image(&self, span: &SmallSpan) -> HeapResult<SmallSpanImage> {
         let byte_len = span.pages.len() * self.allocator.page_bytes();
         let bytes = self
             .allocator
-            .read_bytes(&span.pages, byte_len)
-            .expect("raw span image bytes should resolve");
+            .read_bytes(&span.pages, byte_len)?
+            .into_boxed_slice();
 
-        SmallSpanImage {
+        Ok(SmallSpanImage {
             class: span.class.clone(),
             slot_count: span.slot_count,
             occupied: span.occupied.clone(),
-            bytes: bytes.into_boxed_slice(),
-        }
+            bytes,
+        })
     }
 
     /// Capture every live raw allocation image in large space.
-    fn capture_large_allocation_images(&self) -> Box<[LargeAllocationImage]> {
+    fn capture_large_allocation_images(&self) -> HeapResult<Box<[LargeAllocationImage]>> {
         self.large
             .allocations
             .iter()
             .map(|allocation| self.capture_large_allocation_image(allocation))
-            .collect::<Vec<_>>()
-            .into_boxed_slice()
+            .collect::<HeapResult<Vec<_>>>()
+            .map(Vec::into_boxed_slice)
     }
 
     /// Capture one live raw allocation image in large space.
-    fn capture_large_allocation_image(&self, allocation: &LargeAllocation) -> LargeAllocationImage {
+    fn capture_large_allocation_image(
+        &self,
+        allocation: &LargeAllocation,
+    ) -> HeapResult<LargeAllocationImage> {
         let bytes = if allocation.is_live {
             self.allocator
-                .read_bytes(&allocation.pages, allocation.len)
-                .expect("raw allocation image bytes should resolve")
+                .read_bytes(&allocation.pages, allocation.len)?
                 .into_boxed_slice()
         } else {
             Box::new([])
         };
 
-        LargeAllocationImage {
+        Ok(LargeAllocationImage {
             is_live: allocation.is_live,
             len: allocation.len,
             bytes,
-        }
+        })
     }
 }
 
 impl RawSpace {
-    /// Rebuild the page-owner table from live raw allocations.
-    fn rebuild_page_owners(&mut self) -> Result<(), HeapError> {
-        self.page_owners.clear();
+    /// Rebuild the page-map table from live raw allocations.
+    fn rebuild_page_map(&mut self) -> Result<(), HeapError> {
+        self.page_map.clear();
 
         for span_index in 0..self.small.spans.len() {
             let Some(span) = self.span(span_index) else {
@@ -331,7 +333,7 @@ impl RawSpace {
             };
             let pages = span.pages.clone();
 
-            self.map_page_view(&pages, |logical_page_index| RawPageOwner::Small {
+            self.map_page_view(&pages, |logical_page_index| RawPageMapEntry::Small {
                 span_index,
                 logical_page_index,
             })?;
@@ -344,7 +346,7 @@ impl RawSpace {
             };
             let pages = allocation.pages.clone();
 
-            self.map_page_view(&pages, |logical_page_index| RawPageOwner::Large {
+            self.map_page_view(&pages, |logical_page_index| RawPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
             })?;

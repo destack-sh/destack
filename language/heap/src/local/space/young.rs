@@ -3,35 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::HeapResult;
 use crate::allocator::{Allocator, Bitmap, PageRunCache, PageView};
 
-/// One heap young-allocation identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct HeapYoungId {
-    /// The young-space generation that owns this allocation.
-    generation: u32,
-    /// The zero-based allocation index inside that generation.
-    index: u32,
-}
-
-impl HeapYoungId {
-    /// Create one heap young-allocation identifier.
-    pub(crate) const fn new(generation: u32, index: u32) -> Self {
-        Self { generation, index }
-    }
-
-    /// Return the owning young-space generation.
-    pub(crate) const fn generation(self) -> u32 {
-        self.generation
-    }
-
-    /// Return the zero-based young-allocation index.
-    pub(crate) const fn index(self) -> u32 {
-        self.index
-    }
-}
-
-/// One live young-allocation record.
+/// One live byte range in young space.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungAllocation {
+pub(crate) struct YoungRange {
     /// The first byte offset inside young space.
     pub(crate) first_offset: usize,
     /// The logical byte length for this allocation.
@@ -53,9 +27,9 @@ pub(crate) struct YoungImage {
     allocation_alignment_bytes: usize,
     /// The allocator pages backing this young space.
     pages: PageView,
-    /// The captured young-allocation records.
-    allocations: Box<[YoungAllocation]>,
-    /// The live young-allocation bits.
+    /// The captured young-space ranges.
+    ranges: Box<[YoungRange]>,
+    /// The live young-space boundary bits.
     live: Bitmap,
     /// The exact local-reference bits across young space.
     local_reference_bits: Bitmap,
@@ -78,11 +52,11 @@ pub(crate) struct YoungSpace {
     pub(crate) allocation_alignment_bytes: usize,
     /// The allocator pages backing this young space.
     pub(crate) pages: PageView,
-    /// The live young-allocation records.
-    pub(crate) allocations: Vec<YoungAllocation>,
-    /// The live young-allocation bits.
+    /// The live young-space ranges.
+    pub(crate) ranges: Vec<YoungRange>,
+    /// The live young-space boundary bits.
     pub(crate) live: Bitmap,
-    /// The marked young-allocation bits.
+    /// The marked young-space boundary bits.
     pub(crate) marked: Bitmap,
     /// The exact local-reference bits across young space.
     pub(crate) local_reference_bits: Bitmap,
@@ -108,7 +82,7 @@ impl YoungSpace {
             next_offset: 0,
             allocation_alignment_bytes,
             pages: cache.allocate_zeroed(allocator, capacity_bytes)?,
-            allocations: Vec::new(),
+            ranges: Vec::new(),
             live: Bitmap::with_capacity(0),
             marked: Bitmap::with_capacity(0),
             local_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
@@ -126,7 +100,7 @@ impl YoungImage {
         next_offset: usize,
         allocation_alignment_bytes: usize,
         pages: PageView,
-        allocations: Box<[YoungAllocation]>,
+        ranges: Box<[YoungRange]>,
         live: Bitmap,
         local_reference_bits: Bitmap,
         shared_reference_bits: Bitmap,
@@ -138,7 +112,7 @@ impl YoungImage {
             next_offset,
             allocation_alignment_bytes,
             pages,
-            allocations,
+            ranges,
             live,
             local_reference_bits,
             shared_reference_bits,
@@ -165,7 +139,7 @@ impl YoungImage {
         self.next_offset
     }
 
-    /// Return the required young-allocation alignment.
+    /// Return the required young-space allocation alignment.
     pub(crate) const fn allocation_alignment_bytes(&self) -> usize {
         self.allocation_alignment_bytes
     }
@@ -175,12 +149,12 @@ impl YoungImage {
         &self.pages
     }
 
-    /// Return the allocation table.
-    pub(crate) fn allocations(&self) -> &[YoungAllocation] {
-        &self.allocations
+    /// Return the young-space ranges.
+    pub(crate) fn ranges(&self) -> &[YoungRange] {
+        &self.ranges
     }
 
-    /// Return the live young-allocation bits.
+    /// Return the live young-space boundary bits.
     pub(crate) fn live(&self) -> &Bitmap {
         &self.live
     }

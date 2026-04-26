@@ -1,21 +1,24 @@
-use super::{HeapYoungId, LargeAllocationId};
+use super::LargeAllocationId;
 use crate::HeapReference;
 use crate::allocator::SpanSlot;
 
 /// One resolved heap allocation location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum HeapPlace {
-    /// One young-space allocation.
-    Young(HeapYoungId),
+    /// One young-space allocation at a base offset.
+    Young {
+        /// The allocation base byte offset inside young space.
+        first_offset: usize,
+    },
     /// One small-space allocation stored in one span slot.
     Small(SpanSlot),
     /// One allocation stored in heap large space.
     Large(LargeAllocationId),
 }
 
-/// One physical page owner in local heap space.
+/// One page map entry in heap space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(crate) enum HeapPageOwner {
+pub(crate) enum HeapPageMapEntry {
     /// One young-space page and its logical page index.
     Young {
         /// The logical page index inside young space.
@@ -40,7 +43,7 @@ pub(crate) enum HeapPageOwner {
 /// One resolved heap location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct HeapLocation {
-    /// The owning heap place.
+    /// The heap allocation place.
     pub(crate) place: HeapPlace,
     /// The base reference for the owning allocation.
     pub(crate) base: HeapReference,

@@ -1,7 +1,6 @@
 use destack_mir::ReferenceMap;
 
-use super::{HeapLocation, HeapPlace, HeapSpace};
-use crate::allocator::PageView;
+use super::{HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace};
 use crate::{HeapError, HeapReference, HeapResult};
 
 impl HeapSpace {
@@ -111,7 +110,7 @@ impl HeapSpace {
 
         // only mature locations need remembered-write bookkeeping
         match location.place {
-            HeapPlace::Young(_) => Ok(()),
+            HeapPlace::Young { .. } => Ok(()),
             HeapPlace::Small(slot) => self.mark_span_slot_dirty(
                 slot.span_index(),
                 slot.slot_index(),
@@ -154,17 +153,16 @@ impl HeapSpace {
     ) -> HeapResult<()> {
         // write through the owning place
         match location.place {
-            HeapPlace::Young(young_id) => {
+            HeapPlace::Young { first_offset } => {
                 let previous_pages = self.young.pages.clone();
-                let Some(allocation) = self.young_allocation(young_id) else {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
+                let Some((_allocation_index, allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
                 };
 
                 let read_offset = checked_place_offset(
-                    self.young_allocation_offset(allocation),
+                    self.young_range_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -177,7 +175,7 @@ impl HeapSpace {
 
                     self.unmap_page_view(&previous_pages)?;
                     self.map_page_view(&next_pages, |logical_page_index| {
-                        super::HeapPageOwner::Young { logical_page_index }
+                        HeapPageMapEntry::Young { logical_page_index }
                     })?;
                 }
 
@@ -192,7 +190,7 @@ impl HeapSpace {
                         });
                     };
                     let previous_pages = span.pages.clone();
-                    let span_byte_len = page_view_capacity(&span.pages, allocator.page_bytes())?;
+                    let span_byte_len = span.pages.len() * allocator.page_bytes();
                     let slot_offset = checked_slot_offset(
                         slot.span_index(),
                         span.class.size_class,
@@ -209,7 +207,7 @@ impl HeapSpace {
                 if next_pages != previous_pages {
                     self.unmap_page_view(&previous_pages)?;
                     self.map_page_view(&next_pages, |logical_page_index| {
-                        super::HeapPageOwner::Small {
+                        super::HeapPageMapEntry::Small {
                             span_index: slot.span_index(),
                             logical_page_index,
                         }
@@ -236,7 +234,7 @@ impl HeapSpace {
                 if next_pages != previous_pages {
                     self.unmap_page_view(&previous_pages)?;
                     self.map_page_view(&next_pages, |logical_page_index| {
-                        super::HeapPageOwner::Large {
+                        super::HeapPageMapEntry::Large {
                             allocation_id,
                             logical_page_index,
                         }
@@ -277,15 +275,14 @@ impl HeapSpace {
     ) -> HeapResult<Vec<u8>> {
         // read through the owning place
         match location.place {
-            HeapPlace::Young(young_id) => {
-                let Some(allocation) = self.young_allocation(young_id) else {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
+            HeapPlace::Young { first_offset } => {
+                let Some((_allocation_index, allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
                 };
                 let read_offset = checked_place_offset(
-                    self.young_allocation_offset(allocation),
+                    self.young_range_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -299,7 +296,7 @@ impl HeapSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
                 let slot_offset = checked_slot_offset(
                     slot.span_index(),
                     span.class.size_class,
@@ -332,15 +329,14 @@ impl HeapSpace {
     ) -> HeapResult<()> {
         // read through the owning place
         match location.place {
-            HeapPlace::Young(young_id) => {
-                let Some(allocation) = self.young_allocation(young_id) else {
-                    return Err(HeapError::MissingYoungAllocation {
-                        generation: young_id.generation(),
-                        allocation_index: young_id.index(),
-                    });
+            HeapPlace::Young { first_offset } => {
+                let Some((_allocation_index, allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
                 };
                 let read_offset = checked_place_offset(
-                    self.young_allocation_offset(allocation),
+                    self.young_range_offset(allocation),
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
@@ -354,7 +350,7 @@ impl HeapSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_byte_len = page_view_capacity(&span.pages, self.allocator().page_bytes())?;
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
                 let slot_offset = checked_slot_offset(
                     slot.span_index(),
                     span.class.size_class,
@@ -461,17 +457,5 @@ fn checked_slot_offset(
         .ok_or(HeapError::InvalidSmallSlot {
             span_index,
             slot_index,
-        })
-}
-
-/// Return the mapped byte capacity for one page view.
-fn page_view_capacity(page_view: &PageView, page_bytes: usize) -> HeapResult<usize> {
-    page_view
-        .len()
-        .checked_mul(page_bytes)
-        .ok_or(HeapError::InvalidByteRange {
-            start: 0,
-            len: page_view.len(),
-            capacity: usize::MAX,
         })
 }
