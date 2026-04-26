@@ -86,6 +86,21 @@ match (result) {
 }
 ```
 
+### match with object expression body
+
+Object expression bodies keep parentheses after the case arrow.
+
+```ds
+match (result) { Ok { value } => ({ kind: "ok", value }); Err { error } => ({ kind: "err", error }) }
+```
+
+```ds expected
+match (result) {
+    Ok { value } => ({ kind: "ok", value })
+    Err { error } => ({ kind: "err", error })
+}
+```
+
 ### match as expression value
 
 Match expression used as a value gets trailing semicolon.

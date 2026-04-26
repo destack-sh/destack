@@ -54,6 +54,54 @@ if (a) {
 }
 ```
 
+### else if with comments
+
+Comments before `else if` branches stay attached to the branch.
+
+```ds
+function escape(value: string): string {
+    for (const ch of value) {
+        if (ch == "\\") {
+            out = out + "\\\\";
+        }
+        // escape single quotes
+        else if (ch == "'") {
+            out = out + "\\'";
+        }
+        // escape newlines
+        else if (ch == "\n") {
+            out = out + "\\n";
+        }
+        // keep printable characters
+        else {
+            out = out + ch;
+        }
+    }
+}
+```
+
+```ds expected
+function escape(value: string): string {
+    for (const ch of value) {
+        if (ch == "\\") {
+            out = out + "\\\\";
+        }
+        // escape single quotes
+        else if (ch == "'") {
+            out = out + "\\'";
+        }
+        // escape newlines
+        else if (ch == "\n") {
+            out = out + "\\n";
+        }
+        // keep printable characters
+        else {
+            out = out + ch;
+        }
+    }
+}
+```
+
 ### if with complex condition
 
 Complex conditions are preserved with their operators.

@@ -74,6 +74,20 @@ interface Foo {
 }
 ```
 
+### interface with static method signature
+
+Static method signatures keep their modifier attached to the method.
+
+```ds
+interface Result { static fromError(error: E): this }
+```
+
+```ds expected
+interface Result {
+    static fromError(error: E): this;
+}
+```
+
 ### interface with method parameters
 
 Method parameters follow standard parameter formatting rules.

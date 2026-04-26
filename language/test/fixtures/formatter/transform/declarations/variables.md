@@ -157,6 +157,34 @@ let a = 1,
     c = 3;
 ```
 
+### let else with block fallback
+
+Let-else statements keep the fallback block attached to `else`.
+
+```ds
+let { value } = result else { return }
+```
+
+```ds expected
+let { value } = result else {
+    return;
+};
+```
+
+### let else with tagged pattern
+
+Tagged patterns stay attached before the fallback block.
+
+```ds
+let Some(value) = maybe else { return }
+```
+
+```ds expected
+let Some(value) = maybe else {
+    return;
+};
+```
+
 ## var
 
 ### basic var

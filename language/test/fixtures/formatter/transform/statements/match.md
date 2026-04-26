@@ -321,10 +321,10 @@ match (s) {
 
 ### simple guard
 
-Guard conditions get parentheses added around them.
+Guard conditions keep their required parentheses.
 
 ```ds
-match (n) { x if x > 0 => "positive"; x if x < 0 => "negative"; _ => "zero" }
+match (n) { x if (x > 0) => "positive"; x if (x < 0) => "negative"; _ => "zero" }
 ```
 
 ```ds expected
@@ -340,7 +340,7 @@ match (n) {
 Guards can use any boolean expression.
 
 ```ds
-match (user) { User { age } if age >= 18 => "adult"; User { age } if age >= 13 => "teen"; _ => "child" }
+match (user) { User { age } if (age >= 18) => "adult"; User { age } if (age >= 13) => "teen"; _ => "child" }
 ```
 
 ```ds expected
@@ -356,7 +356,7 @@ match (user) {
 Method calls work in guard conditions.
 
 ```ds
-match (x) { v if v.isValid() => process(v); _ => null }
+match (x) { v if (v.isValid()) => process(v); _ => null }
 ```
 
 ```ds expected
