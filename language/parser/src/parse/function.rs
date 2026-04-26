@@ -1,6 +1,6 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark, is_semantic};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportMode, Expression,
@@ -62,7 +62,7 @@ impl Parser {
     /// Insert parsed function syntax as a function declaration.
     fn insert_function_declaration(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         function: ParsedFunctionSignature,
     ) -> LocalNodeId<Declaration> {
         let function_id = self.insert_node(
@@ -123,7 +123,7 @@ impl Parser {
     /// Insert parsed function syntax as a type expression.
     fn insert_function_type_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         function: ParsedFunctionSignature,
     ) -> LocalNodeId<TypeExpression> {
         debug_assert_eq!(function.signature.kind, FunctionKind::Lambda);
@@ -195,31 +195,20 @@ impl Parser {
             && *header == DeclarationHeader::default()
     }
 
-    /// Return the `new` keyword index when the current position starts a construct signature head.
+    /// Return whether the current position starts a construct signature head.
     #[inline]
-    fn construct_signature_new_index_maybe(&mut self) -> Option<usize> {
-        let new_index = self.next_non_newline_index_from(self.pos_index());
-        let has_new_keyword = self.token_type_at(new_index) == TokenType::Identifier
-            && self.keyword_for_index(new_index) == Some(Keyword::New);
-        if !has_new_keyword {
-            return None;
-        }
-
-        let after_new_index = self.next_non_newline_index_from(new_index.saturating_add(1));
-        let has_construct_signature_head = self.token_type_at(after_new_index)
-            == TokenType::LessThan
-            || self.token_type_at(after_new_index) == TokenType::OpenParenthesis;
-        if !has_construct_signature_head {
-            return None;
-        }
-
-        Some(new_index)
+    fn starts_construct_signature_head(&mut self) -> bool {
+        self.is_keyword(Keyword::New)
+            && matches!(
+                self.next_token_type(),
+                TokenType::LessThan | TokenType::OpenParenthesis
+            )
     }
 
     /// Parse a lambda body after the arrow.
     fn eat_plain_lambda_body(
         &mut self,
-        body_start: &ParserMark,
+        body_start: &ParserSpanStart,
     ) -> ParseResult<(LocalNodeId<Expression>, Span)> {
         if self.is_block_start() {
             let mut options = self
@@ -247,7 +236,7 @@ impl Parser {
     /// Build a plain lambda declaration from parsed parameters and body.
     fn build_plain_lambda_declaration(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: &DeclarationHeader,
         parameters: Vec<LocalNodeId<Parameter>>,
         generic_parameter_container_span: Option<Span>,
@@ -319,9 +308,19 @@ impl Parser {
     /// Scan a simple parenthesized lambda head without forcing a full pair lookup.
     fn scan_plain_parenthesized_lambda_head(
         &mut self,
-        open_index: usize,
-    ) -> Option<(usize, ParenthesizedLambdaHeadShape)> {
-        if self.token_type_at(open_index) != TokenType::OpenParenthesis {
+    ) -> Option<(Span, ParenthesizedLambdaHeadShape)> {
+        if !self.peek_is(TokenType::OpenParenthesis) {
+            return None;
+        }
+
+        self.lookahead(|parser| parser.scan_plain_parenthesized_lambda_head_here())
+    }
+
+    /// Scan a plain parenthesized lambda head at the current open parenthesis.
+    fn scan_plain_parenthesized_lambda_head_here(
+        &mut self,
+    ) -> Option<(Span, ParenthesizedLambdaHeadShape)> {
+        if !self.peek_is(TokenType::OpenParenthesis) {
             return None;
         }
 
@@ -340,9 +339,10 @@ impl Parser {
         let mut bracket_depth = 0usize;
         let mut angle_depth = 0usize;
 
-        let mut token_index = open_index + 1;
-        let close_index = loop {
-            let token_type = self.token_type_at(token_index);
+        // eat (
+        self.bump();
+        let close_span = loop {
+            let token_type = self.peek_token_type();
             if token_type == TokenType::End {
                 return None;
             }
@@ -354,12 +354,7 @@ impl Parser {
                 && bracket_depth == 0
                 && angle_depth == 0
             {
-                break token_index;
-            }
-
-            if !is_semantic(token_type) || token_type == TokenType::Newline {
-                token_index += 1;
-                continue;
+                break self.current_token().span;
             }
 
             semantic_token_count += 1;
@@ -378,7 +373,7 @@ impl Parser {
             if !has_parameter {
                 if token_type == TokenType::Identifier {
                     has_parameter = true;
-                    token_index += 1;
+                    self.bump();
                     continue;
                 }
 
@@ -389,7 +384,7 @@ impl Parser {
             if !has_type_annotation {
                 if token_type == TokenType::Colon {
                     has_type_annotation = true;
-                    token_index += 1;
+                    self.bump();
                     continue;
                 }
 
@@ -441,7 +436,7 @@ impl Parser {
                 _ => {}
             }
             has_type_tokens = true;
-            token_index += 1;
+            self.bump();
         };
 
         // common plain heads: (), (x), (x: T)
@@ -480,40 +475,29 @@ impl Parser {
             ParenthesizedLambdaHeadShape::Empty
         };
 
-        Some((close_index, head_shape))
-    }
-
-    /// Return the close index for a plain parenthesized lambda head.
-    pub(crate) fn plain_parenthesized_lambda_close_index(
-        &mut self,
-        open_index: usize,
-    ) -> Option<usize> {
-        let (close_index, _) = self.scan_plain_parenthesized_lambda_head(open_index)?;
-
-        Some(close_index)
+        Some((close_span, head_shape))
     }
 
     /// Try to parse plain `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
     fn try_eat_plain_parenthesized_lambda(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         self.stats.record_parenthesized_lambda_plain_call();
 
-        let open_index = self.pos_index();
-        let Some((close_index, head_shape)) = self.scan_plain_parenthesized_lambda_head(open_index)
-        else {
+        let Some((close_span, head_shape)) = self.scan_plain_parenthesized_lambda_head() else {
             self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         };
 
-        let follow_index = self.next_non_newline_index_from(close_index + 1);
-        let follow_token_type = self.token_type_at(follow_index);
-        if close_index <= open_index {
-            self.stats.record_parenthesized_lambda_plain_miss();
-            return Ok(None);
-        }
+        let follow_token_type = self.lookahead(|parser| {
+            while parser.current_token().span.start <= close_span.start {
+                parser.bump();
+            }
+
+            parser.peek_token_type()
+        });
 
         // require an arrow or a return type marker after the group
         if !matches!(
@@ -525,21 +509,18 @@ impl Parser {
         }
 
         // parse the parenthesized head
-        let parameter_container_start = self.mark_span();
+        let parameter_container_start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
         let mut parameters = Vec::with_capacity(1);
         if let ParenthesizedLambdaHeadShape::Named {
             has_type_annotation,
         } = head_shape
         {
-            let parameter_start = self.mark_span();
+            let parameter_start = self.span_start();
             let (parameter_name, parameter_name_span) = self.eat_binding_identifier_with_span()?;
             let (parameter_type, parameter_type_span) = if has_type_annotation {
-                self.eat_newlines_maybe()?;
-                let type_start = self.mark_span();
+                let type_start = self.span_start();
                 self.eat_token(TokenType::Colon)?;
-                self.eat_newlines_maybe()?;
                 let mut type_options = self
                     .options
                     .not_in_position()
@@ -557,7 +538,6 @@ impl Parser {
             } else {
                 (None, None)
             };
-            self.eat_newlines_maybe()?;
 
             let parameter_id = self.insert_node(
                 Parameter::Named {
@@ -588,10 +568,8 @@ impl Parser {
 
         // parse an explicit lambda return type when present
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            self.eat_newlines_maybe()?;
-            let type_start = self.mark_span();
+            let type_start = self.span_start();
             self.eat_token(TokenType::Colon)?;
-            self.eat_newlines_maybe()?;
 
             let mut return_type_options = self.options.nested().in_type();
             if self.options.is_in_type_conditional_right() {
@@ -614,8 +592,7 @@ impl Parser {
 
         // parse the body
         self.eat_arrow()?;
-        self.eat_newlines_maybe()?;
-        let body_start = self.mark_span();
+        let body_start = self.span_start();
         let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         let function_id = self.build_plain_lambda_declaration(
@@ -638,19 +615,20 @@ impl Parser {
     /// Try to parse a parenthesized lambda value without entering full function parsing.
     fn try_eat_parenthesized_lambda_value(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
-        let open_index = self.pos_index();
-        let Some((close_index, _)) = self.scan_plain_parenthesized_lambda_head(open_index) else {
+        let Some((close_span, _)) = self.scan_plain_parenthesized_lambda_head() else {
             return Ok(None);
         };
-        if close_index <= open_index {
-            return Ok(None);
-        }
-        let follow_index = self.next_non_newline_index_from(close_index + 1);
-        let follow_token_type = self.token_type_at(follow_index);
+        let follow_token_type = self.lookahead(|parser| {
+            while parser.current_token().span.start <= close_span.start {
+                parser.bump();
+            }
+
+            parser.peek_token_type()
+        });
         if !matches!(
             follow_token_type,
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
@@ -659,16 +637,14 @@ impl Parser {
         }
 
         // dynamic parameters
-        let parameter_container_start = self.mark_span();
+        let parameter_container_start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
         let parameter_options = self.options.with_generator(false).with_forbid_yield(false);
         let parameters = if self.peek_is(TokenType::CloseParenthesis) {
             vec![]
         } else {
             self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
         };
-        self.eat_newlines_maybe()?;
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Parameter,
@@ -677,10 +653,8 @@ impl Parser {
 
         // explicit lambda return type
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            self.eat_newlines_maybe()?;
-            let type_start = self.mark_span();
+            let type_start = self.span_start();
             self.eat_token(TokenType::Colon)?;
-            self.eat_newlines_maybe()?;
 
             let mut return_type_options = self.options.nested().in_type();
             if self.options.is_in_type_conditional_right() {
@@ -703,8 +677,7 @@ impl Parser {
 
         // body
         self.eat_arrow()?;
-        self.eat_newlines_maybe()?;
-        let body_start = self.mark_span();
+        let body_start = self.span_start();
         let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         let function_id = self.build_plain_lambda_declaration(
@@ -725,7 +698,7 @@ impl Parser {
     /// Try to parse a plain `identifier => body` lambda with minimal branching.
     fn try_eat_plain_identifier_lambda(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         self.stats.record_identifier_lambda_plain_call();
@@ -747,8 +720,7 @@ impl Parser {
 
         // parse the lambda body
         self.eat_arrow()?;
-        self.eat_newlines_maybe()?;
-        let body_start = self.mark_span();
+        let body_start = self.span_start();
         let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
 
         // build the declaration
@@ -817,7 +789,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_function(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         expect_maybe: bool,
         expect_body: bool,
@@ -828,7 +800,7 @@ impl Parser {
     /// Eat a function.
     fn eat_function_inner(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         expect_maybe: bool,
         expect_body: bool,
@@ -849,7 +821,10 @@ impl Parser {
         } else if can_parse_plain_lambda
             && self.peek_is(TokenType::Identifier)
             && matches!(
-                self.peek_next_token_type(),
+                self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_token_type()
+                }),
                 TokenType::Arrow | TokenType::ArrowWide
             )
             && let Some(function_id) = self.try_eat_plain_identifier_lambda(start, &header)?
@@ -865,7 +840,7 @@ impl Parser {
     /// Eat a function type expression.
     pub(crate) fn eat_function_type_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         expect_maybe: bool,
         expect_body: bool,
@@ -885,7 +860,7 @@ impl Parser {
     /// Eat shared function syntax before inserting a grammar-specific node.
     fn eat_function_parts(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         mut header: DeclarationHeader,
         expect_maybe: bool,
         expect_body: bool,
@@ -898,7 +873,10 @@ impl Parser {
 
         // async
         let is_async = if self.is_keyword(Keyword::Async) {
-            let next_token_type = self.peek_next_token_type();
+            let next_token_type = self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_token_type()
+            });
             let treats_async_as_parameter =
                 matches!(next_token_type, TokenType::Arrow | TokenType::ArrowWide);
             if treats_async_as_parameter {
@@ -912,10 +890,7 @@ impl Parser {
         };
 
         // new
-        let mode = if let Some(new_index) = self.construct_signature_new_index_maybe() {
-            if new_index != self.pos_index() {
-                self.advance_to(new_index);
-            }
+        let mode = if self.starts_construct_signature_head() {
             self.bump(); // eat new keyword
             Some(FunctionMode::New)
         } else {
@@ -953,7 +928,7 @@ impl Parser {
                 }
 
                 // generic parameters
-                let generic_parameter_container_start = self.mark_span();
+                let generic_parameter_container_start = self.span_start();
                 let generic_parameters = self
                     .eat_generic_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
@@ -969,7 +944,7 @@ impl Parser {
                 )
             } else {
                 // generic parameters
-                let generic_parameter_container_start = self.mark_span();
+                let generic_parameter_container_start = self.span_start();
                 let generic_parameters = self
                     .eat_generic_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
@@ -1004,13 +979,11 @@ impl Parser {
             let has_parenthesized_parameters = kind == FunctionKind::Function
                 || self.options.is_in_type()
                 || self.peek_is(TokenType::OpenParenthesis)
-                || self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis);
+                || self.next_token_type() == TokenType::OpenParenthesis;
             if has_parenthesized_parameters {
                 // allow line breaks before the parameter list
-                self.eat_newlines_maybe()?;
-                let parameter_container_start = self.mark_span();
+                let parameter_container_start = self.span_start();
                 self.eat_token(TokenType::OpenParenthesis)?;
-                self.eat_newlines_maybe()?;
 
                 // dynamic parameters
                 let parameters = if self.peek_is(TokenType::CloseParenthesis) {
@@ -1022,7 +995,6 @@ impl Parser {
                         .with_forbid_yield(is_generator);
                     self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
                 };
-                self.eat_newlines_maybe()?;
                 self.eat_list_close_token_or_recover_missing(
                     TokenType::CloseParenthesis,
                     NodeType::Parameter,
@@ -1058,10 +1030,8 @@ impl Parser {
         let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
             if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
-                self.eat_newlines_maybe()?;
-                let type_start = self.mark_span();
+                let type_start = self.span_start();
                 self.bump(); // eat colon or arrow
-                self.eat_newlines_maybe()?;
 
                 // return type
                 let mut return_type_options = self.options.nested().in_type();
@@ -1094,14 +1064,11 @@ impl Parser {
                 // return type
                 let has_return_type_marker = self.peek_arrow_is()
                     || self.peek_colon_is()
-                    || self.peek_is(TokenType::Newline)
-                        && (self.is_token_after_newlines(self.pos(), TokenType::Arrow)
-                            || self.is_token_after_newlines(self.pos(), TokenType::Colon));
+                    || self.current_token_is_on_new_line()
+                        && (self.peek_arrow_is() || self.peek_colon_is());
                 let (return_type, return_type_span) = if has_return_type_marker {
-                    self.eat_newlines_maybe()?;
-                    let type_start = self.mark_span();
+                    let type_start = self.span_start();
                     self.bump(); // eat arrow or colon
-                    self.eat_newlines_maybe()?;
 
                     // return type
                     let mut return_type_options = self.options.nested().in_type().in_before_block();
@@ -1138,11 +1105,6 @@ impl Parser {
         // body
         // only for functions or lambda values
         let (body, body_container_span) = {
-            // semicolon statement function bodies may start on the next line
-            if kind == FunctionKind::Function && !self.options.is_in_type() {
-                self.eat_newlines_maybe()?;
-            }
-
             // expect body but no opening brace
             if expect_body && !self.peek_is(TokenType::OpenBrace) {
                 return Err(ParseError::expected(
@@ -1161,7 +1123,7 @@ impl Parser {
                     .with_generator(is_generator);
                 options.set_allow_sequence_expression(true);
                 options.set_forbid_await(options.is_forbid_await() && !is_async);
-                let body_start = self.mark_span();
+                let body_start = self.span_start();
                 let block_id = self
                     .with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
                 let body_span = self.get_span_from(&body_start);
@@ -1174,8 +1136,7 @@ impl Parser {
                 && self.peek_arrow_is()
             {
                 self.eat_arrow()?;
-                self.eat_newlines_maybe()?;
-                let body_start = self.mark_span();
+                let body_start = self.span_start();
                 let body = if self.is_block_start() {
                     let mut options = self
                         .options
@@ -1255,8 +1216,7 @@ impl Parser {
     /// Check whether a lambda return type marker is present.
     fn has_lambda_return_type_marker(&mut self) -> bool {
         // check for a colon return type
-        let has_colon =
-            self.peek_colon_is() || self.is_token_after_newlines(self.pos(), TokenType::Colon);
+        let has_colon = self.peek_colon_is() || self.next_token_type() == TokenType::Colon;
         if has_colon {
             return true;
         }
@@ -1266,9 +1226,7 @@ impl Parser {
             return false;
         }
 
-        self.peek_arrow_is()
-            || self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Arrow)
+        self.peek_arrow_is() || self.current_token_is_on_new_line() && self.peek_arrow_is()
     }
 }
 
@@ -1299,7 +1257,7 @@ mod tests {
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1442,9 +1400,8 @@ function configure(
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newlines_maybe().unwrap();
 
-        let start = parser.mark_span();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1474,9 +1431,8 @@ function setns(
 "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newlines_maybe().unwrap();
 
-        let start = parser.mark_span();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1501,7 +1457,7 @@ function setns(
         let mut test = TestParser::new("(\nvalue\n) => value");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1540,7 +1496,7 @@ function setns(
         let mut test = TestParser::new("value => value");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1566,7 +1522,7 @@ function setns(
         let mut test = TestParser::new("value => ({ key: value })");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1583,7 +1539,7 @@ function setns(
         let mut test = TestParser::new("(value: number) => value");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1632,7 +1588,7 @@ function setns(
         let mut test =
             TestParser::new_with_options("(this: string) => {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1651,7 +1607,7 @@ function setns(
         let mut test = TestParser::new("(x): int32 => x");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1736,7 +1692,7 @@ function setns(
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1756,7 +1712,7 @@ function setns(
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1795,9 +1751,8 @@ function foo() => int32 where Guard: Limit {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1829,9 +1784,8 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1871,7 +1825,7 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1895,9 +1849,8 @@ function h<T>
             ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1962,7 +1915,7 @@ function h<T>
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -1994,9 +1947,8 @@ function transform<in T, out U>(value: T): U {
         ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2025,9 +1977,8 @@ function invariant<in out T>(value: T): T {
         ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2048,7 +1999,7 @@ function invariant<in out T>(value: T): T {
         let mut parser = test.prepare();
 
         // function foo() => (str: string) => boolean
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2080,7 +2031,7 @@ function invariant<in out T>(value: T): T {
         let mut test = TestParser::new("function read<T, E>() => AliasBranch<T, E> {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2111,9 +2062,8 @@ async function* foo() => int32 {
 }"#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2366,7 +2316,7 @@ function main() {
         let expression_id = parser.eat_expression(parser.options).unwrap();
 
         // diagnostics
-        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "\n")]);
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
 
         // function *a(){yield*
         // const value = 1}
@@ -2487,9 +2437,8 @@ function onResolve(
         "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2576,7 +2525,7 @@ function onResolve(
             TestParser::new_with_options("(x) /* lambda-head */ => x", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();
@@ -2661,7 +2610,7 @@ function onResolve(
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let function_id = parser
             .eat_function(&start, DeclarationHeader::default(), false, false)
             .unwrap();

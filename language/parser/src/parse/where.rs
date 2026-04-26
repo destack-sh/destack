@@ -16,17 +16,9 @@ impl Parser {
     /// where Foo.Bar: Baz
     /// ```
     pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
-        // look ahead to where without speculative rewinds
-        let start_index = self.pos_index();
-        let where_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(where_index) != TokenType::Identifier
-            || self.keyword_for_index(where_index) != Some(Keyword::Where)
-        {
+        // where clauses start at the current token
+        if !self.is_keyword(Keyword::Where) {
             return Ok(None);
-        }
-
-        if where_index != start_index {
-            self.eat_newlines_maybe()?;
         }
 
         Ok(Some(self.eat_where()?))
@@ -61,9 +53,7 @@ impl Parser {
         // parenthesized list with newlines
         if self.peek_is(TokenType::OpenParenthesis) {
             self.eat_token(TokenType::OpenParenthesis)?;
-            self.eat_newlines_maybe()?;
             while self.has_more_tokens() {
-                self.eat_newlines_maybe()?;
                 if self.peek_is(TokenType::CloseParenthesis) {
                     break;
                 }
@@ -99,15 +89,14 @@ impl Parser {
     /// Eat a single where clause.
     fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
         // span start
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // left name
         let (left, left_span) = self.eat_identifier_with_span()?;
 
         // constraint type
-        let type_start = self.mark_span();
+        let type_start = self.span_start();
         self.eat_token(TokenType::Colon)?;
-        self.eat_newlines_maybe()?;
         let right = self.eat_type_expression_node_or_recover_missing(
             self.options.in_type(),
             NodeType::WhereClause,

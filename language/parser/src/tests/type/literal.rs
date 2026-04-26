@@ -1,7 +1,162 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+
+/// Assert one plain type reference without generic arguments.
+fn assert_plain_type_reference(
+    parser: &Parser,
+    value: LocalNodeId<TypeExpression>,
+    expected_path: &str,
+) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert!(generic_arguments.is_empty());
+        assert_path!(parser, *path, expected_path);
+    });
+}
+
+/// Assert one string scalar type literal.
+fn assert_string_type_literal(parser: &Parser, value: LocalNodeId<TypeExpression>, expected: &str) {
+    assert_node!(parser.tree, value, TypeExpression::ScalarLiteral { value } => {
+        let ScalarLiteral::String(string) = value else {
+            panic!("expected string scalar literal");
+        };
+        assert_string!(parser, *string, expected);
+    });
+}
+
+/// Assert `DeepPick<Actual, Expected>`.
+fn assert_deep_pick_actual_expected(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "DeepPick");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_plain_type_reference(parser, *value, "Actual");
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_plain_type_reference(parser, *value, "Expected");
+        });
+    });
+}
+
+/// Assert `StrictEqual<DeepPick<Actual, Expected>, Expected>`.
+fn assert_strict_equal_deep_pick_expected(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "StrictEqual");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_deep_pick_actual_expected(parser, *value);
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_plain_type_reference(parser, *value, "Expected");
+        });
+    });
+}
+
+/// Assert `MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>`.
+fn assert_mismatch_args(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "MismatchArgs");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_strict_equal_deep_pick_expected(parser, *value);
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
+                assert_eq!(*value, ScalarLiteral::Boolean(true));
+            });
+        });
+    });
+}
+
+/// Assert `Record<string, unknown>`.
+fn assert_record_string_unknown(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "Record");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::String);
+            });
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Unknown);
+            });
+        });
+    });
+}
+
+/// Assert `Extends<Expected, Record<string, unknown>>`.
+fn assert_extends_expected_record(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "Extends");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_plain_type_reference(parser, *value, "Expected");
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_record_string_unknown(parser, *value);
+        });
+    });
+}
+
+/// Assert `MismatchInfo<DeepPick<Actual, Expected>, Expected>`.
+fn assert_mismatch_info_deep_pick_expected(parser: &Parser, value: LocalNodeId<TypeExpression>) {
+    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
+        assert_path!(parser, *path, "MismatchInfo");
+        assert_eq!(generic_arguments.len(), 2);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_deep_pick_actual_expected(parser, *value);
+        });
+        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+            assert_plain_type_reference(parser, *value, "Expected");
+        });
+    });
+}
+
+/// Assert the nested conditional constraint used by generic arrow type fixtures.
+fn assert_expected_nested_conditional_constraint(
+    parser: &Parser,
+    value: LocalNodeId<TypeExpression>,
+) {
+    assert_node!(parser.tree, value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+        assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "IsUnion");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_plain_type_reference(parser, *value, "Expected");
+            });
+        });
+        assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
+            assert_eq!(*value, ScalarLiteral::Boolean(true));
+        });
+        assert_string_type_literal(parser, *then_type, "union");
+        assert_node!(parser.tree, *else_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+            assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Not");
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_extends_expected_record(parser, *value);
+                });
+            });
+            assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
+                assert_eq!(*value, ScalarLiteral::Boolean(true));
+            });
+            assert_string_type_literal(parser, *then_type, "object");
+            assert_node!(parser.tree, *else_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                assert_strict_equal_deep_pick_expected(parser, *left);
+                assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
+                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                });
+                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Unknown);
+                });
+                assert_mismatch_info_deep_pick_expected(parser, *else_type);
+            });
+        });
+    });
+}
 
 #[test]
 fn test_parse_type_template_literal_with_generic_arguments() {
@@ -846,6 +1001,373 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
                 assert_node!(parser.tree, properties[0], TypeMember::Field { declared_type, .. } => {
                     assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
                         assert!(!function.generic_parameters.is_empty());
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse nested generic references with literal type arguments.
+#[test]
+fn test_parse_nested_generic_reference_with_literal_argument() {
+    let input = r#"type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "T");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert!(generic_parameters.is_empty());
+            assert!(where_clauses.is_empty());
+            assert_mismatch_args(&parser, *value);
+        });
+    });
+}
+
+/// Parse generic arrow property types with nested generic parameter types.
+#[test]
+fn test_parse_type_member_generic_arrow_nested_parameter_type() {
+    let input = r#"type T = {
+  method: <Expected>(
+    ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
+  ) => true;
+}"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = { method: <Expected>(...) => true }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "T");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert!(generic_parameters.is_empty());
+            assert!(where_clauses.is_empty());
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_static, is_optional, is_readonly, key, declared_type } => {
+                    assert!(!*is_static);
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                        assert_string!(parser, *name, "method");
+                    });
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.generic_parameters.len(), 1);
+                        assert!(function.where_clauses.is_empty());
+                        assert!(function.this_parameter.is_none());
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                            assert_string!(parser, *name, "Expected");
+                            assert!(variance.is_none());
+                            assert!(constraint.is_none());
+                            assert!(default.is_none());
+                        });
+                        assert_eq!(function.parameters.len(), 1);
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                            assert_string!(parser, *name, "MISMATCH");
+                            assert!(visibility.is_none());
+                            assert!(!*is_readonly);
+                            assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                        });
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
+                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse generic parameters with nested conditional constraints and a trailing comma.
+#[test]
+fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comma() {
+    let input = r#"<
+  Expected extends IsUnion<Expected> extends true
+    ? "union"
+    : Not<Extends<Expected, Record<string, unknown>>> extends true
+      ? "object"
+      : StrictEqual<DeepPick<Actual, Expected>, Expected> extends true
+        ? unknown
+        : MismatchInfo<DeepPick<Actual, Expected>, Expected>,
+>"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let generic_parameters = parser.eat_generic_parameters(false).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // <Expected extends IsUnion<Expected> extends true ? ...>
+    assert_eq!(generic_parameters.len(), 1);
+    assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+        assert_string!(parser, *name, "Expected");
+        assert!(variance.is_none());
+        assert!(default.is_none());
+        assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
+    });
+}
+
+/// Parse function types with nested conditional generic constraints.
+#[test]
+fn test_parse_function_type_nested_conditional_constraint() {
+    let input = r#"type T = <
+  Expected extends IsUnion<Expected> extends true
+    ? "union"
+    : Not<Extends<Expected, Record<string, unknown>>> extends true
+      ? "object"
+      : StrictEqual<DeepPick<Actual, Expected>, Expected> extends true
+        ? unknown
+        : MismatchInfo<DeepPick<Actual, Expected>, Expected>,
+>(
+  ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
+) => true"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = <Expected extends ...>(...MISMATCH) => true
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "T");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert!(generic_parameters.is_empty());
+            assert!(where_clauses.is_empty());
+            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_eq!(function.generic_parameters.len(), 1);
+                assert!(function.where_clauses.is_empty());
+                assert!(function.this_parameter.is_none());
+                assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                    assert_string!(parser, *name, "Expected");
+                    assert!(variance.is_none());
+                    assert!(default.is_none());
+                    assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
+                });
+                assert_eq!(function.parameters.len(), 1);
+                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                    assert_string!(parser, *name, "MISMATCH");
+                    assert!(visibility.is_none());
+                    assert!(!*is_readonly);
+                    assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                });
+                assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
+                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                });
+            });
+        });
+    });
+}
+
+/// Parse generic arrow property types with nested conditional constraints.
+#[test]
+fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
+    let input = r#"type Expect<Actual> = {
+  toMatchObjectType: <
+    Expected extends IsUnion<Expected> extends true
+      ? "union"
+      : Not<Extends<Expected, Record<string, unknown>>> extends true
+        ? "object"
+        : StrictEqual<DeepPick<Actual, Expected>, Expected> extends true
+          ? unknown
+          : MismatchInfo<DeepPick<Actual, Expected>, Expected>,
+  >(
+    ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
+  ) => true;
+}"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type Expect<Actual> = { toMatchObjectType: <...>(...) => true }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "Expect");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert_eq!(generic_parameters.len(), 1);
+            assert!(where_clauses.is_empty());
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                assert_string!(parser, *name, "Actual");
+                assert!(variance.is_none());
+                assert!(constraint.is_none());
+                assert!(default.is_none());
+            });
+
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_static, is_optional, is_readonly, key, declared_type } => {
+                    assert!(!*is_static);
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                        assert_string!(parser, *name, "toMatchObjectType");
+                    });
+
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.generic_parameters.len(), 1);
+                        assert!(function.where_clauses.is_empty());
+                        assert!(function.this_parameter.is_none());
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                            assert_string!(parser, *name, "Expected");
+                            assert!(variance.is_none());
+                            assert!(default.is_none());
+                            assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
+                        });
+
+                        assert_eq!(function.parameters.len(), 1);
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                            assert_string!(parser, *name, "MISMATCH");
+                            assert!(visibility.is_none());
+                            assert!(!*is_readonly);
+                            assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
+                        });
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
+                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse generic arrow property types whose parameter list follows `>>`.
+#[test]
+fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
+    let input = r#"type T = {
+  f: <U extends A<B>>(x: U) => true;
+}"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = { f: <U extends A<B>>(x: U) => true }
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "T");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert!(generic_parameters.is_empty());
+            assert!(where_clauses.is_empty());
+
+            assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
+                assert_eq!(members.len(), 1);
+                assert_node!(parser.tree, members[0], TypeMember::Field { is_static, is_optional, is_readonly, key, declared_type } => {
+                    assert!(!*is_static);
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(key, Key::Name(Name::Identifier(name)) => {
+                        assert_string!(parser, *name, "f");
+                    });
+
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.generic_parameters.len(), 1);
+                        assert!(function.where_clauses.is_empty());
+                        assert!(function.this_parameter.is_none());
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                            assert_string!(parser, *name, "U");
+                            assert!(variance.is_none());
+                            assert!(default.is_none());
+                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Reference { path, generic_arguments } => {
+                                assert_path!(parser, *path, "A");
+                                assert_eq!(generic_arguments.len(), 1);
+                                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                                    assert_plain_type_reference(&parser, *value, "B");
+                                });
+                            });
+                        });
+
+                        assert_eq!(function.parameters.len(), 1);
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default } => {
+                            assert_string!(parser, *name, "x");
+                            assert!(visibility.is_none());
+                            assert!(!*is_readonly);
+                            assert!(!*is_optional);
+                            assert!(default.is_none());
+                            assert_plain_type_reference(&parser, declared_type.expect("expected parameter type"), "U");
+                        });
+
+                        assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
+                            assert_eq!(*value, ScalarLiteral::Boolean(true));
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse generic arrow property types with nested conditional constraints before parameters.
+#[test]
+fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_list() {
+    let input = r#"type T = {
+  f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true;
+}"#;
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = { f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true }
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
+                assert_eq!(members.len(), 1);
+                assert_node!(parser.tree, members[0], TypeMember::Field { declared_type, .. } => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_eq!(function.generic_parameters.len(), 1);
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
+                            assert_string!(parser, *name, "U");
+                            assert_node!(parser.tree, constraint.expect("expected constraint"), TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                                assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                                    assert_path!(parser, *path, "A");
+                                    assert_eq!(generic_arguments.len(), 1);
+                                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                                        assert_plain_type_reference(&parser, *value, "B");
+                                    });
+                                });
+                                assert_node!(parser.tree, *extends_type, TypeExpression::ScalarLiteral { value } => {
+                                    assert_eq!(*value, ScalarLiteral::Boolean(true));
+                                });
+                                assert_node!(parser.tree, *then_type, TypeExpression::Literal { value } => {
+                                    assert_eq!(*value, TypeLiteral::Unknown);
+                                });
+                                assert_node!(parser.tree, *else_type, TypeExpression::Reference { path, generic_arguments } => {
+                                    assert_path!(parser, *path, "C");
+                                    assert_eq!(generic_arguments.len(), 1);
+                                    assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                                        assert_plain_type_reference(&parser, *value, "D");
+                                    });
+                                });
+                            });
+                        });
                     });
                 });
             });

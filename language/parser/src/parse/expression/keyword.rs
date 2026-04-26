@@ -1,6 +1,6 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Asynchrony, Declaration, EnumKind, ExportMode, Expression, Keyword, LocalNodeId,
@@ -30,26 +30,38 @@ impl Parser {
     fn can_start_async_function_signature(&mut self, next_token_type: TokenType) -> bool {
         // async (...) must be followed by an arrow or return type to form a lambda
         if next_token_type == TokenType::OpenParenthesis {
-            let open_index = self.index_for_next() as u32;
-            let Some(close_pos) = self.find_matching_close_maybe(
-                Some(open_index),
-                TokenType::OpenParenthesis,
-                TokenType::CloseParenthesis,
-            ) else {
-                return false;
-            };
-            let follow_index = self.next_non_newline_index_from(close_pos as usize + 1);
-            let follow_token_type = self.token_ref_at(follow_index).map(|token| token.token.ty);
-            return matches!(
-                follow_token_type,
-                Some(TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon)
-            );
+            return self.lookahead(|parser| {
+                parser.bump();
+                let mut parenthesis_depth = 0u32;
+
+                loop {
+                    let token_type = parser.peek_token_type();
+                    if token_type == TokenType::End {
+                        return false;
+                    }
+
+                    if token_type == TokenType::OpenParenthesis {
+                        parenthesis_depth += 1;
+                    } else if token_type == TokenType::CloseParenthesis {
+                        parenthesis_depth -= 1;
+                        if parenthesis_depth == 0 {
+                            parser.bump();
+                            return matches!(
+                                parser.peek_token_type(),
+                                TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
+                            );
+                        }
+                    }
+
+                    parser.bump();
+                }
+            });
         }
 
         // async <T>(...) must be a real generic arrow head
         if next_token_type == TokenType::LessThan {
-            let next_index = self.index_for_next();
-            return self.with_pos(next_index, |parser| {
+            return self.lookahead(|parser| {
+                parser.bump();
                 parser.peek_generic_arrow_after_type_parameters(false)
             });
         }
@@ -61,18 +73,24 @@ impl Parser {
 
         // async function ...
         if next_token_type == TokenType::Identifier
-            && self.keyword_for_index(self.index_for_next()) == Some(Keyword::Function)
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.current_keyword()
+            }) == Some(Keyword::Function)
         {
             return true;
         }
 
         // async x => ...
         if next_token_type == TokenType::Identifier {
-            let next_index = self.index_for_next();
-            let after_next_index = self.next_non_newline_index_from(next_index + 1);
-            let after_next_token_type = self.token_type_at(after_next_index);
-            return after_next_token_type == TokenType::Arrow
-                || after_next_token_type == TokenType::ArrowWide;
+            return self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                matches!(
+                    parser.peek_token_type(),
+                    TokenType::Arrow | TokenType::ArrowWide
+                )
+            });
         }
 
         false
@@ -82,7 +100,7 @@ impl Parser {
     #[inline]
     pub(crate) fn insert_declaration_type_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         declaration_id: LocalNodeId<Declaration>,
     ) -> LocalNodeId<TypeExpression> {
         self.insert_node(
@@ -97,7 +115,7 @@ impl Parser {
     #[inline]
     pub(super) fn insert_declaration_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         declaration_id: LocalNodeId<Declaration>,
     ) -> LocalNodeId<Expression> {
         self.insert_node(
@@ -130,38 +148,29 @@ impl Parser {
         member_names: &[&str],
         allow_newlines: bool,
     ) -> ParseResult<bool> {
-        // require dot member access
-        let dot_index = if allow_newlines {
-            if !self.is_token_after_newlines(self.pos(), TokenType::Dot) {
+        self.lookahead(|parser| {
+            // require dot member access
+            parser.bump();
+            let dot_token = parser.current_token();
+            if dot_token.token.ty != TokenType::Dot
+                || (!allow_newlines && dot_token.token.is_on_new_line)
+            {
                 return Ok(false);
             }
-            self.next_non_newline_index_from(self.pos_index() + 1)
-        } else {
-            if !self.peek_next_is(TokenType::Dot) {
-                return Ok(false);
+
+            // require identifier member
+            parser.bump();
+            let identifier_token = parser.current_token();
+            if identifier_token.token.ty != TokenType::Identifier {
+                return Err(ParseError::unexpected(identifier_token.span));
             }
-            self.index_for_next()
-        };
 
-        // require identifier member
-        let identifier_index = if allow_newlines {
-            self.next_non_newline_index_from(dot_index + 1)
-        } else {
-            dot_index + 1
-        };
-        self.ensure_token(identifier_index);
-        let Some(identifier_token) = self.tokens().get(identifier_index).copied() else {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        };
-        if identifier_token.token.ty != TokenType::Identifier {
-            return Err(ParseError::unexpected(identifier_token.span));
-        }
+            // compare directly against source text to avoid interning in hot lookahead
+            let member_name = parser.current_token_str();
+            let matches_member_name = member_names.contains(&member_name);
 
-        // compare directly against source text to avoid interning in hot lookahead
-        let matches_member_name = member_names
-            .iter()
-            .any(|member_name| self.identifier_equals_at(identifier_index, member_name));
-        Ok(matches_member_name)
+            Ok(matches_member_name)
+        })
     }
 
     /// Return true when one `type` family keyword may start a type form.
@@ -169,26 +178,20 @@ impl Parser {
         &mut self,
         keyword: Keyword,
         next_token_type: TokenType,
-        next_token_index: usize,
-        next_has_line_break: bool,
+        next_is_on_new_line: bool,
+        next_keyword: Option<Keyword>,
+        following_token_type: TokenType,
     ) -> bool {
         // `type` does not continue across a newline in value space
-        if keyword == Keyword::Type && next_has_line_break {
+        if keyword == Keyword::Type && next_is_on_new_line {
             return false;
         }
 
         // `type as` and related operators should stay in value space
         let stays_in_value_space = keyword == Keyword::Type && {
-            let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index(next_token_index)
-            } else {
-                None
-            };
-            let after_next_index = self.next_non_newline_index_from(next_token_index + 1);
-            let after_next_token_type = self.token_type_at(after_next_index);
             let is_type_relation = is_type_relation_keyword(next_keyword);
             let starts_alias_head = matches!(
-                after_next_token_type,
+                following_token_type,
                 TokenType::Assign
                     | TokenType::LessThan
                     | TokenType::ShiftLeft
@@ -220,12 +223,10 @@ impl Parser {
     /// Eat `import.meta` as one dedicated expression.
     fn eat_import_meta_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_keyword(Keyword::Import)?;
-        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::Dot)?;
-        self.eat_newlines_maybe()?;
         self.eat_identifier_str("meta")?;
 
         Ok(self.insert_node(Expression::ImportMeta, self.get_span_from(start)))
@@ -234,15 +235,13 @@ impl Parser {
     /// Eat `import.source` as one qualified reference expression.
     fn eat_import_source_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let import_span = self.peek_keyword(Keyword::Import)?.span;
         let import_name = self.strings.intern("import");
 
         self.eat_keyword(Keyword::Import)?;
-        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::Dot)?;
-        self.eat_newlines_maybe()?;
         let (source_name, source_span) = self.eat_identifier_with_span()?;
 
         let path = Path {
@@ -262,7 +261,7 @@ impl Parser {
     /// Eat `new.target` as one dedicated expression.
     fn eat_new_target_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_keyword(Keyword::New)?;
         self.eat_token(TokenType::Dot)?;
@@ -274,32 +273,26 @@ impl Parser {
     /// Return true when `await` may begin an `await using` declaration.
     #[inline]
     fn can_start_await_using(&mut self) -> bool {
-        self.using_keyword_index(Asynchrony::Async).is_some()
+        self.using_keyword_is(Asynchrony::Async)
     }
 
     /// Try to parse common statement keywords without the full keyword dispatch table.
     pub(crate) fn try_eat_direct_statement_keyword_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         keyword: Keyword,
-        next_raw_token_type: TokenType,
-        next_cursor: NonNewlineTokenCursor,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         let header = DeclarationHeader::default();
-        let next_token_type = next_cursor.token_type;
-        let next_token_index = next_cursor.index;
-        let next_has_line_break = next_cursor.has_line_break_before;
-        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-        let next_keyword = if next_token_type == TokenType::Identifier {
-            self.keyword_for_index(next_token_index)
-        } else {
-            None
-        };
-        let next_raw_keyword = if next_raw_token_type == TokenType::Identifier {
-            self.keyword_for_index(self.index_for_next())
-        } else {
-            None
-        };
+        let next_token = self.next_token();
+        let next_token_type = next_token.token.ty;
+        let next_is_on_new_line = next_token.token.is_on_new_line;
+        let next_keyword = self.next_keyword();
+        let following_token_type = self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.peek_token_type()
+        });
+        let next_is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
         match keyword {
             Keyword::Function => {
@@ -319,18 +312,19 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             Keyword::Struct
-                if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
+                if self.language.is_destack()
+                    && (next_is_declaration_start || next_is_on_new_line) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let struct_id = self.eat_struct_or_class(start, header, false)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
-            Keyword::Enum if is_declaration_start && !next_has_line_break => {
+            Keyword::Enum if next_is_declaration_start && !next_is_on_new_line => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
-            Keyword::Interface if is_declaration_start || next_has_line_break => {
+            Keyword::Interface if next_is_declaration_start || next_is_on_new_line => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let interface_id = self.eat_interface(start, header, TypeKind::Structural)?;
                 Ok(Some(
@@ -338,8 +332,8 @@ impl Parser {
                 ))
             }
             Keyword::Namespace
-                if is_declaration_start
-                    && !next_has_line_break
+                if next_is_declaration_start
+                    && !next_is_on_new_line
                     && next_token_type == TokenType::Identifier
                     && !is_type_relation_keyword(next_keyword) =>
             {
@@ -349,7 +343,7 @@ impl Parser {
                     self.insert_declaration_expression(start, namespace_id),
                 ))
             }
-            Keyword::Extension if self.language.is_destack() && is_declaration_start => {
+            Keyword::Extension if self.language.is_destack() && next_is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let extension_id = self.eat_extension(start, header)?;
                 Ok(Some(
@@ -360,8 +354,9 @@ impl Parser {
                 if !self.keyword_begins_type_form(
                     Keyword::Type,
                     next_token_type,
-                    next_token_index,
-                    next_has_line_break,
+                    next_is_on_new_line,
+                    next_keyword,
+                    following_token_type,
                 ) {
                     return Ok(None);
                 }
@@ -373,19 +368,24 @@ impl Parser {
                     self.insert_type_keyword_expression(type_expression_id),
                 ))
             }
-            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
+            Keyword::Import
+                if next_token_type == TokenType::OpenParenthesis && !next_is_on_new_line =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
             Keyword::Import => {
                 // special import member forms
-                if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is_any(&["meta"], true)? {
-                        return Ok(Some(self.eat_import_meta_expression(start)?));
-                    }
-                    if self.keyword_member_access_is_any(&["source"], true)? {
-                        return Ok(Some(self.eat_import_source_expression(start)?));
-                    }
+                if self.keyword_member_access_is_any(&["meta"], true)? {
+                    return Ok(Some(self.eat_import_meta_expression(start)?));
+                }
+                if self.keyword_member_access_is_any(&["source"], true)? {
+                    return Ok(Some(self.eat_import_source_expression(start)?));
+                }
+                if self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Dot)
+                }) {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -473,7 +473,7 @@ impl Parser {
                 Ok(Some(self.eat_let_from_keyword(start, header, keyword)?))
             }
             Keyword::Const => {
-                if next_raw_keyword == Some(Keyword::Enum) {
+                if next_keyword == Some(Keyword::Enum) && !next_is_on_new_line {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Const)?;
                     let enum_id = self.eat_enum(start, EnumKind::Const, header)?;
@@ -510,7 +510,7 @@ impl Parser {
                     Ok(Some(self.eat_await()?))
                 }
             }
-            Keyword::Async if next_raw_token_type == TokenType::Identifier => {
+            Keyword::Async if next_token_type == TokenType::Identifier && !next_is_on_new_line => {
                 if next_keyword != Some(Keyword::Function) {
                     return Ok(None);
                 }
@@ -528,7 +528,7 @@ impl Parser {
         &mut self,
         keyword: Keyword,
         next_token_type: TokenType,
-        next_token_index: usize,
+        next_keyword: Option<Keyword>,
     ) -> bool {
         // this path only applies inside type expressions
         if !self.options.is_in_type() {
@@ -545,36 +545,29 @@ impl Parser {
             return false;
         }
 
-        self.keyword_for_index(next_token_index) == Some(Keyword::Is)
+        next_keyword == Some(Keyword::Is)
     }
 
     /// Eat a keyword-led primary expression in strict type space when possible.
     pub(super) fn eat_type_keyword_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         keyword: Keyword,
         next_token_type: TokenType,
-        next_token_index: usize,
         next_has_line_break: bool,
-        next_raw_token_type: TokenType,
+        next_keyword: Option<Keyword>,
+        after_next_token_type: TokenType,
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         // parse contextual keyword subjects like `override is X` as identifiers
         if self.keyword_parses_as_type_predicate_subject_identifier(
             keyword,
             next_token_type,
-            next_token_index,
+            next_keyword,
         ) {
             return Ok(None);
         }
-
-        // next keyword facts
-        let next_keyword = if next_token_type == TokenType::Identifier {
-            self.keyword_for_index(next_token_index)
-        } else {
-            None
-        };
 
         match keyword {
             // namespace declaration
@@ -656,8 +649,9 @@ impl Parser {
                 if !self.keyword_begins_type_form(
                     Keyword::Newtype,
                     next_token_type,
-                    next_token_index,
                     next_has_line_break,
+                    next_keyword,
+                    after_next_token_type,
                 ) {
                     return Ok(None);
                 }
@@ -699,8 +693,13 @@ impl Parser {
                 }
 
                 // avoid async generic parses in stronger infix contexts
-                let has_generic_head = self.peek_next_is(TokenType::LessThan)
-                    || self.peek_next_is(TokenType::ShiftLeft);
+                let has_generic_head = self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::LessThan)
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::ShiftLeft)
+                });
                 let has_stronger_infix_context =
                     self.options.left_precedence.is_some_and(|left_precedence| {
                         left_precedence > OperatorPrecedence::Assignment as u16
@@ -804,7 +803,9 @@ impl Parser {
             }
 
             // import type expression
-            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
+            Keyword::Import
+                if next_token_type == TokenType::OpenParenthesis && !next_has_line_break =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 let type_expression_id = self.eat_type_import_expression()?;
 
@@ -854,8 +855,9 @@ impl Parser {
                 if !self.keyword_begins_type_form(
                     keyword,
                     next_token_type,
-                    next_token_index,
                     next_has_line_break,
+                    next_keyword,
+                    after_next_token_type,
                 ) {
                     return Ok(None);
                 }
@@ -883,29 +885,23 @@ impl Parser {
     /// ```
     pub(super) fn eat_keyword_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         keyword: Keyword,
         next_token_type: TokenType,
-        next_token_index: usize,
         next_has_line_break: bool,
-        next_raw_token_type: TokenType,
+        next_keyword: Option<Keyword>,
+        after_next_token_type: TokenType,
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // parse contextual keyword subjects like `override is X` as identifiers
         if self.keyword_parses_as_type_predicate_subject_identifier(
             keyword,
             next_token_type,
-            next_token_index,
+            next_keyword,
         ) {
             return Ok(None);
         }
-
-        let next_keyword = if next_token_type == TokenType::Identifier {
-            self.keyword_for_index(next_token_index)
-        } else {
-            None
-        };
 
         match keyword {
             // namespace declaration
@@ -979,8 +975,9 @@ impl Parser {
                     if self.keyword_begins_type_form(
                         Keyword::Newtype,
                         next_token_type,
-                        next_token_index,
                         next_has_line_break,
+                        next_keyword,
+                        after_next_token_type,
                     ) {
                         let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                         let type_expression_id = self.eat_type(start, header)?;
@@ -1021,8 +1018,13 @@ impl Parser {
                 }
 
                 // avoid async generic parses in stronger infix contexts
-                let has_generic_head = self.peek_next_is(TokenType::LessThan)
-                    || self.peek_next_is(TokenType::ShiftLeft);
+                let has_generic_head = self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::LessThan)
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::ShiftLeft)
+                });
                 let has_stronger_infix_context =
                     self.options.left_precedence.is_some_and(|left_precedence| {
                         left_precedence > OperatorPrecedence::Assignment as u16
@@ -1122,15 +1124,14 @@ impl Parser {
             // new expression
             Keyword::New => {
                 // allow one committed or recoverable constructor slot
-                let can_start_new_expression =
-                    matches!(
-                        next_token_type,
-                        TokenType::Identifier
-                            | TokenType::OpenParenthesis
-                            | TokenType::OpenBrace
-                            | TokenType::LessThan
-                            | TokenType::Newline
-                    ) || Self::is_expression_slot_boundary_token(next_token_type);
+                let can_start_new_expression = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::OpenBrace
+                        | TokenType::LessThan
+                ) || next_has_line_break
+                    || Self::is_expression_slot_boundary_token(next_token_type);
                 if can_start_new_expression {
                     // parse new expression
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
@@ -1155,20 +1156,25 @@ impl Parser {
                 Ok(Some(self.eat_delete()?))
             }
             // import call expression
-            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
+            Keyword::Import
+                if next_token_type == TokenType::OpenParenthesis && !next_has_line_break =>
+            {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
             // import declaration or import meta
             Keyword::Import => {
                 // special import member forms
-                if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
-                    if self.keyword_member_access_is_any(&["meta"], true)? {
-                        return Ok(Some(self.eat_import_meta_expression(start)?));
-                    }
-                    if self.keyword_member_access_is_any(&["source"], true)? {
-                        return Ok(Some(self.eat_import_source_expression(start)?));
-                    }
+                if self.keyword_member_access_is_any(&["meta"], true)? {
+                    return Ok(Some(self.eat_import_meta_expression(start)?));
+                }
+                if self.keyword_member_access_is_any(&["source"], true)? {
+                    return Ok(Some(self.eat_import_source_expression(start)?));
+                }
+                if self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Dot)
+                }) {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -1237,8 +1243,9 @@ impl Parser {
                 if self.keyword_begins_type_form(
                     Keyword::Type,
                     next_token_type,
-                    next_token_index,
                     next_has_line_break,
+                    next_keyword,
+                    after_next_token_type,
                 ) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     let type_expression_id = self.eat_type(start, header)?;

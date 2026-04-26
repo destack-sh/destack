@@ -1,6 +1,5 @@
-use crate::parse::NonNewlineTokenCursor;
 use crate::parse::timing::tags;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
@@ -11,47 +10,41 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 use super::expression::common::DeclarationHeader;
 
 impl Parser {
-    /// Return the `using` keyword index for an async or sync using head at the current position.
+    /// Return true when an async or sync using head starts at the current position.
     #[inline]
-    pub(crate) fn using_keyword_index(&mut self, asynchrony: Asynchrony) -> Option<usize> {
+    pub(crate) fn using_keyword_is(&mut self, asynchrony: Asynchrony) -> bool {
         if asynchrony == Asynchrony::Async {
             if !self.is_keyword(Keyword::Await) {
-                return None;
+                return false;
             }
 
-            let using_cursor = self.scanner_cursor_from(self.pos_index() + 1);
-            if using_cursor.has_line_break_before
-                || using_cursor.token_type != TokenType::Identifier
-            {
-                return None;
-            }
-
-            if self.keyword_for_index(using_cursor.index) != Some(Keyword::Using) {
-                return None;
-            }
-
-            return Some(using_cursor.index);
+            return self.lookahead(|parser| {
+                parser.bump();
+                !parser.current_token().token.is_on_new_line && parser.is_keyword(Keyword::Using)
+            });
         }
 
-        if self.is_keyword(Keyword::Using) {
-            return Some(self.pos_index());
-        }
-
-        None
+        self.is_keyword(Keyword::Using)
     }
 
     /// Return the first declarator token after `using` when it stays on the same line.
     #[inline]
-    pub(crate) fn using_binding_head_cursor(
-        &mut self,
-        using_index: usize,
-    ) -> Option<NonNewlineTokenCursor> {
-        let declarator_cursor = self.scanner_cursor_from(using_index + 1);
-        if declarator_cursor.has_line_break_before {
-            return None;
-        }
+    pub(crate) fn using_binding_head_token(&mut self, asynchrony: Asynchrony) -> Option<TokenType> {
+        self.lookahead(|parser| {
+            if asynchrony == Asynchrony::Async {
+                parser.bump();
+            }
+            if !parser.is_keyword(Keyword::Using) {
+                return None;
+            }
 
-        Some(declarator_cursor)
+            parser.bump();
+            if parser.current_token().token.is_on_new_line {
+                return None;
+            }
+
+            Some(parser.peek_token_type())
+        })
     }
 
     /// Return true when a token can start a `using` binding pattern.
@@ -87,17 +80,15 @@ impl Parser {
     /// Parse declarators for a consumed let-like keyword.
     fn eat_let_after_keyword(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         kind: LetKind,
         mutability: Mutability,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        self.eat_newlines_maybe()?;
-
         let first_declarator = self.eat_declarator(false, false)?;
 
         // let else
-        if self.is_keyword(Keyword::Else) || self.is_keyword_after_newlines(Keyword::Else) {
+        if self.is_keyword(Keyword::Else) {
             if header.export.is_some() || header.ambient.is_ambient() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
@@ -107,9 +98,7 @@ impl Parser {
                 return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
             }
 
-            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::Else)?;
-            self.eat_newlines_maybe()?;
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
@@ -117,7 +106,7 @@ impl Parser {
             }
 
             let else_branch = {
-                let branch_start = self.mark_span();
+                let branch_start = self.span_start();
                 let else_block = self.eat_block(BlockContext::Statement)?;
 
                 self.insert_node(
@@ -208,7 +197,7 @@ impl Parser {
     /// Eat a let-like binding when the caller already resolved the keyword.
     pub(crate) fn eat_let_from_keyword(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         keyword: Keyword,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -293,7 +282,7 @@ impl Parser {
     #[cfg(test)]
     pub(crate) fn eat_let(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LET);
@@ -311,7 +300,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_using(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         asynchrony: Asynchrony,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -322,7 +311,6 @@ impl Parser {
         }
 
         // using keyword
-        self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::Using)?;
 
         // parse declarators (comma-separated list)
@@ -367,7 +355,7 @@ impl Parser {
         allow_match_pattern: bool,
     ) -> ParseResult<LocalNodeId<Declarator>> {
         let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
-        let start = self.mark_span();
+        let start = self.span_start();
         let pattern_options = self
             .options
             .not_in_position()
@@ -377,21 +365,23 @@ impl Parser {
         // pattern
         let pattern_id = if self.peek_is(TokenType::Identifier) {
             // simple path for simple binding patterns
-            let next_token_type = self.peek_next_token_type();
-            let can_use_simple_let_path = matches!(
-                next_token_type,
-                TokenType::Colon
-                    | TokenType::Assign
-                    | TokenType::Comma
-                    | TokenType::Semicolon
-                    | TokenType::CloseBrace
-                    | TokenType::CloseParenthesis
-                    | TokenType::CloseBracket
-                    | TokenType::End
-                    | TokenType::Newline
-            );
+            let can_use_simple_let_path = self.lookahead(|parser| {
+                parser.bump();
+                parser.current_token_is_on_new_line()
+                    || matches!(
+                        parser.peek_token_type(),
+                        TokenType::Colon
+                            | TokenType::Assign
+                            | TokenType::Comma
+                            | TokenType::Semicolon
+                            | TokenType::CloseBrace
+                            | TokenType::CloseParenthesis
+                            | TokenType::CloseBracket
+                            | TokenType::End
+                    )
+            });
             if can_use_simple_let_path {
-                let keyword = self.keyword_for_index(self.pos_index());
+                let keyword = self.current_keyword();
                 let is_mutability_keyword =
                     matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
                         || self.language.is_destack() && keyword == Some(Keyword::Readonly);
@@ -400,7 +390,7 @@ impl Parser {
                 let is_underscore_identifier = if allow_underscore_binding {
                     false
                 } else {
-                    self.identifier_equals_at(self.pos_index(), "_")
+                    self.current_identifier_str_is("_")
                 };
                 if !is_mutability_keyword && (!is_underscore_identifier || allow_underscore_binding)
                 {
@@ -447,9 +437,8 @@ impl Parser {
 
         // type
         let (ty, ty_span) = if self.peek_colon_is() {
-            let type_start = self.mark_span();
+            let type_start = self.span_start();
             self.bump(); // eat colon
-            self.eat_newlines_maybe()?;
             let type_options = self.options.not_in_position().in_type();
             let ty = self
                 .eat_type_expression_node_or_recover_missing(type_options, NodeType::Declarator)?;
@@ -459,19 +448,16 @@ impl Parser {
         };
 
         // value
-        let value = if self.peek_is(TokenType::Assign)
-            || self.is_token_after_newlines(self.pos(), TokenType::Assign)
-        {
-            self.eat_newlines_maybe()?;
-            self.bump(); // eat assign
-            self.eat_newlines_maybe()?;
-            let value_options = self.options.not_in_position().not_in_sequence_expression();
-            Some(self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?)
-        } else if require_value {
-            return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
-        } else {
-            None
-        };
+        let value =
+            if self.peek_is(TokenType::Assign) || self.next_token_type() == TokenType::Assign {
+                self.bump(); // eat assign
+                let value_options = self.options.not_in_position().not_in_sequence_expression();
+                Some(self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?)
+            } else if require_value {
+                return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
+            } else {
+                None
+            };
 
         // declarator
         let declarator_id = self.insert_node(
@@ -501,25 +487,23 @@ impl Parser {
             return Ok(false);
         }
 
-        self.eat_newlines_maybe()?;
         self.bump(); // eat comma
-        self.eat_newlines_maybe()?;
 
         Ok(true)
     }
 
     /// Return true when the next token sequence continues a declarator list.
     fn declarator_has_separator(&mut self) -> bool {
-        self.peek_is(TokenType::Comma) || self.is_token_after_newlines(self.pos(), TokenType::Comma)
+        self.peek_is(TokenType::Comma) || self.next_token_type() == TokenType::Comma
     }
 
     /// Return true when the current token can terminate a declaration statement.
     fn declarator_has_statement_boundary(&mut self) -> bool {
         self.is_statement_stop()
-            || self.input_has_line_terminator_before_current_token()
+            || self.current_token_is_on_new_line()
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
-            || self.is_keyword_after_newlines(Keyword::Else)
+            || self.is_keyword(Keyword::Else)
     }
 
     /// Return true when a declarator pattern is a valid binding.
@@ -562,9 +546,8 @@ const x: int32 = 1
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -601,9 +584,8 @@ const constants:
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -693,9 +675,8 @@ using x = open()
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let using_id = parser
             .eat_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
             .unwrap();
@@ -765,7 +746,7 @@ using x = open()
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -794,7 +775,7 @@ using x = open()
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -826,9 +807,8 @@ await using conn = openConnection()
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let using_id = parser
             .eat_using(&start, DeclarationHeader::default(), Asynchrony::Async)
             .unwrap();
@@ -847,9 +827,8 @@ using a = openA(), b = openB()
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let using_id = parser
             .eat_using(&start, DeclarationHeader::default(), Asynchrony::Sync)
             .unwrap();
@@ -867,9 +846,8 @@ var x: float64[3] = undefined
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -905,9 +883,8 @@ const (x, y) = foo()
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -942,7 +919,7 @@ const (x, y) = foo()
     fn test_parse_let_definite_assignment_pattern() {
         let mut test = TestParser::new_with_options("let {}! = {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -962,7 +939,7 @@ const (x, y) = foo()
         let mut test = TestParser::new("const x: int32");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -991,9 +968,8 @@ const x =
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1027,7 +1003,6 @@ const registry: Map<
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let let_id = parser.eat_expression(parser.options).unwrap();
 
@@ -1082,7 +1057,7 @@ const registry: Map<
     fn test_parse_let_multiple_declarators() {
         let mut test = TestParser::new("let a: int32 = 1, b: string = \"hello\"");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1118,7 +1093,7 @@ const registry: Map<
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1153,7 +1128,7 @@ const registry: Map<
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1188,7 +1163,7 @@ const registry: Map<
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let let_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1212,7 +1187,7 @@ const registry: Map<
     fn test_parse_let_else_with_block_branch() {
         let mut test = TestParser::new("let { x } = value else { return }");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let expression_id = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
@@ -1250,7 +1225,7 @@ const registry: Map<
     fn test_reject_let_else_without_initializer() {
         let mut test = TestParser::new("let x else { return }");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let error = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap_err();
@@ -1263,7 +1238,7 @@ const registry: Map<
     fn test_reject_let_else_without_block_branch() {
         let mut test = TestParser::new("let x = value else return");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let error = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap_err();
@@ -1277,7 +1252,7 @@ const registry: Map<
         // var a[0] = 0
         let mut test = TestParser::new_with_options("var a[0]=0;", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let error = parser
             .eat_let(&start, DeclarationHeader::default())
             .unwrap_err();

@@ -56,8 +56,7 @@ fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<Tok
         .iter()
         .rev()
         .find(|token| {
-            token.span.end <= comment.span.start
-                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+            token.span.end <= comment.span.start && !matches!(token.token.ty, TokenType::End)
         })
         .copied()
         .map(|token| token.token.ty)
@@ -69,8 +68,7 @@ fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenTy
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end
-                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
         })
         .copied()
         .map(|token| token.token.ty)
@@ -198,15 +196,14 @@ fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
     let mut parser = test.prepare();
 
     // speculative lookahead across the comment
-    let mark = parser.mark();
+    let mark = parser.checkpoint();
     let mark_node_id = parser.tree.next_id();
-    let next_span = parser.peek_next_next().expect("expected next token").span;
+    let next_span = parser.next_token().span;
     assert_eq!(parser.get_span_str(next_span), "b");
 
     // restore and consume the same boundary again
     parser.restore(mark, mark_node_id);
     parser.eat().expect("expected first token");
-    parser.eat().expect("expected newline token");
     parser.eat().expect("expected second token");
 
     // attach one raw comment

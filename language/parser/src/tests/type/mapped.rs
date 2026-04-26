@@ -310,6 +310,121 @@ fn test_parse_type_mapped_expression_with_intersection() {
 }
 
 #[test]
+fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_value() {
+    let mut test = TestParser::new_with_options(
+        r#"type T = (O extends P ? B<
+    O,
+    {
+        [K in keyof O]: C<
+            O[K]["multiple"],
+            Array<D<T, O[K]>>,
+            D<T, O[K]>
+        >;
+    }
+> : {});"#,
+        LanguageType::TypeScriptDeclaration,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, TypeExpression::Conditional { then_type, else_type, .. } => {
+                    assert_node!(parser.tree, *then_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert_path!(parser, path, "B");
+                        assert_eq!(generic_arguments.len(), 2);
+                        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "O");
+                        });
+                        assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+                            assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
+                                assert_string!(parser, parameter.name, "K");
+                                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                                    assert_expression_path!(parser, parser.tree.get(*target_type), "O");
+                                });
+                                assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                    assert_path!(parser, path, "C");
+                                    assert_eq!(generic_arguments.len(), 3);
+                                    assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+                                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                            assert_path!(parser, path, "Array");
+                                            assert_eq!(generic_arguments.len(), 1);
+                                        });
+                                    });
+                                    assert_node!(parser.tree, generic_arguments[2], GenericArgument::Type { value } => {
+                                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                            assert_path!(parser, path, "D");
+                                            assert_eq!(generic_arguments.len(), 2);
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                    assert_node!(parser.tree, *else_type, TypeExpression::Object { members } => {
+                        assert!(members.is_empty());
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_type_mapped_expression_with_leading_intersection_parenthesized_conditional() {
+    let mut test = TestParser::new_with_options(
+        r#"type T =
+    & A
+    & (O extends P ? B<
+            O,
+            {
+                [K in keyof O]: C<
+                    O[K]["multiple"],
+                    Array<D<T, O[K]>>,
+                    D<T, O[K]>
+                >;
+            }
+        >
+        : {});"#,
+        LanguageType::TypeScriptDeclaration,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Intersection { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_expression_path!(parser, parser.tree.get(elements[0]), "A");
+                assert_node!(parser.tree, elements[1], TypeExpression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, TypeExpression::Conditional { then_type, else_type, .. } => {
+                        assert_node!(parser.tree, *then_type, TypeExpression::Reference { path, generic_arguments } => {
+                            assert_path!(parser, path, "B");
+                            assert_eq!(generic_arguments.len(), 2);
+                            assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+                                assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
+                                    assert_string!(parser, parameter.name, "K");
+                                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                        assert_path!(parser, path, "C");
+                                        assert_eq!(generic_arguments.len(), 3);
+                                    });
+                                });
+                            });
+                        });
+                        assert_node!(parser.tree, *else_type, TypeExpression::Object { members } => {
+                            assert!(members.is_empty());
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_type_mapped_expression_with_key_remap_conditional() {
     let mut test =
         TestParser::new("type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }");

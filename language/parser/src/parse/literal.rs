@@ -30,32 +30,26 @@ impl Parser {
             return false;
         }
 
-        let pos = self.pos_index();
-        let next = self.next_non_newline_index_from_stream(pos + 1);
-        let Some(next_token) = self.token_ref_at(next).copied() else {
-            return false;
-        };
-        if next_token.token.ty == TokenType::Divide {
-            return false;
-        }
-        if !matches!(
-            next_token.token.ty,
-            TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
-        ) {
-            return false;
-        }
-
-        if next_token.token.ty == TokenType::Identifier {
-            let after_identifier = self.next_non_newline_index_from_stream(next + 1);
-            if self
-                .token_ref_at(after_identifier)
-                .is_some_and(|token| token.token.ty == TokenType::Comma)
-            {
+        self.lookahead(|parser| {
+            parser.bump();
+            let next_token_type = parser.peek_token_type();
+            if next_token_type == TokenType::Divide {
                 return false;
             }
-        }
+            if !matches!(
+                next_token_type,
+                TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
+            ) {
+                return false;
+            }
 
-        true
+            if next_token_type == TokenType::Identifier {
+                parser.bump();
+                return !parser.peek_is(TokenType::Comma);
+            }
+
+            true
+        })
     }
 
     /// Peek a scalar literal token.
@@ -670,7 +664,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
-        let start = self.mark_span();
+        let start = self.span_start();
         let (strings, spans) = self.eat_template_literal_parts(false, |parser| {
             // reset outer precedence so interpolation unions parse fully
             let interpolation_ambient_context = parser.options.with_type(true);
@@ -761,9 +755,7 @@ impl Parser {
                 }
                 // interpolation expression
                 else {
-                    self.eat_newlines_maybe()?;
                     let span = parse_span(self)?;
-                    self.eat_newlines_maybe()?;
                     if !self.peek_is(TokenType::TemplateStringMiddle)
                         && !self.peek_is(TokenType::TemplateStringEnd)
                     {
@@ -856,7 +848,7 @@ impl Parser {
     ///
     /// Template literal interpolations parse as full expressions (no named args).
     pub fn eat_template_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         let value = self.eat_expression(
             self.options
@@ -875,7 +867,6 @@ impl Parser {
     pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBracket)?;
-        self.eat_newlines_maybe()?;
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
@@ -890,7 +881,6 @@ impl Parser {
                 |parser| parser.eat_sequence_literal_body(None, TokenType::CloseBracket),
             )?
         };
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
         Ok(elements)
     }
@@ -909,7 +899,6 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.has_more_tokens() {
-            self.eat_newlines_maybe()?;
             let token_type = self.peek_token_type();
 
             // stop at the closing token (trailing commas are allowed, no hole)
@@ -919,7 +908,7 @@ impl Parser {
 
             // consume comma separators
             if token_type == TokenType::Comma {
-                let start = self.mark_span();
+                let start = self.span_start();
 
                 // leading hole: if we expected an element but got separator instead
                 if expect_element {
@@ -934,8 +923,7 @@ impl Parser {
                 }
 
                 // consume optional newlines before comma and then the comma itself
-                self.eat_newlines_maybe()?;
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
 
                 expect_element = true;
                 continue;
@@ -962,7 +950,6 @@ impl Parser {
     pub fn eat_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
-        self.eat_newlines_maybe()?;
         // object literal properties are always expression properties, not variant members
         let property_ambient_context = self.options.with_variant(false);
         let properties = self.with_options(
@@ -978,7 +965,6 @@ impl Parser {
     pub fn eat_type_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
-        self.eat_newlines_maybe()?;
 
         let property_ambient_context = self.options.with_variant(false).with_type(true);
         let properties = self.with_options(
@@ -1013,24 +999,30 @@ impl Parser {
         &mut self,
         require_tree_disambiguator: bool,
     ) -> bool {
+        let mark = self.cursor_checkpoint();
+        let result =
+            self.peek_generic_arrow_after_type_parameters_inner(require_tree_disambiguator);
+        self.rewind(mark);
+
+        result
+    }
+
+    /// Peek whether `<...>(...)` forms a generic arrow function signature.
+    fn peek_generic_arrow_after_type_parameters_inner(
+        &mut self,
+        require_tree_disambiguator: bool,
+    ) -> bool {
         // require `<` at the current position
         if self.peek_token(TokenType::LessThan).is_err() {
             return false;
         }
 
         // require an identifier in the type parameter list
-        let has_identifier = self.peek_next_is(TokenType::Identifier);
-
-        // allow multiline identifiers in generic parameter lists
-        let has_multiline_identifier = if self.peek_next_is(TokenType::Newline) {
-            let next_index = self.next_non_newline_index_from(self.pos() as usize + 1);
-            self.tokens()
-                .get(next_index)
-                .is_some_and(|token| token.token.ty == TokenType::Identifier)
-        } else {
-            false
-        };
-        if !has_identifier && !has_multiline_identifier {
+        let has_identifier = self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::Identifier)
+        });
+        if !has_identifier {
             return false;
         }
 
@@ -1040,105 +1032,91 @@ impl Parser {
         let mut bracket_depth = 0usize;
         let mut brace_depth = 0usize;
         let mut has_tree_disambiguator = false;
-        let mut pos = self.pos() as usize;
-        let mut close_pos = None;
+        let mut found_close = false;
         loop {
-            while let Some(token) = self.tokens().get(pos) {
-                match token.token.ty {
-                    TokenType::LessThan => angle_depth += 1,
-                    TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
-                    TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
-                    TokenType::UnsignedShiftRight => {
-                        angle_depth = angle_depth.saturating_sub(3);
-                    }
-                    TokenType::GreaterThan => {
-                        angle_depth = angle_depth.saturating_sub(1);
-                        if angle_depth == 0 {
-                            close_pos = Some(pos as u32);
-                            break;
-                        }
-                    }
-                    TokenType::OpenParenthesis => paren_depth += 1,
-                    TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
-                    TokenType::OpenBracket => bracket_depth += 1,
-                    TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
-                    TokenType::OpenBrace => brace_depth += 1,
-                    TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
-                    TokenType::Comma => {
-                        if angle_depth == 1
-                            && paren_depth == 0
-                            && bracket_depth == 0
-                            && brace_depth == 0
-                        {
-                            has_tree_disambiguator = true;
-                        }
-                    }
-                    TokenType::Assign => {
-                        if angle_depth == 1
-                            && paren_depth == 0
-                            && bracket_depth == 0
-                            && brace_depth == 0
-                        {
-                            has_tree_disambiguator = true;
-                        }
-                    }
-                    _ => {}
-                }
-                if angle_depth == 1
-                    && paren_depth == 0
-                    && bracket_depth == 0
-                    && brace_depth == 0
-                    && self.keyword_for_index(pos) == Some(Keyword::Extends)
-                {
-                    has_tree_disambiguator = true;
-                }
-
-                pos += 1;
-            }
-
-            if close_pos.is_some() || self.lexer.is_lexed_to_end() {
+            let token_type = self.peek_token_type();
+            if token_type == TokenType::End {
                 break;
             }
 
-            self.ensure_token(pos);
+            match token_type {
+                TokenType::LessThan => angle_depth += 1,
+                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                TokenType::ShiftRight => {
+                    if angle_depth == 2 {
+                        found_close = true;
+                        break;
+                    }
+                    angle_depth = angle_depth.saturating_sub(2);
+                }
+                TokenType::UnsignedShiftRight => {
+                    if angle_depth == 3 {
+                        found_close = true;
+                        break;
+                    }
+                    angle_depth = angle_depth.saturating_sub(3);
+                }
+                TokenType::GreaterThan => {
+                    angle_depth = angle_depth.saturating_sub(1);
+                    if angle_depth == 0 {
+                        found_close = true;
+                        break;
+                    }
+                }
+                TokenType::OpenParenthesis => paren_depth += 1,
+                TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
+                TokenType::Comma | TokenType::Assign => {
+                    if angle_depth == 1
+                        && paren_depth == 0
+                        && bracket_depth == 0
+                        && brace_depth == 0
+                    {
+                        has_tree_disambiguator = true;
+                    }
+                }
+                _ => {}
+            }
+
+            if angle_depth == 1
+                && paren_depth == 0
+                && bracket_depth == 0
+                && brace_depth == 0
+                && self.current_keyword() == Some(Keyword::Extends)
+            {
+                has_tree_disambiguator = true;
+            }
+
+            self.bump();
         }
-        let Some(close_pos) = close_pos else {
+        if !found_close {
             return false;
-        };
+        }
         if require_tree_disambiguator && !has_tree_disambiguator {
             return false;
         }
 
-        // skip newlines after the type parameters
-        let after_close_index = self.next_non_newline_index_from(close_pos as usize + 1);
-
-        // require `(` after the type parameters
-        let Some(after_close) = self.tokens().get(after_close_index) else {
-            return false;
-        };
-        if after_close.token.ty != TokenType::OpenParenthesis {
+        self.bump(); // eat type parameter close
+        if !self.peek_is(TokenType::OpenParenthesis) {
             return false;
         }
 
         // find the closing `)` for the parameters
-        let Some(parenthesis_close) = self.find_matching_close_maybe(
-            Some(after_close_index as u32),
-            TokenType::OpenParenthesis,
-            TokenType::CloseParenthesis,
-        ) else {
+        let Some(parenthesis_close) =
+            self.find_matching_close_maybe(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+        else {
             return false;
         };
 
-        // skip newlines after the parameter list
-        let after_parenthesis_index =
-            self.next_non_newline_index_from(parenthesis_close as usize + 1);
+        while self.current_token().span.start <= parenthesis_close.start {
+            self.bump();
+        }
 
-        // require `:` or `=>` after the parameters
-        let Some(after_parenthesis) = self.tokens().get(after_parenthesis_index) else {
-            return false;
-        };
         matches!(
-            after_parenthesis.token.ty,
+            self.peek_token_type(),
             TokenType::Colon | TokenType::Arrow | TokenType::ArrowWide
         )
     }
@@ -1146,7 +1124,7 @@ impl Parser {
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
     pub fn peek_tree_literal(&mut self) -> ParseResult<()> {
-        let mark = self.mark_rewind();
+        let mark = self.cursor_checkpoint();
         let result = (|| {
             if !self.peek_is(TokenType::LessThan) {
                 return Err(ParseError::unexpected(self.peek()?.span));
@@ -1155,7 +1133,6 @@ impl Parser {
 
             // probe the immediate tree head shape without priming lexer tree state
             self.bump();
-            self.eat_newlines_maybe()?;
 
             let next_token_type = self.peek_token_type();
             if next_token_type == TokenType::Divide {
@@ -1171,7 +1148,6 @@ impl Parser {
             // exclude generic arrow function disambiguation: <T,>(...)
             if next_token_type == TokenType::Identifier {
                 self.eat_tree_literal_identifier()?;
-                self.eat_newlines_maybe()?;
 
                 if self.peek_is(TokenType::Comma) {
                     return Err(ParseError::unexpected(unexpected_span));
@@ -1200,17 +1176,6 @@ impl Parser {
         let mut skipped = false;
         loop {
             let token = *self.peek()?;
-
-            // skip newlines
-            if token.token.ty == TokenType::Newline {
-                if in_tree_child {
-                    self.bump_tree_child();
-                } else {
-                    self.bump();
-                }
-                skipped = true;
-                continue;
-            }
 
             // skip non-meaningful whitespace-only tree strings
             if token.token.ty == TokenType::Literal
@@ -1257,9 +1222,8 @@ impl Parser {
         in_tree_child: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
-        let start = self.mark_span();
+        let start = self.span_start();
         self.eat_tree_opening_angle()?;
-        self.eat_newlines_maybe()?;
 
         // left
         let mut path_segment_spans = None;
@@ -1277,8 +1241,7 @@ impl Parser {
         } else {
             None
         };
-        self.eat_newlines_maybe()?;
-        let header_start = self.mark_span();
+        let header_start = self.span_start();
 
         // generic arguments on the tag: typed and tree-tag components
         let generic_arguments = if path.is_some()
@@ -1292,7 +1255,6 @@ impl Parser {
         } else {
             None
         };
-        self.eat_newlines_maybe()?;
 
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
@@ -1318,12 +1280,10 @@ impl Parser {
                         |parser| parser.eat_tree_literal_argument(),
                     )?;
                     arguments.push(argument);
-                    self.eat_newlines_maybe()?;
                 }
                 Some(arguments)
             }
         };
-        self.eat_newlines_maybe()?;
 
         // body (either />, or > with child elements)
         let opening_span: Span;
@@ -1350,13 +1310,11 @@ impl Parser {
 
                     // stop at closing fragment or closing named tag
                     if self.peek_is(TokenType::LessThan) {
-                        let closing_start = self.mark_rewind();
+                        let closing_start = self.cursor_checkpoint();
                         self.bump(); // eat <
-                        self.eat_newlines_maybe()?;
 
                         if self.peek_is(TokenType::Divide) {
                             self.bump(); // eat /
-                            self.eat_newlines_maybe()?;
 
                             // close fragment for fragment literals
                             if path.is_none() && self.peek_starts_tree_tag_close() {
@@ -1399,7 +1357,6 @@ impl Parser {
                     }
 
                     // keep eating child elements
-                    // NOTE #Robustness: uses statement position so {expr} parses as block (expression container)
                     let element_ambient_context = self.options.with_tree_literal(true);
                     let element_expression_context =
                         self.options.not_in_position().with_statement_position(true);
@@ -1704,7 +1661,6 @@ mod tests {
             }
             other => panic!("expected regex string literal, got {other:?}"),
         }
-        parser.eat_newline().unwrap();
 
         // /abc/g
         let literal = parser.eat_regex_literal().unwrap();
@@ -1753,7 +1709,6 @@ mod tests {
 "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         // `hello`
         let literal = parser.eat_template_literal().unwrap();
@@ -1764,7 +1719,6 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
-        parser.eat_newline().unwrap();
 
         // `hello ${name}`
         let literal = parser.eat_template_literal().unwrap();
@@ -1783,7 +1737,6 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
-        parser.eat_newline().unwrap();
 
         // `${stmt}`
         let literal = parser.eat_template_literal().unwrap();
@@ -1801,7 +1754,6 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
-        parser.eat_newline().unwrap();
 
         // `${start}${middle}${end}`
         let literal = parser.eat_template_literal().unwrap();
@@ -1829,7 +1781,6 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
-        parser.eat_newline().unwrap();
 
         // `SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
         let literal = parser.eat_template_literal().unwrap();
@@ -2213,7 +2164,6 @@ mod tests {
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Tooltip");
@@ -2258,7 +2208,6 @@ mod tests {
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
@@ -2309,7 +2258,6 @@ mod tests {
         "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
         let expression = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
             // <div className="font-semibold">
@@ -3241,9 +3189,6 @@ mod tests {
         // class declaration
         let class_expr = parser.try_eat_statement_expression().unwrap();
         assert_node!(parser.tree, class_expr, Expression::Declaration(_));
-
-        // statement boundary
-        parser.eat_statement_stop_with_newlines().unwrap();
 
         // tree literal expression
         let tree_expr = parser.try_eat_statement_expression().unwrap();

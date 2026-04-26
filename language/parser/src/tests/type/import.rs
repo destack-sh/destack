@@ -15,13 +15,7 @@ fn test_parse_type_import_expression_with_generic_arguments() {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                     assert_string!(parser, *string_id, "mod");
                 });
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, "mod");
-                    });
-                });
+                assert!(arguments.is_empty());
                 assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
                 assert_eq!(generic_arguments.len(), 2);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
@@ -53,8 +47,8 @@ fn test_parse_type_import_expression_with_attributes() {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                     assert_string!(parser, *string_id, "vite");
                 });
-                assert_eq!(arguments.len(), 2);
-                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                assert_eq!(arguments.len(), 1);
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::ObjectExpression { .. });
                 });
             });
@@ -73,11 +67,7 @@ fn test_parse_type_import_expression_with_non_string_target() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Import { target, arguments, .. } => {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-                });
+                assert!(arguments.is_empty());
             });
         });
     });
@@ -96,7 +86,7 @@ fn test_parse_type_import_expression_with_trailing_comma() {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                     assert_string!(parser, *string_id, "vite");
                 });
-                assert_eq!(arguments.len(), 1);
+                assert!(arguments.is_empty());
             });
         });
     });
@@ -114,11 +104,7 @@ fn test_parse_type_import_expression_missing_target() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Import { target, arguments, qualifier, generic_arguments } => {
                 assert_node!(parser.tree, *target, Expression::Missing);
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                    assert_node!(parser.tree, *value, Expression::Missing);
-                });
+                assert!(arguments.is_empty());
                 assert!(qualifier.is_none());
                 assert!(generic_arguments.is_empty());
             });
@@ -138,12 +124,8 @@ fn test_parse_type_import_expression_replaces_error_target_slot() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Import { target, arguments, qualifier, generic_arguments } => {
                 assert_node!(parser.tree, *target, Expression::Missing);
-                assert_eq!(arguments.len(), 2);
+                assert_eq!(arguments.len(), 1);
                 assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                    assert_node!(parser.tree, *value, Expression::Missing);
-                });
-                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                         assert_string!(parser, *string_id, "fallback");
                     });
@@ -174,10 +156,7 @@ fn test_parse_type_import_expression_missing_close_parenthesis_with_member_targe
                     });
                     assert_string!(parser, *name, "Type");
                 });
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                });
+                assert!(arguments.is_empty());
                 assert!(qualifier.is_none());
                 assert!(generic_arguments.is_empty());
             });
@@ -198,13 +177,7 @@ fn test_parse_type_import_expression() {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                     assert_string!(parser, *string_id, "mod");
                 });
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                    assert_eq!(*target, *value);
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, "mod");
-                    });
-                });
+                assert!(arguments.is_empty());
                 assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
                 assert!(generic_arguments.is_empty());
             });
@@ -225,7 +198,7 @@ fn test_parse_type_import_span() {
                 assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                     assert_string!(parser, *string_id, "foo");
                 });
-                assert_eq!(arguments.len(), 1);
+                assert!(arguments.is_empty());
             });
 
             let main_span = parser

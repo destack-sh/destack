@@ -1,6 +1,6 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -32,7 +32,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_extension(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
@@ -45,7 +45,7 @@ impl Parser {
                 let (name, span) = self.eat_name_with_span()?;
 
                 // `<T>`, only the generic parameter container belongs to this span
-                let generic_parameter_container_start = self.mark_span();
+                let generic_parameter_container_start = self.span_start();
                 let generic_parameters = self.eat_generic_parameters_maybe(false)?;
                 let generic_parameter_container_span = generic_parameters
                     .as_ref()
@@ -61,7 +61,7 @@ impl Parser {
             // anonymous extension
             else {
                 // `<T>`, anonymous extensions may start with generic parameters
-                let generic_parameter_container_start = self.mark_span();
+                let generic_parameter_container_start = self.span_start();
                 let generic_parameters = self.eat_generic_parameters_maybe(false)?;
                 let generic_parameter_container_span = generic_parameters
                     .as_ref()
@@ -74,7 +74,7 @@ impl Parser {
         self.eat_keyword(Keyword::Of)?;
 
         // target type
-        let target_start = self.mark_span();
+        let target_start = self.span_start();
         let target_type = self.eat_type_expression_node_or_recover_missing(
             self.options
                 .nested()
@@ -100,7 +100,6 @@ impl Parser {
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
-        self.eat_newlines_maybe()?;
         let members = self.eat_members(false)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
@@ -155,9 +154,8 @@ extension of Foo {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -182,9 +180,8 @@ extension of Foo {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_extension(&start, DeclarationHeader::default());
         assert!(result.is_err());
     }
@@ -194,7 +191,7 @@ extension of Foo {
         let mut test = TestParser::new("extension of Foo.Bar {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -218,9 +215,8 @@ extension MyExt of Foo<int32> {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -254,9 +250,8 @@ extension of Bar<int32> implements Baz {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -294,9 +289,8 @@ extension<U> of Bar<T> implements Baz<T> {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -358,9 +352,8 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -422,9 +415,8 @@ extension of Foo where Guard: Limit {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();
@@ -456,9 +448,8 @@ extension<T> of Slice<T> {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let extension_id = parser
             .eat_extension(&start, DeclarationHeader::default())
             .unwrap();

@@ -320,7 +320,6 @@ await fetchListResult<{
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     parser.options.set_in_before_block(true);
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
@@ -574,11 +573,9 @@ fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments()
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments: _, arguments, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "foo");
-            assert_eq!(generic_arguments.len(), 1);
-        });
+        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        assert_eq!(generic_arguments.len(), 1);
     });
 }

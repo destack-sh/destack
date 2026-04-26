@@ -53,7 +53,6 @@ fn test_parse_if_ternary_multiline_with_comments() {
       b"#,
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
 
     let if_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {

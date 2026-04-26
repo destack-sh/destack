@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_node, assert_path, assert_string};
+use crate::{assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
 
 #[test]
@@ -23,6 +23,49 @@ fn test_parse_tuple_type_with_spread() {
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::String);
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_labeled_tuple_type_with_spread_payload() {
+    let mut test =
+        TestParser::new(r#"type T = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]"#);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, ambient, is_nominal, mutability, generic_parameters, where_clauses, value }) => {
+            assert_name!(parser, *name, "T");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!*is_nominal);
+            assert!(mutability.is_none());
+            assert!(generic_parameters.is_empty());
+            assert!(where_clauses.is_empty());
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
+                    assert_string!(parser, label.expect("expected spread label"), "keys");
+                    assert_node!(parser.tree, *value, TypeExpression::Array { element } => {
+                        assert_node!(parser.tree, *element, TypeExpression::Reference { path, generic_arguments } => {
+                            assert!(generic_arguments.is_empty());
+                            assert_path!(parser, *path, "RedisClient.KeyLike");
+                        });
+                    });
+                });
+                assert_node!(parser.tree, elements[1], TupleElement::Element { label, value, is_optional, is_readonly } => {
+                    assert_string!(parser, label.expect("expected tuple label"), "withscores");
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::ScalarLiteral { value } => {
+                        assert_eq!(*value, ScalarLiteral::String(parser.strings.intern("WITHSCORES")));
                     });
                 });
             });

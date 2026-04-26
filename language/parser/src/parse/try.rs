@@ -32,9 +32,8 @@ impl Parser {
     ///
     /// The parser accepts `try <expr>` without catch/finally, but Analyze rejects it.
     pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         self.eat_keyword(Keyword::Try)?;
-        self.eat_newlines_maybe()?;
 
         // try block
         if self.is_block_start() {
@@ -44,10 +43,8 @@ impl Parser {
             let try_expression = self.insert_node(Expression::Block(try_block), try_block_span);
 
             // catch
-            self.eat_newlines_maybe()?;
             let (catch_pattern, catch_ty, catch_expression) = if self.is_keyword(Keyword::Catch) {
                 self.bump(); // eat keyword
-                self.eat_newlines_maybe()?;
 
                 // no pattern or catch match
                 if self.is_block_start() || self.is_keyword(Keyword::Match) {
@@ -61,7 +58,6 @@ impl Parser {
                 else {
                     // parse catch binding pattern
                     self.eat_token(TokenType::OpenParenthesis)?;
-                    self.eat_newlines_maybe()?;
 
                     let catch_pattern_options = self
                         .options
@@ -71,16 +67,12 @@ impl Parser {
                     let catch_pattern =
                         self.with_options(catch_pattern_options, |parser| parser.eat_pattern())?;
 
-                    self.eat_newlines_maybe()?;
-
                     let catch_ty = if self.peek_colon_is() {
                         self.bump(); // eat :
-                        self.eat_newlines_maybe()?;
                         let catch_ty = self.eat_type_expression_node_or_recover_missing(
                             self.options.not_in_position().in_type().in_before_block(),
                             NodeType::Pattern,
                         )?;
-                        self.eat_newlines_maybe()?;
                         Some(catch_ty)
                     } else {
                         None
@@ -107,10 +99,8 @@ impl Parser {
             };
 
             // finally
-            self.eat_newlines_maybe()?;
             let finally_expression = if self.is_keyword(Keyword::Finally) {
                 self.bump(); // eat keyword
-                self.eat_newlines_maybe()?;
                 let finally_expression = self
                     .with_options(self.options.not_in_position(), |parser| {
                         parser.eat_statement_expression()
@@ -171,7 +161,6 @@ try foo()
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_ty: None, catch_expression: None, finally_expression: None } => {
@@ -191,7 +180,6 @@ try {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_ty: None, catch_expression: None, finally_expression: None } => {
@@ -218,7 +206,6 @@ try /* comment */ {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { try_expression, .. } => {
@@ -241,7 +228,6 @@ try {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: Some(catch_pattern), catch_ty: None, catch_expression: Some(catch_expression), finally_expression: Some(finally_expression) } => {
@@ -298,7 +284,6 @@ try {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), .. } => {
@@ -325,7 +310,6 @@ try {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
 
@@ -354,7 +338,6 @@ try {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), catch_expression: Some(catch_expression), .. } => {

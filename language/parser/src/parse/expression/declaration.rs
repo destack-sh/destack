@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Ambientness, Asynchrony, DependencyMode, ExportMode, Expression, Keyword, LiteralType,
@@ -27,7 +27,7 @@ impl Parser {
             return false;
         }
 
-        let keyword = self.keyword_for_index(self.pos_index());
+        let keyword = self.current_keyword();
         if matches!(
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
@@ -40,20 +40,23 @@ impl Parser {
             return false;
         }
 
-        let next_token_type = self.peek_next_token_type();
-        let can_start_global_or_module_declaration = matches!(
-            next_token_type,
-            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
-        );
+        let can_start_global_or_module_declaration = self.lookahead(|parser| {
+            parser.bump();
+            parser.current_token_is_on_new_line()
+                || matches!(
+                    parser.peek_token_type(),
+                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
+                )
+        });
         if !can_start_global_or_module_declaration {
             return false;
         }
 
-        if self.is_global_identifier_at(self.pos_index()) {
+        if self.is_global_identifier() {
             return true;
         }
 
-        self.is_module_identifier_at(self.pos_index())
+        self.is_module_identifier()
     }
 
     /// Decide whether one `{` in statement position starts an object literal.
@@ -75,15 +78,7 @@ impl Parser {
             return false;
         }
 
-        // skip newlines after the opening brace
-        let open_pos = match self.skip_newlines(self.pos()) {
-            Ok(pos) => pos,
-            Err(_) => return false,
-        };
-        self.ensure_token(open_pos as usize + 1);
-        let Some(next_token) = self.tokens().get(open_pos as usize + 1) else {
-            return false;
-        };
+        let next_token = self.next_token();
 
         // spread property start
         if next_token.token.ty == TokenType::Spread {
@@ -92,23 +87,23 @@ impl Parser {
 
         // computed key start: require a clear property marker after the closing bracket
         if next_token.token.ty == TokenType::OpenBracket {
-            let open_bracket_pos = open_pos + 1;
-            let Some(close_bracket_pos) = self.matching_pair_or_lex(open_bracket_pos as usize)
-            else {
-                return false;
-            };
-            let close_bracket_pos = close_bracket_pos as u32;
+            return self.lookahead(|parser| {
+                parser.bump();
+                let Some(close_bracket_span) = parser
+                    .find_matching_close_maybe(TokenType::OpenBracket, TokenType::CloseBracket)
+                else {
+                    return false;
+                };
 
-            let after_close_pos = match self.skip_newlines(close_bracket_pos) {
-                Ok(pos) => pos,
-                Err(_) => return false,
-            };
-            self.ensure_token(after_close_pos as usize + 1);
-            let Some(after_close) = self.tokens().get(after_close_pos as usize + 1) else {
-                return false;
-            };
+                while parser.current_token().span.start <= close_bracket_span.start {
+                    parser.bump();
+                }
 
-            return matches!(after_close.token.ty, TokenType::Colon | TokenType::Maybe);
+                matches!(
+                    parser.peek_token_type(),
+                    TokenType::Colon | TokenType::Maybe
+                )
+            });
         }
 
         // identifier or literal key with an explicit value marker
@@ -130,17 +125,12 @@ impl Parser {
                 }
             }
 
-            // check for a colon or optional marker after the key
-            let key_pos = match self.skip_newlines(open_pos + 1) {
-                Ok(pos) => pos,
-                Err(_) => return false,
-            };
-            self.ensure_token(key_pos as usize + 1);
-            let Some(after_key) = self.tokens().get(key_pos as usize + 1) else {
-                return false;
-            };
-
-            return matches!(after_key.token.ty, TokenType::Colon | TokenType::Maybe);
+            let after_key_token_type = self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                parser.peek_token_type()
+            });
+            return matches!(after_key_token_type, TokenType::Colon | TokenType::Maybe);
         }
 
         false
@@ -148,67 +138,66 @@ impl Parser {
 
     /// Return true when tokens can plausibly start a using declarator.
     fn can_start_using_declarator(&mut self, asynchrony: Asynchrony) -> bool {
-        // resolve the using keyword at the current position
-        let Some(using_index) = self.using_keyword_index(asynchrony) else {
-            return false;
-        };
-
-        // keep declarators on the same line as `using`
-        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
+        let Some(declarator_token_type) = self.using_binding_head_token(asynchrony) else {
             return false;
         };
 
         // using declarations require lexical binding heads
-        self.token_can_start_using_binding_pattern(declarator_cursor.token_type)
+        self.token_can_start_using_binding_pattern(declarator_token_type)
     }
 
     /// Return true when a using declarator has a required initializer.
-    fn using_declarator_has_required_initializer(&mut self, declarator_index: usize) -> bool {
-        let mut index = declarator_index;
+    fn using_declarator_has_required_initializer(&mut self, asynchrony: Asynchrony) -> bool {
+        self.lookahead(|parser| {
+            if asynchrony == Asynchrony::Async {
+                parser.bump();
+            }
+            if !parser.is_keyword(Keyword::Using) {
+                return false;
+            }
 
-        loop {
-            // read the next significant token in the declarator
-            let token_type = self.token_type_at(index);
+            parser.bump();
+            if parser.current_token().token.is_on_new_line {
+                return false;
+            }
 
-            // skip nested groups by jumping to their cached close token
-            if matches!(
-                token_type,
-                TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
-            ) && let Some(close_index) = self.matching_pair_or_lex(index)
-                && close_index > index
-            {
-                let next_index = self.next_non_newline_index_from(close_index + 1);
-                if next_index <= index {
+            let mut depth = 0_u32;
+            loop {
+                let token_type = parser.peek_token_type();
+
+                if depth == 0 && token_type == TokenType::Assign {
+                    return true;
+                }
+
+                if depth == 0
+                    && matches!(
+                        token_type,
+                        TokenType::Comma
+                            | TokenType::Semicolon
+                            | TokenType::End
+                            | TokenType::CloseBrace
+                            | TokenType::CloseParenthesis
+                    )
+                {
                     return false;
                 }
-                index = next_index;
-                continue;
-            }
 
-            // using declarators require a top level initializer
-            if token_type == TokenType::Assign {
-                return true;
-            }
-
-            // stop once the declarator ends before an initializer
-            if matches!(
-                token_type,
-                TokenType::Comma
-                    | TokenType::Semicolon
-                    | TokenType::End
+                match token_type {
+                    TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket => {
+                        depth += 1;
+                    }
+                    TokenType::CloseParenthesis
                     | TokenType::CloseBrace
-                    | TokenType::CloseParenthesis
-            ) {
-                return false;
-            }
+                    | TokenType::CloseBracket => {
+                        depth = depth.saturating_sub(1);
+                    }
+                    TokenType::End => return false,
+                    _ => {}
+                }
 
-            // continue scanning across newline trivia
-            let next_index = self.next_non_newline_index_from(index.saturating_add(1));
-            if next_index <= index {
-                return false;
+                parser.bump();
             }
-            index = next_index;
-        }
+        })
     }
 
     /// Check whether a using declaration can be parsed at the current position.
@@ -222,21 +211,15 @@ impl Parser {
             return false;
         }
 
-        let Some(using_index) = self.using_keyword_index(asynchrony) else {
-            return false;
-        };
-        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
-            return false;
-        };
-
-        self.using_declarator_has_required_initializer(declarator_cursor.index)
+        self.using_declarator_has_required_initializer(asynchrony)
     }
 
     /// Eat declaration modifiers and return a descriptor or a parsed expression.
     pub(super) fn eat_declaration_descriptor(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<DescriptorHead> {
+        let descriptor_start = self.cursor_checkpoint();
         let mut header: DeclarationHeader = DeclarationHeader::default();
         let mut decorators = PendingDecorators::new();
 
@@ -251,23 +234,25 @@ impl Parser {
         }
 
         // check for a modifier keyword or a global or module identifier
-        let pos = self.pos_index();
-        let next_token_type = self.peek_next_token_type();
-        let can_start_global_or_module_declaration = matches!(
-            next_token_type,
-            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
-        );
-        let keyword = self.keyword_for_index(pos);
+        let can_start_global_or_module_declaration = self.lookahead(|parser| {
+            parser.bump();
+            parser.current_token_is_on_new_line()
+                || matches!(
+                    parser.peek_token_type(),
+                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
+                )
+        });
+        let keyword = self.current_keyword();
         let is_modifier_keyword = matches!(
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
         );
         let is_global_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && self.is_global_identifier_at(pos);
+            && self.is_global_identifier();
         let is_module_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && self.is_module_identifier_at(pos);
+            && self.is_module_identifier();
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Header { header, decorators });
@@ -290,26 +275,18 @@ impl Parser {
             let is_export_namespace =
                 self.is_keyword(Keyword::As) && self.is_next_keyword(Keyword::Namespace);
             if is_export_namespace {
-                self.rewind(start.clone());
+                self.rewind(descriptor_start.clone());
                 let export = self.eat_export()?;
                 return Ok(DescriptorHead::Expression(export));
             }
 
             // export dependencies handled by export statement parsing
-            let next_keyword = self.peek_any_keyword().ok();
-            let next_non_newline_index = self.next_non_newline_index_from(self.pos_index());
-            let next_non_newline_token_type = self.token_type_at(next_non_newline_index);
-            let next_keyword_after_newlines =
-                if next_non_newline_token_type == TokenType::Identifier {
-                    self.keyword_for_index(next_non_newline_index)
-                } else {
-                    None
-                };
-            let has_module_identifier_declaration = self.is_module_identifier_at(self.pos_index());
-            let has_decorator_declaration_head = next_non_newline_token_type == TokenType::At
-                && export_mode != Some(DependencyMode::Default);
-            let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
-                || next_keyword_after_newlines.is_some_and(is_declaration_keyword)
+            let current_keyword = self.current_keyword();
+            let current_token_type = self.peek_token_type();
+            let has_module_identifier_declaration = self.is_module_identifier();
+            let has_decorator_declaration_head =
+                current_token_type == TokenType::At && export_mode != Some(DependencyMode::Default);
+            let has_declaration_keyword = current_keyword.is_some_and(is_declaration_keyword)
                 || has_decorator_declaration_head
                 || has_module_identifier_declaration;
 
@@ -319,22 +296,33 @@ impl Parser {
             }
 
             let is_export_type_binding = self.is_keyword(Keyword::Type)
-                && (self.peek_next_is(TokenType::OpenBrace)
-                    || self.peek_next_is(TokenType::Multiply)
-                    || self.peek_next_is(TokenType::Semicolon)
-                    || self.peek_next_is(TokenType::Newline)
-                    || self.peek_next_is(TokenType::End));
+                && (self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::OpenBrace)
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Multiply)
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Semicolon)
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.current_token_is_on_new_line()
+                }) || self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::End)
+                }));
             let is_invalid_export_form = !has_declaration_keyword
                 && !self.peek_is(TokenType::At)
                 && !self.peek_dependency_binding_is()
-                && !self.is_keyword_after_newlines(Keyword::Import);
+                && !self.is_keyword(Keyword::Import);
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
                 || (!has_declaration_keyword && self.peek_dependency_binding_is())
                 || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword)
                 || is_invalid_export_form;
             if is_export_dependency {
-                self.rewind(start.clone());
+                self.rewind(descriptor_start.clone());
                 let export = self.eat_export()?;
                 return Ok(DescriptorHead::Expression(export));
             }
@@ -353,22 +341,15 @@ impl Parser {
         }
 
         // skip newlines after export before declaration-style heads
-        if header.export.is_some() && self.peek_is(TokenType::Newline) {
-            let next_index = self.next_non_newline_index_from(self.pos_index());
-            let next_token_type = self.token_type_at(next_index);
-            let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index(next_index)
-            } else {
-                None
-            };
+        if header.export.is_some() && self.current_token_is_on_new_line() {
+            let next_token_type = self.peek_token_type();
+            let next_keyword = self.current_keyword();
             let is_after_export_import_equals_head = next_keyword == Some(Keyword::Import);
             let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
                 || next_token_type == TokenType::At
-                || self.is_module_identifier_at(next_index)
-                || self.is_global_identifier_at(next_index);
+                || self.is_module_identifier()
+                || self.is_global_identifier();
             if is_after_export_import_equals_head || is_after_export_declaration_head {
-                self.eat_newlines_maybe()?;
-
                 // parse decorators after export when they follow skipped newlines
                 if self.peek_is(TokenType::At) {
                     let mut export_decorators = self.eat_decorators_maybe()?;
@@ -379,62 +360,53 @@ impl Parser {
 
         // declare modifier
         let is_declare = self.is_keyword(Keyword::Declare);
-        let direct_index = self.pos_index() + 1;
 
         // locate a declare target
-        let declare_target_index = if is_declare {
-            if self.is_declare_target_at(direct_index) {
-                Some(direct_index)
-            } else if self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
-                let after_abstract = direct_index + 1;
-                let target_index = self.next_non_newline_index_from(after_abstract);
-                if target_index == after_abstract && self.is_declare_target_at(target_index) {
-                    Some(target_index)
+        let declare_has_target = is_declare
+            && self.lookahead(|parser| {
+                parser.bump();
+                if parser.current_token_starts_declare_target() {
+                    true
+                } else if parser.current_keyword() == Some(Keyword::Abstract) {
+                    parser.bump();
+                    !parser.current_token_is_on_new_line()
+                        && parser.current_token_starts_declare_target()
                 } else {
-                    None
+                    false
                 }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+            });
 
         // report newline errors for declare forms that must be contiguous
-        let declare_newline_error_span =
-            if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
-                let after_abstract = direct_index + 1;
-                let target_index = self.next_non_newline_index_from(after_abstract);
-                if target_index > after_abstract && self.is_declare_target_at(target_index) {
-                    self.ensure_token(after_abstract);
-                    self.tokens().get(after_abstract).map(|token| token.span)
-                } else {
+        let declare_newline_error_span = is_declare
+            .then(|| {
+                self.lookahead(|parser| {
+                    parser.bump();
+                    if parser.current_keyword() == Some(Keyword::Abstract) {
+                        parser.bump();
+                        if parser.current_token_is_on_new_line()
+                            && parser.current_token_starts_declare_target()
+                        {
+                            return Some(parser.current_token().span);
+                        }
+                    } else if parser.current_keyword() == Some(Keyword::Type) {
+                        parser.bump();
+                        if parser.current_token_is_on_new_line()
+                            && parser.peek_is(TokenType::Identifier)
+                        {
+                            return Some(parser.current_token().span);
+                        }
+                    }
+
                     None
-                }
-            } else if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Type) {
-                let after_type = direct_index + 1;
-                let name_index = self.next_non_newline_index_from(after_type);
-                if name_index > after_type
-                    && self
-                        .tokens()
-                        .get(name_index)
-                        .is_some_and(|token| token.token.ty == TokenType::Identifier)
-                {
-                    self.ensure_token(after_type);
-                    self.tokens().get(after_type).map(|token| token.span)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
+                })
+            })
+            .flatten();
 
         if let Some(span) = declare_newline_error_span {
             let error = ParseError::unexpected(span);
             self.error(&error);
         }
 
-        let declare_has_target = declare_target_index.is_some();
         header.ambient = if is_declare && declare_has_target {
             self.bump(); // eat declare
             Ambientness::Ambient
@@ -445,7 +417,10 @@ impl Parser {
         // abstraction modifier
         header.is_abstract = self.is_keyword(Keyword::Abstract)
             && !self.options.is_in_variant()
-            && !self.peek_next_is(TokenType::Newline)
+            && !self.lookahead(|parser| {
+                parser.bump();
+                parser.current_token_is_on_new_line()
+            })
             && self
                 .peek_next_any_keyword()
                 .is_ok_and(is_declaration_keyword);
@@ -457,8 +432,8 @@ impl Parser {
         if (header.ambient == Ambientness::Ambient
             || self.language.is_declaration()
             || self.options.is_in_declare_context())
-            && self.is_global_identifier_at(self.pos_index())
-            && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
+            && self.is_global_identifier()
+            && self.next_token_type() == TokenType::OpenBrace
         {
             let mut global_header = header;
             global_header.ambient = Ambientness::Ambient;
@@ -473,9 +448,9 @@ impl Parser {
         Ok(DescriptorHead::Header { header, decorators })
     }
 
-    /// Check whether a token index starts a declare target keyword.
-    pub(super) fn is_declare_keyword_target_at(&mut self, index: usize) -> bool {
-        let Some(keyword) = self.keyword_for_index(index) else {
+    /// Check whether the current token starts a declare target keyword.
+    pub(super) fn current_token_starts_declare_keyword_target(&mut self) -> bool {
+        let Some(keyword) = self.current_keyword() else {
             return false;
         };
 
@@ -483,10 +458,10 @@ impl Parser {
             return false;
         }
 
-        let next_cursor = self.scanner_cursor_from(index + 1);
-        let next_token_type = next_cursor.token_type;
-        let next_token_index = next_cursor.index;
-        let next_has_line_break = next_cursor.has_line_break_before;
+        let next_token = self.next_token();
+        let next_token_type = next_token.token.ty;
+        let next_has_line_break = next_token.token.is_on_new_line;
+        let next_keyword = self.next_keyword();
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
         match keyword {
@@ -494,7 +469,7 @@ impl Parser {
             Keyword::Async => {
                 !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && self.keyword_for_index(next_token_index) == Some(Keyword::Function)
+                    && next_keyword == Some(Keyword::Function)
             }
 
             // ambient const, let, and var declarations commit immediately
@@ -516,7 +491,7 @@ impl Parser {
             Keyword::Namespace => {
                 !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index))
+                    && !is_type_relation_keyword(next_keyword)
             }
 
             // type aliases require a contiguous identifier name
@@ -527,41 +502,26 @@ impl Parser {
         }
     }
 
-    /// Check whether a token index starts a declare identifier target.
-    pub(super) fn is_declare_identifier_at(&mut self, index: usize) -> bool {
-        self.ensure_token(index);
-        let Some(token) = self.tokens().get(index) else {
-            return false;
-        };
-        if token.token.ty != TokenType::Identifier {
+    /// Check whether the current token starts a declare identifier target.
+    pub(super) fn current_token_starts_declare_identifier(&mut self) -> bool {
+        if !self.peek_is(TokenType::Identifier) {
             return false;
         }
-        self.is_global_identifier_at(index) || self.is_module_identifier_at(index)
+        self.is_global_identifier() || self.is_module_identifier()
     }
 
-    /// Check whether a token index starts a declare await using target.
-    pub(super) fn is_declare_await_using_at(&mut self, index: usize) -> bool {
-        if self.keyword_for_index(index) != Some(Keyword::Await) {
+    /// Check whether the current token starts a declare await using target.
+    pub(super) fn current_token_starts_declare_await_using(&mut self) -> bool {
+        if self.current_keyword() != Some(Keyword::Await) {
             return false;
         }
-        let mut after = index + 1;
-        loop {
-            self.ensure_token(after);
-            let Some(token) = self.tokens().get(after) else {
-                break;
-            };
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            after += 1;
-        }
-        self.keyword_for_index(after) == Some(Keyword::Using)
+        self.next_keyword() == Some(Keyword::Using)
     }
 
-    /// Check whether a token index starts a declare target.
-    pub(super) fn is_declare_target_at(&mut self, index: usize) -> bool {
-        self.is_declare_keyword_target_at(index)
-            || self.is_declare_identifier_at(index)
-            || self.is_declare_await_using_at(index)
+    /// Check whether the current token starts a declare target.
+    pub(super) fn current_token_starts_declare_target(&mut self) -> bool {
+        self.current_token_starts_declare_keyword_target()
+            || self.current_token_starts_declare_identifier()
+            || self.current_token_starts_declare_await_using()
     }
 }

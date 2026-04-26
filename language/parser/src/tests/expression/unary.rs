@@ -50,7 +50,7 @@ fn test_parse_unary_keyword_operators() {
         assert_eq!(*operator, UnaryOperator::Typeof);
         assert_expression_path!(parser, parser.tree.get(*right), "foo");
     });
-    parser.eat_statement_stop_with_newlines().unwrap();
+    parser.eat_statement_stop().unwrap();
 
     let void_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, void_id, Expression::Unary { operator, right } => {

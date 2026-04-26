@@ -43,15 +43,12 @@ impl Parser {
         allow_object_literal: bool,
         allow_newline_prefix: bool,
     ) -> bool {
-        // inspect the immediate follow token
-        let cursor = self.scanner_cursor_from(self.pos_index());
-
         // line breaks terminate the speculative ambiguity
-        if cursor.has_line_break_before {
+        if self.current_token_is_on_new_line() {
             return true;
         }
 
-        let token_type = cursor.token_type;
+        let token_type = self.peek_token_type();
 
         // static type arguments may be followed by angle closers
         if token_type == TokenType::End
@@ -74,21 +71,22 @@ impl Parser {
         // statement keywords after newline-prefixed `new` receivers stay valid
         if allow_newline_prefix
             && token_type == TokenType::Identifier
-            && self.keyword_for_index(cursor.index).is_some()
+            && self.current_keyword().is_some()
         {
             return true;
         }
 
         // plain delimiters and grouped continuations stay valid
-        if matches!(
-            token_type,
-            TokenType::Comma
-                | TokenType::Semicolon
-                | TokenType::Newline
-                | TokenType::Maybe
-                | TokenType::TemplateString
-                | TokenType::TemplateStringStart
-        ) || Self::is_close_delimiter_token(token_type)
+        if self.current_token_is_on_new_line()
+            || matches!(
+                token_type,
+                TokenType::Comma
+                    | TokenType::Semicolon
+                    | TokenType::Maybe
+                    | TokenType::TemplateString
+                    | TokenType::TemplateStringStart
+            )
+            || Self::is_close_delimiter_token(token_type)
             || matches!(
                 token_type,
                 TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::Dot
@@ -102,7 +100,7 @@ impl Parser {
             && (token_type == TokenType::OpenBrace
                 || token_type == TokenType::Identifier
                     && matches!(
-                        self.keyword_for_index(cursor.index),
+                        self.current_keyword(),
                         Some(Keyword::Implements | Keyword::With | Keyword::Where)
                     ))
         {
@@ -114,7 +112,7 @@ impl Parser {
             return true;
         }
 
-        self.has_infix_or_assign_operator_at_index(cursor.index)
+        self.current_token_can_start_infix_or_assign_operator()
     }
 
     /// Speculatively eat one generic argument list at one grammar site.
@@ -141,32 +139,24 @@ impl Parser {
         }
 
         // `<...>` at the current position, or after a newline in `new` receivers
-        let start_cursor = allow_newline_prefix.then(|| self.scanner_cursor_from(self.pos_index()));
         let has_generic_argument_start =
             if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
                 true
-            } else if let Some(cursor) = start_cursor {
-                cursor.has_line_break_before
-                    && self.with_pos(cursor.index, |parser| {
-                        parser.peek_is(TokenType::LessThan) || parser.peek_is(TokenType::ShiftLeft)
-                    })
             } else {
-                false
+                allow_newline_prefix
+                    && self.current_token_is_on_new_line()
+                    && matches!(
+                        self.peek_token_type(),
+                        TokenType::LessThan | TokenType::ShiftLeft
+                    )
             };
         if !has_generic_argument_start {
             return None;
         }
 
         // speculative parse: restore on invalid follow tokens or shift expressions
-        let speculative_start = self.mark();
+        let speculative_start = self.checkpoint();
         let speculative_start_idx = self.tree.next_id();
-
-        // align to the normalized `<...>` start before parsing
-        if let Some(cursor) = start_cursor
-            && cursor.index != self.pos_index()
-        {
-            self.advance_to(cursor.index);
-        }
 
         // `<<...>` starts need an extra value-position admissibility check
         let used_shift_left_start = self.peek_is(TokenType::ShiftLeft);

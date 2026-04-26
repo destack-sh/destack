@@ -236,17 +236,6 @@ pub mod tags {
         ParserTimingTag::new("parse.alloc.identifier_intern");
     pub const PARSE_ALLOC_MARK: ParserTimingTag = ParserTimingTag::new("parse.alloc.mark");
     pub const PARSE_ALLOC_RESTORE: ParserTimingTag = ParserTimingTag::new("parse.alloc.restore");
-    pub const PARSE_LEX_ENSURE_TOKEN: ParserTimingTag =
-        ParserTimingTag::new("parse.lex.ensure_token");
-    pub const PARSE_LEX_NEXT_NON_NEWLINE: ParserTimingTag =
-        ParserTimingTag::new("parse.lex.next_non_newline");
-    pub const PARSE_LEX_MATCHING_PAIR: ParserTimingTag =
-        ParserTimingTag::new("parse.lex.matching_pair");
-    pub const PARSE_LEX_TOKEN_AT: ParserTimingTag = ParserTimingTag::new("parse.lex.token_at");
-    pub const PARSE_LEX_KEYWORD: ParserTimingTag = ParserTimingTag::new("parse.lex.keyword");
-    pub const PARSE_LEX_LINE_TERMINATOR: ParserTimingTag =
-        ParserTimingTag::new("parse.lex.line_terminator");
-    pub const PARSE_LEX_PRELEX_ALL: ParserTimingTag = ParserTimingTag::new("parse.lex.prelex_all");
     pub const PARSE_TYPE: ParserTimingTag = ParserTimingTag::new("parse.type");
     pub const PARSE_PATTERN: ParserTimingTag = ParserTimingTag::new("parse.pattern");
     pub const PARSE_PROPERTY: ParserTimingTag = ParserTimingTag::new("parse.property");

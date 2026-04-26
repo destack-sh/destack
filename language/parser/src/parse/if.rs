@@ -17,7 +17,7 @@ impl Parser {
 
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // semicolon statement forms allow empty branches
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
@@ -97,18 +97,14 @@ impl Parser {
         &mut self,
     ) -> ParseResult<Option<(LocalNodeId<Expression>, Span)>> {
         // save state so missing else can rewind cleanly
-        let else_mark = self.mark();
+        let else_mark = self.checkpoint();
         let else_tree_mark = self.tree.next_id();
 
         // semicolon statement forms consume optional separators before else
         if !self.language.is_destack() {
-            self.eat_newlines_maybe()?;
             while self.peek_is(TokenType::Semicolon) {
                 self.bump();
-                self.eat_newlines_maybe()?;
             }
-        } else {
-            self.eat_newlines_maybe()?;
         }
 
         // no else: restore speculative state
@@ -120,7 +116,6 @@ impl Parser {
         // else keyword
         let else_span = self.peek()?.span;
         self.eat_keyword(Keyword::Else)?;
-        self.eat_newlines_maybe()?;
 
         // else body
         let (ambient_context, expression_context) = self.statement_position_contexts();
@@ -163,7 +158,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // NOTE: ternary if is parsed in expression loop, not in eat_if
 
@@ -171,9 +166,7 @@ impl Parser {
         self.eat_keyword(Keyword::If)?;
 
         // open parenthesis
-        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         // condition
         let (ambient_context, expression_context) = self.if_condition_contexts();
@@ -203,7 +196,6 @@ impl Parser {
         )?;
 
         // close parenthesis
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseParenthesis,
             NodeType::Expression,
@@ -211,7 +203,6 @@ impl Parser {
                 Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
             },
         )?;
-        self.eat_newlines_maybe()?;
 
         // then block
         let (ambient_context, expression_context) = self.statement_position_contexts();
@@ -334,7 +325,6 @@ else {
 "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         let else_span = parser
@@ -439,7 +429,6 @@ if (cond) {
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         // if (cond) { if (cond) { a } else { b } }
         let if_id = parser.eat_if().unwrap();
@@ -539,7 +528,6 @@ if (x > y) {
 }",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
@@ -643,7 +631,6 @@ else { v }
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
@@ -708,7 +695,6 @@ if (x > y) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
@@ -742,7 +728,6 @@ else
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
@@ -797,7 +782,6 @@ else
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { else_expression, .. } => {

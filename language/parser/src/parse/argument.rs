@@ -1,13 +1,13 @@
 use destack_ast::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LiteralType, LocalNodeId,
-    Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenType, TypeExpression,
-    VarianceModifier, Visibility,
+    Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenSpan, TokenType,
+    TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 /// Parsed parameter head as either one pattern or one named binding.
 type ParsedParameterPatternOrName = (Option<LocalNodeId<Pattern>>, Option<StringId>, Option<Span>);
@@ -65,7 +65,6 @@ impl Parser {
         }
 
         let token_type = self.peek_token_type();
-        let index = self.pos_index();
         let is_recoverable_boundary =
             // allow end and generic closers
             token_type == TokenType::End
@@ -77,11 +76,11 @@ impl Parser {
                     && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
 
                 // allow stops and delimiters
+                || self.current_token_is_on_new_line()
                 || matches!(
                     token_type,
                     TokenType::Comma
                         | TokenType::Semicolon
-                        | TokenType::Newline
                         | TokenType::Maybe
                         | TokenType::TemplateString
                         | TokenType::TemplateStringStart
@@ -97,12 +96,12 @@ impl Parser {
                     && (token_type == TokenType::OpenBrace
                         || token_type == TokenType::Identifier
                             && matches!(
-                                self.keyword_for_index(index),
+                                self.current_keyword(),
                                 Some(Keyword::Implements | Keyword::With | Keyword::Where)
                             ))
 
                 // allow operator continuations
-                || self.has_infix_or_assign_operator_at_index(index);
+                || self.current_token_can_start_infix_or_assign_operator();
 
         self.recover_missing_token_here(TokenType::GreaterThan, owner, is_recoverable_boundary)
     }
@@ -127,16 +126,7 @@ impl Parser {
             return true;
         }
 
-        if !self.peek_is(TokenType::Newline) {
-            return false;
-        }
-
-        if self.is_token_after_newlines(self.pos(), TokenType::Comma) {
-            return true;
-        }
-
-        let next_index = self.first_non_newline_index_from(self.pos_index());
-        Self::starts_type_angle_close(self.token_type_at(next_index))
+        false
     }
 
     /// Return whether one generic argument slot stays in type space.
@@ -147,7 +137,7 @@ impl Parser {
         }
 
         // type ambient sites commit only when one full type expression consumes the slot
-        let speculative_start = self.mark();
+        let speculative_start = self.checkpoint();
         let speculative_start_idx = self.tree.next_id();
         let parsed_type_expression =
             self.with_options(context, |parser| parser.eat_type_expression());
@@ -163,7 +153,7 @@ impl Parser {
     fn eat_generic_argument(
         &mut self,
         context: ParserOptions,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<GenericArgument>> {
         // direct spread generic arguments are not supported
         if self.peek_is(TokenType::Spread) {
@@ -203,7 +193,7 @@ impl Parser {
         }
 
         // only newline led keywords can start a following statement
-        if !self.input_has_line_terminator_before_current_token() {
+        if !self.current_token_is_on_new_line() {
             return false;
         }
 
@@ -214,7 +204,7 @@ impl Parser {
         }
 
         // statement keywords
-        let Some(keyword) = self.keyword_for_index(self.pos_index()) else {
+        let Some(keyword) = self.current_keyword() else {
             return false;
         };
 
@@ -250,8 +240,7 @@ impl Parser {
 
     /// Return true when the current keyword token already looks like a parameter head.
     fn current_keyword_continues_parameter_head(&mut self) -> bool {
-        let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
-        let next_token_type = self.token_type_at(next_index);
+        let next_token_type = self.next_token_type();
 
         matches!(
             next_token_type,
@@ -270,7 +259,7 @@ impl Parser {
     ) -> bool {
         is_recovered_argument
             && self.options.is_in_statement_context()
-            && self.input_has_line_terminator_before_current_token()
+            && self.current_token_is_on_new_line()
     }
 
     /// Return true when one parsed argument came from a recovered missing or error slot.
@@ -325,25 +314,40 @@ impl Parser {
 
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
-        // skip newlines after the modifier keyword
-        let mut pos = self.pos() as usize;
-        loop {
-            self.ensure_token(pos + 1);
-            let Some(token) = self.tokens().get(pos + 1) else {
-                break;
-            };
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            pos += 1;
-        }
-        let Some(next_token) = self.tokens().get(pos + 1) else {
-            return false;
-        };
+        let next_token = self.next_token();
 
+        self.token_starts_member_name(next_token)
+    }
+
+    /// Return true when the next same-line token can start a member name.
+    pub(crate) fn next_same_line_token_starts_member_name(&mut self) -> bool {
+        let next_token = self.next_token();
+        if next_token.token.is_on_new_line {
+            return false;
+        }
+
+        self.token_starts_member_name(next_token)
+    }
+
+    /// Return true when the next token can start a comptime target.
+    fn next_token_starts_comptime_target(&mut self) -> bool {
+        let next_token = self.next_token();
+        if next_token.token.ty == TokenType::OpenBrace {
+            return true;
+        }
+
+        if next_token.token.is_on_new_line {
+            return false;
+        }
+
+        self.token_starts_member_name(next_token)
+    }
+
+    /// Return true when one token can start a member name.
+    fn token_starts_member_name(&self, token: TokenSpan) -> bool {
         // check for common member name starters
         if matches!(
-            next_token.token.ty,
+            token.token.ty,
             TokenType::Identifier
                 | TokenType::Hash
                 | TokenType::OpenBracket
@@ -353,13 +357,13 @@ impl Parser {
         ) {
             return true;
         }
-        if next_token.token.ty != TokenType::Literal {
+        if token.token.ty != TokenType::Literal {
             return false;
         }
 
         // check for valid literal member names
         matches!(
-            next_token.token.literal,
+            token.token.literal,
             Some(LiteralType::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -371,10 +375,19 @@ impl Parser {
 
     /// Return true when `abstract` and `override` can be parsed as modifiers.
     fn can_parse_abstraction_modifier(&mut self) -> bool {
-        !self.peek_next_is(TokenType::Colon)
-            && !self.peek_next_is(TokenType::Maybe)
-            && !self.peek_next_is(TokenType::LessThan)
-            && !self.peek_next_is(TokenType::OpenParenthesis)
+        !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::Colon)
+        }) && !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::Maybe)
+        }) && !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::LessThan)
+        }) && !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::OpenParenthesis)
+        })
     }
 
     /// Eat a binding modifiers prefix when present.
@@ -404,11 +417,14 @@ impl Parser {
             if !self.peek_is(TokenType::Identifier) {
                 break;
             }
-            let position_index = self.pos_index();
-            let current_keyword = self.keyword_for_index(position_index);
+            let current_keyword = self.current_keyword();
             let is_out_variance_modifier = allow_variance_modifier
-                && self.identifier_equals_at(position_index, "out")
-                && (self.peek_next_is(TokenType::Identifier) || self.is_next_keyword(Keyword::In));
+                && self.current_identifier_str_is("out")
+                && self.lookahead(|parser| {
+                    parser.bump();
+                    !parser.current_token_is_on_new_line()
+                        && (parser.peek_is(TokenType::Identifier) || parser.is_keyword(Keyword::In))
+                });
             let can_start_modifier = current_keyword.is_some_and(|keyword| {
                 matches!(
                     keyword,
@@ -476,7 +492,7 @@ impl Parser {
 
             // visibility modifiers
             if let Ok(Some(visibility)) = self.peek_visibility() {
-                if !self.next_token_starts_member_name() {
+                if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -497,7 +513,7 @@ impl Parser {
 
             // declaration modifiers
             if allow_declare_modifier && self.is_keyword(Keyword::Declare) {
-                if !self.next_token_starts_member_name() {
+                if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -534,7 +550,7 @@ impl Parser {
 
             // abstraction modifiers (abstract)
             if self.is_keyword(Keyword::Abstract) && abstraction_is_modifier {
-                if !self.next_token_starts_member_name() {
+                if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat abstract
@@ -545,7 +561,7 @@ impl Parser {
 
             // abstraction modifiers (override)
             if self.is_keyword(Keyword::Override) && abstraction_is_modifier {
-                if !self.next_token_starts_member_name() {
+                if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -562,7 +578,7 @@ impl Parser {
             // mutability modifiers (readonly)
             // allow treating readonly as a key in property contexts
             let readonly_is_modifier = if allow_readonly_key {
-                self.next_token_starts_member_name()
+                self.next_same_line_token_starts_member_name()
             } else {
                 true
             };
@@ -577,7 +593,7 @@ impl Parser {
 
             // operator modifiers (const)
             if !modifiers.is_const_asserted && self.is_keyword(Keyword::Const) {
-                if !self.next_token_starts_member_name() {
+                if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat const
@@ -589,10 +605,22 @@ impl Parser {
             // accessor modifiers
             let accessor_is_modifier = allow_accessor_modifier
                 && self.is_keyword(Keyword::Accessor)
-                && !self.peek_next_is(TokenType::Colon)
-                && !self.peek_next_is(TokenType::Maybe)
-                && !self.peek_next_is(TokenType::LessThan)
-                && !self.peek_next_is(TokenType::OpenParenthesis);
+                && !self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Colon)
+                })
+                && !self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Maybe)
+                })
+                && !self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::LessThan)
+                })
+                && !self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::OpenParenthesis)
+                });
             if !modifiers.is_accessor && accessor_is_modifier {
                 if !self.next_token_starts_member_name() {
                     break;
@@ -606,7 +634,7 @@ impl Parser {
 
             // timing modifiers (comptime)
             if !modifiers.is_comptime && self.is_keyword(Keyword::Comptime) {
-                if !self.next_token_starts_member_name() {
+                if !self.next_token_starts_comptime_target() {
                     break;
                 }
                 self.bump(); // eat comptime
@@ -666,7 +694,7 @@ impl Parser {
             smallvec::SmallVec::new()
         };
 
-        let start = self.mark_span();
+        let start = self.span_start();
 
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
@@ -704,16 +732,11 @@ impl Parser {
             modifiers = Some(modifier_set);
         }
 
-        // : type (or keyword for #Compatibility)
+        // type annotation marker
         let (declared_type, ty_span) = {
             // type markers can start on the next line
-            let annotation_index = self.next_non_newline_index_from(self.pos_index());
-            let annotation_token_type = self.token_type_at(annotation_index);
-            let annotation_keyword = if annotation_token_type == TokenType::Identifier {
-                self.keyword_for_index(annotation_index)
-            } else {
-                None
-            };
+            let annotation_token_type = self.peek_token_type();
+            let annotation_keyword = self.current_keyword();
             let has_type_annotation_marker = annotation_token_type == TokenType::Colon
                 || self.options.is_in_static()
                     && matches!(
@@ -722,10 +745,8 @@ impl Parser {
                     );
 
             if has_type_annotation_marker {
-                self.eat_newlines_maybe()?;
-                let type_start = self.mark_span();
+                let type_start = self.span_start();
                 self.bump(); // eat colon or keyword
-                self.eat_newlines_maybe()?;
                 let declared_type = if self.peek_is(TokenType::Assign)
                     || self.peek_is(TokenType::Comma)
                     || self.peek_is(TokenType::CloseParenthesis)
@@ -750,12 +771,9 @@ impl Parser {
         // = value
         let parameter = {
             let has_default_assign = self.peek_is(TokenType::Assign)
-                || self.peek_is(TokenType::Newline)
-                    && self.is_token_after_newlines(self.pos(), TokenType::Assign);
+                || self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign);
             if !is_variadic && has_default_assign {
-                self.eat_newlines_maybe()?;
                 self.bump(); // eat assign
-                self.eat_newlines_maybe()?;
 
                 // value
                 let value = if self.peek_is(TokenType::Comma)
@@ -889,26 +907,27 @@ impl Parser {
         }
 
         // reject quickly when the tuple label head shape does not match `[name]:`
-        let identifier_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
-        if self.token_type_at(identifier_index) != TokenType::Identifier {
-            return Ok(None);
-        }
-        let close_bracket_index =
-            self.next_non_newline_index_from(identifier_index.saturating_add(1));
-        if self.token_type_at(close_bracket_index) != TokenType::CloseBracket {
-            return Ok(None);
-        }
-        let colon_index = self.next_non_newline_index_from(close_bracket_index.saturating_add(1));
-        if self.token_type_at(colon_index) != TokenType::Colon {
+        let has_tuple_label_head = self.lookahead(|parser| {
+            parser.bump();
+            if !parser.peek_is(TokenType::Identifier) {
+                return Ok(false);
+            }
+
+            parser.bump();
+            if !parser.peek_is(TokenType::CloseBracket) {
+                return Ok(false);
+            }
+
+            parser.bump();
+            Ok(parser.peek_is(TokenType::Colon))
+        })?;
+        if !has_tuple_label_head {
             return Ok(None);
         }
 
         self.bump(); // eat [
-        self.eat_newlines_maybe()?;
         let (name, span) = self.eat_binding_identifier_with_span()?;
-        self.eat_newlines_maybe()?;
         self.bump(); // eat ]
-        self.eat_newlines_maybe()?;
 
         Ok(Some((name, span)))
     }
@@ -927,7 +946,6 @@ impl Parser {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
         let in_js = self.language.is_javascript();
         let mut has_variadic_parameter = false;
-        self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
             if self.peek_is(TokenType::CloseParenthesis) || self.peek_starts_type_angle_close() {
                 break;
@@ -939,7 +957,7 @@ impl Parser {
             }
 
             // one parameter slot
-            let parameter_start = self.mark_span();
+            let parameter_start = self.span_start();
             let mut is_recovered_parameter = false;
             let parameter = match self.eat_parameter().for_node_type(NodeType::Parameter) {
                 Ok(parameter) => parameter,
@@ -984,7 +1002,6 @@ impl Parser {
             }
 
             parameters.push(parameter);
-            self.eat_newlines_maybe()?;
 
             // untyped parameter lists reject trailing separators after rest parameters
             if in_js && has_variadic_parameter && self.is_item_stop() {
@@ -993,7 +1010,7 @@ impl Parser {
 
             // continue regular parameter lists after a real separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
 
                 if !is_recovered_parameter {
                     continue;
@@ -1037,7 +1054,7 @@ impl Parser {
 
     /// Parse one generic parameter in a generic parameter list.
     fn eat_generic_parameter(&mut self) -> ParseResult<LocalNodeId<GenericParameter>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // generic parameters accept only the dedicated generic modifiers
         let mut variance = None;
@@ -1054,10 +1071,12 @@ impl Parser {
                 continue;
             }
 
-            let position_index = self.pos_index();
             let is_out_modifier = self.peek_is(TokenType::Identifier)
-                && self.identifier_equals_at(position_index, "out")
-                && self.peek_next_is(TokenType::Identifier);
+                && self.current_identifier_str_is("out")
+                && self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Identifier)
+                });
             if is_out_modifier {
                 self.bump(); // eat out
                 variance = Some(match variance {
@@ -1082,23 +1101,16 @@ impl Parser {
 
         // generic parameters are type parameters by default
         // value parameters must opt in with `comptime` or `const`
-        let annotation_index = self.next_non_newline_index_from(self.pos_index());
-        let annotation_token_type = self.token_type_at(annotation_index);
-        let annotation_keyword = if annotation_token_type == TokenType::Identifier {
-            self.keyword_for_index(annotation_index)
-        } else {
-            None
-        };
+        let annotation_token_type = self.peek_token_type();
+        let annotation_keyword = self.current_keyword();
         let has_colon_annotation = annotation_token_type == TokenType::Colon;
         let has_type_constraint = matches!(annotation_keyword, Some(Keyword::Extends));
         let has_annotation = has_colon_annotation || has_type_constraint;
         let is_value_parameter = is_comptime;
 
         let (declared_type, declared_type_span) = if has_annotation {
-            self.eat_newlines_maybe()?;
-            let type_start = self.mark_span();
+            let type_start = self.span_start();
             self.bump(); // eat colon or extends
-            self.eat_newlines_maybe()?;
             let declared_type = if self.peek_is(TokenType::Assign)
                 || self.peek_is(TokenType::Comma)
                 || self.peek_starts_type_angle_close()
@@ -1115,12 +1127,9 @@ impl Parser {
 
         // type parameters default in type space, value parameters default in expression space
         let default = if self.peek_is(TokenType::Assign)
-            || self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Assign)
+            || self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign)
         {
-            self.eat_newlines_maybe()?;
             self.bump(); // eat =
-            self.eat_newlines_maybe()?;
 
             if is_value_parameter {
                 let value = if self.peek_is(TokenType::Comma)
@@ -1185,14 +1194,8 @@ impl Parser {
         &mut self,
         allow_empty_parameters: bool,
     ) -> ParseResult<Option<Vec<LocalNodeId<GenericParameter>>>> {
-        let start_index = self.pos_index();
-        let static_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(static_index) != TokenType::LessThan {
+        if !self.peek_is(TokenType::LessThan) {
             return Ok(None);
-        }
-
-        if static_index != start_index {
-            self.eat_newlines_maybe()?;
         }
 
         Ok(Some(self.eat_generic_parameters(allow_empty_parameters)?))
@@ -1205,9 +1208,8 @@ impl Parser {
         &mut self,
         allow_empty_parameters: bool,
     ) -> ParseResult<Vec<LocalNodeId<GenericParameter>>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         self.eat_token(TokenType::LessThan)?;
-        self.eat_newlines_maybe()?;
 
         // optionally accept empty generic parameters
         if self.peek_starts_type_angle_close() {
@@ -1236,7 +1238,6 @@ impl Parser {
                 .with_expression_context(expression_context),
             |parser| {
                 let mut parameters = Vec::new();
-                parser.eat_newlines_maybe()?;
                 while parser.has_more_tokens() {
                     if parser.peek_starts_type_angle_close() {
                         break;
@@ -1247,14 +1248,12 @@ impl Parser {
                         .for_node_type(NodeType::GenericParameter)?;
                     parameters.push(parameter);
 
-                    parser.eat_newlines_maybe()?;
                     if parser.peek_starts_type_angle_close() {
                         break;
                     }
 
                     if parser.peek_is(TokenType::Comma) {
                         parser.bump(); // eat comma
-                        parser.eat_newlines_maybe()?;
                         continue;
                     }
 
@@ -1287,7 +1286,6 @@ impl Parser {
     /// Eat dynamic parameters (including the `(` and `)` tokens).
     pub fn eat_dynamic_parameters(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         // empty dynamic parameters
         if self.peek_is(TokenType::CloseParenthesis) {
@@ -1372,7 +1370,7 @@ impl Parser {
             return Ok(argument_id);
         }
 
-        let start = self.mark_span();
+        let start = self.span_start();
         let decorators = if !self.options.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
@@ -1382,7 +1380,6 @@ impl Parser {
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
-            self.eat_newlines_maybe()?;
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
             )?;
@@ -1436,14 +1433,18 @@ impl Parser {
         &mut self,
         in_tree_child: bool,
     ) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         // named argument (name: value)
-        if self.peek_name_is() && self.peek_next_is(TokenType::Colon) {
+        if self.peek_name_is()
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            })
+        {
             let (name, name_span) = self
                 .eat_name_with_span()
                 .for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
-            self.eat_newlines_maybe()?;
             // value
             let value = self.eat_expression_with_context_unchecked(
                 self.current_positional_argument_context(),
@@ -1468,7 +1469,6 @@ impl Parser {
         // expression container ({expr}): braces are delimiters, not part of the expression
         else if self.peek_is(TokenType::OpenBrace) {
             self.bump(); // eat {
-            self.eat_newlines_maybe()?;
 
             // empty container (including comment-only containers)
             if self.peek_is(TokenType::CloseBrace) {
@@ -1497,7 +1497,6 @@ impl Parser {
                         .with_expression_context(value_expression_context),
                 )?;
 
-                self.eat_newlines_maybe()?;
                 if in_tree_child {
                     self.expect_tree_child(TokenType::CloseBrace)?;
                 } else {
@@ -1525,7 +1524,6 @@ impl Parser {
                     .with_expression_context(value_expression_context),
             )?;
 
-            self.eat_newlines_maybe()?;
             if in_tree_child {
                 self.expect_tree_child(TokenType::CloseBrace)?;
             } else {
@@ -1587,7 +1585,7 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_tree_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
@@ -1599,12 +1597,10 @@ impl Parser {
             );
             Ok(argument_id)
         }
-        // spread expression container (like {...expr} in tree literals for #Compatibility)
+        // spread expression container
         else if self.starts_tree_spread_attribute() {
             self.bump(); // eat open brace
-            self.eat_newlines_maybe()?;
             self.bump(); // eat spread
-            self.eat_newlines_maybe()?;
             let value_ambient_context = self.options.with_tree_literal(false);
             let value_expression_context = self
                 .options
@@ -1617,7 +1613,6 @@ impl Parser {
                     .with_ambient_context(value_ambient_context)
                     .with_expression_context(value_expression_context),
             )?;
-            self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Argument)?;
             let argument_id = self.insert_node(
                 Argument::Spread { label: None, value },
@@ -1635,14 +1630,11 @@ impl Parser {
             // named argument with value
             let value = if has_value_separator {
                 self.set_tree_attribute_value(true);
-                self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or assign
-                self.eat_newlines_maybe()?;
 
                 // tree expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat {
-                    self.eat_newlines_maybe()?;
                     let value_ambient_context = self.options.with_tree_literal(false);
                     let value_expression_context = self
                         .options
@@ -1654,7 +1646,6 @@ impl Parser {
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
                     )?;
-                    self.eat_newlines_maybe()?;
                     self.eat_close_token_or_recover_missing(
                         TokenType::CloseBrace,
                         NodeType::Argument,
@@ -1671,7 +1662,7 @@ impl Parser {
                 }
                 // shorthand array attribute
                 else if self.peek_is(TokenType::OpenBracket) {
-                    let value_start = self.mark_span();
+                    let value_start = self.span_start();
                     let value_ambient_context = self.options.with_tree_literal(false);
                     let value_expression_context = self.options.not_in_position();
                     let elements = self.with_options(
@@ -1727,18 +1718,15 @@ impl Parser {
             return false;
         }
 
-        // skip newline trivia before checking for spread
-        let spread_index = self.first_non_newline_index_from(self.pos_index() + 1);
-        self.token_type_at(spread_index) == TokenType::Spread
+        self.next_token_type() == TokenType::Spread
     }
 
     /// Return true when the current tree argument has an explicit value separator.
     pub(crate) fn tree_literal_argument_has_value_separator(&mut self) -> bool {
         self.peek_is(TokenType::Colon)
             || self.peek_is(TokenType::Assign)
-            || self.peek_is(TokenType::Newline)
-                && (self.is_token_after_newlines(self.pos(), TokenType::Colon)
-                    || self.is_token_after_newlines(self.pos(), TokenType::Assign))
+            || self.current_token_is_on_new_line()
+                && (self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign))
     }
 
     /// Eat generic arguments, including the `<` and `>` tokens, if they exist.
@@ -1759,7 +1747,6 @@ impl Parser {
         mut next_argument_boundary_start: u32,
     ) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<GenericArgument>; 4]>::new();
-        self.eat_newlines_maybe()?;
 
         while self.has_more_tokens() {
             // stop on closing `>`
@@ -1768,7 +1755,7 @@ impl Parser {
             }
 
             // one argument slot
-            let argument_start = self.mark_span();
+            let argument_start = self.span_start();
             let mut is_recovered_argument = false;
             let argument_id = match self.eat_generic_argument(
                 self.current_non_sequence_argument_context(),
@@ -1789,13 +1776,11 @@ impl Parser {
             self.set_node_leading_span(argument_id, next_argument_boundary_start);
 
             arguments.push(argument_id);
-            self.eat_newlines_maybe()?;
 
             // continue through separators
             if self.peek_is(TokenType::Comma) {
                 self.bump();
                 next_argument_boundary_start = self.prev_token_end();
-                self.eat_newlines_maybe()?;
             }
             // recovered slots may continue across newline separators only
             else if !self
@@ -1813,7 +1798,7 @@ impl Parser {
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_generic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
         let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
-        let start = self.mark_span();
+        let start = self.span_start();
         let used_shift_left_start = self.peek_is(TokenType::ShiftLeft);
 
         // handle both `<` and `<<` (ShiftLeft) as opening token
@@ -1830,7 +1815,6 @@ impl Parser {
             return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
         }
         let first_argument_boundary_start = self.prev_token_end();
-        self.eat_newlines_maybe()?;
 
         // empty generic arguments only recover in committed type-like contexts
         let allow_empty_generic_arguments =
@@ -1852,7 +1836,7 @@ impl Parser {
             let error = ParseError::expected(self.get_span_from(&start), TokenType::Identifier);
             self.error(&error);
 
-            let argument_start = self.mark_span();
+            let argument_start = self.span_start();
             vec![self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))]
         }
         // regular generic arguments: type or value only
@@ -1879,7 +1863,6 @@ impl Parser {
             self.options.is_in_type() || self.options.is_in_decorator() || used_shift_left_start;
         let allow_missing_type_close = self.options.is_in_type() || self.options.is_in_decorator();
 
-        self.eat_newlines_maybe()?;
         if allow_glued_type_close {
             if allow_missing_type_close {
                 self.eat_type_angle_close_or_recover_missing(NodeType::Expression)?;
@@ -1907,7 +1890,6 @@ impl Parser {
     pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         // empty dynamic arguments
         if self.peek_is(TokenType::CloseParenthesis) {
@@ -1925,7 +1907,6 @@ impl Parser {
             |parser| parser.eat_positional_arguments_body(TokenType::CloseParenthesis),
         )?;
 
-        self.eat_newlines_maybe()?;
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Expression,
@@ -1948,14 +1929,13 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
-        self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
             if self.peek_is(terminator) {
                 break;
             }
 
             // one argument slot
-            let argument_start = self.mark_span();
+            let argument_start = self.span_start();
             let is_recovered_argument;
             let argument_id = match self.eat_positional_argument() {
                 Ok(argument_id) => {
@@ -1971,12 +1951,11 @@ impl Parser {
                 }
             };
 
-            self.eat_newlines_maybe()?;
             arguments.push(argument_id);
 
             // continue regular positional argument lists after a real separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
 
                 if !is_recovered_argument {
                     continue;
@@ -2021,14 +2000,13 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments = smallvec::SmallVec::<[LocalNodeId<Argument>; 4]>::new();
-        self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
             if self.peek_is(terminator) {
                 break;
             }
 
             // one argument slot
-            let argument_start = self.mark_span();
+            let argument_start = self.span_start();
             let is_recovered_argument;
             let argument_id = match self.eat_tree_argument() {
                 Ok(argument_id) => {
@@ -2044,12 +2022,11 @@ impl Parser {
                 }
             };
 
-            self.eat_newlines_maybe()?;
             arguments.push(argument_id);
 
             // continue regular argument lists after a real separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
 
                 if !is_recovered_argument {
                     continue;
@@ -2085,7 +2062,7 @@ mod tests {
     use destack_ast::{
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
         DecoratorPosition, Expression, FunctionDeclaration, FunctionMode, GenericArgument,
-        GenericParameter, IfKind, IntType, Member, Name, NodeType, Parameter, Pattern,
+        GenericParameter, IfKind, IntType, Keyword, Member, Name, NodeType, Parameter, Pattern,
         PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
         Visibility,
     };
@@ -2545,6 +2522,26 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_generic_parameters_default_before_shifted_close() {
+        let mut test = TestParser::new_with_options(
+            "<Union, LastElement = LastOf<Union>>",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let generic_parameters = parser.eat_generic_parameters(true).unwrap();
+
+        test.assert_no_errors(&parser);
+
+        assert_eq!(generic_parameters.len(), 2);
+        assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { default: Some(default), .. } => {
+            assert_node!(parser.tree, *default, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "LastOf");
+                assert_eq!(generic_arguments.len(), 1);
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_generic_parameters_record_first_parameter_container_leading_span() {
         let mut test = TestParser::new("<\n  T>");
         let mut parser = test.prepare();
@@ -2757,6 +2754,38 @@ mod tests {
                 is_signed: true
             }) });
         });
+    }
+
+    #[test]
+    fn test_parse_comptime_modifier_target_requires_same_line() {
+        let mut test = TestParser::new(
+            r#"comptime
+n"#,
+        );
+        let mut parser = test.prepare();
+        let modifiers = parser
+            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true)
+            .unwrap();
+
+        assert!(modifiers.is_none());
+        assert!(parser.is_keyword(Keyword::Comptime));
+    }
+
+    #[test]
+    fn test_parse_comptime_modifier_allows_block_line_break() {
+        let mut test = TestParser::new(
+            r#"comptime
+{}"#,
+        );
+        let mut parser = test.prepare();
+        let modifiers = parser
+            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true)
+            .unwrap()
+            .unwrap();
+
+        assert!(modifiers.is_comptime);
+        assert!(parser.current_token_is_on_new_line());
+        assert!(parser.peek_is(TokenType::OpenBrace));
     }
 
     /// Parse TypeScript parameter decorators in constructors and methods.

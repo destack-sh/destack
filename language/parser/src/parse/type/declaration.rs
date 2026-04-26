@@ -1,6 +1,6 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::timing::tags;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
@@ -17,23 +17,55 @@ impl Parser {
         }
 
         // `name = ...`
-        if !self.peek_next_is(TokenType::LessThan) {
-            return self.is_token_after_newlines(self.pos(), TokenType::Assign);
+        if self.next_token_type() != TokenType::LessThan {
+            return self.next_token_type() == TokenType::Assign;
         }
 
         // `name<...> = ...`
-        let open_index = self.index_for_next() as u32;
-        let Some(close_index) = self.find_matching_close_maybe(
-            Some(open_index),
-            TokenType::LessThan,
-            TokenType::GreaterThan,
-        ) else {
-            return true;
-        };
+        self.lookahead(|parser| {
+            parser.bump(); // identifier
+            parser.bump(); // <
 
-        let follow_index = self.next_non_newline_index_from(close_index as usize + 1);
+            let mut depth = 1u32;
+            while parser.has_more_tokens() {
+                let token_type = parser.peek_token_type();
+                match token_type {
+                    TokenType::LessThan => depth += 1,
+                    TokenType::GreaterThan => {
+                        depth -= 1;
+                        if depth == 0 {
+                            parser.bump();
+                            return parser.peek_is(TokenType::Assign);
+                        }
+                    }
+                    TokenType::ShiftRight => {
+                        if depth == 2 {
+                            parser.bump();
+                            return parser.peek_is(TokenType::Assign);
+                        }
+                        if depth < 2 {
+                            return false;
+                        }
+                        depth -= 2;
+                    }
+                    TokenType::UnsignedShiftRight => {
+                        if depth == 3 {
+                            parser.bump();
+                            return parser.peek_is(TokenType::Assign);
+                        }
+                        if depth < 3 {
+                            return false;
+                        }
+                        depth -= 3;
+                    }
+                    _ => {}
+                }
 
-        self.token_type_at(follow_index) == TokenType::Assign
+                parser.bump();
+            }
+
+            true
+        })
     }
 
     /// Eat a type alias or expression.
@@ -51,12 +83,12 @@ impl Parser {
     /// ```
     pub(crate) fn eat_type(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_TYPE);
 
-        let keyword_start = self.mark_span();
+        let keyword_start = self.span_start();
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
         let keyword_span = self.get_span_from(&keyword_start);
@@ -82,15 +114,13 @@ impl Parser {
 
             // alias head
             let (name, name_span) = self.eat_name_with_span()?;
-            let generic_parameter_container_start = self.mark_span();
+            let generic_parameter_container_start = self.span_start();
             let generic_parameters = self.eat_generic_parameters_maybe(true)?.unwrap_or_default();
             let generic_parameter_container_span = (!generic_parameters.is_empty())
                 .then(|| self.get_span_from(&generic_parameter_container_start));
 
             // `=`
-            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Assign)?;
-            self.eat_newlines_maybe()?;
 
             // aliased type value
             let mut value_options = self.options.not_in_position().in_type();
@@ -173,9 +203,8 @@ impl Parser {
         // bare intrinsic marker
         if self.peek_identifier_is() {
             let reference = *self.peek()?;
-            let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
             let is_bare_intrinsic = self.get_span_str(reference.span) == "intrinsic"
-                && self.with_pos(next_index, |parser| parser.is_type_expression_boundary());
+                && Self::is_type_expression_boundary_token(self.next_token_type());
 
             if is_bare_intrinsic {
                 self.bump(); // eat intrinsic

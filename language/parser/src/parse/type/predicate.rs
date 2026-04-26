@@ -12,9 +12,8 @@ impl Parser {
     /// asserts this is ReadyState
     /// ```
     pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         self.eat_keyword(Keyword::Asserts)?;
-        self.eat_newlines_maybe()?;
 
         // subject: `this` or one identifier
         let (subject, subject_span) = if self.is_keyword(Keyword::This) {
@@ -29,7 +28,6 @@ impl Parser {
         // target: `asserts x is T`
         let target = if self.is_keyword(Keyword::Is) {
             self.bump(); // eat is
-            self.eat_newlines_maybe()?;
 
             let mut target_options = self.options.not_in_position().in_type();
             if self.options.is_in_type_conditional_right() {

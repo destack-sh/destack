@@ -1,6 +1,6 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,
@@ -51,7 +51,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_interface(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         kind: TypeKind,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -71,10 +71,9 @@ impl Parser {
                 .for_node_type(NodeType::Declaration)?;
 
             // interface keyword cannot be followed by a newline
-            if self.peek_is(TokenType::Newline) {
+            if self.current_token_is_on_new_line() {
                 let error = ParseError::unexpected(self.peek()?.span);
                 self.error(&error);
-                self.eat_newlines_maybe()?;
             }
 
             // optional name / key
@@ -85,7 +84,7 @@ impl Parser {
             };
 
             // optional generic parameters: < ... >
-            let generic_parameter_container_start = self.mark_span();
+            let generic_parameter_container_start = self.span_start();
             let generic_parameters = self.eat_generic_parameters_maybe(true)?;
             let generic_parameter_container_span = generic_parameters
                 .as_ref()
@@ -98,10 +97,8 @@ impl Parser {
             let where_clauses = self.eat_where_maybe()?;
 
             // body
-            self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;
-            self.eat_newlines_maybe()?;
 
             // parse interface members in type context
             let member_options = self.options.nested().in_variant().in_type();
@@ -165,7 +162,7 @@ mod tests {
         let mut test = TestParser::new("interface {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -182,7 +179,7 @@ mod tests {
         let mut test = TestParser::new("interface Foo extends Bar {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -203,7 +200,7 @@ mod tests {
         let mut test = TestParser::new("interface Foo { bar(): Baz");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -228,9 +225,8 @@ interface Foo<G> {
             destack_source::LanguageType::TypeScriptXml,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -293,9 +289,8 @@ interface Foo extends Bar
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -315,9 +310,8 @@ Baz {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -339,9 +333,8 @@ Baz {
             destack_source::LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -365,9 +358,8 @@ interface Foo extends Baz {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -417,9 +409,8 @@ interface Foo {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -433,7 +424,7 @@ interface Foo {
         let mut test = TestParser::new("interface Baz<T> {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -457,7 +448,7 @@ interface Foo {
         let mut test = TestParser::new_with_options("interface Box<> {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -472,7 +463,7 @@ interface Foo {
         let mut test = TestParser::new("interface Baz<in T, out U> {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -495,7 +486,7 @@ interface Foo {
         let mut test = TestParser::new("interface Holder<in out T> {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -518,9 +509,8 @@ interface Baz<T> where Requirement: Interface {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -556,9 +546,8 @@ interface SQL {
 }"#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -678,9 +667,8 @@ interface Iterator<T, TReturn = any, TNext = any> {
 "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -739,7 +727,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();
@@ -773,7 +761,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         let mut test = TestParser::new("interface {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
             .unwrap();
@@ -795,9 +783,8 @@ interface Add<T, R = Self> {
 "#,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Nominal)
             .unwrap();
@@ -829,7 +816,7 @@ interface Add<T, R = Self> {
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let interface_id = parser
             .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
             .unwrap();

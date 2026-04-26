@@ -13,39 +13,34 @@ impl Parser {
             return false;
         }
 
-        // skip the opening `{`
-        let mut look_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
+        self.lookahead(|parser| {
+            // skip the opening `{`
+            parser.bump();
 
-        // `+readonly` and `-readonly` only start mapped types
-        let look_token_type = self.token_type_at(look_index);
-        if look_token_type == TokenType::Add || look_token_type == TokenType::Subtract {
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-            return self.token_type_at(look_index) == TokenType::Identifier
-                && self.keyword_for_index(look_index) == Some(Keyword::Readonly);
-        }
+            // `+readonly` and `-readonly` only start mapped types
+            if parser.peek_is(TokenType::Add) || parser.peek_is(TokenType::Subtract) {
+                parser.bump();
+                return parser.is_keyword(Keyword::Readonly);
+            }
 
-        // optional `readonly`
-        if look_token_type == TokenType::Identifier
-            && self.keyword_for_index(look_index) == Some(Keyword::Readonly)
-        {
-            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        }
+            // optional `readonly`
+            if parser.is_keyword(Keyword::Readonly) {
+                parser.bump();
+            }
 
-        // mapped heads require `[` after the modifier prefix
-        if self.token_type_at(look_index) != TokenType::OpenBracket {
-            return false;
-        }
+            // mapped heads require `[K in`
+            if !parser.peek_is(TokenType::OpenBracket) {
+                return false;
+            }
+            parser.bump();
 
-        // mapped keys must start with an identifier
-        let name_index = self.next_non_newline_index_from(look_index.saturating_add(1));
-        if self.token_type_at(name_index) != TokenType::Identifier {
-            return false;
-        }
+            if !parser.peek_is(TokenType::Identifier) {
+                return false;
+            }
+            parser.bump();
 
-        // mapped heads require `in` after the key name
-        let in_index = self.next_non_newline_index_from(name_index.saturating_add(1));
-        self.token_type_at(in_index) == TokenType::Identifier
-            && self.keyword_for_index(in_index) == Some(Keyword::In)
+            parser.is_keyword(Keyword::In)
+        })
     }
 
     /// Eat one mapped type expression.
@@ -57,25 +52,20 @@ impl Parser {
     /// { [K in keyof T as `get${K}`]: T[K] }
     /// ```
     pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // mapped body: `{ ... }`
         self.eat_token(TokenType::OpenBrace)?;
-        self.eat_newlines_maybe()?;
 
         // readonly modifier: `readonly`, `+readonly`, `-readonly`
         let readonly = self.eat_type_mapped_readonly_modifier()?;
 
-        self.eat_newlines_maybe()?;
-        let mapped_head_start = self.mark_span();
+        let mapped_head_start = self.span_start();
         self.eat_token(TokenType::OpenBracket)?;
-        self.eat_newlines_maybe()?;
 
         // parameter: `[K in keyof T]`
         let (name, name_span) = self.eat_identifier_with_span()?;
-        self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::In)?;
-        self.eat_newlines_maybe()?;
         let source_type = self.eat_type_expression_or_recover_missing(
             self.options
                 .not_in_position()
@@ -87,12 +77,10 @@ impl Parser {
 
         // key remap: `[K in T as ...]`
         let mut key_remap = None;
-        self.eat_newlines_maybe()?;
         if self.is_keyword(Keyword::As) {
             let as_span = self.eat_keyword(Keyword::As)?.span;
             self.set_node_trailing_span(source_type, as_span.start);
             let remap_boundary_start = as_span.end;
-            self.eat_newlines_maybe()?;
             let remap_expression = self.eat_type_expression_or_recover_missing(
                 self.options
                     .not_in_position()
@@ -105,7 +93,6 @@ impl Parser {
             key_remap = Some(remap_expression);
         }
 
-        self.eat_newlines_maybe()?;
         self.eat_type_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
         let mapped_head_span = self.get_span_from(&mapped_head_start);
 
@@ -113,12 +100,10 @@ impl Parser {
         let optional = self.eat_type_mapped_optional_modifier()?;
 
         // mapped value: `: T`
-        self.eat_newlines_maybe()?;
         let (value, value_type_span) = if self.peek_is(TokenType::Colon) {
-            let value_type_start = self.mark_span();
+            let value_type_start = self.span_start();
             self.eat_token(TokenType::Colon)?;
             let value_boundary_start = self.prev_token_end();
-            self.eat_newlines_maybe()?;
             let value = self.eat_type_expression_node_or_recover_missing(
                 self.options
                     .not_in_position()
@@ -135,10 +120,8 @@ impl Parser {
                 None,
             )
         };
-        self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
-            self.eat_newlines_maybe()?;
         }
 
         // mapped value trailing boundary
@@ -194,13 +177,12 @@ impl Parser {
         };
 
         // allow line breaks between `+` or `-` and `readonly`
-        let readonly_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
-        let has_readonly_after_operator = self.token_type_at(readonly_index)
-            == TokenType::Identifier
-            && self.keyword_for_index(readonly_index) == Some(Keyword::Readonly);
+        let has_readonly_after_operator = self.lookahead(|parser| {
+            parser.bump();
+            parser.is_keyword(Keyword::Readonly)
+        });
         if has_readonly_after_operator {
             self.bump(); // eat + or -
-            self.eat_newlines_maybe()?;
             self.bump(); // eat readonly
             return Ok(modifier);
         }
@@ -217,14 +199,24 @@ impl Parser {
         }
 
         // -?
-        if self.peek_is(TokenType::Subtract) && self.peek_next_is(TokenType::Maybe) {
+        if self.peek_is(TokenType::Subtract)
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Maybe)
+            })
+        {
             self.bump(); // eat -
             self.bump(); // eat ?
             return Ok(TypeModifier::Remove);
         }
 
         // +?
-        if self.peek_is(TokenType::Add) && self.peek_next_is(TokenType::Maybe) {
+        if self.peek_is(TokenType::Add)
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Maybe)
+            })
+        {
             self.bump(); // eat +
             self.bump(); // eat ?
             return Ok(TypeModifier::Add);

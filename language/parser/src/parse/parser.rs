@@ -1,4 +1,4 @@
-use crate::{Lexer, LexerSnapshot, is_semantic};
+use crate::{Lexer, LexerSnapshot, is_semantic, keyword_from_identifier};
 use core::fmt;
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
@@ -103,7 +103,6 @@ impl Default for ParserOptions {
 }
 
 /// Parser settings that can be configured externally.
-/// NOTE #Cleanup: ParserSettings living separately from Parser and ParserOptions feels awkward.
 #[derive(Debug, Copy, Clone)]
 pub struct ParserSettings {
     /// Whether ambiguous tree literal syntax is disallowed.
@@ -956,8 +955,6 @@ pub struct Parser {
     /// The lexer backing the parser.
     pub(crate) lexer: Lexer,
 
-    /// The current parser cursor index in the semantic token stream.
-    pos: usize,
     /// The current visible token at the parser cursor.
     current_token: TokenSpan,
     /// The previous semantic token end.
@@ -991,44 +988,6 @@ pub struct Parser {
     pub(crate) state: ParserState,
 }
 
-/// Cursor information for the next non-newline token.
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct NonNewlineTokenCursor {
-    /// The non-newline token index in the semantic stream.
-    pub index: usize,
-    /// The non-newline token type at `index`.
-    pub token_type: TokenType,
-    /// The number of leading newline tokens skipped before `index`.
-    pub skipped_newline_count: usize,
-    /// Whether this cursor position is preceded by a line break.
-    pub has_line_break_before: bool,
-}
-
-impl NonNewlineTokenCursor {
-    /// Return true when this cursor starts after a statement boundary.
-    #[inline]
-    pub(crate) const fn starts_after_statement_boundary(self) -> bool {
-        self.has_line_break_before
-            || matches!(
-                self.token_type,
-                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
-    }
-
-    /// Return true when this cursor cannot start an immediate operand.
-    #[inline]
-    pub(crate) const fn omits_restricted_operand(self) -> bool {
-        self.starts_after_statement_boundary()
-            || matches!(
-                self.token_type,
-                TokenType::CloseParenthesis
-                    | TokenType::CloseBracket
-                    | TokenType::Comma
-                    | TokenType::Colon
-            )
-    }
-}
-
 impl Debug for Parser {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Parser")
@@ -1036,22 +995,34 @@ impl Debug for Parser {
 }
 
 impl Parser {
-    /// Return true when raw input before one token stream index contains a line terminator.
+    /// Return true when the current token starts after a line break.
     #[inline]
-    pub(crate) fn input_has_line_terminator_before_index(&mut self, index: usize) -> bool {
-        if self.lexer.materialized_line_terminator_before(index) {
-            return true;
-        }
-
-        self.tokens()
-            .get(index.saturating_sub(1))
-            .is_some_and(|token| token.token.ty == TokenType::Newline)
+    pub(crate) fn current_token_is_on_new_line(&self) -> bool {
+        self.current_token.token.is_on_new_line
     }
 
-    /// Return true when raw input before the current token contains a line terminator.
+    /// Return true when the previous token started after a line break.
     #[inline]
-    pub(crate) fn input_has_line_terminator_before_current_token(&mut self) -> bool {
-        self.input_has_line_terminator_before_index(self.pos_index())
+    pub(crate) fn previous_token_is_on_new_line(&self) -> bool {
+        self.last_consumed_token.token.is_on_new_line
+    }
+
+    /// Return true when comments appear between the previous token and current token.
+    pub(crate) fn current_token_has_leading_comment(&self) -> bool {
+        let start = self.previous_token_end;
+        let end = self.current_token.span.start;
+
+        self.lexer.side_tokens().iter().any(|token| {
+            token.span.start >= start
+                && token.span.end <= end
+                && matches!(
+                    token.token.ty,
+                    TokenType::LineComment
+                        | TokenType::BlockComment
+                        | TokenType::DocLineComment
+                        | TokenType::DocBlockComment
+                )
+        })
     }
 
     /// Return true when transparent parenthesized wrappers stay in the parsed tree.
@@ -1079,7 +1050,6 @@ impl Parser {
             file,
             file_id,
             lexer,
-            pos: 0,
             current_token: TokenSpan {
                 token: Token::end(),
                 span: Span::new(file_id, 0, 0),
@@ -1100,7 +1070,7 @@ impl Parser {
             #[cfg(feature = "timings")]
             timings: timings_from_env(),
             stats: ParserStats::new(speculation_stats_enabled_from_env()),
-            state: ParserState::new(estimated_tokens, type_literal_identifiers),
+            state: ParserState::new(type_literal_identifiers),
         }
     }
 
@@ -1174,7 +1144,6 @@ impl Parser {
     /// Reset the parser.
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
-        self.pos = 0;
         self.previous_token_end = 0;
         let mut options = ParserOptions::default();
         options.set_disallow_ambiguous_tree_literal(
@@ -1185,7 +1154,7 @@ impl Parser {
         self.stats.reset();
         self.state.reset();
 
-        self.refresh_current_token();
+        self.read_next_token();
         self.previous_token_end = 0;
         self.last_consumed_token = TokenSpan {
             token: Token::end(),
@@ -1258,13 +1227,6 @@ impl Parser {
         expression_id
     }
 
-    /// Ensure a token exists at the given index.
-    #[inline]
-    pub(crate) fn ensure_token(&mut self, index: usize) {
-        let _timing = self.timing_scope(tags::PARSE_LEX_ENSURE_TOKEN);
-        self.lexer.ensure_token(index);
-    }
-
     /// Return true when tree literal lexing is enabled.
     #[inline]
     pub(crate) fn allow_tree_literals(&self) -> bool {
@@ -1310,6 +1272,7 @@ impl Parser {
         }
 
         let token = self.lexer.re_lex_as_typed_l_angle(self.current_token);
+        self.lexer.replace_current_token(token);
         self.current_token = token;
         true
     }
@@ -1334,6 +1297,7 @@ impl Parser {
         }
 
         let token = self.lexer.re_lex_as_r_angle(self.current_token);
+        self.lexer.replace_current_token(token);
         self.current_token = token;
         true
     }
@@ -1356,7 +1320,7 @@ impl Parser {
         }
 
         let token = self.lexer.re_lex_as_regex(self.current_token);
-        self.lexer.commit_current_token_re_lex(self.pos, token);
+        self.lexer.replace_current_token(token);
         self.current_token = token;
         true
     }
@@ -1423,98 +1387,6 @@ impl Parser {
         Self::starts_type_angle_close(self.peek_token_type())
     }
 
-    /// Return the next non newline token index from a start index.
-    #[inline]
-    pub(crate) fn next_non_newline_index_from_stream(&mut self, start: usize) -> usize {
-        let _timing = self.timing_scope(tags::PARSE_LEX_NEXT_NON_NEWLINE);
-        self.first_non_newline_index_from(start)
-    }
-
-    /// Return the first non-newline token index from a start index.
-    #[inline]
-    pub(crate) fn first_non_newline_index_from(&mut self, start: usize) -> usize {
-        let mut index = start;
-        loop {
-            let tokens = self.tokens();
-            while let Some(token) = tokens.get(index) {
-                if token.token.ty != TokenType::Newline {
-                    return index;
-                }
-
-                index += 1;
-            }
-
-            if self.lexer.is_lexed_to_end() {
-                return index;
-            }
-
-            self.ensure_token(index);
-        }
-    }
-
-    /// Return cursor information for the first non-newline token from a start index.
-    #[inline]
-    pub(crate) fn scanner_cursor_from(&mut self, start: usize) -> NonNewlineTokenCursor {
-        let index = self.first_non_newline_index_from(start);
-        let token_type = self
-            .tokens()
-            .get(index)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End);
-        let skipped_newline_count = index.saturating_sub(start);
-        let has_line_break_before = if skipped_newline_count > 0 {
-            true
-        } else {
-            self.lexer.materialized_line_terminator_before(index)
-        };
-
-        NonNewlineTokenCursor {
-            index,
-            token_type,
-            skipped_newline_count,
-            has_line_break_before,
-        }
-    }
-
-    /// Return the matching pair index for an opening token index, lexing ahead if needed.
-    #[inline]
-    pub(crate) fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
-        let _timing = self.timing_scope(tags::PARSE_LEX_MATCHING_PAIR);
-
-        // fully materialized streams can serve pair lookups without incremental lex checks
-        if self.lexer.is_lexed_to_end() {
-            return self.lexer.matching_pair(index);
-        }
-
-        // tree literal lexing needs parser driven mode switches before aggressive lookahead
-        if self.allow_tree_literals() && !self.options.is_in_type() {
-            return self.lexer.matching_pair(index);
-        }
-
-        self.ensure_token(index);
-
-        let token = self.tokens().get(index)?;
-        if !matches!(
-            token.token.ty,
-            TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
-        ) {
-            return None;
-        }
-
-        loop {
-            let value = self.lexer.matching_pair(index);
-            if value.is_some() {
-                break value;
-            }
-
-            if self.lexer.is_lexed_to_end() {
-                break None;
-            }
-
-            self.ensure_token(self.tokens().len());
-        }
-    }
-
     /// Return owned token buffers after lexing to EOF.
     pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
         self.lexer.take_tokens()
@@ -1526,240 +1398,10 @@ impl Parser {
         Span::new(self.file_id, self.file.len, self.file.len)
     }
 
-    /// Ensure a token exists at the given index and return it.
+    /// Read the next token from the lexer cursor.
     #[inline]
-    pub(crate) fn token_at(&mut self, index: usize) -> Option<TokenSpan> {
-        let _timing = self.timing_scope(tags::PARSE_LEX_TOKEN_AT);
-
-        if let Some(token) = self.tokens().get(index).copied() {
-            return Some(token);
-        }
-
-        self.lexer.token(index)
-    }
-
-    /// Ensure a token exists at the given index and return a reference.
-    #[inline]
-    pub(crate) fn token_ref_at(&mut self, index: usize) -> Option<&TokenSpan> {
-        if index < self.tokens().len() {
-            return self.tokens().get(index);
-        }
-
-        self.ensure_token(index);
-        self.tokens().get(index)
-    }
-
-    /// Look up the token type at a given index.
-    #[inline]
-    pub(crate) fn token_type_at(&mut self, index: usize) -> TokenType {
-        if let Some(token) = self.tokens().get(index) {
-            return token.token.ty;
-        }
-
-        self.ensure_token(index);
-        self.tokens()
-            .get(index)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End)
-    }
-
-    /// Return true when two tokens touch in the source with no whitespace.
-    #[inline]
-    pub(crate) fn tokens_are_adjacent(&mut self, left_index: usize, right_index: usize) -> bool {
-        let Some(left) = self.token_at(left_index) else {
-            return false;
-        };
-        let Some(right) = self.token_at(right_index) else {
-            return false;
-        };
-
-        left.span.end == right.span.start
-    }
-
-    /// Check that two tokens are adjacent (no whitespace between them).
-    #[inline]
-    pub(crate) fn check_tokens_are_adjacent(
-        &mut self,
-        left_index: usize,
-        right_index: usize,
-    ) -> ParseResult<()> {
-        if self.tokens_are_adjacent(left_index, right_index) {
-            return Ok(());
-        }
-
-        let span = self
-            .token_ref_at(right_index)
-            .map(|token| token.span)
-            .unwrap_or(self.eof_span());
-        Err(ParseError::unexpected(span))
-    }
-
-    /// Truncate identifier caches to match the current token count.
-    fn truncate_identifier_caches(&mut self) {
-        let len = self.tokens().len();
-        self.state.truncate_identifier_caches(len);
-    }
-
-    /// Ensure identifier caches can index at least `index`.
-    #[inline]
-    pub(crate) fn ensure_identifier_cache_capacity(&mut self, index: usize) {
-        self.state.ensure_identifier_cache_capacity(index);
-    }
-
-    /// Refresh the parser owned current token from the backing lexer.
-    #[inline]
-    fn refresh_current_token(&mut self) {
-        self.current_token = self.lexer.token(self.pos).unwrap_or(TokenSpan {
-            token: Token::end(),
-            span: self.eof_span(),
-        });
-    }
-
-    /// Synchronize the parser owned cursor state to the current token index.
-    #[inline]
-    fn sync_cursor_to_pos(&mut self) {
-        self.refresh_current_token();
-
-        if self.pos == 0 {
-            self.previous_token_end = 0;
-            self.last_consumed_token = TokenSpan {
-                token: Token::end(),
-                span: Span::new(self.file_id, 0, 0),
-            };
-            return;
-        }
-
-        let previous_index = self.pos - 1;
-        let previous_token = self.token_at(previous_index).unwrap_or(TokenSpan {
-            token: Token::end(),
-            span: self.eof_span(),
-        });
-        self.previous_token_end = previous_token.span.end;
-        self.last_consumed_token = previous_token;
-    }
-
-    /// Get the current token index.
-    #[inline]
-    pub(crate) fn pos_index(&self) -> usize {
-        self.pos
-    }
-
-    /// Look up a keyword at a token index.
-    #[inline]
-    pub(crate) fn keyword_for_index(&mut self, index: usize) -> Option<Keyword> {
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        if !self
-            .tokens()
-            .get(index)
-            .is_some_and(|token| token.token.ty == TokenType::Identifier)
-        {
-            return None;
-        }
-
-        let _timing = self.timing_scope(tags::PARSE_LEX_KEYWORD);
-        self.lexer.materialized_keyword(index)
-    }
-
-    /// Return whether an identifier token contains escape syntax.
-    #[inline]
-    pub(crate) fn identifier_has_escape_for_index(&mut self, index: usize) -> bool {
-        self.lexer.identifier_has_escape(index)
-    }
-
-    /// Look up a pre interned identifier at a token index.
-    #[inline]
-    pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        self.ensure_identifier_cache_capacity(index);
-
-        if self.state.token_identifiers_cached[index] {
-            return self.state.token_identifiers[index];
-        }
-
-        let token = self.tokens().get(index)?;
-        let identifier = if token.token.ty == TokenType::Identifier {
-            #[cfg(feature = "timings")]
-            let started_at = Instant::now();
-
-            let span_str = self.file.span_str(token.span);
-            let identifier = self.strings.intern(span_str);
-
-            #[cfg(feature = "timings")]
-            self.record_timing(tags::PARSE_ALLOC_IDENTIFIER_INTERN, started_at.elapsed());
-
-            Some(identifier)
-        } else {
-            None
-        };
-        self.state.token_identifiers[index] = identifier;
-        self.state.token_identifiers_cached[index] = true;
-        identifier
-    }
-
-    /// Return true when the identifier token at index matches the expected string.
-    #[inline]
-    pub(crate) fn identifier_equals_at(&mut self, index: usize, expected: &str) -> bool {
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        let Some(token) = self.tokens().get(index) else {
-            return false;
-        };
-        if token.token.ty != TokenType::Identifier {
-            return false;
-        }
-
-        let expected = self.strings.intern(expected);
-
-        self.identifier_for_index(index) == Some(expected)
-    }
-
-    /// Return true when the identifier token at index is `global`.
-    #[inline]
-    pub(crate) fn is_global_identifier_at(&mut self, index: usize) -> bool {
-        self.identifier_equals_at(index, "global")
-    }
-
-    /// Return true when the identifier token at index is `module`.
-    #[inline]
-    pub(crate) fn is_module_identifier_at(&mut self, index: usize) -> bool {
-        self.language.supports_module_declaration() && self.identifier_equals_at(index, "module")
-    }
-
-    /// Return a lookahead index from the current parser position.
-    #[inline]
-    fn lookahead_index(&self, delta: usize) -> usize {
-        self.pos + delta
-    }
-
-    /// Get the token index used by peek_next.
-    #[inline]
-    pub(crate) fn index_for_next(&self) -> usize {
-        self.lookahead_index(1)
-    }
-
-    /// Get the token index used by peek_next_next.
-    #[inline]
-    pub(crate) fn index_for_next_next(&self) -> usize {
-        self.lookahead_index(2)
-    }
-
-    /// Get the token index used by peek_next_next_next.
-    #[inline]
-    pub(crate) fn index_for_next_next_next(&self) -> usize {
-        self.lookahead_index(3)
-    }
-
-    /// Ensure identifier caches align with the current token count after a rewind.
-    fn reset_identifier_caches_after_rewind(&mut self) {
-        self.truncate_identifier_caches();
+    fn read_next_token(&mut self) {
+        self.current_token = self.lexer.next_token();
     }
 
     /// Parse everything as an implicit namespace with optional trivia attachment.
@@ -1770,8 +1412,8 @@ impl Parser {
 
         // parse the root block body with recovery when source has non-directive content
         if !consumed_to_end {
-            let start = self.mark_span();
-            let mut body_expressions = self.with_recovery(
+            let start = self.span_start();
+            let mut body_expressions = self.with_token_recovery(
                 &start,
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
                 Vec::new(),
@@ -1854,12 +1496,6 @@ impl Parser {
         let _ = self.insert_node(Expression::Stub, stub_span);
     }
 
-    /// Get the current position in the tokens.
-    #[inline]
-    pub fn pos(&self) -> u32 {
-        self.pos as u32
-    }
-
     /// Attach retained comments after parsing when needed.
     pub fn attach_comments(&mut self) {
         // skip comment output when trivia retention is disabled
@@ -1931,107 +1567,98 @@ impl Parser {
         }
     }
 
-    /// Gets a mark of the current position.
+    /// Create a checkpoint for speculative parsing that may allocate tree nodes.
     #[inline(always)]
-    pub fn mark(&self) -> ParserMark {
+    pub fn checkpoint(&mut self) -> ParserCheckpoint {
         let _timing = self.timing_scope(tags::PARSE_ALLOC_MARK);
 
-        // snapshot lexer and cache state for any speculative parse
-        let lexer_mark = Some(self.lexer.snapshot());
-        ParserMark::new(
-            self.pos,
-            self.current_token,
-            self.previous_token_end,
-            self.last_consumed_token,
-            self.tree.mark(),
-            lexer_mark,
-            self.errors.len(),
-            self.diagnostics.len(),
-        )
-    }
-
-    /// Get a mark for token rewinds without tree allocation snapshots.
-    #[inline(always)]
-    pub fn mark_rewind(&self) -> ParserMark {
-        // snapshot lexer and cache state for any speculative parse
-        let lexer_mark = Some(self.lexer.snapshot());
-        ParserMark {
-            pos: self.pos,
+        ParserCheckpoint {
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
-            tree_mark: None,
-            lexer_mark,
-            error_count: None,
-            diagnostic_count: None,
-            span_override: None,
+            tree_mark: self.tree.mark(),
+            lexer_checkpoint: self.lexer.snapshot(),
+            error_count: self.errors.len(),
+            diagnostic_count: self.diagnostics.len(),
         }
     }
 
-    /// Get a lightweight mark used for span calculations without rewind support.
+    /// Create a checkpoint for speculative cursor movement without tree allocation snapshots.
     #[inline(always)]
-    pub fn mark_span(&self) -> ParserMark {
-        ParserMark {
-            pos: self.pos,
+    pub fn cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
+        ParserCursorCheckpoint {
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
-            tree_mark: None,
-            lexer_mark: None,
-            error_count: None,
-            diagnostic_count: None,
-            span_override: None,
+            lexer_checkpoint: self.lexer.snapshot(),
         }
     }
 
-    /// Run a closure at a temporary token position and restore parser state afterward.
-    pub(crate) fn with_pos<T>(&mut self, pos: usize, func: impl FnOnce(&mut Self) -> T) -> T {
-        let mark = self.mark_rewind();
-        self.pos = pos;
-        self.sync_cursor_to_pos();
-        let result = func(self);
-        self.rewind(mark);
-        result
+    /// Create a lightweight span start at the current parser cursor.
+    #[inline(always)]
+    pub fn span_start(&self) -> ParserSpanStart {
+        ParserSpanStart {
+            current_token: self.current_token,
+        }
     }
 
-    /// Rewind the position to the given mark and remove any nodes created since.
-    pub fn rewind(&mut self, mark: ParserMark) {
+    /// Rewind the parser cursor to one cursor checkpoint.
+    pub fn rewind(&mut self, checkpoint: ParserCursorCheckpoint) {
         self.stats.record_rewind();
-        self.pos = mark.pos;
-        self.current_token = mark.current_token;
-        self.previous_token_end = mark.previous_token_end;
-        self.last_consumed_token = mark.last_consumed_token;
-        if let Some(lexer_mark) = mark.lexer_mark {
-            self.lexer.restore(lexer_mark);
-            self.reset_identifier_caches_after_rewind();
-        }
+        self.current_token = checkpoint.current_token;
+        self.previous_token_end = checkpoint.previous_token_end;
+        self.last_consumed_token = checkpoint.last_consumed_token;
+        self.lexer.restore(checkpoint.lexer_checkpoint);
     }
 
-    /// Rewind the position to the given mark and remove any nodes created since.
-    pub fn restore(&mut self, mark: ParserMark, idx: u32) {
+    /// Restore the parser and tree to one full checkpoint.
+    pub fn restore(&mut self, checkpoint: ParserCheckpoint, idx: u32) {
         let _timing = self.timing_scope(tags::PARSE_ALLOC_RESTORE);
 
         self.stats.record_restore();
-        self.pos = mark.pos;
-        self.current_token = mark.current_token;
-        self.previous_token_end = mark.previous_token_end;
-        self.last_consumed_token = mark.last_consumed_token;
-        if let Some(tree_mark) = mark.tree_mark {
-            debug_assert_eq!(tree_mark.next_global_id(), idx);
-            self.tree.restore_to_mark(tree_mark);
-        } else {
-            self.tree.reset_to(idx);
-        }
-        if let Some(error_count) = mark.error_count {
-            self.errors.truncate(error_count);
-        }
-        if let Some(diagnostic_count) = mark.diagnostic_count {
-            self.diagnostics.truncate(diagnostic_count);
-        }
-        if let Some(lexer_mark) = mark.lexer_mark {
-            self.lexer.restore(lexer_mark);
-            self.reset_identifier_caches_after_rewind();
-        }
+        self.current_token = checkpoint.current_token;
+        self.previous_token_end = checkpoint.previous_token_end;
+        self.last_consumed_token = checkpoint.last_consumed_token;
+        debug_assert_eq!(checkpoint.tree_mark.next_global_id(), idx);
+        self.tree.restore_to_mark(checkpoint.tree_mark);
+        self.errors.truncate(checkpoint.error_count);
+        self.diagnostics.truncate(checkpoint.diagnostic_count);
+        self.lexer.restore(checkpoint.lexer_checkpoint);
+    }
+
+    /// Run a closure against a speculative parser cursor.
+    pub(crate) fn lookahead<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> T {
+        let checkpoint = self.cursor_checkpoint();
+        let result = func(self);
+        self.rewind(checkpoint);
+        result
+    }
+
+    /// Return the next parser token without consuming it.
+    #[inline]
+    pub(crate) fn next_token(&mut self) -> TokenSpan {
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.current_token()
+        })
+    }
+
+    /// Return the next parser token type without consuming it.
+    #[inline]
+    pub(crate) fn next_token_type(&mut self) -> TokenType {
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_token_type()
+        })
+    }
+
+    /// Return the next parser keyword without consuming it.
+    #[inline]
+    pub(crate) fn next_keyword(&mut self) -> Option<Keyword> {
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.current_keyword()
+        })
     }
 
     /// Insert a node into the AST tree.
@@ -2083,37 +1710,22 @@ impl Parser {
         );
     }
 
-    /// Get a mark and return the span of the current position.
+    /// Return the span from one parser span start to the previous token.
     #[inline(always)]
-    pub fn get_span_from(&self, mark: &ParserMark) -> Span {
-        if let Some(span) = mark.span_override {
-            return span;
-        }
-
-        let tokens = self.tokens();
-        let token_count = tokens.len();
-        if token_count == 0 || mark.pos >= token_count {
-            return self.eof_span();
-        }
-
-        let pos = self.pos;
-        let end_index = if pos > 0 { pos - 1 } else { 0 }.min(token_count - 1);
-        let start_token = unsafe { tokens.get_unchecked(mark.pos) };
-        let end_token = unsafe { tokens.get_unchecked(end_index) };
-        Span {
-            file: self.file_id,
-            start: start_token.span.start,
-            end: end_token.span.end,
-        }
+    pub fn get_span_from(&self, start: &ParserSpanStart) -> Span {
+        let start = start.current_token.span.start;
+        let end = self.previous_token_end.max(start);
+        Span::new(self.file_id, start, end)
     }
 
-    /// Get the span between two marks.
+    /// Return the span between two parser span starts.
     #[inline(always)]
-    pub fn get_span_between(&self, start: &ParserMark, end: &ParserMark) -> Span {
-        let tokens = self.tokens();
-        let start_token = unsafe { tokens.get_unchecked(start.pos) };
-        let end_token = unsafe { tokens.get_unchecked(end.pos) };
-        Span::new(self.file_id, start_token.span.start, end_token.span.end)
+    pub fn get_span_between(&self, start: &ParserSpanStart, end: &ParserSpanStart) -> Span {
+        Span::new(
+            self.file_id,
+            start.current_token.span.start,
+            end.current_token.span.end,
+        )
     }
 
     /// Gets the str source backing a Span.
@@ -2126,6 +1738,46 @@ impl Parser {
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &str {
         self.file.get_span_str(token.span).unwrap_or_default()
+    }
+
+    /// Get the source text for the current token.
+    #[inline]
+    pub(crate) fn current_token_str(&self) -> &str {
+        self.get_token_str(self.current_token)
+    }
+
+    /// Get the current token.
+    #[inline]
+    pub(crate) fn current_token(&self) -> TokenSpan {
+        self.current_token
+    }
+
+    /// Return the current token as a keyword.
+    #[inline]
+    pub(crate) fn current_keyword(&self) -> Option<Keyword> {
+        if self.current_token.token.ty != TokenType::Identifier {
+            return None;
+        }
+
+        keyword_from_identifier(self.current_token_str())
+    }
+
+    /// Return true when the current identifier has the expected source text.
+    #[inline]
+    pub(crate) fn current_identifier_str_is(&self, expected: &str) -> bool {
+        self.current_token.token.ty == TokenType::Identifier && self.current_token_str() == expected
+    }
+
+    /// Return true when the current identifier is `global`.
+    #[inline]
+    pub(crate) fn is_global_identifier(&self) -> bool {
+        self.current_identifier_str_is("global")
+    }
+
+    /// Return true when the current identifier is `module`.
+    #[inline]
+    pub(crate) fn is_module_identifier(&self) -> bool {
+        self.language.supports_module_declaration() && self.current_identifier_str_is("module")
     }
 
     /// Get the previous Token.
@@ -2160,12 +1812,6 @@ impl Parser {
         self.current_token.token.ty
     }
 
-    /// Peek the next token type.
-    #[inline]
-    pub fn peek_next_token_type(&mut self) -> TokenType {
-        self.token_type_at(self.index_for_next())
-    }
-
     /// Return true when the next token matches the given type.
     #[inline]
     pub fn peek_is(&mut self, token_type: TokenType) -> bool {
@@ -2177,83 +1823,10 @@ impl Parser {
         self.peek_token_type() == token_type
     }
 
-    /// Return true when the next-next token matches the given type.
-    #[inline]
-    pub fn peek_next_is(&mut self, token_type: TokenType) -> bool {
-        debug_assert!(
-            is_semantic(token_type),
-            "peek_next_is requires semantic token type"
-        );
-
-        self.peek_next_token_type() == token_type
-    }
-
-    /// Return true when the next next token matches the given type.
-    #[inline]
-    pub fn peek_next_next_is(&mut self, token_type: TokenType) -> bool {
-        debug_assert!(
-            is_semantic(token_type),
-            "peek_next_next_is requires semantic token type"
-        );
-        self.token_type_at(self.index_for_next_next()) == token_type
-    }
-
-    /// Return true when the next next next token matches the given type.
-    #[inline]
-    pub fn peek_next_next_next_is(&mut self, token_type: TokenType) -> bool {
-        debug_assert!(
-            is_semantic(token_type),
-            "peek_next_next_next_is requires semantic token type"
-        );
-        self.token_type_at(self.index_for_next_next_next()) == token_type
-    }
-
     /// Return true when more tokens remain before End.
     #[inline]
     pub fn has_more_tokens(&mut self) -> bool {
         self.peek_token_type() != TokenType::End
-    }
-
-    /// Peek the next next Token or error.
-    #[inline]
-    pub fn peek_next(&mut self) -> ParseResult<&TokenSpan> {
-        let index = self.lookahead_index(1);
-
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        self.tokens()
-            .get(index)
-            .ok_or(ParseError::unexpected(self.eof_span()))
-    }
-
-    /// Peek the next next Token or error.
-    #[inline]
-    pub fn peek_next_next(&mut self) -> ParseResult<&TokenSpan> {
-        let index = self.lookahead_index(2);
-
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        self.tokens()
-            .get(index)
-            .ok_or(ParseError::unexpected(self.eof_span()))
-    }
-
-    /// Peek the next next next Token or error.
-    #[inline]
-    pub fn peek_next_next_next(&mut self) -> ParseResult<&TokenSpan> {
-        let index = self.lookahead_index(3);
-
-        if index >= self.tokens().len() {
-            self.ensure_token(index);
-        }
-
-        self.tokens()
-            .get(index)
-            .ok_or(ParseError::unexpected(self.eof_span()))
     }
 
     /// Eat the next Token or error.
@@ -2262,8 +1835,7 @@ impl Parser {
         let consumed = self.current_token;
         self.last_consumed_token = consumed;
         self.previous_token_end = consumed.span.end;
-        self.pos += 1;
-        self.refresh_current_token();
+        self.read_next_token();
 
         Ok(&self.last_consumed_token)
     }
@@ -2275,69 +1847,16 @@ impl Parser {
 
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
-        self.pos += 1;
-        self.refresh_current_token();
+        self.read_next_token();
     }
 
     /// Advance the next token as a tree child token.
     #[inline]
     pub(crate) fn bump_tree_child(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
-        debug_assert_eq!(
-            self.tokens().len(),
-            self.pos + 1,
-            "tree child advancement requires no materialized lookahead"
-        );
-
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
-        self.pos += 1;
         self.current_token = self.lexer.next_tree_child();
-    }
-
-    /// Bump the Token position by a given distance.
-    #[inline]
-    pub fn bump_by(&mut self, distance: u8) {
-        debug_assert!(!self.is_finished, "parser is already finished");
-
-        let next_pos = self.pos + (distance as usize);
-        self.ensure_token(next_pos);
-        self.last_consumed_token = self.current_token;
-        self.pos += distance as usize;
-        self.previous_token_end = self
-            .token_at(self.pos.saturating_sub(1))
-            .map(|token| token.span.end)
-            .unwrap_or(self.previous_token_end);
-        self.refresh_current_token();
-    }
-
-    /// Advance the token position to a specific index.
-    #[inline]
-    pub(crate) fn advance_to(&mut self, pos: usize) {
-        debug_assert!(!self.is_finished, "parser is already finished");
-
-        if pos >= self.tokens().len() {
-            self.ensure_token(pos);
-        }
-
-        debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
-        self.pos = pos;
-        self.sync_cursor_to_pos();
-    }
-
-    /// Peek a token at a position.
-    #[inline]
-    pub fn peek_token_ahead(
-        &mut self,
-        delta: u32,
-        token_type: TokenType,
-    ) -> ParseResult<&TokenSpan> {
-        let index = self.pos + (delta as usize);
-        self.ensure_token(index);
-        self.tokens()
-            .get(index)
-            .filter(|token| token.token.ty == token_type)
-            .ok_or(ParseError::unexpected(self.eof_span()))
     }
 
     /// Peek the next token.
@@ -2359,82 +1878,6 @@ impl Parser {
     #[inline]
     pub fn peek_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
         let next = self.peek()?;
-        if token_types.contains(&next.token.ty) {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next next token.
-    #[inline]
-    pub fn peek_next_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        debug_assert!(
-            is_semantic(token_type),
-            "peek_next_token requires semantic token type"
-        );
-        let next = self.peek_next()?;
-        if next.token.ty == token_type {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next token in a list of token types.
-    #[inline]
-    pub fn peek_next_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next()?;
-        if token_types.contains(&next.token.ty) {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next next next token.
-    #[inline]
-    pub fn peek_next_next_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next_next()?;
-        if next.token.ty == token_type {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next next token in a list of token types.
-    #[inline]
-    pub fn peek_next_next_token_in(
-        &mut self,
-        token_types: &[TokenType],
-    ) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next_next()?;
-        if token_types.contains(&next.token.ty) {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next next next token.
-    #[inline]
-    pub fn peek_next_next_next_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next_next_next()?;
-        if next.token.ty == token_type {
-            Ok(next)
-        } else {
-            Err(ParseError::unexpected(next.span))
-        }
-    }
-
-    /// Peek the next next next token in a list of token types.
-    #[inline]
-    pub fn peek_next_next_next_token_in(
-        &mut self,
-        token_types: &[TokenType],
-    ) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next_next_next()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
@@ -2520,10 +1963,10 @@ impl Parser {
         }
     }
 
-    /// Attempt a function with recovery.
-    pub fn with_recovery<T>(
+    /// Attempt a function with token recovery.
+    pub fn with_token_recovery<T>(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         func: impl FnOnce(&mut Self) -> ParseResult<T>,
         default: T,
         bail: TokenType,
@@ -2537,11 +1980,27 @@ impl Parser {
         }
     }
 
+    /// Attempt a function with statement recovery.
+    pub fn with_statement_recovery<T>(
+        &mut self,
+        start: &ParserSpanStart,
+        func: impl FnOnce(&mut Self) -> ParseResult<T>,
+        default: T,
+    ) -> T {
+        match func(self) {
+            Ok(result) => result,
+            Err(err) => {
+                let _ = self.try_recover_in_statement(start, Some(err));
+                default
+            }
+        }
+    }
+
     /// Recover until the expected token.
     /// Everything from start to then is an error.
     pub fn try_recover(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         recover: TokenType,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
@@ -2566,7 +2025,7 @@ impl Parser {
     /// Recover within one list item until a separator or terminator boundary.
     pub fn try_recover_in_item_list(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         terminator: TokenType,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
@@ -2574,7 +2033,8 @@ impl Parser {
             let token_type = token.token.ty;
 
             // recover from here and keep the separator or terminator for the caller
-            if self.token_matches_terminator(token_type, terminator)
+            if start.is_before(token.span) && token.token.is_on_new_line
+                || self.token_matches_terminator(token_type, terminator)
                 || Self::is_item_stop_token(token_type)
                 || Self::is_close_delimiter_token(token_type)
             {
@@ -2594,14 +2054,17 @@ impl Parser {
     /// Recover within one statement until a statement boundary.
     pub fn try_recover_in_statement(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
             // recover from here and keep the boundary token for the caller
-            if Self::is_statement_stop_token(token_type) || token_type == TokenType::CloseBrace {
+            if start.is_before(token.span) && token.token.is_on_new_line
+                || Self::is_statement_stop_token(token_type)
+                || token_type == TokenType::CloseBrace
+            {
                 let error = ParseError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
@@ -2614,6 +2077,37 @@ impl Parser {
         let error = ParseError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
         Ok(())
+    }
+
+    /// Recover within one statement from an existing source span.
+    pub fn try_recover_in_statement_from_span(
+        &mut self,
+        start_span: Span,
+        error: Option<ParseError>,
+    ) -> ParseResult<Span> {
+        while let Ok(token) = self.peek() {
+            let token_type = token.token.ty;
+
+            // recover from here and keep the boundary token for the caller
+            if start_span.start < token.span.start && token.token.is_on_new_line
+                || Self::is_statement_stop_token(token_type)
+                || token_type == TokenType::CloseBrace
+            {
+                let recovered_span = self.recovered_span_from(start_span);
+                let error = ParseError::from_source_maybe(recovered_span, error);
+                self.error(&error);
+                return Ok(recovered_span);
+            }
+
+            self.bump();
+        }
+
+        // eof is also a valid statement boundary
+        let recovered_span = self.recovered_span_from(start_span);
+        let error = ParseError::from_source_maybe(recovered_span, error);
+        self.error(&error);
+
+        Ok(recovered_span)
     }
 
     /// Return true when a recovered list item may continue parsing another item.
@@ -2645,14 +2139,17 @@ impl Parser {
     /// Recover within a property or member body until a boundary token.
     pub fn try_recover_in_body(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
             // recover from here and keep the boundary token for the caller
-            if token_type == TokenType::CloseBrace || Self::is_any_stop_token(token_type) {
+            if start.is_before(token.span) && token.token.is_on_new_line
+                || token_type == TokenType::CloseBrace
+                || Self::is_any_stop_token(token_type)
+            {
                 let error = ParseError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
@@ -2664,6 +2161,43 @@ impl Parser {
         let error = ParseError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
         Err(error)
+    }
+
+    /// Recover within a property or member body from an existing source span.
+    pub fn try_recover_in_body_from_span(
+        &mut self,
+        start_span: Span,
+        error: Option<ParseError>,
+    ) -> ParseResult<Span> {
+        while let Ok(token) = self.peek() {
+            let token_type = token.token.ty;
+
+            // recover from here and keep the boundary token for the caller
+            if start_span.start < token.span.start && token.token.is_on_new_line
+                || token_type == TokenType::CloseBrace
+                || Self::is_any_stop_token(token_type)
+            {
+                let recovered_span = self.recovered_span_from(start_span);
+                let error = ParseError::from_source_maybe(recovered_span, error);
+                self.error(&error);
+                return Ok(recovered_span);
+            }
+
+            self.bump();
+        }
+
+        let recovered_span = self.recovered_span_from(start_span);
+        let error = ParseError::from_source_maybe(recovered_span, error);
+        self.error(&error);
+
+        Err(error)
+    }
+
+    /// Return a recovered span from one source span start to the previous token.
+    #[inline]
+    fn recovered_span_from(&self, start_span: Span) -> Span {
+        let end = self.previous_token_end.max(start_span.start);
+        Span::new(start_span.file, start_span.start, end)
     }
 
     /// Eat the expected token.
@@ -2678,7 +2212,7 @@ impl Parser {
         }
 
         // try to recover
-        let start = self.mark_span();
+        let start = self.span_start();
         while let Ok(token) = self.peek()
             && token.token.ty != bail
         {
@@ -3002,73 +2536,49 @@ fn speculation_stats_enabled_from_env() -> bool {
 fn speculation_stats_enabled_from_env() -> bool {
     false
 }
+/// Full parser checkpoint for speculative parses that allocate nodes.
 #[derive(Debug, Clone)]
-pub struct ParserMark {
-    /// The token position.
-    pos: usize,
-    /// The parser owned current token at mark time.
+pub struct ParserCheckpoint {
+    /// The parser owned current token at checkpoint time.
     current_token: TokenSpan,
-    /// The previous semantic token end at mark time.
+    /// The previous semantic token end at checkpoint time.
     previous_token_end: u32,
-    /// The last consumed visible token at mark time.
+    /// The last consumed visible token at checkpoint time.
     last_consumed_token: TokenSpan,
-    /// Tree allocation snapshot at mark time.
-    tree_mark: Option<NodeTreeMark>,
-    /// The lexer mark for speculative parsing.
-    lexer_mark: Option<LexerSnapshot>,
-    /// The parser error count at mark time.
-    error_count: Option<usize>,
-    /// The parser diagnostic count at mark time.
-    diagnostic_count: Option<usize>,
-    /// Optional override span for synthetic marks.
-    span_override: Option<Span>,
+    /// Tree allocation snapshot at checkpoint time.
+    tree_mark: NodeTreeMark,
+    /// The lexer checkpoint for speculative parsing.
+    lexer_checkpoint: LexerSnapshot,
+    /// The parser error count at checkpoint time.
+    error_count: usize,
+    /// The parser diagnostic count at checkpoint time.
+    diagnostic_count: usize,
 }
 
-impl ParserMark {
-    /// Create a new ParserMark.
-    #[inline]
-    pub(crate) fn new(
-        pos: usize,
-        current_token: TokenSpan,
-        previous_token_end: u32,
-        last_consumed_token: TokenSpan,
-        tree_mark: NodeTreeMark,
-        lexer_mark: Option<LexerSnapshot>,
-        error_count: usize,
-        diagnostic_count: usize,
-    ) -> Self {
-        Self {
-            pos,
-            current_token,
-            previous_token_end,
-            last_consumed_token,
-            tree_mark: Some(tree_mark),
-            lexer_mark,
-            error_count: Some(error_count),
-            diagnostic_count: Some(diagnostic_count),
-            span_override: None,
-        }
-    }
+/// Parser cursor checkpoint for speculative lookahead without node allocation.
+#[derive(Debug, Clone)]
+pub struct ParserCursorCheckpoint {
+    /// The parser owned current token at checkpoint time.
+    current_token: TokenSpan,
+    /// The previous semantic token end at checkpoint time.
+    previous_token_end: u32,
+    /// The last consumed visible token at checkpoint time.
+    last_consumed_token: TokenSpan,
+    /// The lexer checkpoint for speculative parsing.
+    lexer_checkpoint: LexerSnapshot,
+}
 
-    /// Create a synthetic mark from a span without capturing lexer state.
+/// Lightweight parser position used for span construction.
+#[derive(Debug, Copy, Clone)]
+pub struct ParserSpanStart {
+    /// The parser owned current token at span start time.
+    current_token: TokenSpan,
+}
+
+impl ParserSpanStart {
+    /// Return whether this span start is before one token span.
     #[inline]
-    pub(crate) fn from_span(span: Span) -> Self {
-        Self {
-            pos: 0,
-            current_token: TokenSpan {
-                token: Token::end(),
-                span,
-            },
-            previous_token_end: span.start,
-            last_consumed_token: TokenSpan {
-                token: Token::end(),
-                span,
-            },
-            tree_mark: None,
-            lexer_mark: None,
-            error_count: None,
-            diagnostic_count: None,
-            span_override: Some(span),
-        }
+    pub(crate) fn is_before(&self, span: Span) -> bool {
+        self.current_token.span.start < span.start
     }
 }

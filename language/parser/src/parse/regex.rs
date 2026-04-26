@@ -328,9 +328,22 @@ impl Parser {
                         digit_index += 1;
                     }
 
-                    let digits: String = characters[index + 1..digit_index].iter().collect();
-                    let number = digits.parse::<usize>().ok().unwrap_or(0);
-                    if number != 0 && number > capturing_group_count {
+                    let mut number = 0usize;
+                    for digit in &characters[index + 1..digit_index] {
+                        let digit = match digit {
+                            '0'..='9' => *digit as usize - '0' as usize,
+                            _ => unreachable!("checked ascii digit"),
+                        };
+                        let Some(next) = number
+                            .checked_mul(10)
+                            .and_then(|number| number.checked_add(digit))
+                        else {
+                            return false;
+                        };
+                        number = next;
+                    }
+
+                    if number > 0 && number > capturing_group_count {
                         return false;
                     }
 

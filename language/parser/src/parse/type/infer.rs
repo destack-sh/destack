@@ -13,17 +13,16 @@ impl Parser {
     /// ```
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         // `infer T`
-        let start = self.mark_span();
+        let start = self.span_start();
         self.eat_keyword(Keyword::Infer)?;
         let (name, name_span) = self.eat_identifier_with_span()?;
 
         // constraint: `infer T extends U`
         let constraint = if self.is_keyword(Keyword::Extends) {
-            let mark = self.mark();
+            let mark = self.checkpoint();
             let tree_mark = self.tree.next_id();
 
             self.bump(); // eat extends
-            self.eat_newlines_maybe()?;
 
             let mut constraint_options = self
                 .options
@@ -41,8 +40,7 @@ impl Parser {
 
             // `infer T extends U ? X : Y` belongs to the surrounding conditional type
             let has_conditional_marker = self.peek_is(TokenType::Maybe)
-                || (self.peek_is(TokenType::Newline)
-                    && self.is_token_after_newlines(self.pos(), TokenType::Maybe));
+                || (self.current_token_is_on_new_line() && self.peek_is(TokenType::Maybe));
             if has_conditional_marker && !self.options.is_disallow_type_conditional() {
                 self.restore(mark, tree_mark);
                 None

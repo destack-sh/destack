@@ -2,7 +2,7 @@
 
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
@@ -43,7 +43,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_struct_or_class(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         allow_anonymous_class: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -72,7 +72,7 @@ impl Parser {
         };
 
         // optional generic parameters: < ... >
-        let generic_parameter_container_start = self.mark_span();
+        let generic_parameter_container_start = self.span_start();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
@@ -106,10 +106,8 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // body
-        self.eat_newlines_maybe()?;
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
-        self.eat_newlines_maybe()?;
         let member_options = self.options.nested().in_variant();
         let members = self.with_options(member_options, |parser| parser.eat_members(false))?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
@@ -197,9 +195,8 @@ struct { public x: int32, readonly y: boolean }
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
         assert!(result.is_err());
     }
@@ -212,9 +209,8 @@ class {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
         assert!(result.is_err());
     }
@@ -228,9 +224,8 @@ class Foo { x: int32, y: int32 }
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
         assert!(result.is_err());
     }
@@ -244,9 +239,8 @@ struct Foo { x: int32, y: int32 }
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_struct_or_class(&start, DeclarationHeader::default(), false);
         assert!(result.is_err());
     }
@@ -259,9 +253,8 @@ struct Foo extends Bar {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -282,7 +275,7 @@ struct Foo extends Bar {}
             TestParser::new_with_options("class A extends (a + b) {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -305,7 +298,7 @@ struct Foo extends Bar {}
             ..ParserSettings::default()
         });
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -324,7 +317,7 @@ struct Foo extends Bar {}
         )
         .prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let error = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap_err();
@@ -343,7 +336,7 @@ struct Foo extends Bar {}
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -369,7 +362,7 @@ struct Foo extends Bar {}
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -388,7 +381,7 @@ struct Foo extends Bar {}
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -411,9 +404,8 @@ class Combined extends First, Second {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -431,9 +423,8 @@ class Counter extends {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -455,7 +446,7 @@ class Counter extends {}
         );
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -607,9 +598,8 @@ struct Foo<T: Numeric> extends Boz implements Quux {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -690,9 +680,8 @@ class Box<T> {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let class_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -717,9 +706,8 @@ struct Foo where Guard: Limit {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -748,9 +736,8 @@ struct Foo {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
@@ -764,7 +751,7 @@ struct Foo {
         let mut test = TestParser::new("struct Foo extends Bar.Baz implements Qux {}");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
