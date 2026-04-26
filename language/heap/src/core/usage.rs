@@ -5,7 +5,7 @@ use super::{HeapError, HeapResult};
 /// One allocation accounting region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountingRegion {
-    /// One local heap space.
+    /// One heap space.
     Heap,
     /// One local raw space.
     Raw,
@@ -19,7 +19,7 @@ impl AccountingRegion {
     /// Return the usage subject for this region.
     pub(crate) fn subject(self) -> &'static str {
         match self {
-            Self::Heap => "local heap",
+            Self::Heap => "heap",
             Self::Raw => "local raw heap",
             Self::SharedHeap => "shared heap",
             Self::SharedRaw => "shared raw heap",

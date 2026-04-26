@@ -2,16 +2,14 @@ use destack_core::CowBuffer;
 
 use super::{HeapError, HeapResult};
 
-/// The standard entry count per copy on write metadata chunk.
-const DEFAULT_COW_TABLE_CHUNK_LEN: usize = 256;
+/// The entry count per copy on write metadata chunk.
+const COW_TABLE_CHUNK_LEN: usize = 256;
 
 /// One dense copy on write table for ordered heap metadata entries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CowTable<T> {
     /// The number of live entries stored in this table.
     len: usize,
-    /// The entry count per shared metadata chunk.
-    chunk_len: usize,
     /// The shared metadata chunks in stable order.
     chunks: Vec<CowBuffer<T>>,
 }
@@ -27,7 +25,6 @@ impl<T> CowTable<T> {
     pub(crate) fn new() -> Self {
         Self {
             len: 0,
-            chunk_len: DEFAULT_COW_TABLE_CHUNK_LEN,
             chunks: Vec::new(),
         }
     }
@@ -44,15 +41,11 @@ impl<T> CowTable<T> {
 
         let len = values.len();
         let chunks = values
-            .chunks(DEFAULT_COW_TABLE_CHUNK_LEN)
+            .chunks(COW_TABLE_CHUNK_LEN)
             .map(|chunk| CowBuffer::from_vec(chunk.to_vec()))
             .collect();
 
-        Ok(Self {
-            len,
-            chunk_len: DEFAULT_COW_TABLE_CHUNK_LEN,
-            chunks,
-        })
+        Ok(Self { len, chunks })
     }
 
     /// Return the number of stored entries.
@@ -67,8 +60,8 @@ impl<T> CowTable<T> {
             return None;
         }
 
-        let chunk_index = index / self.chunk_len;
-        let entry_index = index % self.chunk_len;
+        let chunk_index = index / COW_TABLE_CHUNK_LEN;
+        let entry_index = index % COW_TABLE_CHUNK_LEN;
 
         self.chunks.get(chunk_index)?.as_slice().get(entry_index)
     }
@@ -83,8 +76,8 @@ impl<T> CowTable<T> {
             return None;
         }
 
-        let chunk_index = index / self.chunk_len;
-        let entry_index = index % self.chunk_len;
+        let chunk_index = index / COW_TABLE_CHUNK_LEN;
+        let entry_index = index % COW_TABLE_CHUNK_LEN;
         self.chunks
             .get_mut(chunk_index)?
             .make_mut()
@@ -97,9 +90,9 @@ impl<T> CowTable<T> {
         T: Clone,
     {
         // allocate one fresh chunk when the tail is full
-        if self.len.is_multiple_of(self.chunk_len) || self.chunks.is_empty() {
+        if self.len.is_multiple_of(COW_TABLE_CHUNK_LEN) || self.chunks.is_empty() {
             self.chunks
-                .push(CowBuffer::from_vec(Vec::with_capacity(self.chunk_len)));
+                .push(CowBuffer::from_vec(Vec::with_capacity(COW_TABLE_CHUNK_LEN)));
         }
 
         // append into the current tail chunk

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapResult, SizeClassTable};
 
-/// The shape facts required to allocate one managed heap payload.
+/// The layout required to allocate one managed heap payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AllocationLayout<'a> {
     /// The exact payload byte length.
@@ -15,7 +15,7 @@ pub struct AllocationLayout<'a> {
 }
 
 impl<'a> AllocationLayout<'a> {
-    /// Create one managed allocation shape.
+    /// Create one managed allocation layout.
     pub const fn new(byte_len: usize, reference_map: &'a ReferenceMap) -> Self {
         Self {
             byte_len,
@@ -29,6 +29,8 @@ impl<'a> AllocationLayout<'a> {
 pub struct SmallSpanClass {
     /// The slot payload size in bytes.
     pub(crate) size_class: usize,
+    /// The span byte width for this size class.
+    pub(crate) span_bytes: usize,
     /// Whether every slot in this span has no references.
     pub(crate) is_noscan: bool,
 }
@@ -67,11 +69,12 @@ impl Ord for SmallSpanClass {
     fn cmp(&self, other: &Self) -> Ordering {
         self.size_class
             .cmp(&other.size_class)
+            .then_with(|| self.span_bytes.cmp(&other.span_bytes))
             .then_with(|| self.is_noscan.cmp(&other.is_noscan))
     }
 }
 
-/// Return the allocation shape for one repeated element layout.
+/// Return the allocation layout for one repeated element layout.
 pub fn repeated_layout(
     element_byte_len: usize,
     element_alignment: usize,

@@ -8,19 +8,19 @@ trait TracedReference: Copy {
     /// The encoded byte width of one traced reference.
     const BYTE_LEN: usize = std::mem::size_of::<usize>();
 
-    /// Restore one reference from native-width bits.
-    fn from_bits(bits: usize) -> Self;
+    /// Read one reference from a native-width byte window.
+    fn read_from_bytes(bytes: &[u8]) -> HeapResult<Self>;
 }
 
 impl TracedReference for HeapReference {
-    fn from_bits(bits: usize) -> Self {
-        HeapReference::from_bits(bits)
+    fn read_from_bytes(bytes: &[u8]) -> HeapResult<Self> {
+        HeapReference::read_from_bytes(bytes)
     }
 }
 
 impl TracedReference for SharedHeapReference {
-    fn from_bits(bits: usize) -> Self {
-        SharedHeapReference::from_bits(bits)
+    fn read_from_bytes(bytes: &[u8]) -> HeapResult<Self> {
+        SharedHeapReference::read_from_bytes(bytes)
     }
 }
 
@@ -37,7 +37,7 @@ impl<'a> EdgeMap<'a> {
         Self { reference_map }
     }
 
-    /// Return local heap edge offsets.
+    /// Return heap edge offsets.
     fn local_offsets(self) -> EdgeOffsets<'a> {
         match self.reference_map {
             ReferenceMap::None => EdgeOffsets::None,
@@ -73,7 +73,7 @@ impl<'a> EdgeMap<'a> {
         }
     }
 
-    /// Return local heap edge offsets in one dirty byte range.
+    /// Return heap edge offsets in one dirty byte range.
     fn local_offsets_in_range(
         self,
         start: usize,
@@ -536,7 +536,7 @@ pub(crate) fn write_allocation_reference_bits(
     Ok(())
 }
 
-/// Visit each local heap reference encoded in the given payload bytes.
+/// Visit each heap reference encoded in the given payload bytes.
 pub fn visit_heap_references(
     reference_map: &ReferenceMap,
     bytes: &[u8],
@@ -565,7 +565,7 @@ pub fn visit_heap_references(
     )
 }
 
-/// Visit each local heap reference encoded by one scan through one reader.
+/// Visit each heap reference encoded by one scan through one reader.
 pub(crate) fn visit_heap_references_in_reader(
     reference_map: &ReferenceMap,
     read_edge: impl FnMut(usize, &mut [u8]) -> HeapResult<()>,
@@ -587,7 +587,7 @@ pub(crate) fn visit_shared_references_in_reader(
     visit_edges_in_reader(cursor, read_edge, visit)
 }
 
-/// Visit each overlapping local heap reference encoded by one scan through one reader.
+/// Visit each overlapping heap reference encoded by one scan through one reader.
 pub(crate) fn visit_heap_references_in_reader_range(
     reference_map: &ReferenceMap,
     start: usize,
@@ -628,24 +628,10 @@ fn visit_edges_in_reader<R: TracedReference>(
 
     while let Some(start) = cursor.next_offset()? {
         read_edge(start, &mut window[..R::BYTE_LEN])?;
-        visit(decode_reference_window::<R>(&window[..R::BYTE_LEN])?);
+        visit(R::read_from_bytes(&window[..R::BYTE_LEN])?);
     }
 
     Ok(())
-}
-
-/// Decode one traced reference from one native-width window.
-fn decode_reference_window<R: TracedReference>(window: &[u8]) -> HeapResult<R> {
-    if window.len() != R::BYTE_LEN {
-        return Err(HeapError::InvalidReferenceWindowWidth {
-            bytes: window.len(),
-        });
-    }
-
-    let mut raw = [0u8; std::mem::size_of::<usize>()];
-    raw.copy_from_slice(window);
-
-    Ok(R::from_bits(usize::from_le_bytes(raw)))
 }
 
 /// Encode one edge cursor into one slot bitmap.
