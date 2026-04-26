@@ -107,13 +107,14 @@ fn test_format_member_chain_preserves_blank_lines() {
     );
 }
 
-/// Member instantiations should stay inline when the chain still fits.
+/// Member instantiation chains should break at narrow widths.
 #[test]
-fn test_format_member_instantiation_chain_stays_inline() {
+fn test_format_member_instantiation_chain_breaks_at_narrow_width() {
     assert_format_program_roundtrip_with_file_type(
         r#"api.getService().getFactory<number>
 "#,
-        r#"api.getService().getFactory<number>;
+        r#"api.getService()
+    .getFactory<number>;
 "#,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(25),
