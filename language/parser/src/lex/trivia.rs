@@ -57,16 +57,6 @@ impl Trivia {
         !self.comments.is_empty()
     }
 
-    /// Truncate trivia after one byte position and reset the live boundary state.
-    pub(super) fn truncate_after(&mut self, boundary_start: u32, previous_token_type: TokenType) {
-        self.comments
-            .retain(|comment| comment.span.start < boundary_start);
-        self.state.processed = self.state.processed.min(self.comments.len());
-        self.state.saw_newline = false;
-        self.state.saw_newline_for_comment = false;
-        self.state.previous_token_type = previous_token_type;
-    }
-
     /// Record one line comment.
     pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, source_text: &str) {
         self.add_comment(token_span, CommentKind::Line, source_text);

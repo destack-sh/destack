@@ -4,7 +4,7 @@ use destack_ast::{Keyword, TokenSpan, TokenType};
 use destack_source::Span;
 
 use super::lex::is_semantic;
-use super::lexer::{Lexer, SemanticTokenData};
+use super::lexer::Lexer;
 use super::trivia::TriviaComment;
 
 /// Return a keyword for an identifier when it can match keyword shape.
@@ -104,37 +104,33 @@ impl Lexer {
         self.options.allow_tree_literals
     }
 
-    /// Ensure a token exists at the given index.
-    pub fn ensure_token(&mut self, index: usize) {
-        // hot fast path: token is already available
-        if index < self.tokens.len() {
-            return;
-        }
+    /// Read the next semantic token from the current lexer cursor.
+    pub fn next_token(&mut self) -> TokenSpan {
+        let token_index = self.tokens.len();
 
-        // hot fast path: EOF already reached
-        if self.is_finished {
-            return;
-        }
-
-        while !self.is_finished && self.tokens.len() <= index {
+        while !self.is_finished && self.tokens.len() <= token_index {
             self.lex_next();
         }
-    }
 
-    /// Get the token at a given index, lexing as needed.
-    pub fn token(&mut self, index: usize) -> Option<TokenSpan> {
-        self.ensure_token(index);
-        self.tokens.get(index).copied()
+        if let Some(token) = self.tokens.get(token_index) {
+            return *token;
+        }
+
+        if let Some(token) = self.eof_token {
+            return token;
+        }
+
+        panic!("lexer must produce an eof token after finishing");
     }
 
     /// Lex the next token as a tree child token.
     pub fn next_tree_child(&mut self) -> TokenSpan {
-        let start = self.pos as u32;
+        let start = self.position() as u32;
         let token = self.advance_tree_child();
         let token_span = TokenSpan {
             token,
             span: Span {
-                file: self.file_id,
+                file: self.file_id(),
                 start,
                 end: start + token.len,
             },
@@ -155,65 +151,13 @@ impl Lexer {
         token_span
     }
 
-    /// Commit a current-token re-lex and discard any stale future materialization.
-    pub fn commit_current_token_re_lex(&mut self, index: usize, token_span: TokenSpan) {
-        debug_assert!(
-            index < self.tokens.len(),
-            "current token must be materialized"
-        );
-        debug_assert!(
-            index < self.token_data.len(),
-            "current token metadata must be materialized"
-        );
-
-        let side_tokens_len_before = self.token_data[index].side_tokens_len_before;
-        let old_len = self.tokens.len();
-        let new_len = index + 1;
-
-        for removed_index in (new_len..old_len).rev() {
-            let removed_token = self.tokens[removed_index];
-            let removed_metadata = self.token_data[removed_index];
-
-            if self.retain_trivia_tokens {
-                if removed_token.token.ty == TokenType::Newline {
-                    self.semantic_newline_token_count -= 1;
-                } else if removed_token.token.ty != TokenType::End {
-                    self.attachable_semantic_token_count -= 1;
-                }
-            }
-
-            if matches!(
-                removed_token.token.ty,
-                TokenType::CloseParenthesis | TokenType::CloseBrace | TokenType::CloseBracket
-            ) {
-                let matching_open = removed_metadata.matching_pair as usize;
-                if matching_open < new_len {
-                    self.token_data[matching_open].matching_pair = u32::MAX;
-                    self.restore_unmatched_open(matching_open);
-                }
-            }
-        }
-
-        self.drop_truncated_open_delimiters(new_len);
-        self.tokens.truncate(new_len);
-        self.tokens[index] = token_span;
-        self.side_tokens.truncate(side_tokens_len_before);
-        self.token_data.truncate(new_len);
-
-        if let Some(metadata) = self.token_data.get_mut(index) {
-            metadata.keyword = None;
-            metadata.matching_pair = u32::MAX;
-        }
-
-        self.trivia
-            .truncate_after(token_span.span.start, token_span.token.ty);
-        self.pending_line_terminator_before_next = false;
-        self.pending_comment_before_next = false;
-        self.last_side_token_had_line_terminator = false;
-        self.is_finished = false;
-        self.eof_token = None;
-
-        self.reset_cursor_after_re_lex(token_span.span.end as usize);
+    /// Replace the current stream-tail token after tokenization refines its kind.
+    pub fn replace_current_token(&mut self, token_span: TokenSpan) {
+        let token = self
+            .tokens
+            .last_mut()
+            .expect("current stream-tail token must exist");
+        *token = token_span;
     }
 
     /// Get the EOF token, lexing until the end if needed.
@@ -223,19 +167,11 @@ impl Lexer {
             self.lex_next();
         }
 
-        // return the cached EOF token or synthesize a fallback
         if let Some(token) = self.eof_token {
             return token;
         }
 
-        TokenSpan {
-            span: Span {
-                file: self.file_id,
-                start: 0,
-                end: 0,
-            },
-            token: destack_ast::Token::end(),
-        }
+        panic!("lexer must produce an eof token after lexing to end");
     }
 
     /// Ensure all tokens are lexed.
@@ -254,106 +190,11 @@ impl Lexer {
         let tokens = std::mem::take(&mut self.tokens);
         let side_tokens = std::mem::take(&mut self.side_tokens);
 
-        // reset caches and stacks for any follow-up access
-        self.token_data.clear();
-        self.paren_stack.clear();
-        self.brace_stack.clear();
-        self.bracket_stack.clear();
+        // reset token stream flags for any follow-up access
         self.pending_line_terminator_before_next = false;
-        self.pending_comment_before_next = false;
-        self.semantic_newline_token_count = 0;
         self.attachable_semantic_token_count = 0;
 
         (tokens, side_tokens)
-    }
-
-    /// Return the materialized line terminator flag for a semantic token index.
-    #[inline]
-    pub(crate) fn materialized_line_terminator_before(&self, index: usize) -> bool {
-        self.token_data
-            .get(index)
-            .map(|data| data.has_line_terminator_before)
-            .unwrap_or(false)
-    }
-
-    /// Return the cached keyword for a materialized semantic token index.
-    #[inline]
-    pub(crate) fn materialized_keyword(&self, index: usize) -> Option<Keyword> {
-        self.token_data.get(index).and_then(|data| data.keyword)
-    }
-
-    /// Return whether trivia before a semantic token index had a comment token.
-    #[inline]
-    pub fn comment_before(&mut self, index: usize) -> bool {
-        if !self.retain_trivia_tokens {
-            return false;
-        }
-
-        // hot fast path: the full token stream is already materialized
-        if self.is_finished {
-            return self
-                .token_data
-                .get(index)
-                .map(|data| data.has_comment_before)
-                .unwrap_or(false);
-        }
-
-        self.ensure_token(index);
-        self.token_data
-            .get(index)
-            .map(|data| data.has_comment_before)
-            .unwrap_or(false)
-    }
-
-    /// Return whether an identifier token contains escape syntax.
-    #[inline]
-    pub fn identifier_has_escape(&mut self, index: usize) -> bool {
-        self.ensure_token(index);
-
-        let Some(token) = self.tokens.get(index) else {
-            return false;
-        };
-        if token.token.ty != TokenType::Identifier {
-            return false;
-        }
-
-        self.get_span_str(token.span).as_bytes().contains(&b'\\')
-    }
-
-    /// Return true when lexing reached EOF.
-    #[inline]
-    pub fn is_lexed_to_end(&self) -> bool {
-        self.is_finished
-    }
-
-    /// Return the matching close token index for an opening token, if known.
-    pub fn matching_pair(&mut self, index: usize) -> Option<usize> {
-        // hot fast path: the full token stream is already materialized
-        if self.is_finished {
-            let value = self
-                .token_data
-                .get(index)
-                .map(|data| data.matching_pair)
-                .unwrap_or(u32::MAX);
-            if value == u32::MAX {
-                return None;
-            }
-
-            return Some(value as usize);
-        }
-
-        self.ensure_token(index);
-
-        let value = self
-            .token_data
-            .get(index)
-            .map(|data| data.matching_pair)
-            .unwrap_or(u32::MAX);
-        if value == u32::MAX {
-            return None;
-        }
-
-        Some(value as usize)
     }
 
     /// Lex the next token from the underlying lexer.
@@ -369,12 +210,12 @@ impl Lexer {
     /// Lex one token and route it through the shared stream update path.
     #[inline]
     fn lex_one(&mut self) {
-        let start = self.pos as u32;
+        let start = self.position() as u32;
         let token = self.advance();
         let token_span = TokenSpan {
             token,
             span: Span {
-                file: self.file_id,
+                file: self.file_id(),
                 start,
                 end: start + token.len,
             },
@@ -405,91 +246,36 @@ impl Lexer {
             TokenType::BlockComment | TokenType::DocBlockComment => {
                 self.trivia.add_block_comment(token_span, &raw_comment);
             }
+            TokenType::Newline => {
+                self.trivia.handle_newline(token_span.span.start);
+            }
             _ => {}
-        }
-
-        if self.retain_trivia_tokens
-            && matches!(
-                token_span.token.ty,
-                TokenType::LineComment
-                    | TokenType::DocLineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocBlockComment
-            )
-        {
-            self.pending_comment_before_next = true;
         }
 
         if self.retain_trivia_tokens {
             self.side_tokens.push(token_span);
         }
-        if has_line_terminator {
+        if has_line_terminator || token_span.token.ty == TokenType::Newline {
             self.pending_line_terminator_before_next = true;
         }
     }
 
-    /// Push a semantic token and update indexes.
-    fn push_semantic_token(&mut self, token_span: TokenSpan) {
-        let token_index = self.tokens.len();
-        let side_tokens_len_before = self.side_tokens.len();
-        let has_line_terminator_before = self.pending_line_terminator_before_next;
-        let keyword = if token_span.token.ty == TokenType::Identifier {
-            keyword_from_identifier(self.get_span_str(token_span.span))
-        } else {
-            None
-        };
-        // add token and dense metadata
+    /// Push a semantic token and update stream state.
+    fn push_semantic_token(&mut self, mut token_span: TokenSpan) {
+        // attach line boundary and store token
+        token_span.token = token_span
+            .token
+            .with_on_new_line(self.pending_line_terminator_before_next);
         self.tokens.push(token_span);
-        self.token_data.push(SemanticTokenData::new(
-            side_tokens_len_before,
-            keyword,
-            has_line_terminator_before,
-        ));
-        if self.retain_trivia_tokens {
-            self.token_data[token_index].has_comment_before = self.pending_comment_before_next;
+        self.pending_line_terminator_before_next = false;
+        if token_span.token.ty == TokenType::At {
+            self.has_at = true;
         }
-        self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
-        self.pending_comment_before_next = false;
-        if self.retain_trivia_tokens {
-            if token_span.token.ty == TokenType::Newline {
-                self.semantic_newline_token_count += 1;
-            } else if token_span.token.ty != TokenType::End {
-                self.attachable_semantic_token_count += 1;
-            }
+        if self.retain_trivia_tokens && token_span.token.ty != TokenType::End {
+            self.attachable_semantic_token_count += 1;
         }
 
-        // newline stays trivia-only for comment attachment
-        if token_span.token.ty == TokenType::Newline {
-            self.trivia.handle_newline(token_span.span.start);
-        } else {
-            self.trivia.handle_token(token_span);
-        }
-
-        // update matching pairs for brackets
-        match token_span.token.ty {
-            TokenType::OpenParenthesis => self.paren_stack.push(token_index),
-            TokenType::CloseParenthesis => {
-                if let Some(open) = self.paren_stack.pop() {
-                    self.token_data[open].matching_pair = token_index as u32;
-                    self.token_data[token_index].matching_pair = open as u32;
-                }
-            }
-            TokenType::OpenBrace => self.brace_stack.push(token_index),
-            TokenType::CloseBrace => {
-                if let Some(open) = self.brace_stack.pop() {
-                    self.token_data[open].matching_pair = token_index as u32;
-                    self.token_data[token_index].matching_pair = open as u32;
-                }
-            }
-            TokenType::OpenBracket => self.bracket_stack.push(token_index),
-            TokenType::CloseBracket => {
-                if let Some(open) = self.bracket_stack.pop() {
-                    self.token_data[open].matching_pair = token_index as u32;
-                    self.token_data[token_index].matching_pair = open as u32;
-                }
-            }
-            _ => {}
-        }
+        self.trivia.handle_token(token_span);
     }
 
     /// Return true when any trivia comments were collected.
@@ -498,34 +284,9 @@ impl Lexer {
         self.trivia.has_comments()
     }
 
-    /// Return true when non-newline semantic tokens were seen.
+    /// Return true when attachable semantic tokens were seen.
     #[inline]
     pub fn has_attachable_semantic_tokens(&self) -> bool {
         self.attachable_semantic_token_count > 0
-    }
-
-    /// Restore one unmatched opening delimiter after suffix truncation.
-    fn restore_unmatched_open(&mut self, open_index: usize) {
-        match self.tokens[open_index].token.ty {
-            TokenType::OpenParenthesis => self.paren_stack.push(open_index),
-            TokenType::OpenBrace => self.brace_stack.push(open_index),
-            TokenType::OpenBracket => self.bracket_stack.push(open_index),
-            _ => {}
-        }
-    }
-
-    /// Drop unmatched opening delimiters that lived only in the truncated suffix.
-    fn drop_truncated_open_delimiters(&mut self, len: usize) {
-        while self.paren_stack.peek().is_some_and(|open| open >= len) {
-            self.paren_stack.pop();
-        }
-
-        while self.brace_stack.peek().is_some_and(|open| open >= len) {
-            self.brace_stack.pop();
-        }
-
-        while self.bracket_stack.peek().is_some_and(|open| open >= len) {
-            self.bracket_stack.pop();
-        }
     }
 }
