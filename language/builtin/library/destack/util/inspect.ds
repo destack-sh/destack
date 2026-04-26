@@ -34,13 +34,13 @@ export function formatWithOptions(options: InspectOptions | null, ...values: unk
     const inspectOptions = normalizeOptions(options);
 
     // handle empty input
-    if values.length == 0 {
+    if (values.length == 0) {
         return "";
     }
 
     // treat the first argument as a format string when possible
     const first = values[0];
-    if typeof first != "string" {
+    if (typeof first != "string") {
         return joinValues(values, inspectOptions);
     }
 
@@ -48,7 +48,7 @@ export function formatWithOptions(options: InspectOptions | null, ...values: unk
     const formatted = formatString(first as string, values.slice(1), inspectOptions);
 
     // return the formatted string when there is nothing else to append
-    if formatted.remaining.length == 0 {
+    if (formatted.remaining.length == 0) {
         return formatted.text;
     }
 
@@ -162,7 +162,7 @@ function createContext(options?: InspectOptions): InspectContext {
 /// Normalize options by filling defaults.
 function normalizeOptions(options: InspectOptions | null | undefined): InspectOptions {
     // handle null options
-    if options == null {
+    if (options == null) {
         return inspect.defaultOptions;
     }
 
@@ -186,7 +186,7 @@ function normalizeOptions(options: InspectOptions | null | undefined): InspectOp
 /// Resolve depth with null treated as unlimited.
 function resolveDepth(depth: int | null | undefined): int {
     // treat null as unlimited
-    if depth == null {
+    if (depth == null) {
         return 1_000_000;
     }
 
@@ -199,7 +199,7 @@ function joinValues(values: readonly unknown[], options: InspectOptions): string
     const parts: string[] = [];
     for (const value of values) {
         // append plain strings directly
-        if typeof value == "string" {
+        if (typeof value == "string") {
             parts.push(value as string);
         }
         // otherwise inspect the value
@@ -220,12 +220,12 @@ function formatString(format: string, values: readonly unknown[], options: Inspe
     let valueIndex = 0;
 
     // walk the format string
-    while index < format.length {
+    while (index < format.length) {
         // read the next character
         const ch = format[index];
 
         // append non specifiers
-        if ch != "%" || index + 1 >= format.length {
+        if (ch != "%" || index + 1 >= format.length) {
             out = out + ch;
             index += 1;
             continue;
@@ -235,14 +235,14 @@ function formatString(format: string, values: readonly unknown[], options: Inspe
         const next = format[index + 1];
 
         // handle escaped percent
-        if next == "%" {
+        if (next == "%") {
             out = out + "%";
             index += 2;
             continue;
         }
 
         // handle missing values
-        if valueIndex >= values.length {
+        if (valueIndex >= values.length) {
             out = out + "%" + next;
             index += 2;
             continue;
@@ -253,23 +253,23 @@ function formatString(format: string, values: readonly unknown[], options: Inspe
         valueIndex += 1;
 
         // format string values
-        if next == "s" {
+        if (next == "s") {
             out = out + formatStringValue(value);
         }
         // format integer values
-        else if next == "d" || next == "i" {
+        else if (next == "d" || next == "i") {
             out = out + formatNumberValue(value, options);
         }
         // format floating values
-        else if next == "f" {
+        else if (next == "f") {
             out = out + formatFloatValue(value, options);
         }
         // format json values
-        else if next == "j" {
+        else if (next == "j") {
             out = out + formatJsonValue(value);
         }
         // format inspected objects
-        else if next == "o" || next == "O" {
+        else if (next == "o" || next == "O") {
             out = out + inspect(value, options);
         }
         // fall back to literal output
@@ -289,30 +289,30 @@ function formatString(format: string, values: readonly unknown[], options: Inspe
 /// Format a value for the %s placeholder.
 function formatStringValue(value: unknown): string {
     // handle string values
-    if typeof value == "string" {
+    if (typeof value == "string") {
         return value as string;
     }
 
     // handle numeric values
-    if typeof value == "number" {
+    if (typeof value == "number") {
         return (value as number).toString();
     }
-    if typeof value == "bigint" {
+    if (typeof value == "bigint") {
         return (value as bigint).toString();
     }
 
     // handle boolean values
-    if typeof value == "boolean" {
+    if (typeof value == "boolean") {
         return (value as boolean) ? "true" : "false";
     }
 
     // handle null values
-    if value == null {
+    if (value == null) {
         return "null";
     }
 
     // handle undefined values
-    if value == undefined {
+    if (value == undefined) {
         return "undefined";
     }
 
@@ -322,10 +322,10 @@ function formatStringValue(value: unknown): string {
 /// Format a value for the %d or %i placeholders.
 function formatNumberValue(value: unknown, options: InspectOptions): string {
     // handle numeric values
-    if typeof value == "number" {
+    if (typeof value == "number") {
         return formatNumber(value as number, options.numericSeparator ?? false);
     }
-    if typeof value == "bigint" {
+    if (typeof value == "bigint") {
         return (value as bigint).toString();
     }
 
@@ -335,7 +335,7 @@ function formatNumberValue(value: unknown, options: InspectOptions): string {
 /// Format a value for the %f placeholder.
 function formatFloatValue(value: unknown, options: InspectOptions): string {
     // handle numeric values
-    if typeof value == "number" {
+    if (typeof value == "number") {
         return formatNumber(value as number, options.numericSeparator ?? false);
     }
 
@@ -347,7 +347,7 @@ function formatJsonValue(value: unknown): string {
     // serialize with json and handle failures
     try {
         const text = JSON.stringify(value);
-        if text == undefined {
+        if (text == undefined) {
             return "undefined";
         }
         return text;
@@ -359,41 +359,41 @@ function formatJsonValue(value: unknown): string {
 /// Format any value with inspection semantics.
 function formatValue(value: unknown, ctx: InspectContext, depth: int, level: int): string {
     // handle null values
-    if value == null {
+    if (value == null) {
         return ctx.stylize("null", "null");
     }
 
     // handle undefined values
-    if value == undefined {
+    if (value == undefined) {
         return ctx.stylize("undefined", "undefined");
     }
 
     // handle string values
     const valueType = typeof value;
-    if valueType == "string" {
+    if (valueType == "string") {
         return formatStringLiteral(value as string, ctx);
     }
 
     // handle numeric values
-    if valueType == "number" {
+    if (valueType == "number") {
         return ctx.stylize(formatNumber(value as number, ctx.options.numericSeparator ?? false), "number");
     }
-    if valueType == "bigint" {
+    if (valueType == "bigint") {
         return ctx.stylize((value as bigint).toString() + "n", "bigint");
     }
 
     // handle boolean values
-    if valueType == "boolean" {
+    if (valueType == "boolean") {
         return ctx.stylize((value as boolean) ? "true" : "false", "boolean");
     }
 
     // handle symbol values
-    if valueType == "symbol" {
+    if (valueType == "symbol") {
         return ctx.stylize((value as symbol).toString(), "symbol");
     }
 
     // handle function values
-    if valueType == "function" {
+    if (valueType == "function") {
         return formatFunction(value as Function, ctx);
     }
 
@@ -403,12 +403,12 @@ function formatValue(value: unknown, ctx: InspectContext, depth: int, level: int
 /// Format non primitive values.
 function formatObject(value: unknown, ctx: InspectContext, depth: int, level: int): string {
     // handle depth limit
-    if depth < 0 {
+    if (depth < 0) {
         return ctx.stylize("[Object]", "special");
     }
 
     // guard circular references
-    if ctx.seen.includes(value) {
+    if (ctx.seen.includes(value)) {
         return ctx.stylize("[Circular]", "special");
     }
 
@@ -416,35 +416,35 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
     ctx.seen.push(value);
 
     // handle date values
-    if value instanceof Date {
+    if (value instanceof Date) {
         const rendered = ctx.stylize((value as Date).toString(), "date");
         ctx.seen.pop();
         return rendered;
     }
 
     // handle regex values
-    if value instanceof RegExp {
+    if (value instanceof RegExp) {
         const rendered = ctx.stylize((value as RegExp).toString(), "regexp");
         ctx.seen.pop();
         return rendered;
     }
 
     // handle error values
-    if value instanceof Error {
+    if (value instanceof Error) {
         const rendered = (value as Error).stack ?? (value as Error).toString();
         ctx.seen.pop();
         return rendered;
     }
 
     // handle map values
-    if value instanceof Map {
+    if (value instanceof Map) {
         const rendered = formatMap(value as Map<unknown, unknown>, ctx, depth, level);
         ctx.seen.pop();
         return rendered;
     }
 
     // handle set values
-    if value instanceof Set {
+    if (value instanceof Set) {
         const rendered = formatSet(value as Set<unknown>, ctx, depth, level);
         ctx.seen.pop();
         return rendered;
@@ -452,14 +452,14 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
 
     // handle tuple values
     const tupleType = readTupleType(value);
-    if tupleType != null && Array.isArray(value) {
+    if (tupleType != null && Array.isArray(value)) {
         const rendered = formatTuple(value as unknown[], ctx, depth, level);
         ctx.seen.pop();
         return rendered;
     }
 
     // handle array values
-    if Array.isArray(value) {
+    if (Array.isArray(value)) {
         const rendered = formatArray(value as unknown[], ctx, depth, level);
         ctx.seen.pop();
         return rendered;
@@ -467,12 +467,12 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
 
     // handle custom inspection hooks
     const customInspect = ctx.options.customInspect ?? true;
-    if customInspect {
+    if (customInspect) {
         const maybeCustom = (value as any)[inspect.custom];
-        if typeof maybeCustom == "function" {
+        if (typeof maybeCustom == "function") {
             try {
                 const result = maybeCustom.call(value, depth, ctx.options, inspect);
-                if typeof result == "string" {
+                if (typeof result == "string") {
                     ctx.seen.pop();
                     return result;
                 }
@@ -482,12 +482,12 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
     }
 
     // handle debug style hooks
-    if customInspect {
+    if (customInspect) {
         const debugMethod = (value as any).debug;
-        if typeof debugMethod == "function" {
+        if (typeof debugMethod == "function") {
             try {
                 const result = debugMethod.call(value);
-                if typeof result == "string" {
+                if (typeof result == "string") {
                     ctx.seen.pop();
                     return result;
                 }
@@ -497,12 +497,12 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
     }
 
     // handle display style hooks
-    if customInspect {
+    if (customInspect) {
         const displayMethod = (value as any).display;
-        if typeof displayMethod == "function" {
+        if (typeof displayMethod == "function") {
             try {
                 const result = displayMethod.call(value);
-                if typeof result == "string" {
+                if (typeof result == "string") {
                     ctx.seen.pop();
                     return result;
                 }
@@ -523,7 +523,7 @@ function formatTuple(values: unknown[], ctx: InspectContext, depth: int, level: 
     const entries = formatArrayEntries(values, ctx, depth, level);
 
     // handle single element tuples
-    if entries.length == 1 {
+    if (entries.length == 1) {
         entries[0] = entries[0] + ",";
     }
 
@@ -549,7 +549,7 @@ function formatArrayEntries(values: unknown[], ctx: InspectContext, depth: int, 
     const entries: string[] = [];
     for (let i = 0; i < limit; i += 1) {
         // format defined entries
-        if i in values {
+        if (i in values) {
             entries.push(formatValue(values[i], ctx, depth - 1, level + 1));
         }
         // format holes
@@ -559,7 +559,7 @@ function formatArrayEntries(values: unknown[], ctx: InspectContext, depth: int, 
     }
 
     // append truncation info
-    if length > limit {
+    if (length > limit) {
         entries.push(ctx.stylize(`... ${length - limit} more items`, "special"));
     }
 
@@ -576,7 +576,7 @@ function formatMap(values: Map<unknown, unknown>, ctx: InspectContext, depth: in
     // format entries
     for (const [key, value] of values) {
         // append truncation info
-        if count >= maxLen {
+        if (count >= maxLen) {
             entries.push(ctx.stylize(`... ${values.size - maxLen} more items`, "special"));
             break;
         }
@@ -601,7 +601,7 @@ function formatSet(values: Set<unknown>, ctx: InspectContext, depth: int, level:
     // format entries
     for (const value of values) {
         // append truncation info
-        if count >= maxLen {
+        if (count >= maxLen) {
             entries.push(ctx.stylize(`... ${values.size - maxLen} more items`, "special"));
             break;
         }
@@ -633,18 +633,18 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
 
     // sort keys when requested
     const sorted = ctx.options.sorted ?? false;
-    if typeof sorted == "function" {
+    if (typeof sorted == "function") {
         allKeys.sort((a, b) => {
-            if typeof a == "symbol" || typeof b == "symbol" {
+            if (typeof a == "symbol" || typeof b == "symbol") {
                 return 0;
             }
             return sorted(a as string, b as string);
         });
     }
     // otherwise use default sorting
-    else if sorted {
+    else if (sorted) {
         allKeys.sort((a, b) => {
-            if typeof a == "symbol" || typeof b == "symbol" {
+            if (typeof a == "symbol" || typeof b == "symbol") {
                 return 0;
             }
             if (a < b) return -1;
@@ -664,9 +664,9 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
 
         // format the value based on getter options
         let valueText = "";
-        if descriptors != null {
+        if (descriptors != null) {
             const descriptor = descriptors[keyText as string] ?? (descriptors as any)[key];
-            if descriptor != null {
+            if (descriptor != null) {
                 valueText = formatDescriptorValue(objectValue, descriptor, ctx, depth, level);
             } else {
                 valueText = formatValue((objectValue as any)[key], ctx, depth - 1, level + 1);
@@ -679,7 +679,7 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
     }
 
     // handle empty objects
-    if entries.length == 0 {
+    if (entries.length == 0) {
         const typeName = readTypeName(value);
         return typeName == "Object" ? "{}" : `${typeName} {}`;
     }
@@ -693,7 +693,7 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
 /// Format a property descriptor value.
 function formatDescriptorValue(owner: object, descriptor: any, ctx: InspectContext, depth: int, level: int): string {
     // handle value descriptors
-    if "value" in descriptor {
+    if ("value" in descriptor) {
         return formatValue(descriptor.value, ctx, depth - 1, level + 1);
     }
 
@@ -703,25 +703,25 @@ function formatDescriptorValue(owner: object, descriptor: any, ctx: InspectConte
     const hasSetter = typeof descriptor.set == "function";
 
     // handle getter inspection
-    if getters == true || getters == "get" {
-        if hasGetter {
+    if (getters == true || getters == "get") {
+        if (hasGetter) {
             try {
                 return formatValue(descriptor.get.call(owner), ctx, depth - 1, level + 1);
             } catch {
                 return ctx.stylize("[Getter]", "special");
             }
         }
-        if hasSetter {
+        if (hasSetter) {
             return ctx.stylize("[Setter]", "special");
         }
     }
 
     // handle setter only inspection
-    if getters == "set" {
-        if hasSetter {
+    if (getters == "set") {
+        if (hasSetter) {
             return ctx.stylize("[Setter]", "special");
         }
-        if hasGetter {
+        if (hasGetter) {
             return ctx.stylize("[Getter]", "special");
         }
     }
@@ -733,7 +733,7 @@ function formatDescriptorValue(owner: object, descriptor: any, ctx: InspectConte
 function formatFunction(value: Function, ctx: InspectContext): string {
     // include function name when available
     const name = value.name;
-    if name != "" {
+    if (name != "") {
         return ctx.stylize(`[Function: ${name}]`, "special");
     }
 
@@ -745,7 +745,7 @@ function formatStringLiteral(value: string, ctx: InspectContext): string {
     // truncate long strings
     const maxLength = ctx.options.maxStringLength ?? 10000;
     let text = value;
-    if maxLength >= 0 && value.length > maxLength {
+    if (maxLength >= 0 && value.length > maxLength) {
         text = value.slice(0, maxLength) + "...";
     }
 
@@ -759,23 +759,23 @@ function escapeString(value: string): string {
     // escape common control characters
     let out = "";
     for (const ch of value) {
-        if ch == "\\" {
+        if (ch == "\\") {
             out = out + "\\\\";
         }
         // escape single quotes
-        else if ch == "'" {
+        else if (ch == "'") {
             out = out + "\\'";
         }
         // escape newlines
-        else if ch == "\n" {
+        else if (ch == "\n") {
             out = out + "\\n";
         }
         // escape carriage returns
-        else if ch == "\r" {
+        else if (ch == "\r") {
             out = out + "\\r";
         }
         // escape tabs
-        else if ch == "\t" {
+        else if (ch == "\t") {
             out = out + "\\t";
         }
         // keep printable characters
@@ -790,7 +790,7 @@ function escapeString(value: string): string {
 /// Format a number with optional separators.
 function formatNumber(value: number, numericSeparator: boolean): string {
     // handle simple formatting
-    if !numericSeparator {
+    if (!numericSeparator) {
         return value.toString();
     }
 
@@ -800,7 +800,7 @@ function formatNumber(value: number, numericSeparator: boolean): string {
     const integer = insertNumericSeparator(parts[0]);
 
     // return when there is no fractional part
-    if parts.length == 1 {
+    if (parts.length == 1) {
         return integer;
     }
 
@@ -816,13 +816,13 @@ function insertNumericSeparator(text: string): string {
         const ch = text[i];
 
         // preserve sign
-        if ch == "-" {
+        if (ch == "-") {
             out = ch + out;
             continue;
         }
 
         // insert separator after each group
-        if count > 0 && count % 3 == 0 {
+        if (count > 0 && count % 3 == 0) {
             out = "_" + out;
         }
 
@@ -836,7 +836,7 @@ function insertNumericSeparator(text: string): string {
 /// Render a collection as either single or multi line text.
 function formatCollection(entries: string[], open: string, close: string, ctx: InspectContext, level: int): string {
     // handle empty collections
-    if entries.length == 0 {
+    if (entries.length == 0) {
         return open + close;
     }
 
@@ -847,7 +847,7 @@ function formatCollection(entries: string[], open: string, close: string, ctx: I
     const compact = ctx.options.compact ?? 3;
     const breakLength = ctx.options.breakLength ?? 80;
     const forceMultiline = compact == false || compact == 0;
-    if !forceMultiline && single.length <= breakLength {
+    if (!forceMultiline && single.length <= breakLength) {
         return single;
     }
 
@@ -866,13 +866,13 @@ function stylizeNoColor(text: string, _style: string): string {
 function stylizeWithColor(text: string, style: string): string {
     // resolve the color name
     const color = (inspect.styles as any)[style];
-    if color == null {
+    if (color == null) {
         return text;
     }
 
     // resolve escape codes
     const codes = (inspect.colors as any)[color];
-    if codes == null {
+    if (codes == null) {
         return text;
     }
 
@@ -883,7 +883,7 @@ function stylizeWithColor(text: string, style: string): string {
 function readTupleType(value: unknown): any | null {
     // consult type metadata
     const valueType = typeOf(value);
-    if valueType != null && (valueType as any).kind == "tuple" {
+    if (valueType != null && (valueType as any).kind == "tuple") {
         return valueType as any;
     }
 
@@ -894,7 +894,7 @@ function readTupleType(value: unknown): any | null {
 function readTypeName(value: unknown): string {
     // use typeOf for structured names
     const type = typeOf(value);
-    if type == null {
+    if (type == null) {
         return "Object";
     }
 
