@@ -28,6 +28,30 @@ newtype Point = (float32, float32)
 newtype Point = (float32, float32);
 ```
 
+### singleton newtype tuple
+
+Singleton newtype tuples keep the required tuple comma.
+
+```ds
+newtype extern = (string,)
+```
+
+```ds expected
+newtype extern = (string,);
+```
+
+### spread newtype tuple
+
+Parenthesized tuple rest elements keep array suffixes on the rest type.
+
+```ds
+newtype require = (...PlatformCapability[])
+```
+
+```ds expected
+newtype require = (...PlatformCapability[],);
+```
+
 ### newtype object
 
 Newtype object values keep object literal formatting.

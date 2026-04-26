@@ -115,16 +115,16 @@ flags & mask && ready;
 
 ## Bitwise Operators
 
-### elementwise operators stay spaced
+### bitwise precedence stays explicit
 
-Bitwise operators keep spaces around them.
+Mixed bitwise operators preserve precedence with explicit grouping.
 
 ```ds
 flags & mask | other
 ```
 
 ```ds expected
-flags & mask | other;
+(flags & mask) | other;
 ```
 
 ## Destack Arithmetic Variants

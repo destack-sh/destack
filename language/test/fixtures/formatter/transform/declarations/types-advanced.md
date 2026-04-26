@@ -18,6 +18,42 @@ type Predicate = (value: string) => boolean;
 
 ## Indexed Access and Queries
 
+### bracket tuple type
+
+Bracket tuple types keep bracket syntax.
+
+```ts:main.ts
+type Pair = [T, boolean]
+```
+
+```ts expected
+type Pair = [T, boolean];
+```
+
+### bracket tuple union
+
+Empty and singleton bracket tuple types keep bracket syntax in unions.
+
+```ts:main.ts
+type Next<TNext> = [] | [TNext]
+```
+
+```ts expected
+type Next<TNext> = [] | [TNext];
+```
+
+### bracket tuple rest element
+
+Bracket tuple rest elements keep array suffixes on the rest type.
+
+```ts:main.ts
+type Requirements = [...PlatformCapability[]]
+```
+
+```ts expected
+type Requirements = [...PlatformCapability[]];
+```
+
 ### indexed access type
 
 Indexed access types keep brackets tight.
