@@ -13,6 +13,7 @@ use crate::{
 pub enum TypeMember {
     /// Named field.
     Field {
+        is_static: bool,
         is_optional: bool,
         is_readonly: bool,
         key: Key,
@@ -21,6 +22,7 @@ pub enum TypeMember {
     },
     /// Named method.
     Method {
+        is_static: bool,
         is_optional: bool,
         key: Key,
         signature: FunctionSignature,
