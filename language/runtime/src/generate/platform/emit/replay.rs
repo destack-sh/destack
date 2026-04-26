@@ -1328,7 +1328,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }
-            output.push_str(") -> RuntimeResult<vm::Value> {\n");
+            output.push_str(") -> RuntimeResult<vm::Word> {\n");
 
             output.push_str("    let result = binding.trace().run_binding(\n");
             output.push_str(&format!("        {},\n", binding.const_name));

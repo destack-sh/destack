@@ -32,7 +32,7 @@ pub enum ProfileKind {
 }
 
 impl VmValueCodec for ProfileKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Cpu,
@@ -49,7 +49,7 @@ impl VmValueCodec for ProfileKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -104,7 +104,7 @@ pub enum TraceLevel {
 }
 
 impl VmValueCodec for TraceLevel {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Error,
@@ -122,7 +122,7 @@ impl VmValueCodec for TraceLevel {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -198,7 +198,7 @@ impl Clone for InspectorEndpointAbi<VmAbi> {
 impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -232,7 +232,7 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("debug::InspectorEndpoint")
             .map_err(Box::<RuntimeError>::from)?;

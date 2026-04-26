@@ -31,11 +31,11 @@ pub struct AudioBackendCapabilityFlags(
 pub type AudioBackendCapabilityFlagsVm = AudioBackendCapabilityFlags;
 
 impl VmValueCodec for AudioBackendCapabilityFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct AudioDeviceCapabilityFlags(
 pub type AudioDeviceCapabilityFlagsVm = AudioDeviceCapabilityFlags;
 
 impl VmValueCodec for AudioDeviceCapabilityFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct AudioDeviceListFlags(
 pub type AudioDeviceListFlagsVm = AudioDeviceListFlags;
 
 impl VmValueCodec for AudioDeviceListFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -196,11 +196,11 @@ pub struct AudioDeviceOpenFlags(
 pub type AudioDeviceOpenFlagsVm = AudioDeviceOpenFlags;
 
 impl VmValueCodec for AudioDeviceOpenFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -251,11 +251,11 @@ pub struct AudioEventSubscriptionFlags(
 pub type AudioEventSubscriptionFlagsVm = AudioEventSubscriptionFlags;
 
 impl VmValueCodec for AudioEventSubscriptionFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -306,11 +306,11 @@ pub struct AudioStreamFlags(
 pub type AudioStreamFlagsVm = AudioStreamFlags;
 
 impl VmValueCodec for AudioStreamFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -361,11 +361,11 @@ pub struct AudioStreamHandle(
 pub type AudioStreamHandleVm = AudioStreamHandle;
 
 impl VmValueCodec for AudioStreamHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -416,11 +416,11 @@ pub struct AudioStreamRequirementFlags(
 pub type AudioStreamRequirementFlagsVm = AudioStreamRequirementFlags;
 
 impl VmValueCodec for AudioStreamRequirementFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -471,11 +471,11 @@ pub struct AudioStreamStatusFlags(
 pub type AudioStreamStatusFlagsVm = AudioStreamStatusFlags;
 
 impl VmValueCodec for AudioStreamStatusFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -526,11 +526,11 @@ pub struct AudioSupportedEventSubscriptionFlags(
 pub type AudioSupportedEventSubscriptionFlagsVm = AudioSupportedEventSubscriptionFlags;
 
 impl VmValueCodec for AudioSupportedEventSubscriptionFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -581,11 +581,11 @@ pub struct AudioSupportedStreamClockDomains(
 pub type AudioSupportedStreamClockDomainsVm = AudioSupportedStreamClockDomains;
 
 impl VmValueCodec for AudioSupportedStreamClockDomains {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -636,11 +636,11 @@ pub struct AudioSupportedStreamFlags(
 pub type AudioSupportedStreamFlagsVm = AudioSupportedStreamFlags;
 
 impl VmValueCodec for AudioSupportedStreamFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -691,11 +691,11 @@ pub struct AudioSupportedStreamRequirementFlags(
 pub type AudioSupportedStreamRequirementFlagsVm = AudioSupportedStreamRequirementFlags;
 
 impl VmValueCodec for AudioSupportedStreamRequirementFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -746,11 +746,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -819,7 +819,7 @@ pub enum AudioBackend {
 }
 
 impl VmValueCodec for AudioBackend {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Auto,
@@ -844,7 +844,7 @@ impl VmValueCodec for AudioBackend {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -895,7 +895,7 @@ pub enum AudioBackendSelectionPolicy {
 }
 
 impl VmValueCodec for AudioBackendSelectionPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Strict,
@@ -911,7 +911,7 @@ impl VmValueCodec for AudioBackendSelectionPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -976,7 +976,7 @@ pub enum AudioChannelLayout {
 }
 
 impl VmValueCodec for AudioChannelLayout {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -999,7 +999,7 @@ impl VmValueCodec for AudioChannelLayout {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1050,7 +1050,7 @@ pub enum AudioClockDomain {
 }
 
 impl VmValueCodec for AudioClockDomain {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Monotonic,
@@ -1066,7 +1066,7 @@ impl VmValueCodec for AudioClockDomain {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1119,7 +1119,7 @@ pub enum AudioClockQuality {
 }
 
 impl VmValueCodec for AudioClockQuality {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -1136,7 +1136,7 @@ impl VmValueCodec for AudioClockQuality {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1191,7 +1191,7 @@ pub enum AudioDeviceDirection {
 }
 
 impl VmValueCodec for AudioDeviceDirection {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Playback,
@@ -1209,7 +1209,7 @@ impl VmValueCodec for AudioDeviceDirection {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1262,7 +1262,7 @@ pub enum AudioEventDeliveryMode {
 }
 
 impl VmValueCodec for AudioEventDeliveryMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Auto,
@@ -1279,7 +1279,7 @@ impl VmValueCodec for AudioEventDeliveryMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1332,7 +1332,7 @@ pub enum AudioEventOverflowPolicy {
 }
 
 impl VmValueCodec for AudioEventOverflowPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::DropOldest,
@@ -1349,7 +1349,7 @@ impl VmValueCodec for AudioEventOverflowPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1400,7 +1400,7 @@ pub enum AudioEventSource {
 }
 
 impl VmValueCodec for AudioEventSource {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Native,
@@ -1416,7 +1416,7 @@ impl VmValueCodec for AudioEventSource {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1475,7 +1475,7 @@ pub enum AudioSampleFormat {
 }
 
 impl VmValueCodec for AudioSampleFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::U8,
@@ -1495,7 +1495,7 @@ impl VmValueCodec for AudioSampleFormat {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1546,7 +1546,7 @@ pub enum AudioShareMode {
 }
 
 impl VmValueCodec for AudioShareMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Shared,
@@ -1562,7 +1562,7 @@ impl VmValueCodec for AudioShareMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1621,7 +1621,7 @@ pub enum AudioStreamClockDomain {
 }
 
 impl VmValueCodec for AudioStreamClockDomain {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Monotonic,
@@ -1641,7 +1641,7 @@ impl VmValueCodec for AudioStreamClockDomain {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1708,7 +1708,7 @@ pub enum AudioStreamStateKind {
 }
 
 impl VmValueCodec for AudioStreamStateKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Stopped,
@@ -1732,7 +1732,7 @@ impl VmValueCodec for AudioStreamStateKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1781,7 +1781,7 @@ pub enum AudioStreamTransferMode {
 }
 
 impl VmValueCodec for AudioStreamTransferMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Push,
@@ -1796,7 +1796,7 @@ impl VmValueCodec for AudioStreamTransferMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1851,7 +1851,7 @@ pub enum BackendSupport {
 }
 
 impl VmValueCodec for BackendSupport {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Available,
@@ -1869,7 +1869,7 @@ impl VmValueCodec for BackendSupport {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1966,7 +1966,7 @@ impl Clone for AudioEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2010,7 +2010,7 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::AudioBackendDisconnectedEvent(value) => {
                 let tag_value =
@@ -2645,7 +2645,7 @@ impl Clone for AudioBackendDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2721,7 +2721,7 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioBackendDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3045,7 +3045,7 @@ impl Clone for AudioBackendDisconnectedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3085,7 +3085,7 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioBackendDisconnectedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3221,7 +3221,7 @@ impl Clone for AudioBackendResetEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3261,7 +3261,7 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioBackendResetEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3394,7 +3394,7 @@ pub type AudioClockSnapshotVm = AudioClockSnapshot;
 impl VmAggregateCodec for AudioClockSnapshot {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3467,7 +3467,7 @@ impl VmAggregateCodec for AudioClockSnapshot {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioClockSnapshot")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3617,7 +3617,7 @@ impl Clone for AudioDefaultCaptureChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3657,7 +3657,7 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDefaultCaptureChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3792,7 +3792,7 @@ impl Clone for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3832,7 +3832,7 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDefaultLoopbackChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3967,7 +3967,7 @@ impl Clone for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4007,7 +4007,7 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDefaultPlaybackChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4142,7 +4142,7 @@ impl Clone for AudioDeviceAddedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4182,7 +4182,7 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceAddedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4375,7 +4375,7 @@ impl Clone for AudioDeviceDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4512,7 +4512,7 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5135,7 +5135,7 @@ impl Clone for AudioDeviceFormatChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5175,7 +5175,7 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceFormatChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5291,7 +5291,7 @@ pub type AudioDeviceListRequestVm = AudioDeviceListRequest;
 impl VmAggregateCodec for AudioDeviceListRequest {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5335,7 +5335,7 @@ impl VmAggregateCodec for AudioDeviceListRequest {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceListRequest")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5423,7 +5423,7 @@ pub type AudioDeviceOpenOptionsVm = AudioDeviceOpenOptions;
 impl VmAggregateCodec for AudioDeviceOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5470,7 +5470,7 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5580,7 +5580,7 @@ impl Clone for AudioDeviceRemovedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5620,7 +5620,7 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceRemovedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5755,7 +5755,7 @@ impl Clone for AudioDeviceReroutedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5795,7 +5795,7 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioDeviceReroutedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5915,7 +5915,7 @@ pub type AudioEventMetadataVm = AudioEventMetadata;
 impl VmAggregateCodec for AudioEventMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5961,7 +5961,7 @@ impl VmAggregateCodec for AudioEventMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6059,7 +6059,7 @@ pub type AudioEventSubscriptionOptionsVm = AudioEventSubscriptionOptions;
 impl VmAggregateCodec for AudioEventSubscriptionOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6120,7 +6120,7 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioEventSubscriptionOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6251,7 +6251,7 @@ impl Clone for AudioInterruptionBeganEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6291,7 +6291,7 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioInterruptionBeganEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6427,7 +6427,7 @@ impl Clone for AudioInterruptionEndedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6467,7 +6467,7 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioInterruptionEndedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6586,7 +6586,7 @@ pub type AudioStreamAvailabilityVm = AudioStreamAvailability;
 impl VmAggregateCodec for AudioStreamAvailability {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6628,7 +6628,7 @@ impl VmAggregateCodec for AudioStreamAvailability {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamAvailability")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6721,7 +6721,7 @@ pub type AudioStreamConfigVm = AudioStreamConfig;
 impl VmAggregateCodec for AudioStreamConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6774,7 +6774,7 @@ impl VmAggregateCodec for AudioStreamConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6934,7 +6934,7 @@ impl Clone for AudioStreamDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7046,7 +7046,7 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7507,7 +7507,7 @@ impl Clone for AudioStreamDeviceChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7557,7 +7557,7 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamDeviceChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7719,7 +7719,7 @@ pub type AudioStreamOpenOptionsVm = AudioStreamOpenOptions;
 impl VmAggregateCodec for AudioStreamOpenOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7755,7 +7755,7 @@ impl VmAggregateCodec for AudioStreamOpenOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamOpenOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7849,7 +7849,7 @@ pub type AudioStreamStateVm = AudioStreamState;
 impl VmAggregateCodec for AudioStreamState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7921,7 +7921,7 @@ impl VmAggregateCodec for AudioStreamState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8073,7 +8073,7 @@ impl Clone for AudioStreamStateChangedEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8118,7 +8118,7 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamStateChangedEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8281,7 +8281,7 @@ impl Clone for AudioStreamSupportAbi<VmAbi> {
 impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8326,7 +8326,7 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamSupport")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8492,7 +8492,7 @@ pub type AudioStreamTimingVm = AudioStreamTiming;
 impl VmAggregateCodec for AudioStreamTiming {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8546,7 +8546,7 @@ impl VmAggregateCodec for AudioStreamTiming {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamTiming")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8681,7 +8681,7 @@ impl Clone for AudioStreamXRunEventAbi<VmAbi> {
 impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8734,7 +8734,7 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("audio::AudioStreamXRunEvent")
             .map_err(Box::<RuntimeError>::from)?;

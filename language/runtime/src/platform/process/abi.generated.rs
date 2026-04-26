@@ -31,11 +31,11 @@ pub struct ExecAtFlags(
 pub type ExecAtFlagsVm = ExecAtFlags;
 
 impl VmValueCodec for ExecAtFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct FileHandle(
 pub type FileHandleVm = FileHandle;
 
 impl VmValueCodec for FileHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct FileMode(
 pub type FileModeVm = FileMode;
 
 impl VmValueCodec for FileMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -196,11 +196,11 @@ pub struct GroupId(
 pub type GroupIdVm = GroupId;
 
 impl VmValueCodec for GroupId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -251,11 +251,11 @@ pub struct OpenFlags(
 pub type OpenFlagsVm = OpenFlags;
 
 impl VmValueCodec for OpenFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -309,7 +309,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -319,7 +319,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -386,7 +386,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -396,7 +396,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -460,11 +460,11 @@ pub struct PipeHandle(
 pub type PipeHandleVm = PipeHandle;
 
 impl VmValueCodec for PipeHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -515,11 +515,11 @@ pub struct ProcessFdFlags(
 pub type ProcessFdFlagsVm = ProcessFdFlags;
 
 impl VmValueCodec for ProcessFdFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -570,11 +570,11 @@ pub struct ProcessFdSignalFlags(
 pub type ProcessFdSignalFlagsVm = ProcessFdSignalFlags;
 
 impl VmValueCodec for ProcessFdSignalFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -625,11 +625,11 @@ pub struct ProcessId(
 pub type ProcessIdVm = ProcessId;
 
 impl VmValueCodec for ProcessId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -680,11 +680,11 @@ pub struct ProcessLimitResource(
 pub type ProcessLimitResourceVm = ProcessLimitResource;
 
 impl VmValueCodec for ProcessLimitResource {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -735,11 +735,11 @@ pub struct ProcessUnshareFlags(
 pub type ProcessUnshareFlagsVm = ProcessUnshareFlags;
 
 impl VmValueCodec for ProcessUnshareFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -790,11 +790,11 @@ pub struct ProcessWaitFlags(
 pub type ProcessWaitFlagsVm = ProcessWaitFlags;
 
 impl VmValueCodec for ProcessWaitFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -845,11 +845,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -900,11 +900,11 @@ pub struct Signal(
 pub type SignalVm = Signal;
 
 impl VmValueCodec for Signal {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -955,11 +955,11 @@ pub struct SignalFdFlags(
 pub type SignalFdFlagsVm = SignalFdFlags;
 
 impl VmValueCodec for SignalFdFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1010,11 +1010,11 @@ pub struct SyscallFilterFlags(
 pub type SyscallFilterFlagsVm = SyscallFilterFlags;
 
 impl VmValueCodec for SyscallFilterFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1065,11 +1065,11 @@ pub struct UserId(
 pub type UserIdVm = UserId;
 
 impl VmValueCodec for UserId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -1132,7 +1132,7 @@ pub enum ProcessNamespaceKind {
 }
 
 impl VmValueCodec for ProcessNamespaceKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Mount,
@@ -1154,7 +1154,7 @@ impl VmValueCodec for ProcessNamespaceKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1213,7 +1213,7 @@ pub enum ProcessSchedulerPolicy {
 }
 
 impl VmValueCodec for ProcessSchedulerPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Other,
@@ -1233,7 +1233,7 @@ impl VmValueCodec for ProcessSchedulerPolicy {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1286,7 +1286,7 @@ pub enum SignalMaskHow {
 }
 
 impl VmValueCodec for SignalMaskHow {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Set,
@@ -1303,7 +1303,7 @@ impl VmValueCodec for SignalMaskHow {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1376,7 +1376,7 @@ impl Clone for OsPathAbi<VmAbi> {
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1422,7 +1422,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
@@ -1566,7 +1566,7 @@ impl Clone for ProcessFdActionAbi<VmAbi> {
 impl VmAggregateCodec for ProcessFdActionAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1617,7 +1617,7 @@ impl VmAggregateCodec for ProcessFdActionAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::ProcessFdActionClose(value) => {
                 let tag_value =
@@ -1803,7 +1803,7 @@ impl Clone for ProcessStdioAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1864,7 +1864,7 @@ impl VmAggregateCodec for ProcessStdioAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::ProcessStdioDescriptor(value) => {
                 let tag_value =
@@ -2108,7 +2108,7 @@ impl Clone for ProcessWaitStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2169,7 +2169,7 @@ impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::ProcessWaitContinuedStatus(value) => {
                 let tag_value =
@@ -2454,7 +2454,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2489,7 +2489,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2596,7 +2596,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2631,7 +2631,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2738,7 +2738,7 @@ impl Clone for ProcessFdActionCloseAbi<VmAbi> {
 impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2772,7 +2772,7 @@ impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessFdActionClose")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2880,7 +2880,7 @@ impl Clone for ProcessFdActionDup2Abi<VmAbi> {
 impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2917,7 +2917,7 @@ impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessFdActionDup2")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3039,7 +3039,7 @@ impl Clone for ProcessFdActionOpenAbi<VmAbi> {
 impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3082,7 +3082,7 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessFdActionOpen")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3202,7 +3202,7 @@ pub type ProcessGroupIdsVm = ProcessGroupIds;
 impl VmAggregateCodec for ProcessGroupIds {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3238,7 +3238,7 @@ impl VmAggregateCodec for ProcessGroupIds {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessGroupIds")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3309,7 +3309,7 @@ pub type ProcessLimitVm = ProcessLimit;
 impl VmAggregateCodec for ProcessLimit {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3342,7 +3342,7 @@ impl VmAggregateCodec for ProcessLimit {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessLimit")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3410,7 +3410,7 @@ pub type ProcessSchedulerConfigVm = ProcessSchedulerConfig;
 impl VmAggregateCodec for ProcessSchedulerConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3447,7 +3447,7 @@ impl VmAggregateCodec for ProcessSchedulerConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessSchedulerConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3545,7 +3545,7 @@ impl Clone for ProcessSpawnOptionsAbi<VmAbi> {
 impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3584,7 +3584,7 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessSpawnOptions")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3717,7 +3717,7 @@ impl Clone for ProcessStdioDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3751,7 +3751,7 @@ impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessStdioDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3857,7 +3857,7 @@ impl Clone for ProcessStdioFileAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3892,7 +3892,7 @@ impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessStdioFile")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3997,7 +3997,7 @@ impl Clone for ProcessStdioInheritAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4026,7 +4026,7 @@ impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessStdioInherit")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4120,7 +4120,7 @@ impl Clone for ProcessStdioNullAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4149,7 +4149,7 @@ impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessStdioNull")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4245,7 +4245,7 @@ impl Clone for ProcessStdioPipeAbi<VmAbi> {
 impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4280,7 +4280,7 @@ impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessStdioPipe")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4368,7 +4368,7 @@ pub type ProcessUserIdsVm = ProcessUserIds;
 impl VmAggregateCodec for ProcessUserIds {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4404,7 +4404,7 @@ impl VmAggregateCodec for ProcessUserIds {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessUserIds")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4496,7 +4496,7 @@ impl Clone for ProcessWaitContinuedStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4530,7 +4530,7 @@ impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessWaitContinuedStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4638,7 +4638,7 @@ impl Clone for ProcessWaitExitedStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4675,7 +4675,7 @@ impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessWaitExitedStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4791,7 +4791,7 @@ impl Clone for ProcessWaitRunningStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4825,7 +4825,7 @@ impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessWaitRunningStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4935,7 +4935,7 @@ impl Clone for ProcessWaitSignaledStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4975,7 +4975,7 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessWaitSignaledStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5104,7 +5104,7 @@ impl Clone for ProcessWaitStoppedStatusAbi<VmAbi> {
 impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5141,7 +5141,7 @@ impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::ProcessWaitStoppedStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5236,7 +5236,7 @@ pub type SignalEventVm = SignalEvent;
 impl VmAggregateCodec for SignalEvent {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5269,7 +5269,7 @@ impl VmAggregateCodec for SignalEvent {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("process::SignalEvent")
             .map_err(Box::<RuntimeError>::from)?;

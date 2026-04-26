@@ -31,11 +31,11 @@ pub struct DisplayDragOperationMask(
 pub type DisplayDragOperationMaskVm = DisplayDragOperationMask;
 
 impl VmValueCodec for DisplayDragOperationMask {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct DisplayDragSessionHandle(
 pub type DisplayDragSessionHandleVm = DisplayDragSessionHandle;
 
 impl VmValueCodec for DisplayDragSessionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -144,7 +144,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -154,7 +154,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -221,7 +221,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -231,7 +231,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -295,11 +295,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -350,11 +350,11 @@ pub struct WindowHandle(
 pub type WindowHandleVm = WindowHandle;
 
 impl VmValueCodec for WindowHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -407,7 +407,7 @@ pub enum ClipboardItemRepresentationKind {
 }
 
 impl VmValueCodec for ClipboardItemRepresentationKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::String,
@@ -424,7 +424,7 @@ impl VmValueCodec for ClipboardItemRepresentationKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -477,7 +477,7 @@ pub enum ClipboardPresentationStyle {
 }
 
 impl VmValueCodec for ClipboardPresentationStyle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unspecified,
@@ -494,7 +494,7 @@ impl VmValueCodec for ClipboardPresentationStyle {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -547,7 +547,7 @@ pub enum DisplayDragItemKind {
 }
 
 impl VmValueCodec for DisplayDragItemKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::String,
@@ -564,7 +564,7 @@ impl VmValueCodec for DisplayDragItemKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -619,7 +619,7 @@ pub enum DisplayDragOperation {
 }
 
 impl VmValueCodec for DisplayDragOperation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::None,
@@ -637,7 +637,7 @@ impl VmValueCodec for DisplayDragOperation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -690,7 +690,7 @@ pub enum InputCapabilityMetadataFidelity {
 }
 
 impl VmValueCodec for InputCapabilityMetadataFidelity {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Full,
@@ -707,7 +707,7 @@ impl VmValueCodec for InputCapabilityMetadataFidelity {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -762,7 +762,7 @@ pub enum InputCapabilityMetadataOrigin {
 }
 
 impl VmValueCodec for InputCapabilityMetadataOrigin {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::BackendDescriptor,
@@ -780,7 +780,7 @@ impl VmValueCodec for InputCapabilityMetadataOrigin {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -833,7 +833,7 @@ pub enum InputClipboardCommandType {
 }
 
 impl VmValueCodec for InputClipboardCommandType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Copy,
@@ -850,7 +850,7 @@ impl VmValueCodec for InputClipboardCommandType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -907,7 +907,7 @@ pub enum InputCoordinateSpace {
 }
 
 impl VmValueCodec for InputCoordinateSpace {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::WindowLogical,
@@ -926,7 +926,7 @@ impl VmValueCodec for InputCoordinateSpace {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -989,7 +989,7 @@ pub enum InputDeviceCapabilityKind {
 }
 
 impl VmValueCodec for InputDeviceCapabilityKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Keyboard,
@@ -1011,7 +1011,7 @@ impl VmValueCodec for InputDeviceCapabilityKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1070,7 +1070,7 @@ pub enum InputDeviceKind {
 }
 
 impl VmValueCodec for InputDeviceKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Keyboard,
@@ -1090,7 +1090,7 @@ impl VmValueCodec for InputDeviceKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1229,7 +1229,7 @@ pub enum InputEditIntentType {
 }
 
 impl VmValueCodec for InputEditIntentType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::InsertText,
@@ -1289,7 +1289,7 @@ impl VmValueCodec for InputEditIntentType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1364,7 +1364,7 @@ pub enum InputEventAction {
 }
 
 impl VmValueCodec for InputEventAction {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Press,
@@ -1392,7 +1392,7 @@ impl VmValueCodec for InputEventAction {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1449,7 +1449,7 @@ pub enum InputGamepadBatteryState {
 }
 
 impl VmValueCodec for InputGamepadBatteryState {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1468,7 +1468,7 @@ impl VmValueCodec for InputGamepadBatteryState {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1523,7 +1523,7 @@ pub enum InputGamepadConnectionType {
 }
 
 impl VmValueCodec for InputGamepadConnectionType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Unknown,
@@ -1541,7 +1541,7 @@ impl VmValueCodec for InputGamepadConnectionType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1594,7 +1594,7 @@ pub enum InputGamepadControlKind {
 }
 
 impl VmValueCodec for InputGamepadControlKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Button,
@@ -1611,7 +1611,7 @@ impl VmValueCodec for InputGamepadControlKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1664,7 +1664,7 @@ pub enum InputGamepadMappingType {
 }
 
 impl VmValueCodec for InputGamepadMappingType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -1681,7 +1681,7 @@ impl VmValueCodec for InputGamepadMappingType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1732,7 +1732,7 @@ pub enum InputHapticEffectType {
 }
 
 impl VmValueCodec for InputHapticEffectType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::DualRumble,
@@ -1748,7 +1748,7 @@ impl VmValueCodec for InputHapticEffectType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1799,7 +1799,7 @@ pub enum InputHapticsResult {
 }
 
 impl VmValueCodec for InputHapticsResult {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Complete,
@@ -1815,7 +1815,7 @@ impl VmValueCodec for InputHapticsResult {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1870,7 +1870,7 @@ pub enum InputKeyLocation {
 }
 
 impl VmValueCodec for InputKeyLocation {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Standard,
@@ -1888,7 +1888,7 @@ impl VmValueCodec for InputKeyLocation {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -1941,7 +1941,7 @@ pub enum InputPenToolKind {
 }
 
 impl VmValueCodec for InputPenToolKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Stylus,
@@ -1958,7 +1958,7 @@ impl VmValueCodec for InputPenToolKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2011,7 +2011,7 @@ pub enum InputPointerGrabMode {
 }
 
 impl VmValueCodec for InputPointerGrabMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::None,
@@ -2028,7 +2028,7 @@ impl VmValueCodec for InputPointerGrabMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2083,7 +2083,7 @@ pub enum InputPointerType {
 }
 
 impl VmValueCodec for InputPointerType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Mouse,
@@ -2101,7 +2101,7 @@ impl VmValueCodec for InputPointerType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2152,7 +2152,7 @@ pub enum InputReadMode {
 }
 
 impl VmValueCodec for InputReadMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Cooked,
@@ -2168,7 +2168,7 @@ impl VmValueCodec for InputReadMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2235,7 +2235,7 @@ pub enum InputSensorKind {
 }
 
 impl VmValueCodec for InputSensorKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Accelerometer,
@@ -2259,7 +2259,7 @@ impl VmValueCodec for InputSensorKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2320,7 +2320,7 @@ pub enum InputTextInputType {
 }
 
 impl VmValueCodec for InputTextInputType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Text,
@@ -2341,7 +2341,7 @@ impl VmValueCodec for InputTextInputType {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2396,7 +2396,7 @@ pub enum InputTouchContactPhase {
 }
 
 impl VmValueCodec for InputTouchContactPhase {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Begin,
@@ -2414,7 +2414,7 @@ impl VmValueCodec for InputTouchContactPhase {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2467,7 +2467,7 @@ pub enum InputWheelDeltaMode {
 }
 
 impl VmValueCodec for InputWheelDeltaMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Pixel,
@@ -2484,7 +2484,7 @@ impl VmValueCodec for InputWheelDeltaMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -2573,7 +2573,7 @@ impl Clone for InputEventAbi<VmAbi> {
 impl VmAggregateCodec for InputEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2659,7 +2659,7 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::InputCompositionEvent(value) => {
                 let tag_value =
@@ -3053,7 +3053,7 @@ impl Clone for InputMonitorEventAbi<VmAbi> {
 impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3104,7 +3104,7 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::InputMonitorChangeEvent(value) => {
                 let tag_value =
@@ -3310,7 +3310,7 @@ impl Clone for InputTextSessionEventAbi<VmAbi> {
 impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3366,7 +3366,7 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::InputClipboardCommandEvent(value) => {
                 let tag_value =
@@ -3604,7 +3604,7 @@ impl Clone for OsPathAbi<VmAbi> {
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3650,7 +3650,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
@@ -3795,7 +3795,7 @@ impl Clone for ClipboardItemAbi<VmAbi> {
 impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3829,7 +3829,7 @@ impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::ClipboardItem")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3966,7 +3966,7 @@ impl Clone for ClipboardItemDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4000,7 +4000,7 @@ impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::ClipboardItemDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4143,7 +4143,7 @@ impl Clone for ClipboardItemRepresentationAbi<VmAbi> {
 impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4195,7 +4195,7 @@ impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::ClipboardItemRepresentation")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4361,7 +4361,7 @@ impl Clone for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4407,7 +4407,7 @@ impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::ClipboardItemRepresentationDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4560,7 +4560,7 @@ impl Clone for DisplayDragItemDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4607,7 +4607,7 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::DisplayDragItemDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4743,7 +4743,7 @@ pub type DisplayDragPositionVm = DisplayDragPosition;
 impl VmAggregateCodec for DisplayDragPosition {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4774,7 +4774,7 @@ impl VmAggregateCodec for DisplayDragPosition {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::DisplayDragPosition")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4869,7 +4869,7 @@ impl Clone for DisplayDragTransferAbi<VmAbi> {
 impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4918,7 +4918,7 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::DisplayDragTransfer")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5128,7 +5128,7 @@ pub type InputAxisMetadataVm = InputAxisMetadata;
 impl VmAggregateCodec for InputAxisMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5173,7 +5173,7 @@ impl VmAggregateCodec for InputAxisMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputAxisMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5255,7 +5255,7 @@ pub type InputButtonMetadataVm = InputButtonMetadata;
 impl VmAggregateCodec for InputButtonMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5288,7 +5288,7 @@ impl VmAggregateCodec for InputButtonMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputButtonMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5381,7 +5381,7 @@ impl Clone for InputClipboardCommandEventAbi<VmAbi> {
 impl VmAggregateCodec for InputClipboardCommandEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5426,7 +5426,7 @@ impl VmAggregateCodec for InputClipboardCommandEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputClipboardCommandEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5596,7 +5596,7 @@ impl Clone for InputCompositionEventAbi<VmAbi> {
 impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5636,7 +5636,7 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputCompositionEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5774,7 +5774,7 @@ impl Clone for InputCompositionEventPayloadAbi<VmAbi> {
 impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5815,7 +5815,7 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputCompositionEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5988,7 +5988,7 @@ impl Clone for InputDeviceCapabilitiesAbi<VmAbi> {
 impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6099,7 +6099,7 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputDeviceCapabilities")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6755,7 +6755,7 @@ impl Clone for InputDeviceDescriptorAbi<VmAbi> {
 impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6865,7 +6865,7 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputDeviceDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7267,7 +7267,7 @@ impl Clone for InputDeviceEventAbi<VmAbi> {
 impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7307,7 +7307,7 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputDeviceEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7415,7 +7415,7 @@ pub type InputDeviceEventPayloadVm = InputDeviceEventPayload;
 impl VmAggregateCodec for InputDeviceEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7452,7 +7452,7 @@ impl VmAggregateCodec for InputDeviceEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputDeviceEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7558,7 +7558,7 @@ impl Clone for InputEditIntentEventAbi<VmAbi> {
 impl VmAggregateCodec for InputEditIntentEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7614,7 +7614,7 @@ impl VmAggregateCodec for InputEditIntentEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputEditIntentEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -7843,7 +7843,7 @@ impl Clone for InputEventMetadataAbi<VmAbi> {
 impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -7885,7 +7885,7 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8006,7 +8006,7 @@ pub type InputGamepadBatteryStatusVm = InputGamepadBatteryStatus;
 impl VmAggregateCodec for InputGamepadBatteryStatus {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8041,7 +8041,7 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadBatteryStatus")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8111,7 +8111,7 @@ pub type InputGamepadButtonStateVm = InputGamepadButtonState;
 impl VmAggregateCodec for InputGamepadButtonState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8147,7 +8147,7 @@ impl VmAggregateCodec for InputGamepadButtonState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadButtonState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8240,7 +8240,7 @@ impl Clone for InputGamepadEventAbi<VmAbi> {
 impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8280,7 +8280,7 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8401,7 +8401,7 @@ pub type InputGamepadEventPayloadVm = InputGamepadEventPayload;
 impl VmAggregateCodec for InputGamepadEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8455,7 +8455,7 @@ impl VmAggregateCodec for InputGamepadEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8568,7 +8568,7 @@ pub type InputGamepadMotionStateVm = InputGamepadMotionState;
 impl VmAggregateCodec for InputGamepadMotionState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8625,7 +8625,7 @@ impl VmAggregateCodec for InputGamepadMotionState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadMotionState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -8793,7 +8793,7 @@ impl Clone for InputGamepadStateAbi<VmAbi> {
 impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -8909,7 +8909,7 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9389,7 +9389,7 @@ pub type InputGamepadTouchStateVm = InputGamepadTouchState;
 impl VmAggregateCodec for InputGamepadTouchState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9429,7 +9429,7 @@ impl VmAggregateCodec for InputGamepadTouchState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputGamepadTouchState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9515,7 +9515,7 @@ pub type InputHapticEffectParametersVm = InputHapticEffectParameters;
 impl VmAggregateCodec for InputHapticEffectParameters {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9560,7 +9560,7 @@ impl VmAggregateCodec for InputHapticEffectParameters {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputHapticEffectParameters")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9671,7 +9671,7 @@ impl Clone for InputKeyEventAbi<VmAbi> {
 impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9711,7 +9711,7 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputKeyEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -9851,7 +9851,7 @@ impl Clone for InputKeyEventPayloadAbi<VmAbi> {
 impl VmAggregateCodec for InputKeyEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -9917,7 +9917,7 @@ impl VmAggregateCodec for InputKeyEventPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputKeyEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10150,7 +10150,7 @@ impl Clone for InputKeyboardLayoutInfoAbi<VmAbi> {
 impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10196,7 +10196,7 @@ impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputKeyboardLayoutInfo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10368,7 +10368,7 @@ impl Clone for InputKeyboardStateAbi<VmAbi> {
 impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10437,7 +10437,7 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputKeyboardState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10725,7 +10725,7 @@ pub type InputModifierStateVm = InputModifierState;
 impl VmAggregateCodec for InputModifierState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10788,7 +10788,7 @@ impl VmAggregateCodec for InputModifierState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputModifierState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -10922,7 +10922,7 @@ impl Clone for InputMonitorChangeEventAbi<VmAbi> {
 impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -10958,7 +10958,7 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputMonitorChangeEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11078,7 +11078,7 @@ impl Clone for InputMonitorConnectEventAbi<VmAbi> {
 impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11114,7 +11114,7 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputMonitorConnectEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11234,7 +11234,7 @@ impl Clone for InputMonitorDisconnectEventAbi<VmAbi> {
 impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11270,7 +11270,7 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputMonitorDisconnectEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11398,7 +11398,7 @@ impl Clone for InputMonitorEventMetadataAbi<VmAbi> {
 impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11447,7 +11447,7 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputMonitorEventMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11611,7 +11611,7 @@ pub type InputPenStateVm = InputPenState;
 impl VmAggregateCodec for InputPenState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11672,7 +11672,7 @@ impl VmAggregateCodec for InputPenState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPenState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11807,7 +11807,7 @@ impl Clone for InputPointerButtonEventAbi<VmAbi> {
 impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -11847,7 +11847,7 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerButtonEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -11984,7 +11984,7 @@ pub type InputPointerButtonEventPayloadVm = InputPointerButtonEventPayload;
 impl VmAggregateCodec for InputPointerButtonEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12062,7 +12062,7 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerButtonEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12194,7 +12194,7 @@ pub type InputPointerContactGeometryVm = InputPointerContactGeometry;
 impl VmAggregateCodec for InputPointerContactGeometry {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12227,7 +12227,7 @@ impl VmAggregateCodec for InputPointerContactGeometry {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerContactGeometry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12316,7 +12316,7 @@ impl Clone for InputPointerMotionEventAbi<VmAbi> {
 impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12356,7 +12356,7 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerMotionEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12516,7 +12516,7 @@ impl Clone for InputPointerMotionEventPayloadAbi<VmAbi> {
 impl VmAggregateCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12600,7 +12600,7 @@ impl VmAggregateCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerMotionEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -12919,7 +12919,7 @@ pub type InputPointerMotionSampleVm = InputPointerMotionSample;
 impl VmAggregateCodec for InputPointerMotionSample {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -12975,7 +12975,7 @@ impl VmAggregateCodec for InputPointerMotionSample {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerMotionSample")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13121,7 +13121,7 @@ impl Clone for InputPointerStateAbi<VmAbi> {
 impl VmAggregateCodec for InputPointerStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13200,7 +13200,7 @@ impl VmAggregateCodec for InputPointerStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputPointerState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13497,7 +13497,7 @@ impl Clone for InputRawHidReportAbi<VmAbi> {
 impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13536,7 +13536,7 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputRawHidReport")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13665,7 +13665,7 @@ impl Clone for InputScrollEventAbi<VmAbi> {
 impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13705,7 +13705,7 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputScrollEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -13827,7 +13827,7 @@ pub type InputScrollEventPayloadVm = InputScrollEventPayload;
 impl VmAggregateCodec for InputScrollEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -13892,7 +13892,7 @@ impl VmAggregateCodec for InputScrollEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputScrollEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14007,7 +14007,7 @@ pub type InputSensorConfigVm = InputSensorConfig;
 impl VmAggregateCodec for InputSensorConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14046,7 +14046,7 @@ impl VmAggregateCodec for InputSensorConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14128,7 +14128,7 @@ pub type InputSensorDescriptorVm = InputSensorDescriptor;
 impl VmAggregateCodec for InputSensorDescriptor {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14171,7 +14171,7 @@ impl VmAggregateCodec for InputSensorDescriptor {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorDescriptor")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14257,7 +14257,7 @@ pub type InputSensorEffectiveConfigVm = InputSensorEffectiveConfig;
 impl VmAggregateCodec for InputSensorEffectiveConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14296,7 +14296,7 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorEffectiveConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14395,7 +14395,7 @@ impl Clone for InputSensorEventAbi<VmAbi> {
 impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14435,7 +14435,7 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14551,7 +14551,7 @@ pub type InputSensorEventPayloadVm = InputSensorEventPayload;
 impl VmAggregateCodec for InputSensorEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14596,7 +14596,7 @@ impl VmAggregateCodec for InputSensorEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14695,7 +14695,7 @@ pub type InputSensorSampleVm = InputSensorSample;
 impl VmAggregateCodec for InputSensorSample {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14740,7 +14740,7 @@ impl VmAggregateCodec for InputSensorSample {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputSensorSample")
             .map_err(Box::<RuntimeError>::from)?;
@@ -14851,7 +14851,7 @@ impl Clone for InputTextEventAbi<VmAbi> {
 impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -14891,7 +14891,7 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15015,7 +15015,7 @@ impl Clone for InputTextEventPayloadAbi<VmAbi> {
 impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15049,7 +15049,7 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15139,7 +15139,7 @@ pub type InputTextGeometryVm = InputTextGeometry;
 impl VmAggregateCodec for InputTextGeometry {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15186,7 +15186,7 @@ impl VmAggregateCodec for InputTextGeometry {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextGeometry")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15272,7 +15272,7 @@ pub type InputTextRangeVm = InputTextRange;
 impl VmAggregateCodec for InputTextRange {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15305,7 +15305,7 @@ impl VmAggregateCodec for InputTextRange {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextRange")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15376,7 +15376,7 @@ pub type InputTextRectangleVm = InputTextRectangle;
 impl VmAggregateCodec for InputTextRectangle {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15413,7 +15413,7 @@ impl VmAggregateCodec for InputTextRectangle {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextRectangle")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15491,7 +15491,7 @@ pub type InputTextSessionConfigVm = InputTextSessionConfig;
 impl VmAggregateCodec for InputTextSessionConfig {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15532,7 +15532,7 @@ impl VmAggregateCodec for InputTextSessionConfig {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextSessionConfig")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15634,7 +15634,7 @@ impl Clone for InputTextSessionStateAbi<VmAbi> {
 impl VmAggregateCodec for InputTextSessionStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15674,7 +15674,7 @@ impl VmAggregateCodec for InputTextSessionStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextSessionState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15807,7 +15807,7 @@ impl Clone for InputTextSessionStateEventAbi<VmAbi> {
 impl VmAggregateCodec for InputTextSessionStateEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15846,7 +15846,7 @@ impl VmAggregateCodec for InputTextSessionStateEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextSessionStateEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -15954,7 +15954,7 @@ pub type InputTextTransform2DVm = InputTextTransform2D;
 impl VmAggregateCodec for InputTextTransform2D {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -15993,7 +15993,7 @@ impl VmAggregateCodec for InputTextTransform2D {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTextTransform2D")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16089,7 +16089,7 @@ pub type InputTouchContactStateVm = InputTouchContactState;
 impl VmAggregateCodec for InputTouchContactState {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16142,7 +16142,7 @@ impl VmAggregateCodec for InputTouchContactState {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTouchContactState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16260,7 +16260,7 @@ impl Clone for InputTouchEventAbi<VmAbi> {
 impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16300,7 +16300,7 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTouchEvent")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16421,7 +16421,7 @@ pub type InputTouchEventPayloadVm = InputTouchEventPayload;
 impl VmAggregateCodec for InputTouchEventPayload {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16486,7 +16486,7 @@ impl VmAggregateCodec for InputTouchEventPayload {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTouchEventPayload")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16622,7 +16622,7 @@ impl Clone for InputTouchStateAbi<VmAbi> {
 impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16664,7 +16664,7 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputTouchState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16784,7 +16784,7 @@ pub type InputWindowTargetVm = InputWindowTarget;
 impl VmAggregateCodec for InputWindowTarget {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16816,7 +16816,7 @@ impl VmAggregateCodec for InputWindowTarget {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::InputWindowTarget")
             .map_err(Box::<RuntimeError>::from)?;
@@ -16903,7 +16903,7 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -16938,7 +16938,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::OsPathBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -17045,7 +17045,7 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -17080,7 +17080,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("input::OsPathUtf16")
             .map_err(Box::<RuntimeError>::from)?;

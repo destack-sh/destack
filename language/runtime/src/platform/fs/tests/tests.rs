@@ -380,7 +380,7 @@ fn path_ref_string_vm(
 /// Decode a VM directory entry from an aggregate value.
 fn decode_dirent_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
+    value: vm::Word,
 ) -> RuntimeResult<DirentVm> {
     DirentVm::decode_with_context(&context.read(), value)
 }
@@ -388,21 +388,18 @@ fn decode_dirent_vm(
 /// Decode a VM watch event from an aggregate value.
 fn decode_watch_event_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
+    value: vm::Word,
 ) -> RuntimeResult<WatchEventVm> {
     WatchEventVm::decode_with_context(&context.read(), value)
 }
 
 fn decode_string_value(
-    _context: &vm::ExternalCallContext<'_>,
-    value: vm::Value,
+    context: &vm::ExternalCallContext<'_>,
+    value: vm::Word,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::HeapReference {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type("string", "string")).boxed(),
-        );
-    }
-    Ok(vm::StringHandle::new(value))
+    context.read().string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type("string", "string")).boxed()
+    })
 }
 
 #[cfg(unix)]

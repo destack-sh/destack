@@ -60,7 +60,7 @@ impl<'call> AudioHarnessContext<'call> {
         HarnessValue::Vm(vm)
     }
 
-    /// Encode one materialized value into one native or VM harness payload.
+    /// Encode one value into one native or VM harness payload.
     pub(crate) fn harness_value_from<Native, Vm>(
         &mut self,
         value: Native::Value,
@@ -82,7 +82,7 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Decode one native or VM harness payload into one materialized value.
+    /// Decode one native or VM harness payload into one value.
     pub(crate) fn harness_value_into<Native, Vm>(
         &mut self,
         value: HarnessValue<Native, Vm>,

@@ -32,7 +32,7 @@ pub enum SecurityPolicyMode {
 }
 
 impl VmValueCodec for SecurityPolicyMode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Allow,
@@ -49,7 +49,7 @@ impl VmValueCodec for SecurityPolicyMode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -125,7 +125,7 @@ impl Clone for SecurityPolicyRuleAbi<VmAbi> {
 impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -160,7 +160,7 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("security::SecurityPolicyRule")
             .map_err(Box::<RuntimeError>::from)?;

@@ -248,7 +248,7 @@ fn vm_slice_of_slices(
     }
 
     Ok(VmSlice {
-        data: vm::Value::heap_reference(data),
+        data: vm::Word::heap_reference(data),
         len: slices.len() as u32,
         _marker: std::marker::PhantomData::<VmSlice<u8>>,
     })

@@ -28,11 +28,11 @@ pub struct TimerFlags(
 pub type TimerFlagsVm = TimerFlags;
 
 impl VmValueCodec for TimerFlags {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
@@ -91,7 +91,7 @@ pub enum ClockId {
 }
 
 impl VmValueCodec for ClockId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Wall,
@@ -111,7 +111,7 @@ impl VmValueCodec for ClockId {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -166,7 +166,7 @@ pub enum ClockSource {
 }
 
 impl VmValueCodec for ClockSource {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Realtime,
@@ -184,7 +184,7 @@ impl VmValueCodec for ClockSource {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -235,7 +235,7 @@ pub enum SleepClock {
 }
 
 impl VmValueCodec for SleepClock {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Wall,
@@ -251,7 +251,7 @@ impl VmValueCodec for SleepClock {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -302,7 +302,7 @@ pub enum TimerClock {
 }
 
 impl VmValueCodec for TimerClock {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Wall,
@@ -318,7 +318,7 @@ impl VmValueCodec for TimerClock {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -377,7 +377,7 @@ pub type ClockMetadataVm = ClockMetadata;
 impl VmAggregateCodec for ClockMetadata {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -416,7 +416,7 @@ impl VmAggregateCodec for ClockMetadata {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("time::ClockMetadata")
             .map_err(Box::<RuntimeError>::from)?;
@@ -493,7 +493,7 @@ pub type TimerOptionsVm = TimerOptions;
 impl VmAggregateCodec for TimerOptions {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -526,7 +526,7 @@ impl VmAggregateCodec for TimerOptions {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("time::TimerOptions")
             .map_err(Box::<RuntimeError>::from)?;

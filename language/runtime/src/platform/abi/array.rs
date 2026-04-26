@@ -73,7 +73,7 @@ impl<T> NativeArray<T> {
 #[derive(Debug, Clone, Copy)]
 pub struct VmArray<T> {
     /// Backing storage for the element payload.
-    pub data: vm::Value,
+    pub data: vm::Word,
     /// Number of elements in the array.
     pub len: u32,
     /// Allocated capacity in elements.
@@ -93,7 +93,7 @@ impl<T> VmArray<T> {
     /// Decode a VM array from one array value.
     pub fn from_value(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
         name: &str,
         expected: &str,
     ) -> RuntimeResult<Self> {
@@ -120,14 +120,7 @@ impl<T> VmArray<T> {
         })?;
         let slice = VmSlice::<T>::from_value(context, slice_value, name, expected)?;
 
-        let (capacity, capacity_width) = capacity_value.as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
-        })?;
-        if capacity_width != usize::BITS as u8 {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-            );
-        }
+        let capacity = capacity_value.as_uint();
         Ok(Self {
             data: slice.data,
             len: slice.len,
@@ -140,7 +133,7 @@ impl<T> VmArray<T> {
     pub fn to_value(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let slice = VmSlice {
             data: self.data,
             len: self.len,
@@ -159,7 +152,7 @@ impl<T: VmCollectionElement> VmArray<T> {
     pub fn values(
         &self,
         context: &vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Vec<vm::Value>> {
+    ) -> RuntimeResult<Vec<vm::Word>> {
         VmSlice {
             data: self.data,
             len: self.len,
@@ -274,7 +267,7 @@ impl<T: VmCollectionElement> VmArray<T> {
 impl<T: Copy> VmAggregateCodec for VmArray<T> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         VmArray::from_value(context, value, "value", "array")
     }
@@ -294,14 +287,7 @@ impl<T: Copy> VmAggregateCodec for VmArray<T> {
         let capacity_value = value_ref
             .field_value(1)
             .map_err(Box::<RuntimeError>::from)?;
-        let (capacity, capacity_width) = capacity_value.as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("value", "array")).boxed()
-        })?;
-        if capacity_width != usize::BITS as u8 {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("value", "array")).boxed(),
-            );
-        }
+        let capacity = capacity_value.as_uint();
 
         Ok(Self {
             data: slice.data,
@@ -314,7 +300,7 @@ impl<T: Copy> VmAggregateCodec for VmArray<T> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         self.to_value(context)
     }
 }

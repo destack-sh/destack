@@ -218,7 +218,7 @@ pub enum PlatformErrorCode {
 }
 
 impl VmValueCodec for PlatformErrorCode {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1000i32 => Self::InvalidArgument,
@@ -328,7 +328,7 @@ impl VmValueCodec for PlatformErrorCode {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
@@ -427,7 +427,7 @@ impl Clone for PlatformErrorContextAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -538,7 +538,7 @@ impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::PlatformErrorContextAudio(value) => {
                 let tag_value =
@@ -1220,7 +1220,7 @@ impl Clone for PlatformPathPayloadAbi<VmAbi> {
 impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1266,7 +1266,7 @@ impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::PlatformPathPayloadBytes(value) => {
                 let tag_value =
@@ -1436,7 +1436,7 @@ impl Clone for PlatformSystemSourceAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1502,7 +1502,7 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         match self {
             Self::PlatformSystemSourceEai(value) => {
                 let tag_value =
@@ -1833,7 +1833,7 @@ impl Clone for PlatformErrorAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -1883,7 +1883,7 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformError")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2060,7 +2060,7 @@ impl Clone for PlatformErrorContextAudioAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2101,7 +2101,7 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextAudio")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2239,7 +2239,7 @@ impl Clone for PlatformErrorContextDeviceAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2290,7 +2290,7 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextDevice")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2462,7 +2462,7 @@ impl Clone for PlatformErrorContextDisplayAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2503,7 +2503,7 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextDisplay")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2639,7 +2639,7 @@ impl Clone for PlatformErrorContextFfiAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2685,7 +2685,7 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextFfi")
             .map_err(Box::<RuntimeError>::from)?;
@@ -2838,7 +2838,7 @@ impl Clone for PlatformErrorContextGenericAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -2889,7 +2889,7 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextGeneric")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3062,7 +3062,7 @@ impl Clone for PlatformErrorContextGpuAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3103,7 +3103,7 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextGpu")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3245,7 +3245,7 @@ impl Clone for PlatformErrorContextIoAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3304,7 +3304,7 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextIo")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3508,7 +3508,7 @@ impl Clone for PlatformErrorContextIoDriverAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3552,7 +3552,7 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextIoDriver")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3700,7 +3700,7 @@ impl Clone for PlatformErrorContextIpcAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3749,7 +3749,7 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextIpc")
             .map_err(Box::<RuntimeError>::from)?;
@@ -3917,7 +3917,7 @@ impl Clone for PlatformErrorContextNetAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -3966,7 +3966,7 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextNet")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4136,7 +4136,7 @@ impl Clone for PlatformErrorContextProcessAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4183,7 +4183,7 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextProcess")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4338,7 +4338,7 @@ impl Clone for PlatformErrorContextResourceAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4382,7 +4382,7 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextResource")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4535,7 +4535,7 @@ impl Clone for PlatformErrorContextSecurityAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4581,7 +4581,7 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextSecurity")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4736,7 +4736,7 @@ impl Clone for PlatformErrorContextThreadAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4775,7 +4775,7 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextThread")
             .map_err(Box::<RuntimeError>::from)?;
@@ -4904,7 +4904,7 @@ impl Clone for PlatformErrorContextTimerAbi<VmAbi> {
 impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -4946,7 +4946,7 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformErrorContextTimer")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5082,7 +5082,7 @@ impl Clone for PlatformPathPayloadBytesAbi<VmAbi> {
 impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5116,7 +5116,7 @@ impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformPathPayloadBytes")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5223,7 +5223,7 @@ impl Clone for PlatformPathPayloadUtf16Abi<VmAbi> {
 impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5257,7 +5257,7 @@ impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformPathPayloadUtf16")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5366,7 +5366,7 @@ impl Clone for PlatformSystemSourceEaiAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5404,7 +5404,7 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceEai")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5524,7 +5524,7 @@ impl Clone for PlatformSystemSourceErrnoAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5562,7 +5562,7 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceErrno")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5682,7 +5682,7 @@ impl Clone for PlatformSystemSourceHResultAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5720,7 +5720,7 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceHResult")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5840,7 +5840,7 @@ impl Clone for PlatformSystemSourceOtherAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -5878,7 +5878,7 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceOther")
             .map_err(Box::<RuntimeError>::from)?;
@@ -5998,7 +5998,7 @@ impl Clone for PlatformSystemSourceSignalAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6036,7 +6036,7 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceSignal")
             .map_err(Box::<RuntimeError>::from)?;
@@ -6156,7 +6156,7 @@ impl Clone for PlatformSystemSourceWinsockAbi<VmAbi> {
 impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -6194,7 +6194,7 @@ impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("error::PlatformSystemSourceWinsock")
             .map_err(Box::<RuntimeError>::from)?;

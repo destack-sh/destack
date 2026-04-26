@@ -52,7 +52,7 @@ impl<'a> ModuleCodegen<'a> {
     /// Render the return encoding lines for one binding type.
     pub(super) fn render_return_encode_lines(&self, binding_type: &BindingType) -> Vec<String> {
         if matches!(binding_type, BindingType::Void) {
-            return vec!["result.map(|_| vm::Value::VOID)".to_string()];
+            return vec!["result.map(|_| vm::Word::VOID)".to_string()];
         }
 
         let expr = self.render_encode_expr(binding_type, "value");
@@ -68,18 +68,18 @@ impl<'a> ModuleCodegen<'a> {
         value_expr: &str,
     ) -> String {
         match binding_type {
-            BindingType::Void => "Ok(vm::Value::VOID)".to_string(),
-            BindingType::Bool => format!("Ok(vm::Value::bool({value_expr}))"),
-            BindingType::Int(64) => format!("Ok(vm::Value::int({value_expr}, 64))"),
+            BindingType::Void => "Ok(vm::Word::VOID)".to_string(),
+            BindingType::Bool => format!("Ok(vm::Word::bool({value_expr}))"),
+            BindingType::Int(64) => format!("Ok(vm::Word::int({value_expr}, 64))"),
             BindingType::Int(bits) => {
-                format!("Ok(vm::Value::int({value_expr} as i64, {bits}))")
+                format!("Ok(vm::Word::int({value_expr} as i64, {bits}))")
             }
-            BindingType::UInt(64) => format!("Ok(vm::Value::uint({value_expr}, 64))"),
+            BindingType::UInt(64) => format!("Ok(vm::Word::uint({value_expr}, 64))"),
             BindingType::UInt(bits) => {
-                format!("Ok(vm::Value::uint({value_expr} as u64, {bits}))")
+                format!("Ok(vm::Word::uint({value_expr} as u64, {bits}))")
             }
-            BindingType::Float(32) => format!("Ok(vm::Value::float32({value_expr}))"),
-            BindingType::Float(64) => format!("Ok(vm::Value::float64({value_expr}))"),
+            BindingType::Float(32) => format!("Ok(vm::Word::float32({value_expr}))"),
+            BindingType::Float(64) => format!("Ok(vm::Word::float64({value_expr}))"),
             BindingType::Float(width) => panic!("unsupported float width for VM binding: {width}"),
             BindingType::String => format!("Ok({value_expr}.value())"),
             BindingType::StringSlice | BindingType::Slice(_) | BindingType::Array(_) => {
@@ -88,7 +88,7 @@ impl<'a> ModuleCodegen<'a> {
             BindingType::Optional(inner) => {
                 let some_expr = self.render_encode_expr(inner, "value");
                 format!(
-                    "match {value_expr} {{ Some(value) => {some_expr}, None => Ok(vm::Value::VOID) }}"
+                    "match {value_expr} {{ Some(value) => {some_expr}, None => Ok(vm::Word::VOID) }}"
                 )
             }
             BindingType::Newtype {
@@ -146,7 +146,7 @@ impl<'a> ModuleCodegen<'a> {
                     let encoded_expr = self.render_encode_expr(&field.binding_type, &field_expr);
                     let local_name = format!("field_{index}");
                     lines.push(format!(
-                        "let {local_name}: RuntimeResult<vm::Value> = {encoded_expr};"
+                        "let {local_name}: RuntimeResult<vm::Word> = {encoded_expr};"
                     ));
                     encoded_fields.push(format!("{local_name}?"));
                 }
@@ -175,7 +175,7 @@ impl<'a> ModuleCodegen<'a> {
                     let tag = Self::tagged_union_variant_tag(name, variant.name.as_str());
                     let payload_expr = self.render_encode_expr(&variant.binding_type, "value");
                     arms.push(format!(
-                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?; value_builder.write_field(0, tag_value).map_err(Box::<RuntimeError>::from)?; value_builder.write_field(1, payload_value).map_err(Box::<RuntimeError>::from)?; value_builder.finish().map_err(Box::<RuntimeError>::from) }}",
+                        "{union_type}::{}(value) => {{ let tag_value = vm::Word::uint({tag}u64, 32); let payload_value = {payload_expr}?; let mut value_builder = context.begin_named_aggregate_builder(\"{}\").map_err(Box::<RuntimeError>::from)?; value_builder.write_field(0, tag_value).map_err(Box::<RuntimeError>::from)?; value_builder.write_field(1, payload_value).map_err(Box::<RuntimeError>::from)?; value_builder.finish().map_err(Box::<RuntimeError>::from) }}",
                         variant.name
                         ,
                         self.escape_rust_string(&metadata_name)
@@ -249,9 +249,7 @@ impl<'a> ModuleCodegen<'a> {
             BindingType::Optional(inner) => {
                 let inner_name = format!("{name}_inner");
                 let mut lines = Vec::new();
-                lines.push(format!(
-                    "let {name} = if {value_expr}.tag() == vm::ValueTag::Void {{"
-                ));
+                lines.push(format!("let {name} = if {value_expr} == vm::Word::VOID {{"));
                 lines.push("    None".to_string());
                 lines.push("} else {".to_string());
                 lines.extend(

@@ -30,11 +30,11 @@ pub struct RandomStream(
 pub type RandomStreamVm = RandomStream;
 
 impl VmValueCodec for RandomStream {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -85,7 +85,7 @@ pub enum RandomStreamDomain {
 }
 
 impl VmValueCodec for RandomStreamDomain {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Process,
@@ -101,7 +101,7 @@ impl VmValueCodec for RandomStreamDomain {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -158,7 +158,7 @@ pub enum SecureRandomSource {
 }
 
 impl VmValueCodec for SecureRandomSource {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1u8 => Self::Kernel,
@@ -177,7 +177,7 @@ impl VmValueCodec for SecureRandomSource {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
@@ -253,7 +253,7 @@ impl Clone for RandomStreamStateAbi<VmAbi> {
 impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -286,7 +286,7 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("random::RandomStreamState")
             .map_err(Box::<RuntimeError>::from)?;
@@ -402,7 +402,7 @@ impl Clone for SecureRandomMetadataAbi<VmAbi> {
 impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -452,7 +452,7 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("random::SecureRandomMetadata")
             .map_err(Box::<RuntimeError>::from)?;

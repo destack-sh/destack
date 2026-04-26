@@ -32,7 +32,7 @@ pub enum BackendSupport {
 }
 
 impl VmValueCodec for BackendSupport {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0i32 => Self::Available,
@@ -50,7 +50,7 @@ impl VmValueCodec for BackendSupport {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }

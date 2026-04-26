@@ -48,7 +48,7 @@ impl<T> NativeSlice<T> {
 #[derive(Debug, Clone, Copy)]
 pub struct VmSlice<T> {
     /// Backing storage for the element payload.
-    pub data: vm::Value,
+    pub data: vm::Word,
     /// Number of elements in the slice.
     pub len: u32,
     /// Marker for the element type.
@@ -59,7 +59,7 @@ pub struct VmSlice<T> {
 #[derive(Debug)]
 pub(crate) struct VmSliceBuilder<T> {
     /// Backing storage for the final element payload.
-    data: vm::Value,
+    data: vm::Word,
     /// Number of elements expected in the slice.
     len: u32,
     /// Number of elements written so far.
@@ -94,7 +94,7 @@ impl<T> VmSlice<T> {
     /// Decode a VM slice from one typed slice value.
     pub fn from_value(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
         name: &str,
         expected: &str,
     ) -> RuntimeResult<Self> {
@@ -120,14 +120,7 @@ impl<T> VmSlice<T> {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
 
-        let (len, width) = len_value.as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
-        })?;
-        if width != usize::BITS as u8 {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-            );
-        }
+        let len = len_value.as_uint();
 
         Ok(Self {
             data: data_value,
@@ -140,7 +133,7 @@ impl<T> VmSlice<T> {
     pub fn to_value(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         context
             .materialize_builtin_slice_value(self.data, self.len as usize)
             .map_err(|error| RuntimeError::from(error).boxed())
@@ -152,7 +145,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
     pub fn values(
         &self,
         context: &vm::ExternalReadContext<'_, '_>,
-    ) -> RuntimeResult<Vec<vm::Value>> {
+    ) -> RuntimeResult<Vec<vm::Word>> {
         // empty collections do not touch backing storage
         if self.len == 0 {
             return Ok(Vec::new());
@@ -160,13 +153,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
         // route byte payloads through raw byte storage
         if is_byte_element_type::<T>() {
-            let data = self.data.as_raw_pointer().ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument_type(
-                    "slice",
-                    "raw byte storage",
-                ))
-                .boxed()
-            })?;
+            let data = self.data.as_raw_pointer();
             let values = context
                 .raw_values(data)
                 .map_err(|error| RuntimeError::from(error).boxed())?;
@@ -182,13 +169,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
             return Ok(values);
         }
 
-        let data = self.data.as_heap_reference().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "heap value storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_heap_reference();
         let values = context
             .heap_values(data)
             .map_err(|error| RuntimeError::from(error).boxed())?;
@@ -214,9 +195,9 @@ impl<T: VmCollectionElement> VmSlice<T> {
         // empty collections use one null backing pointer
         if len == 0 {
             let data = if is_byte_element_type::<T>() {
-                vm::Value::raw_pointer(vm::RawPointer::NULL)
+                vm::Word::raw_pointer(vm::RawPointer::NULL)
             } else {
-                vm::Value::heap_reference(vm::HeapReference::NULL)
+                vm::Word::heap_reference(vm::HeapReference::NULL)
             };
 
             return Ok(VmSliceBuilder {
@@ -234,7 +215,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
                 .map_err(|error| RuntimeError::from(error).boxed())?;
 
             return Ok(VmSliceBuilder {
-                data: vm::Value::raw_pointer(data),
+                data: vm::Word::raw_pointer(data),
                 len: len_u32,
                 written: 0,
                 _marker: PhantomData,
@@ -246,7 +227,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
             .map_err(|error| RuntimeError::from(error).boxed())?;
 
         Ok(VmSliceBuilder {
-            data: vm::Value::heap_reference(data),
+            data: vm::Word::heap_reference(data),
             len: len_u32,
             written: 0,
             _marker: PhantomData,
@@ -274,13 +255,7 @@ impl<T: VmCollectionElement> VmSliceBuilder<T> {
         if is_byte_element_type::<T>() {
             // safety: the type check above guarantees `T` is exactly `u8`
             let byte = unsafe { std::mem::transmute_copy::<T, u8>(&value) };
-            let data = self.data.as_raw_pointer().ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument_type(
-                    "slice",
-                    "raw byte storage",
-                ))
-                .boxed()
-            })?;
+            let data = self.data.as_raw_pointer();
             context
                 .write_raw_byte(data, self.written, byte)
                 .map_err(|error| RuntimeError::from(error).boxed())?;
@@ -290,13 +265,7 @@ impl<T: VmCollectionElement> VmSliceBuilder<T> {
         }
 
         let value = T::encode_with_context(value, context)?;
-        let data = self.data.as_heap_reference().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "heap value storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_heap_reference();
         context
             .write_heap_value(data, self.written, value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
@@ -383,7 +352,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 
         // validate the packed heap value length first
         let expected_byte_len = (self.len as usize)
-            .checked_mul(vm::Value::BYTE_LEN)
+            .checked_mul(vm::Word::BYTE_LEN)
             .ok_or_else(|| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "slice",
@@ -391,19 +360,13 @@ impl<T: VmCollectionElement> VmSlice<T> {
                 ))
                 .boxed()
             })?;
-        let data = self.data.as_heap_reference().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "heap value storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_heap_reference();
         let values = context
             .heap_values(data)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         let byte_len = values
             .len()
-            .checked_mul(vm::Value::BYTE_LEN)
+            .checked_mul(vm::Word::BYTE_LEN)
             .ok_or_else(|| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "slice",
@@ -538,13 +501,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
         }
 
         // encode each packed element directly into the existing heap storage
-        let data = self.data.as_heap_reference().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "heap value storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_heap_reference();
         for (index, value) in values.iter().copied().enumerate() {
             let encoded = T::encode_with_context(value, context)?;
             context
@@ -559,7 +516,7 @@ impl<T: VmCollectionElement> VmSlice<T> {
 impl<T: Copy> VmAggregateCodec for VmSlice<T> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         VmSlice::from_value(context, value, "value", "slice")
     }
@@ -589,7 +546,7 @@ impl<T: Copy> VmAggregateCodec for VmSlice<T> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         self.to_value(context)
     }
 }
@@ -612,7 +569,7 @@ impl VmSlice<u8> {
         };
 
         Ok(Self {
-            data: vm::Value::raw_pointer(data),
+            data: vm::Word::raw_pointer(data),
             len,
             _marker: PhantomData,
         })
@@ -629,13 +586,7 @@ impl VmSlice<u8> {
         }
 
         let expected_len = self.len as usize;
-        let data = self.data.as_raw_pointer().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "raw byte storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_raw_pointer();
 
         // prefer true byte storage when the raw allocation size matches
         if let Ok(byte_len) = context.raw_byte_len(data)
@@ -675,13 +626,7 @@ impl VmSlice<u8> {
         }
 
         let expected_len = self.len as usize;
-        let data = self.data.as_raw_pointer().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "slice",
-                "raw byte storage",
-            ))
-            .boxed()
-        })?;
+        let data = self.data.as_raw_pointer();
 
         // validate the logical byte length first
         if bytes.len() != expected_len {

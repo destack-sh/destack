@@ -31,11 +31,11 @@ pub struct PipeHandle(
 pub type PipeHandleVm = PipeHandle;
 
 impl VmValueCodec for PipeHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -86,11 +86,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -141,11 +141,11 @@ pub struct TransferredHandle(
 pub type TransferredHandleVm = TransferredHandle;
 
 impl VmValueCodec for TransferredHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -200,7 +200,7 @@ pub type MessageQueueReceiveVm = MessageQueueReceive;
 impl VmAggregateCodec for MessageQueueReceive {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -233,7 +233,7 @@ impl VmAggregateCodec for MessageQueueReceive {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::MessageQueueReceive")
             .map_err(Box::<RuntimeError>::from)?;
@@ -299,7 +299,7 @@ pub type PipePairVm = PipePair;
 impl VmAggregateCodec for PipePair {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -334,7 +334,7 @@ impl VmAggregateCodec for PipePair {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::PipePair")
             .map_err(Box::<RuntimeError>::from)?;
@@ -402,7 +402,7 @@ pub type SharedMemoryMappingVm = SharedMemoryMapping;
 impl VmAggregateCodec for SharedMemoryMapping {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -435,7 +435,7 @@ impl VmAggregateCodec for SharedMemoryMapping {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::SharedMemoryMapping")
             .map_err(Box::<RuntimeError>::from)?;
@@ -503,7 +503,7 @@ pub type UnixPeerCredentialsVm = UnixPeerCredentials;
 impl VmAggregateCodec for UnixPeerCredentials {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -539,7 +539,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::UnixPeerCredentials")
             .map_err(Box::<RuntimeError>::from)?;
@@ -633,7 +633,7 @@ impl Clone for UnixReceiveAncillaryAbi<VmAbi> {
 impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
             .value_ref(value)
@@ -673,7 +673,7 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
             .begin_named_aggregate_builder("ipc::UnixReceiveAncillary")
             .map_err(Box::<RuntimeError>::from)?;

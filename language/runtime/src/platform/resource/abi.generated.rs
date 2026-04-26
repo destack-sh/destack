@@ -30,11 +30,11 @@ pub struct AccessibilityActionHandle(
 pub type AccessibilityActionHandleVm = AccessibilityActionHandle;
 
 impl VmValueCodec for AccessibilityActionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -85,11 +85,11 @@ pub struct AccessibilityDocumentHandle(
 pub type AccessibilityDocumentHandleVm = AccessibilityDocumentHandle;
 
 impl VmValueCodec for AccessibilityDocumentHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -140,11 +140,11 @@ pub struct AudioDeviceHandle(
 pub type AudioDeviceHandleVm = AudioDeviceHandle;
 
 impl VmValueCodec for AudioDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -195,11 +195,11 @@ pub struct AudioEventHandle(
 pub type AudioEventHandleVm = AudioEventHandle;
 
 impl VmValueCodec for AudioEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -250,11 +250,11 @@ pub struct AudioStreamHandle(
 pub type AudioStreamHandleVm = AudioStreamHandle;
 
 impl VmValueCodec for AudioStreamHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -305,11 +305,11 @@ pub struct BackgroundEventHandle(
 pub type BackgroundEventHandleVm = BackgroundEventHandle;
 
 impl VmValueCodec for BackgroundEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -360,11 +360,11 @@ pub struct BluetoothAdapterWatchHandle(
 pub type BluetoothAdapterWatchHandleVm = BluetoothAdapterWatchHandle;
 
 impl VmValueCodec for BluetoothAdapterWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -415,11 +415,11 @@ pub struct BluetoothDeviceHandle(
 pub type BluetoothDeviceHandleVm = BluetoothDeviceHandle;
 
 impl VmValueCodec for BluetoothDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -470,11 +470,11 @@ pub struct BluetoothScanHandle(
 pub type BluetoothScanHandleVm = BluetoothScanHandle;
 
 impl VmValueCodec for BluetoothScanHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -525,11 +525,11 @@ pub struct BluetoothSubscriptionHandle(
 pub type BluetoothSubscriptionHandleVm = BluetoothSubscriptionHandle;
 
 impl VmValueCodec for BluetoothSubscriptionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -580,11 +580,11 @@ pub struct CameraDeviceHandle(
 pub type CameraDeviceHandleVm = CameraDeviceHandle;
 
 impl VmValueCodec for CameraDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -635,11 +635,11 @@ pub struct CameraStreamHandle(
 pub type CameraStreamHandleVm = CameraStreamHandle;
 
 impl VmValueCodec for CameraStreamHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -690,11 +690,11 @@ pub struct CameraWatchHandle(
 pub type CameraWatchHandleVm = CameraWatchHandle;
 
 impl VmValueCodec for CameraWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -745,11 +745,11 @@ pub struct CompletionHandle(
 pub type CompletionHandleVm = CompletionHandle;
 
 impl VmValueCodec for CompletionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -800,11 +800,11 @@ pub struct CryptoCertificateHandle(
 pub type CryptoCertificateHandleVm = CryptoCertificateHandle;
 
 impl VmValueCodec for CryptoCertificateHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -855,11 +855,11 @@ pub struct CryptoCipherHandle(
 pub type CryptoCipherHandleVm = CryptoCipherHandle;
 
 impl VmValueCodec for CryptoCipherHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -910,11 +910,11 @@ pub struct CryptoDigestHandle(
 pub type CryptoDigestHandleVm = CryptoDigestHandle;
 
 impl VmValueCodec for CryptoDigestHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -965,11 +965,11 @@ pub struct CryptoKeyHandle(
 pub type CryptoKeyHandleVm = CryptoKeyHandle;
 
 impl VmValueCodec for CryptoKeyHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1020,11 +1020,11 @@ pub struct CryptoMacHandle(
 pub type CryptoMacHandleVm = CryptoMacHandle;
 
 impl VmValueCodec for CryptoMacHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1075,11 +1075,11 @@ pub struct CryptoStoreHandle(
 pub type CryptoStoreHandleVm = CryptoStoreHandle;
 
 impl VmValueCodec for CryptoStoreHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1130,11 +1130,11 @@ pub struct DeviceHandle(
 pub type DeviceHandleVm = DeviceHandle;
 
 impl VmValueCodec for DeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1185,11 +1185,11 @@ pub struct DirectoryHandle(
 pub type DirectoryHandleVm = DirectoryHandle;
 
 impl VmValueCodec for DirectoryHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1240,11 +1240,11 @@ pub struct DisplayBeginFrameHandle(
 pub type DisplayBeginFrameHandleVm = DisplayBeginFrameHandle;
 
 impl VmValueCodec for DisplayBeginFrameHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1295,11 +1295,11 @@ pub struct DisplayDragSessionHandle(
 pub type DisplayDragSessionHandleVm = DisplayDragSessionHandle;
 
 impl VmValueCodec for DisplayDragSessionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1350,11 +1350,11 @@ pub struct DisplayEventHandle(
 pub type DisplayEventHandleVm = DisplayEventHandle;
 
 impl VmValueCodec for DisplayEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1405,11 +1405,11 @@ pub struct DisplayHandle(
 pub type DisplayHandleVm = DisplayHandle;
 
 impl VmValueCodec for DisplayHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1460,11 +1460,11 @@ pub struct DocumentHandle(
 pub type DocumentHandleVm = DocumentHandle;
 
 impl VmValueCodec for DocumentHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1515,11 +1515,11 @@ pub struct DocumentPickHandle(
 pub type DocumentPickHandleVm = DocumentPickHandle;
 
 impl VmValueCodec for DocumentPickHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1570,11 +1570,11 @@ pub struct FileHandle(
 pub type FileHandleVm = FileHandle;
 
 impl VmValueCodec for FileHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1625,11 +1625,11 @@ pub struct GpuAdapterHandle(
 pub type GpuAdapterHandleVm = GpuAdapterHandle;
 
 impl VmValueCodec for GpuAdapterHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1680,11 +1680,11 @@ pub struct GpuBindGroupHandle(
 pub type GpuBindGroupHandleVm = GpuBindGroupHandle;
 
 impl VmValueCodec for GpuBindGroupHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1735,11 +1735,11 @@ pub struct GpuBindGroupLayoutHandle(
 pub type GpuBindGroupLayoutHandleVm = GpuBindGroupLayoutHandle;
 
 impl VmValueCodec for GpuBindGroupLayoutHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1790,11 +1790,11 @@ pub struct GpuBufferHandle(
 pub type GpuBufferHandleVm = GpuBufferHandle;
 
 impl VmValueCodec for GpuBufferHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1845,11 +1845,11 @@ pub struct GpuCommandBufferHandle(
 pub type GpuCommandBufferHandleVm = GpuCommandBufferHandle;
 
 impl VmValueCodec for GpuCommandBufferHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1900,11 +1900,11 @@ pub struct GpuCommandEncoderHandle(
 pub type GpuCommandEncoderHandleVm = GpuCommandEncoderHandle;
 
 impl VmValueCodec for GpuCommandEncoderHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -1955,11 +1955,11 @@ pub struct GpuComputePassHandle(
 pub type GpuComputePassHandleVm = GpuComputePassHandle;
 
 impl VmValueCodec for GpuComputePassHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2010,11 +2010,11 @@ pub struct GpuDeviceHandle(
 pub type GpuDeviceHandleVm = GpuDeviceHandle;
 
 impl VmValueCodec for GpuDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2065,11 +2065,11 @@ pub struct GpuExternalTextureHandle(
 pub type GpuExternalTextureHandleVm = GpuExternalTextureHandle;
 
 impl VmValueCodec for GpuExternalTextureHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2120,11 +2120,11 @@ pub struct GpuFenceHandle(
 pub type GpuFenceHandleVm = GpuFenceHandle;
 
 impl VmValueCodec for GpuFenceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2175,11 +2175,11 @@ pub struct GpuMemoryHandle(
 pub type GpuMemoryHandleVm = GpuMemoryHandle;
 
 impl VmValueCodec for GpuMemoryHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2230,11 +2230,11 @@ pub struct GpuPipelineHandle(
 pub type GpuPipelineHandleVm = GpuPipelineHandle;
 
 impl VmValueCodec for GpuPipelineHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2285,11 +2285,11 @@ pub struct GpuPipelineLayoutHandle(
 pub type GpuPipelineLayoutHandleVm = GpuPipelineLayoutHandle;
 
 impl VmValueCodec for GpuPipelineLayoutHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2340,11 +2340,11 @@ pub struct GpuQuerySetHandle(
 pub type GpuQuerySetHandleVm = GpuQuerySetHandle;
 
 impl VmValueCodec for GpuQuerySetHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2395,11 +2395,11 @@ pub struct GpuQueueHandle(
 pub type GpuQueueHandleVm = GpuQueueHandle;
 
 impl VmValueCodec for GpuQueueHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2450,11 +2450,11 @@ pub struct GpuRenderBundleEncoderHandle(
 pub type GpuRenderBundleEncoderHandleVm = GpuRenderBundleEncoderHandle;
 
 impl VmValueCodec for GpuRenderBundleEncoderHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2505,11 +2505,11 @@ pub struct GpuRenderBundleHandle(
 pub type GpuRenderBundleHandleVm = GpuRenderBundleHandle;
 
 impl VmValueCodec for GpuRenderBundleHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2560,11 +2560,11 @@ pub struct GpuRenderPassHandle(
 pub type GpuRenderPassHandleVm = GpuRenderPassHandle;
 
 impl VmValueCodec for GpuRenderPassHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2615,11 +2615,11 @@ pub struct GpuSamplerHandle(
 pub type GpuSamplerHandleVm = GpuSamplerHandle;
 
 impl VmValueCodec for GpuSamplerHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2670,11 +2670,11 @@ pub struct GpuShaderHandle(
 pub type GpuShaderHandleVm = GpuShaderHandle;
 
 impl VmValueCodec for GpuShaderHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2725,11 +2725,11 @@ pub struct GpuSurfaceHandle(
 pub type GpuSurfaceHandleVm = GpuSurfaceHandle;
 
 impl VmValueCodec for GpuSurfaceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2780,11 +2780,11 @@ pub struct GpuSurfacePresentationHandle(
 pub type GpuSurfacePresentationHandleVm = GpuSurfacePresentationHandle;
 
 impl VmValueCodec for GpuSurfacePresentationHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2835,11 +2835,11 @@ pub struct GpuTextureHandle(
 pub type GpuTextureHandleVm = GpuTextureHandle;
 
 impl VmValueCodec for GpuTextureHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2890,11 +2890,11 @@ pub struct GpuTextureViewHandle(
 pub type GpuTextureViewHandleVm = GpuTextureViewHandle;
 
 impl VmValueCodec for GpuTextureViewHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -2945,11 +2945,11 @@ pub struct InputDeviceHandle(
 pub type InputDeviceHandleVm = InputDeviceHandle;
 
 impl VmValueCodec for InputDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3000,11 +3000,11 @@ pub struct InputMonitorHandle(
 pub type InputMonitorHandleVm = InputMonitorHandle;
 
 impl VmValueCodec for InputMonitorHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3055,11 +3055,11 @@ pub struct InputTextSessionHandle(
 pub type InputTextSessionHandleVm = InputTextSessionHandle;
 
 impl VmValueCodec for InputTextSessionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3110,11 +3110,11 @@ pub struct InspectorHandle(
 pub type InspectorHandleVm = InspectorHandle;
 
 impl VmValueCodec for InspectorHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3165,11 +3165,11 @@ pub struct IntentHandle(
 pub type IntentHandleVm = IntentHandle;
 
 impl VmValueCodec for IntentHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3220,11 +3220,11 @@ pub struct LibraryHandle(
 pub type LibraryHandleVm = LibraryHandle;
 
 impl VmValueCodec for LibraryHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3275,11 +3275,11 @@ pub struct LifecycleEventHandle(
 pub type LifecycleEventHandleVm = LifecycleEventHandle;
 
 impl VmValueCodec for LifecycleEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3330,11 +3330,11 @@ pub struct ListenerHandle(
 pub type ListenerHandleVm = ListenerHandle;
 
 impl VmValueCodec for ListenerHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3385,11 +3385,11 @@ pub struct LocationWatchHandle(
 pub type LocationWatchHandleVm = LocationWatchHandle;
 
 impl VmValueCodec for LocationWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3440,11 +3440,11 @@ pub struct MessageQueueHandle(
 pub type MessageQueueHandleVm = MessageQueueHandle;
 
 impl VmValueCodec for MessageQueueHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3495,11 +3495,11 @@ pub struct MidiEventHandle(
 pub type MidiEventHandleVm = MidiEventHandle;
 
 impl VmValueCodec for MidiEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3550,11 +3550,11 @@ pub struct MidiInputPortHandle(
 pub type MidiInputPortHandleVm = MidiInputPortHandle;
 
 impl VmValueCodec for MidiInputPortHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3605,11 +3605,11 @@ pub struct MidiOutputPortHandle(
 pub type MidiOutputPortHandleVm = MidiOutputPortHandle;
 
 impl VmValueCodec for MidiOutputPortHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3660,11 +3660,11 @@ pub struct NetworkWatchHandle(
 pub type NetworkWatchHandleVm = NetworkWatchHandle;
 
 impl VmValueCodec for NetworkWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3715,11 +3715,11 @@ pub struct NotificationEventHandle(
 pub type NotificationEventHandleVm = NotificationEventHandle;
 
 impl VmValueCodec for NotificationEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3770,11 +3770,11 @@ pub struct NotificationPermissionRequestHandle(
 pub type NotificationPermissionRequestHandleVm = NotificationPermissionRequestHandle;
 
 impl VmValueCodec for NotificationPermissionRequestHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3825,11 +3825,11 @@ pub struct PermissionRequestHandle(
 pub type PermissionRequestHandleVm = PermissionRequestHandle;
 
 impl VmValueCodec for PermissionRequestHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3880,11 +3880,11 @@ pub struct PipeHandle(
 pub type PipeHandleVm = PipeHandle;
 
 impl VmValueCodec for PipeHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3935,11 +3935,11 @@ pub struct PollHandle(
 pub type PollHandleVm = PollHandle;
 
 impl VmValueCodec for PollHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -3990,11 +3990,11 @@ pub struct ProcessFdHandle(
 pub type ProcessFdHandleVm = ProcessFdHandle;
 
 impl VmValueCodec for ProcessFdHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4045,11 +4045,11 @@ pub struct ProcessHandle(
 pub type ProcessHandleVm = ProcessHandle;
 
 impl VmValueCodec for ProcessHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4100,11 +4100,11 @@ pub struct ProfileHandle(
 pub type ProfileHandleVm = ProfileHandle;
 
 impl VmValueCodec for ProfileHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4155,11 +4155,11 @@ pub struct PtyHandle(
 pub type PtyHandleVm = PtyHandle;
 
 impl VmValueCodec for PtyHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4210,11 +4210,11 @@ pub struct ResourceId(
 pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
@@ -4268,7 +4268,7 @@ pub type ResourceKindVm = ResourceKindAbi<VmAbi>;
 impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalReadContext<'_, '_>,
-        value: vm::Value,
+        value: vm::Word,
     ) -> RuntimeResult<Self> {
         Ok(Self(
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?,
@@ -4278,7 +4278,7 @@ impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
     fn encode_with_context(
         self,
         context: &mut vm::ExternalWriteContext<'_, '_>,
-    ) -> RuntimeResult<vm::Value> {
+    ) -> RuntimeResult<vm::Word> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -4342,11 +4342,11 @@ pub struct SandboxHandle(
 pub type SandboxHandleVm = SandboxHandle;
 
 impl VmValueCodec for SandboxHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4397,11 +4397,11 @@ pub struct SemaphoreHandle(
 pub type SemaphoreHandleVm = SemaphoreHandle;
 
 impl VmValueCodec for SemaphoreHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4452,11 +4452,11 @@ pub struct SerialPortHandle(
 pub type SerialPortHandleVm = SerialPortHandle;
 
 impl VmValueCodec for SerialPortHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4507,11 +4507,11 @@ pub struct SerialWatchHandle(
 pub type SerialWatchHandleVm = SerialWatchHandle;
 
 impl VmValueCodec for SerialWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4562,11 +4562,11 @@ pub struct SharedMemoryHandle(
 pub type SharedMemoryHandleVm = SharedMemoryHandle;
 
 impl VmValueCodec for SharedMemoryHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4617,11 +4617,11 @@ pub struct SignalFdHandle(
 pub type SignalFdHandleVm = SignalFdHandle;
 
 impl VmValueCodec for SignalFdHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4672,11 +4672,11 @@ pub struct SignalHandle(
 pub type SignalHandleVm = SignalHandle;
 
 impl VmValueCodec for SignalHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4727,11 +4727,11 @@ pub struct SocketHandle(
 pub type SocketHandleVm = SocketHandle;
 
 impl VmValueCodec for SocketHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4782,11 +4782,11 @@ pub struct SymbolHandle(
 pub type SymbolHandleVm = SymbolHandle;
 
 impl VmValueCodec for SymbolHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4837,11 +4837,11 @@ pub struct ThreadEntryHandle(
 pub type ThreadEntryHandleVm = ThreadEntryHandle;
 
 impl VmValueCodec for ThreadEntryHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4892,11 +4892,11 @@ pub struct ThreadHandle(
 pub type ThreadHandleVm = ThreadHandle;
 
 impl VmValueCodec for ThreadHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -4947,11 +4947,11 @@ pub struct ThreadLocalKey(
 pub type ThreadLocalKeyVm = ThreadLocalKey;
 
 impl VmValueCodec for ThreadLocalKey {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5002,11 +5002,11 @@ pub struct TimerFdHandle(
 pub type TimerFdHandleVm = TimerFdHandle;
 
 impl VmValueCodec for TimerFdHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5057,11 +5057,11 @@ pub struct TimerHandle(
 pub type TimerHandleVm = TimerHandle;
 
 impl VmValueCodec for TimerHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5112,11 +5112,11 @@ pub struct TlsContextHandle(
 pub type TlsContextHandleVm = TlsContextHandle;
 
 impl VmValueCodec for TlsContextHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5167,11 +5167,11 @@ pub struct TlsSessionHandle(
 pub type TlsSessionHandleVm = TlsSessionHandle;
 
 impl VmValueCodec for TlsSessionHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5222,11 +5222,11 @@ pub struct TraceHandle(
 pub type TraceHandleVm = TraceHandle;
 
 impl VmValueCodec for TraceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5277,11 +5277,11 @@ pub struct TransferredHandle(
 pub type TransferredHandleVm = TransferredHandle;
 
 impl VmValueCodec for TransferredHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5332,11 +5332,11 @@ pub struct TtyHandle(
 pub type TtyHandleVm = TtyHandle;
 
 impl VmValueCodec for TtyHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5387,11 +5387,11 @@ pub struct UringHandle(
 pub type UringHandleVm = UringHandle;
 
 impl VmValueCodec for UringHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5442,11 +5442,11 @@ pub struct UsbDeviceHandle(
 pub type UsbDeviceHandleVm = UsbDeviceHandle;
 
 impl VmValueCodec for UsbDeviceHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5497,11 +5497,11 @@ pub struct UsbWatchHandle(
 pub type UsbWatchHandleVm = UsbWatchHandle;
 
 impl VmValueCodec for UsbWatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5552,11 +5552,11 @@ pub struct WatchHandle(
 pub type WatchHandleVm = WatchHandle;
 
 impl VmValueCodec for WatchHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5607,11 +5607,11 @@ pub struct WindowEventHandle(
 pub type WindowEventHandleVm = WindowEventHandle;
 
 impl VmValueCodec for WindowEventHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5662,11 +5662,11 @@ pub struct WindowHandle(
 pub type WindowHandleVm = WindowHandle;
 
 impl VmValueCodec for WindowHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
@@ -5717,7 +5717,7 @@ pub enum ResourceOwnership {
 }
 
 impl VmValueCodec for ResourceOwnership {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Borrowed,
@@ -5733,7 +5733,7 @@ impl VmValueCodec for ResourceOwnership {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> vm::Word {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
