@@ -1239,8 +1239,7 @@ fn if_condition_inherits_statement_position(
     condition: &IfCondition,
 ) -> bool {
     match condition {
-        // `if let` branches should preserve expression tails
-        IfCondition::Let { .. } => false,
+        IfCondition::Let { .. } => true,
         // `if (comptime ...)` branches should preserve expression tails
         IfCondition::Expression { condition } => {
             !matches!(context.tree.get(*condition), Expression::Comptime { .. })
