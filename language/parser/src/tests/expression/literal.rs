@@ -293,6 +293,33 @@ fn test_parse_mixed_index_call_postfix() {
     });
 }
 
+/// Parse a singleton parenthesized type tuple.
+#[test]
+fn test_parse_singleton_tuple_literal() {
+    let mut test = TestParser::new("(string,)");
+    let mut parser = test.prepare();
+    let type_expression_id = parser.eat_type_expression().unwrap();
+
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+        assert_eq!(elements.len(), 1);
+    });
+}
+
+/// Parse a parenthesized type tuple with one spread element.
+#[test]
+fn test_parse_spread_tuple_literal() {
+    let mut test = TestParser::new("(...PlatformCapability[])");
+    let mut parser = test.prepare();
+    let type_expression_id = parser.eat_type_expression().unwrap();
+
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Tuple { elements } => {
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], TupleElement::Spread { value, .. } => {
+            assert_node!(parser.tree, *value, TypeExpression::Array { .. });
+        });
+    });
+}
+
 /// Parse an empty parenthesis as a tuple literal.
 #[test]
 fn test_parse_empty_parenthesis_tuple() {
