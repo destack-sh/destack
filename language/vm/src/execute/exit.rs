@@ -1,28 +1,26 @@
-use crate::Value;
+use crate::Word;
 use destack_engine as engine;
 use destack_heap::Heap;
 
-use super::bind::{
-    bind_transferred_value, capture_transferred_value, materialize_transferred_value,
-};
+use super::frame::{frame_value_from_word, materialize_frame_value, write_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Interpreter, RunOutcome};
-use crate::module::Module;
+use crate::interpreter::{Interpreter, Outcome};
+use crate::program::Program;
 
 impl Interpreter {
     /// Apply one return transfer.
     pub(crate) fn apply_return_transfer(
         &mut self,
-        module: &Module,
+        program: &Program,
         heap: &mut Heap,
-        value: Value,
-    ) -> RuntimeResult<Option<RunOutcome>> {
+        value: Word,
+    ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away
         let callee = self
-            .stack
+            .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let return_type = module
+        let return_type = program
             .tree
             .get(callee.function)
             .return_type
@@ -30,27 +28,27 @@ impl Interpreter {
             .ok_or_else(|| Error::ConcreteMirRequired {
                 context: "return transfer type".to_string(),
             })?;
-        let returned =
-            capture_transferred_value(module, heap, self.stack.as_slice(), return_type, value)
-                .map_err(RuntimeError::new)?;
+        let returned = frame_value_from_word(program, self.frames.as_slice(), return_type, value)
+            .map_err(RuntimeError::new)?;
 
-        // pop the callee frame and release its live storage
-        let _frame = self
-            .stack
+        // pop the callee frame and release its live bytes
+        let frame = self
+            .frames
             .pop()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        self.truncate_stack(frame.stack_offset);
 
         // complete top level execution when there is no caller
-        if self.stack.is_empty() {
+        if self.frames.is_empty() {
             let value =
-                materialize_transferred_value(module, heap, returned).map_err(RuntimeError::new)?;
+                materialize_frame_value(program, heap, returned).map_err(RuntimeError::new)?;
             return Ok(Some(self.complete_execution(heap, value)));
         }
 
         // otherwise resume the caller through its pending transfer or return slot
-        let caller_index = self.stack.len() - 1;
+        let caller_index = self.frames.len() - 1;
         let transfer = self
-            .stack
+            .frames
             .get_mut(caller_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
             .transfer
@@ -62,22 +60,21 @@ impl Interpreter {
             ..
         })) = transfer
         {
-            self.apply_resume_point_transfer_typed(module, normal_resume_point, returned)?;
+            self.apply_frame_resume_point_transfer(program, normal_resume_point, returned)?;
             return Ok(None);
         }
 
-        // plain callers resume through their return destination slot
+        // plain callers resume through their return destination
         let caller = self
-            .stack
+            .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        if let Some(destination) = module.return_destination_for_position(
+        if let Some(destination) = program.return_destination_for_position(
             caller.function,
             caller.current_block,
             caller.resume_pc as u32,
         )? {
-            bind_transferred_value(module, caller, caller_index, destination, returned)
-                .map_err(RuntimeError::new)?;
+            write_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }
 
         Ok(None)
@@ -86,20 +83,21 @@ impl Interpreter {
     /// Apply one thrown exception value through pending call continuations.
     pub(crate) fn apply_throw_transfer(
         &mut self,
-        module: &Module,
-        value: Value,
-    ) -> RuntimeResult<Option<RunOutcome>> {
+        program: &Program,
+        value: Word,
+    ) -> RuntimeResult<Option<Outcome>> {
         loop {
             // discard one frame of live state first
-            let _frame = self
-                .stack
+            let frame = self
+                .frames
                 .pop()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            self.truncate_stack(frame.stack_offset);
 
             // fail loudly once the exception escapes the whole stack
-            if self.stack.is_empty() {
+            if self.frames.is_empty() {
                 return Err(self.make_error(
-                    module,
+                    program,
                     Error::Panic {
                         message: format!("uncaught exception: {value:?}"),
                     },
@@ -108,7 +106,7 @@ impl Interpreter {
 
             // load the caller transfer before deciding how to continue unwinding
             let caller = self
-                .stack
+                .frames
                 .last_mut()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
             let transfer = caller.transfer.take();
@@ -119,7 +117,7 @@ impl Interpreter {
                     unwind_resume_point,
                     ..
                 })) => {
-                    self.apply_resume_point_transfer(module, unwind_resume_point, value)?;
+                    self.apply_resume_point_transfer(program, unwind_resume_point, value)?;
                     return Ok(None);
                 }
 

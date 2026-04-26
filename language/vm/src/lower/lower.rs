@@ -3,13 +3,13 @@ use std::ops::Deref;
 
 use destack_mir as mir;
 
-use crate::module::{Block, CallTarget, Function, Layout};
+use crate::program::{Block, CallTarget, Function, Layout};
 use crate::{Error, Result};
 
 use super::block::{BlockOrder, FunctionContext};
-use super::kind::{KindMapBuilder, ValueKindMap};
 use super::pool::{Pool, lookup_call_target};
-use super::tree::ValueSlot;
+use super::repr::{ReprMapBuilder, ValueReprMap};
+use super::tree::ValueType;
 
 /// One whole-function lowering session.
 struct FunctionLowerer<'a> {
@@ -35,7 +35,8 @@ impl<'a> FunctionLowerer<'a> {
         >,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        value_slots: &'a [ValueSlot],
+        layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+        value_types: &'a [ValueType],
     ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
 
@@ -48,10 +49,13 @@ impl<'a> FunctionLowerer<'a> {
         };
 
         let block_order = BlockOrder::new(tree, entry)?;
-        let value_type = value_slots.iter().map(|slot| slot.ty).collect::<Vec<_>>();
-        let value_count = value_slots.len();
-        let value_kind_map =
-            KindMapBuilder::new(tree, func, &block_order.block, &value_type, value_count).build();
+        let value_type = value_types
+            .iter()
+            .map(|value_type| value_type.ty)
+            .collect::<Vec<_>>();
+        let value_count = value_types.len();
+        let value_repr_map =
+            ReprMapBuilder::new(tree, func, &block_order.block, &value_type, value_count).build();
         let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count)?;
         let local_index_by_id = Self::local_index_map(func);
         let block_parameter = Self::block_parameter(tree, &block_order.block)?;
@@ -63,9 +67,10 @@ impl<'a> FunctionLowerer<'a> {
             yield_resume_points,
             exceptional_call_resume_points,
             call_targets,
-            value_kind_map,
+            value_repr_map,
             value_type,
             layouts,
+            layout_id_by_type,
             block_index_by_id: block_order.index_by_id,
             block_parameter,
             local_index_by_id,
@@ -80,7 +85,7 @@ impl<'a> FunctionLowerer<'a> {
         }))
     }
 
-    /// Lower the function into module form.
+    /// Lower the function into program form.
     fn lower(mut self) -> Result<Function> {
         let parameter_value = self
             .func
@@ -108,7 +113,7 @@ impl<'a> FunctionLowerer<'a> {
             block.push(self.lower_block(mir_block)?);
         }
 
-        let (argument_pool, copy_pool) = self.pool.into_parts();
+        let (argument_pool, move_pool) = self.pool.into_parts();
 
         Ok(Function {
             frame_layout: self.frame_layout,
@@ -116,13 +121,11 @@ impl<'a> FunctionLowerer<'a> {
             entry: self.context.entry_block,
             blocks: block,
             argument_pool,
-            copy_pool,
-            value_count: self.context.value_type.len(),
-            local_count: self.func.locals.len(),
+            move_pool,
         })
     }
 
-    /// Lower one MIR block into module form.
+    /// Lower one MIR block into program form.
     fn lower_block(&mut self, mir_block: mir::LocalNodeId<mir::Block>) -> Result<Block> {
         let lowerer = BlockLowerer {
             function: &self.context,
@@ -188,7 +191,8 @@ pub(crate) fn lower_function(
     >,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    value_slots: &[ValueSlot],
+    layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+    value_types: &[ValueType],
 ) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
         tree,
@@ -198,7 +202,8 @@ pub(crate) fn lower_function(
         exceptional_call_resume_points,
         call_targets,
         layouts,
-        value_slots,
+        layout_id_by_type,
+        value_types,
     )?;
 
     lowerer.map(FunctionLowerer::lower).transpose()
@@ -225,7 +230,7 @@ impl<'a> BlockLowerer<'a> {
         self.mir_block
     }
 
-    /// Lower the block into module form.
+    /// Lower the block into program form.
     fn lower(self, pool: &mut Pool) -> Result<Block> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut mir_instruction_offsets = Vec::with_capacity(self.block.instructions.len() + 2);
@@ -255,8 +260,8 @@ impl<'a> BlockLowerer<'a> {
                 continue;
             }
 
-            let instruction = self.lower_instruction(inst, pool)?;
-            instructions.push(instruction);
+            let lowered = self.lower_instructions(inst, pool)?;
+            instructions.extend(lowered);
             inst_index += 1;
             mir_instruction_offsets.push(inst_index as u32);
         }
@@ -271,13 +276,11 @@ impl<'a> BlockLowerer<'a> {
         }
 
         mir_instruction_offsets.push((self.block.instructions.len() + 1) as u32);
-        let mir_instruction_count = (self.block.instructions.len() + 1) as u32;
 
         Ok(Block {
             mir_block: self.mir_block,
             instructions,
             mir_instruction_offsets,
-            mir_instruction_count,
         })
     }
 
@@ -306,9 +309,9 @@ impl<'a> BlockLowerer<'a> {
             })
     }
 
-    /// Return the lowered value kind map.
-    pub(super) fn value_kind_map(&self) -> &ValueKindMap {
-        &self.function.value_kind_map
+    /// Return the lowered value representation map.
+    pub(super) fn value_repr_map(&self) -> &ValueReprMap {
+        &self.function.value_repr_map
     }
 
     /// Return the lowered value types.
@@ -333,8 +336,8 @@ fn compute_value_use_counts(
 
     // record a single use safely
     let mut record_use = |value: mir::Value| {
-        if let Some(slot) = uses.get_mut(value.0 as usize) {
-            *slot = slot.saturating_add(1);
+        if let Some(count) = uses.get_mut(value.0 as usize) {
+            *count = count.saturating_add(1);
         }
     };
 

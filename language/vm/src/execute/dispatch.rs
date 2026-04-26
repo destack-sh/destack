@@ -1,9 +1,32 @@
-use crate::interpreter::ExecutionState;
-use crate::module::{Instruction, Opcode, Transfer};
+use crate::diagnostic::Error;
+use crate::interpreter::DispatchState;
+use crate::program::{Instruction, Opcode, Transfer};
 
-/// Execute one module instruction.
+/// Execute one block until it produces a control transfer.
 pub(crate) fn dispatch_instruction(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    let mut pc = pc;
+    loop {
+        if pc >= block.len() {
+            return Transfer::Error(Error::InvalidInstruction);
+        }
+
+        match dispatch_opcode(state, block, pc) {
+            Transfer::Continue => {
+                pc += 1;
+            }
+            transfer => return transfer,
+        }
+    }
+}
+
+/// Execute one program instruction.
+#[inline]
+fn dispatch_opcode(
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
@@ -12,7 +35,6 @@ pub(crate) fn dispatch_instruction(
         Opcode::AddConstUint => super::execute_add_const_uint(state, block, pc),
         Opcode::AddInt => super::execute_add_int(state, block, pc),
         Opcode::AddUint => super::execute_add_uint(state, block, pc),
-        Opcode::Aggregate => super::execute_aggregate(state, block, pc),
         Opcode::AndInt => super::execute_and_int(state, block, pc),
         Opcode::AndUint => super::execute_and_uint(state, block, pc),
         Opcode::Assume => super::execute_assume(state, block, pc),
@@ -24,7 +46,6 @@ pub(crate) fn dispatch_instruction(
         Opcode::Barrier => super::execute_barrier(state, block, pc),
         Opcode::Binary => super::execute_binary(state, block, pc),
         Opcode::BinaryBool => super::execute_binary_bool(state, block, pc),
-        Opcode::BinaryConstRight => super::execute_binary_const_right(state, block, pc),
         Opcode::BinaryElementwise => super::execute_binary_elementwise(state, block, pc),
         Opcode::BinaryFloat32 => super::execute_binary_float32(state, block, pc),
         Opcode::BinaryFloat64 => super::execute_binary_float64(state, block, pc),
@@ -68,7 +89,6 @@ pub(crate) fn dispatch_instruction(
         Opcode::ElementLoadHeap => super::execute_element_load_heap(state, block, pc),
         Opcode::ElementLoadRaw => super::execute_element_load_raw(state, block, pc),
         Opcode::ElementLoadStack => super::execute_element_load_stack(state, block, pc),
-        Opcode::ElementSet => super::execute_element_set(state, block, pc),
         Opcode::ElementStore => super::execute_element_store(state, block, pc),
         Opcode::ElementStoreStatic => super::execute_element_store_static(state, block, pc),
         Opcode::ElementStoreHeap => super::execute_element_store_heap(state, block, pc),
@@ -87,7 +107,6 @@ pub(crate) fn dispatch_instruction(
         Opcode::FieldLoadHeap => super::execute_field_load_heap(state, block, pc),
         Opcode::FieldLoadRaw => super::execute_field_load_raw(state, block, pc),
         Opcode::FieldLoadStack => super::execute_field_load_stack(state, block, pc),
-        Opcode::FieldSet => super::execute_field_set(state, block, pc),
         Opcode::FieldStore => super::execute_field_store(state, block, pc),
         Opcode::FieldStoreStatic => super::execute_field_store_static(state, block, pc),
         Opcode::FieldStoreHeap => super::execute_field_store_heap(state, block, pc),
@@ -113,12 +132,13 @@ pub(crate) fn dispatch_instruction(
         Opcode::LeConstUint => super::execute_le_const_uint(state, block, pc),
         Opcode::LeInt => super::execute_le_int(state, block, pc),
         Opcode::LeUint => super::execute_le_uint(state, block, pc),
-        Opcode::Load => super::execute_load(state, block, pc),
         Opcode::LoadStatic => super::execute_load_static(state, block, pc),
-        Opcode::LoadFrame => super::execute_load_frame(state, block, pc),
         Opcode::LoadHeap => super::execute_load_heap(state, block, pc),
+        Opcode::LoadSharedHeap => super::execute_load_shared_heap(state, block, pc),
         Opcode::LoadRaw => super::execute_load_raw(state, block, pc),
+        Opcode::LoadSharedRaw => super::execute_load_shared_raw(state, block, pc),
         Opcode::LoadStack => super::execute_load_stack(state, block, pc),
+        Opcode::LoadFrame => super::execute_load_frame(state, block, pc),
         Opcode::LocalAddr => super::execute_local_addr(state, block, pc),
         Opcode::LocalGet => super::execute_local_get(state, block, pc),
         Opcode::LocalSet => super::execute_local_set(state, block, pc),
@@ -150,12 +170,13 @@ pub(crate) fn dispatch_instruction(
         Opcode::ShrInt => super::execute_shr_int(state, block, pc),
         Opcode::ShrUint => super::execute_shr_uint(state, block, pc),
         Opcode::StackAlloc => super::execute_stack_alloc(state, block, pc),
-        Opcode::Store => super::execute_store(state, block, pc),
         Opcode::StoreStatic => super::execute_store_static(state, block, pc),
-        Opcode::StoreFrame => super::execute_store_frame(state, block, pc),
         Opcode::StoreHeap => super::execute_store_heap(state, block, pc),
+        Opcode::StoreSharedHeap => super::execute_store_shared_heap(state, block, pc),
         Opcode::StoreRaw => super::execute_store_raw(state, block, pc),
+        Opcode::StoreSharedRaw => super::execute_store_shared_raw(state, block, pc),
         Opcode::StoreStack => super::execute_store_stack(state, block, pc),
+        Opcode::StoreFrame => super::execute_store_frame(state, block, pc),
         Opcode::SubConstInt => super::execute_sub_const_int(state, block, pc),
         Opcode::SubConstUint => super::execute_sub_const_uint(state, block, pc),
         Opcode::SubInt => super::execute_sub_int(state, block, pc),
@@ -214,14 +235,3 @@ pub(crate) fn dispatch_instruction(
         Opcode::Yield => super::execute_yield(state, block, pc),
     }
 }
-
-// advance to the next instruction in one block
-macro_rules! next {
-    ($state:expr, $block:expr, $pc:expr) => {{
-        $state.maybe_profile_instruction(&$block[$pc]);
-        let next_pc = $pc + 1;
-        become $crate::execute::dispatch_instruction($state, $block, next_pc)
-    }};
-}
-
-pub(crate) use next;

@@ -2,28 +2,25 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::module::{ArgumentRange, CallTarget, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase};
+use crate::program::{
+    ArgumentRange, CallTarget, INVALID_VALUE_ID, MovePair, MoveRange, SwitchCase,
+};
 use crate::{Error, Result};
 
-// switch table density threshold
-const SWITCH_TABLE_MIN_DENSITY: f64 = 0.5;
-// cap the number of jump table entries
-const SWITCH_TABLE_MAX_RANGE: usize = 2048;
-
-/// Return the lowered copy source for one argument index.
-fn copy_source(arguments: &[mir::Value], index: usize) -> u32 {
+/// Return the lowered move source for one argument index.
+fn move_source(arguments: &[mir::Value], index: usize) -> u32 {
     arguments
         .get(index)
         .map(|value| value.0)
         .unwrap_or(INVALID_VALUE_ID)
 }
 
-/// One lowering pool for shared variable-length payloads.
+/// One lowering pool for shared variable-length lowering data.
 pub(super) struct Pool {
     /// The pooled argument values.
     argument: Vec<mir::Value>,
-    /// The pooled copy pairs.
-    copy: Vec<CopyPair>,
+    /// The pooled move pairs.
+    move_pair: Vec<MovePair>,
 }
 
 impl Pool {
@@ -31,13 +28,13 @@ impl Pool {
     pub(super) fn new() -> Self {
         Self {
             argument: Vec::new(),
-            copy: Vec::new(),
+            move_pair: Vec::new(),
         }
     }
 
     /// Return the finished pool parts.
-    pub(super) fn into_parts(self) -> (Vec<mir::Value>, Vec<CopyPair>) {
-        (self.argument, self.copy)
+    pub(super) fn into_parts(self) -> (Vec<mir::Value>, Vec<MovePair>) {
+        (self.argument, self.move_pair)
     }
 
     /// Return one argument range from the pool.
@@ -65,31 +62,31 @@ impl Pool {
         Ok(argument_range(&mut self.argument, &arguments))
     }
 
-    /// Return one copy range from the pool.
-    pub(super) fn copy_range(
+    /// Return one move range from the pool.
+    pub(super) fn move_range(
         &mut self,
         parameters: &[mir::Value],
         arguments: &[mir::Value],
-    ) -> CopyRange {
-        copy_range(&mut self.copy, parameters, arguments)
+    ) -> MoveRange {
+        move_range(&mut self.move_pair, parameters, arguments)
     }
 
-    /// Return one parameter copy range from the pool.
-    pub(super) fn parameter_copy_range(
+    /// Return one parameter move range from the pool.
+    pub(super) fn parameter_move_range(
         &mut self,
         parameters: &[mir::Parameter],
         arguments: &[mir::Value],
-    ) -> Result<CopyRange> {
-        parameter_copy_range(&mut self.copy, parameters, arguments)
+    ) -> Result<MoveRange> {
+        parameter_move_range(&mut self.move_pair, parameters, arguments)
     }
 
-    /// Return one block-edge copy plan from the pool.
-    pub(super) fn edge_copy_plan(
+    /// Return one block edge move plan from the pool.
+    pub(super) fn edge_move_plan(
         &mut self,
         parameters: &[mir::Value],
         arguments: &[mir::Value],
-    ) -> CopyRange {
-        copy_range(&mut self.copy, parameters, arguments)
+    ) -> MoveRange {
+        move_range(&mut self.move_pair, parameters, arguments)
     }
 
     /// Return one switch-case range from the pool.
@@ -99,7 +96,7 @@ impl Pool {
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
     ) -> Result<Box<[SwitchCase]>> {
-        switch_case_range(&mut self.copy, block_index_map, block_parameter, cases)
+        switch_case_range(&mut self.move_pair, block_index_map, block_parameter, cases)
     }
 
     /// Return one switch-table range from the pool.
@@ -109,15 +106,15 @@ impl Pool {
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
         default_target: u32,
-        default_copies: CopyRange,
+        default_moves: MoveRange,
     ) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
         switch_table_range(
-            &mut self.copy,
+            &mut self.move_pair,
             block_index_map,
             block_parameter,
             cases,
             default_target,
-            default_copies,
+            default_moves,
         )
     }
 }
@@ -161,18 +158,18 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
     }
 }
 
-/// Return one copy range from the pool.
-fn copy_range(
-    pool: &mut Vec<CopyPair>,
+/// Return one move range from the pool.
+fn move_range(
+    pool: &mut Vec<MovePair>,
     parameters: &[mir::Value],
     arguments: &[mir::Value],
-) -> CopyRange {
+) -> MoveRange {
     // fast path: no parameters
     if parameters.is_empty() {
-        return CopyRange::empty();
+        return MoveRange::empty();
     }
 
-    // detect contiguous copy pairs
+    // detect contiguous move pairs
     let mut is_contiguous = true;
     let mut contiguous_src = 0;
     let mut contiguous_dest = 0;
@@ -183,12 +180,12 @@ fn copy_range(
     // validate bounds in debug builds
     debug_assert!(
         start + parameters.len() <= u32::MAX as usize,
-        "copy pool overflow"
+        "move pool overflow"
     );
 
-    // append copy pairs
+    // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let src = copy_source(arguments, index);
+        let src = move_source(arguments, index);
         if index == 0 {
             contiguous_dest = param.0;
             contiguous_src = src;
@@ -202,11 +199,11 @@ fn copy_range(
                 is_contiguous = false;
             }
         }
-        pool.push(CopyPair { dest: param.0, src });
+        pool.push(MovePair { dest: param.0, src });
     }
 
     // return range
-    CopyRange {
+    MoveRange {
         start: start as u32,
         len: parameters.len() as u32,
         is_contiguous,
@@ -215,18 +212,18 @@ fn copy_range(
     }
 }
 
-/// Return one parameter copy range from the pool.
-fn parameter_copy_range(
-    pool: &mut Vec<CopyPair>,
+/// Return one parameter move range from the pool.
+fn parameter_move_range(
+    pool: &mut Vec<MovePair>,
     parameters: &[mir::Parameter],
     arguments: &[mir::Value],
-) -> Result<CopyRange> {
+) -> Result<MoveRange> {
     // fast path: no parameters
     if parameters.is_empty() {
-        return Ok(CopyRange::empty());
+        return Ok(MoveRange::empty());
     }
 
-    // detect contiguous copy pairs
+    // detect contiguous move pairs
     let mut is_contiguous = true;
     let mut contiguous_src = 0;
     let mut contiguous_dest = 0;
@@ -237,17 +234,17 @@ fn parameter_copy_range(
     // validate bounds in debug builds
     debug_assert!(
         start + parameters.len() <= u32::MAX as usize,
-        "copy pool overflow"
+        "move pool overflow"
     );
 
-    // append copy pairs
+    // append move pairs
     for (index, param) in parameters.iter().enumerate() {
         let parameter = (param.value)
             .value()
             .ok_or_else(|| Error::ConcreteMirRequired {
                 context: "function parameter value".to_string(),
             })?;
-        let src = copy_source(arguments, index);
+        let src = move_source(arguments, index);
         if index == 0 {
             contiguous_dest = parameter.0;
             contiguous_src = src;
@@ -261,14 +258,14 @@ fn parameter_copy_range(
                 is_contiguous = false;
             }
         }
-        pool.push(CopyPair {
+        pool.push(MovePair {
             dest: parameter.0,
             src,
         });
     }
 
     // return range
-    Ok(CopyRange {
+    Ok(MoveRange {
         start: start as u32,
         len: parameters.len() as u32,
         is_contiguous,
@@ -287,7 +284,7 @@ pub(super) fn lookup_call_target(
 
 /// Return one switch-case range from the pool.
 fn switch_case_range(
-    copy_pool: &mut Vec<CopyPair>,
+    move_pool: &mut Vec<MovePair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
@@ -318,7 +315,7 @@ fn switch_case_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let copies = copy_range(copy_pool, target_parameters, &arguments);
+        let moves = move_range(move_pool, target_parameters, &arguments);
         lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
@@ -326,7 +323,7 @@ fn switch_case_range(
                     context: "switch case value".to_string(),
                 })?,
             target: target_index as u32,
-            copies,
+            moves,
         });
     }
 
@@ -335,12 +332,12 @@ fn switch_case_range(
 
 /// Return one switch-table range when density is high enough.
 fn switch_table_range(
-    copy_pool: &mut Vec<CopyPair>,
+    move_pool: &mut Vec<MovePair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
     default_target: u32,
-    default_copies: CopyRange,
+    default_moves: MoveRange,
 ) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
     // bail if there are no cases
     if cases.is_empty() {
@@ -369,17 +366,14 @@ fn switch_table_range(
     if range_len <= 0 {
         return Ok(None);
     }
-    if range_len > SWITCH_TABLE_MAX_RANGE as i128 {
-        return Ok(None);
-    }
     if range_len > u32::MAX as i128 {
         return Ok(None);
     }
 
-    // require sufficient density
+    // require at least one explicit case for every hole
     let range_len = range_len as usize;
-    let density = cases.len() as f64 / range_len as f64;
-    if density < SWITCH_TABLE_MIN_DENSITY {
+    let max_range_len = cases.len().saturating_mul(2);
+    if range_len > max_range_len {
         return Ok(None);
     }
 
@@ -391,7 +385,7 @@ fn switch_table_range(
         table.push(SwitchCase {
             value,
             target: default_target,
-            copies: default_copies,
+            moves: default_moves,
         });
     }
 
@@ -424,12 +418,12 @@ fn switch_table_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let copies = copy_range(copy_pool, target_parameters, &arguments);
+        let moves = move_range(move_pool, target_parameters, &arguments);
         let offset = (case_value - min_value) as usize;
-        let slot = &mut table[offset];
-        slot.value = case_value;
-        slot.target = target_index as u32;
-        slot.copies = copies;
+        let entry = &mut table[offset];
+        entry.value = case_value;
+        entry.target = target_index as u32;
+        entry.moves = moves;
     }
 
     // return table range

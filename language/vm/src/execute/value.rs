@@ -1,61 +1,24 @@
 use super::prelude::*;
 
-/// Build an error for one pointer that cannot fit in the packed value format.
-fn pointer_encoding_error(kind: &str) -> Error {
-    Error::InvariantViolation {
-        context: format!("{kind} pointer exceeds packed value representation"),
-    }
-}
-
 /// Build one stack pointer value.
 #[inline]
-pub(crate) fn stack_pointer_value(pointer: StackPointer) -> Result<Value, Error> {
-    Value::stack_pointer(pointer).ok_or_else(|| pointer_encoding_error("stack"))
-}
-
-/// Build one stack pointer value with reference metadata.
-#[inline]
-pub(crate) fn stack_pointer_value_with_meta(
-    pointer: StackPointer,
-    meta: ReferenceMeta,
-) -> Result<Value, Error> {
-    Value::stack_pointer_with_meta(pointer, meta).ok_or_else(|| pointer_encoding_error("stack"))
+pub(crate) fn stack_pointer_value(pointer: StackPointer) -> Result<Word, Error> {
+    Ok(Word::stack_pointer(pointer))
 }
 
 /// Build one frame pointer value.
 #[inline]
-pub(crate) fn frame_pointer_value(pointer: FramePointer) -> Result<Value, Error> {
-    Value::frame_pointer(pointer).ok_or_else(|| pointer_encoding_error("frame"))
-}
-
-/// Build one frame pointer value with reference metadata.
-#[inline]
-pub(crate) fn frame_pointer_value_with_meta(
-    pointer: FramePointer,
-    meta: ReferenceMeta,
-) -> Result<Value, Error> {
-    Value::frame_pointer_with_meta(pointer, meta).ok_or_else(|| pointer_encoding_error("frame"))
+pub(crate) fn frame_pointer_value(pointer: FramePointer) -> Result<Word, Error> {
+    Ok(Word::frame_pointer(pointer))
 }
 
 /// Build one static pointer value.
 #[inline]
 pub(crate) fn static_pointer_value(
-    pointer: mir::LocalNodeId<mir::Global>,
-    byte_offset: usize,
-) -> Result<Value, Error> {
-    Value::static_pointer_with_offset(pointer, byte_offset)
-        .ok_or_else(|| pointer_encoding_error("static"))
-}
-
-/// Build one static pointer value with reference metadata.
-#[inline]
-pub(crate) fn static_pointer_value_with_meta(
-    pointer: mir::LocalNodeId<mir::Global>,
-    byte_offset: usize,
-    meta: ReferenceMeta,
-) -> Result<Value, Error> {
-    Value::static_pointer_with_meta(pointer, byte_offset, meta)
-        .ok_or_else(|| pointer_encoding_error("static"))
+    pointer: StaticPointer,
+    _byte_offset: usize,
+) -> Result<Word, Error> {
+    Ok(Word::static_pointer(pointer))
 }
 
 /// Build a global id from a raw value.
@@ -73,9 +36,9 @@ pub(crate) fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
 /// Collect argument values into a smallvec.
 #[inline]
 pub(crate) fn collect_values(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     arguments: ArgumentRange,
-) -> SmallVec<[Value; 16]> {
+) -> SmallVec<[Word; 16]> {
     // load argument slice
     let argument_slice = state.argument_slice(arguments);
     let mut args = SmallVec::with_capacity(argument_slice.len());
@@ -91,30 +54,20 @@ pub(crate) fn collect_values(
 }
 
 /// Map a runtime value to an unsigned index.
-pub(crate) fn value_to_u64(value: Value) -> Result<u64, Error> {
-    // decode integer values
-    match value.tag() {
-        ValueTag::Int => {
-            let raw = value.raw_data() as i64;
-            if raw < 0 {
-                return Err(Error::TypeMismatch {
-                    expected: "non-negative integer".to_string(),
-                    actual: format!("{value:?}"),
-                });
-            }
-
-            Ok(raw as u64)
-        }
-        ValueTag::UInt => Ok(value.raw_data()),
-        _ => Err(Error::TypeMismatch {
-            expected: "integer".to_string(),
+pub(crate) fn value_to_u64(value: Word) -> Result<u64, Error> {
+    let raw = value.bits() as i64;
+    if raw < 0 {
+        return Err(Error::TypeMismatch {
+            expected: "non-negative integer".to_string(),
             actual: format!("{value:?}"),
-        }),
+        });
     }
+
+    Ok(raw as u64)
 }
 
 /// Map a runtime value to a usize index.
-pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
+pub(crate) fn value_to_usize(value: Word) -> Result<usize, Error> {
     // convert to u64 first
     let index = value_to_u64(value)?;
 
@@ -122,30 +75,4 @@ pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
         expected: "usize index".to_string(),
         actual: format!("{value:?}"),
     })
-}
-
-/// Allocate one heap payload for the destination type by value index.
-pub(crate) fn allocate_payload_by_index<F>(
-    state: &mut ExecutionState<'_, '_>,
-    destination: mir::Value,
-    mut value_at_index: F,
-) -> Result<Value, Error>
-where
-    F: FnMut(&mut ExecutionState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
-{
-    let payload_type = state.value_type(destination)?;
-    let repr_payload_type = crate::module::repr_type(state.tree(), payload_type);
-
-    // callables stay boxed so nested payloads carry one heap reference
-    if matches!(
-        state.tree().get(repr_payload_type),
-        mir::Type::Callable { .. }
-    ) {
-        let function = value_at_index(state, 0, payload_type)?;
-        let environment = value_at_index(state, 1, payload_type)?;
-
-        return access::allocate_callable(state, payload_type, function, environment);
-    }
-
-    access::allocate_heap_payload_by_index(state, payload_type, value_at_index)
 }

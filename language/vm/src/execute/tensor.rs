@@ -1,15 +1,13 @@
 use super::prelude::*;
 
-// TODO #Performance: improve VM tensor performance
-
 /// The flattened layout for one tensor.
 #[derive(Debug, Clone)]
-pub(crate) struct TensorLayoutInfo {
+pub(crate) struct TensorLayout {
     /// The static tensor shape.
     pub(crate) shape: Vec<u64>,
     /// The per-dimension strides in element units.
     pub(crate) strides: Vec<u64>,
-    /// The total storage length in element slots.
+    /// The total storage length in elements.
     pub(crate) storage_len: usize,
 }
 
@@ -105,7 +103,7 @@ pub(crate) fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize
 pub(crate) fn tensor_layout_info(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
-) -> Result<TensorLayoutInfo, Error> {
+) -> Result<TensorLayout, Error> {
     // resolve tensor shape and layout
     let (shape, layout) = match tree.get(ty) {
         mir::Type::Tensor { shape, layout, .. } => (shape, layout),
@@ -129,75 +127,150 @@ pub(crate) fn tensor_layout_info(
     // compute storage length
     let storage_len = tensor_storage_len(&shape, &strides)?;
 
-    Ok(TensorLayoutInfo {
+    Ok(TensorLayout {
         shape,
         strides,
         storage_len,
     })
 }
 
-/// Allocate one tensor result element by element.
-fn allocate_tensor_by_element<F>(
-    state: &mut ExecutionState<'_, '_>,
+/// Return the scalar element type for one tensor or tensor view.
+fn tensor_element_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<ScalarLayout, Error> {
+    let element = match tree.get(ty) {
+        mir::Type::Tensor { element, .. } | mir::Type::TensorView { element, .. } => {
+            element.ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "tensor element type".to_string(),
+            })?
+        }
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "tensor type".to_string(),
+                actual: format!("{ty:?}"),
+            });
+        }
+    };
+
+    scalar_layout(tree, element)
+}
+
+/// Write one tensor result into frame bytes.
+fn write_tensor_by_element<F>(
+    state: &mut DispatchState<'_, '_>,
     dest: mir::Value,
     storage_len: usize,
     mut element_value: F,
-) -> Result<Value, Error>
+) -> Result<(), Error>
 where
-    F: FnMut(&mut ExecutionState<'_, '_>, usize) -> Result<Value, Error>,
+    F: FnMut(&mut DispatchState<'_, '_>, usize) -> Result<Word, Error>,
 {
-    allocate_payload_by_index(state, dest, |state, slot_index, _value_type| {
-        let slot_index = usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
-            expected: "tensor storage slot".to_string(),
-            actual: slot_index.to_string(),
-        })?;
-        if slot_index >= storage_len {
+    super::bytes::write_frame_elements(state, dest, |state, element_index, _value_type| {
+        if element_index >= storage_len {
             return Err(Error::IndexOutOfBounds {
-                index: slot_index as u64,
+                index: element_index as u64,
                 length: storage_len as u64,
             });
         }
 
-        element_value(state, slot_index)
+        element_value(state, element_index)
     })
 }
 
-/// Store one tensor element into one aggregate.
+/// Load one tensor element through one concrete pointer class.
+#[inline(always)]
+fn load_tensor_element(
+    state: &mut DispatchState<'_, '_>,
+    pointer: Word,
+    element: ElementAccess,
+) -> Result<Word, Error> {
+    let access = PointeeAccess::from(element);
+
+    match element.pointer_class {
+        PointerClass::Heap => access::load_heap_reference(state, pointer, access),
+        PointerClass::SharedHeap => access::load_shared_heap_reference(state, pointer, access),
+        PointerClass::Raw => access::load_raw_pointer(state, pointer, access),
+        PointerClass::SharedRaw => access::load_shared_raw_pointer(state, pointer, access),
+        PointerClass::Stack => {
+            access::load_stack_pointer(state, pointer.as_stack_pointer(), access)
+        }
+        PointerClass::Frame => {
+            access::load_frame_pointer(state, pointer.as_frame_pointer(), access)
+        }
+        PointerClass::Static => {
+            access::load_static_pointer(state, pointer.as_static_pointer(), access)
+        }
+        PointerClass::Unknown => Err(access::invalid_pointer_type(pointer)),
+    }
+}
+
+/// Store one tensor element through one concrete pointer class.
+#[inline(always)]
 fn store_tensor_element(
-    state: &mut ExecutionState<'_, '_>,
-    tensor: Value,
-    tensor_type: mir::LocalNodeId<mir::Type>,
-    slot_index: usize,
-    value: Value,
+    state: &mut DispatchState<'_, '_>,
+    pointer: Word,
+    element: ElementAccess,
+    value: Word,
 ) -> Result<(), Error> {
-    let slot_index = u32::try_from(slot_index).map_err(|_| Error::TypeMismatch {
-        expected: "tensor storage slot".to_string(),
-        actual: slot_index.to_string(),
+    let access = PointeeAccess::from(element);
+
+    match element.pointer_class {
+        PointerClass::Heap => access::store_heap_reference(state, pointer, access, value),
+        PointerClass::SharedHeap => {
+            access::store_shared_heap_reference(state, pointer, access, value)
+        }
+        PointerClass::Raw => access::store_raw_pointer(state, pointer, access, value),
+        PointerClass::SharedRaw => access::store_shared_raw_pointer(state, pointer, access, value),
+        PointerClass::Stack => {
+            access::store_stack_pointer(state, pointer.as_stack_pointer(), access, value)
+        }
+        PointerClass::Frame => {
+            access::store_frame_pointer(state, pointer.as_frame_pointer(), access, value)
+        }
+        PointerClass::Static => {
+            access::store_static_pointer(state, pointer.as_static_pointer(), access, value)
+        }
+        PointerClass::Unknown => Err(access::invalid_pointer_type(pointer)),
+    }
+}
+
+/// Store one tensor element into one tensor value.
+fn store_tensor_element_at(
+    state: &mut DispatchState<'_, '_>,
+    tensor: Word,
+    tensor_type: mir::LocalNodeId<mir::Type>,
+    element_index: usize,
+    value: Word,
+) -> Result<(), Error> {
+    let element_index = u32::try_from(element_index).map_err(|_| Error::TypeMismatch {
+        expected: "tensor element index".to_string(),
+        actual: element_index.to_string(),
     })?;
     let (element, element_count) =
-        access::element_access_for_type(state, tensor_type, slot_index.into())?;
-    let element_count =
-        usize::try_from(element_count.unwrap_or(0)).map_err(|_| Error::TypeMismatch {
-            expected: "tensor storage length".to_string(),
-            actual: element_count.unwrap_or(0).to_string(),
-        })?;
-    let pointer = offset_pointer(tensor, element, slot_index as usize, element_count)?;
+        access::element_access_for_type(state, tensor_type, element_index.into())?;
+    let element_count = usize::try_from(element_count).map_err(|_| Error::TypeMismatch {
+        expected: "tensor storage length".to_string(),
+        actual: element_count.to_string(),
+    })?;
+    let pointer = offset_pointer(tensor, element, element_index as usize, element_count)?;
 
-    access::store_to_pointer_with_access(state, pointer, Some(TypedAccess::from(element)), value)
+    store_tensor_element(state, pointer, element, value)
 }
 
 /// Allocate one tensor result by destination index.
 fn allocate_tensor_by_index<F>(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     dest: mir::Value,
-    layout: &TensorLayoutInfo,
+    layout: &TensorLayout,
     mut index_value: F,
-) -> Result<Value, Error>
+) -> Result<(), Error>
 where
-    F: FnMut(&mut ExecutionState<'_, '_>, &[u64]) -> Result<Value, Error>,
+    F: FnMut(&mut DispatchState<'_, '_>, &[u64]) -> Result<Word, Error>,
 {
     let dest_type = state.value_type(dest)?;
-    let result = access::allocate_zeroed_heap_value(state, dest_type)?;
+    let result = Word::frame_pointer(state.value_address(dest)?);
+    state.value_bytes_mut(dest)?.fill(0);
     let mut error = None;
 
     // fill active tensor indices directly into the destination place
@@ -222,7 +295,7 @@ where
         };
 
         if let Err(current_error) =
-            store_tensor_element(state, result, dest_type, dst_offset, value)
+            store_tensor_element_at(state, result, dest_type, dst_offset, value)
         {
             error = Some(current_error);
         }
@@ -232,7 +305,7 @@ where
         return Err(error);
     }
 
-    Ok(result)
+    Ok(())
 }
 
 /// Compute the linear index for a multi-dimensional index.
@@ -277,40 +350,39 @@ pub(crate) fn tensor_linear_index(
 }
 
 /// Load one tensor element through indexed access.
-pub(crate) fn tensor_element_value(
-    state: &mut ExecutionState<'_, '_>,
-    tensor: Value,
+pub(crate) fn load_tensor_element_at(
+    state: &mut DispatchState<'_, '_>,
+    tensor: Word,
     tensor_type: mir::LocalNodeId<mir::Type>,
-    slot_index: usize,
-) -> Result<Value, Error> {
-    let index = u32::try_from(slot_index).map_err(|_| Error::TypeMismatch {
-        expected: "tensor storage slot".to_string(),
-        actual: slot_index.to_string(),
+    element_index: usize,
+) -> Result<Word, Error> {
+    let index = u32::try_from(element_index).map_err(|_| Error::TypeMismatch {
+        expected: "tensor element index".to_string(),
+        actual: element_index.to_string(),
     })?;
     let (element, element_count) =
         access::element_access_for_type(state, tensor_type, index.into())?;
-    let element_count =
-        usize::try_from(element_count.unwrap_or(0)).map_err(|_| Error::TypeMismatch {
-            expected: "tensor storage length".to_string(),
-            actual: element_count.unwrap_or(0).to_string(),
-        })?;
-    let pointer = offset_pointer(tensor, element, slot_index, element_count)?;
+    let element_count = usize::try_from(element_count).map_err(|_| Error::TypeMismatch {
+        expected: "tensor storage length".to_string(),
+        actual: element_count.to_string(),
+    })?;
+    let pointer = offset_pointer(tensor, element, element_index, element_count)?;
 
-    access::load_from_pointer_with_access(state, pointer, Some(TypedAccess::from(element)))
+    load_tensor_element(state, pointer, element)
 }
 
 /// Execute tensor.splat.
 pub(crate) fn execute_tensor_splat(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorSplat {
+    // decode instruction operands
+    let Operands::TensorSplat {
         dest,
         value,
         tensor_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -323,29 +395,28 @@ pub(crate) fn execute_tensor_splat(
     let value = state.get(*value);
 
     // allocate the result one active index at a time
-    let result = match allocate_tensor_by_index(state, *dest, &layout, |_state, _index| Ok(value)) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+    if let Err(error) = allocate_tensor_by_index(state, *dest, &layout, |_state, _index| Ok(value))
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.extract.
 pub(crate) fn execute_tensor_extract(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorExtract {
+    // decode instruction operands
+    let Operands::TensorExtract {
         dest,
         tensor,
         indices,
         tensor_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -366,21 +437,21 @@ pub(crate) fn execute_tensor_extract(
             Err(error) => return Transfer::Error(error),
         }
     }
-    let slot_index = match tensor_linear_index(&index, &layout.shape, &layout.strides) {
-        Ok(slot_index) => slot_index,
+    let element_index = match tensor_linear_index(&index, &layout.shape, &layout.strides) {
+        Ok(element_index) => element_index,
         Err(error) => return Transfer::Error(error),
     };
 
-    // load the tensor value slot
+    // load the tensor value
     let tensor_value = state.get(*tensor);
-    let value = match tensor_element_value(state, tensor_value, *tensor_type, slot_index) {
+    let value = match load_tensor_element_at(state, tensor_value, *tensor_type, element_index) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Iterate over all indices in a tensor shape.
@@ -418,11 +489,11 @@ pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
 
 /// Offset a pointer by one tensor element index.
 pub(crate) fn offset_pointer(
-    value: Value,
+    value: Word,
     element: ElementAccess,
     offset: usize,
     length: usize,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate bounds
     if offset >= length {
         return Err(Error::IndexOutOfBounds {
@@ -431,97 +502,85 @@ pub(crate) fn offset_pointer(
         });
     }
 
-    // preserve reference metadata
-    let reference_meta = value.reference_meta();
+    let byte_offset = offset
+        .checked_mul(element.byte_stride)
+        .ok_or(Error::InvalidPointerType {
+            actual: format!("{value:?}"),
+        })?;
 
     // offset the pointer according to its pointer kind
-    match value.tag() {
-        ValueTag::HeapReference => {
-            let Some(reference) = value.as_heap_reference() else {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{value:?}"),
-                });
-            };
-
-            let byte_offset =
-                offset
-                    .checked_mul(element.byte_stride)
-                    .ok_or(Error::InvalidPointerType {
-                        actual: format!("{value:?}"),
-                    })?;
+    match element.pointer_class {
+        PointerClass::Heap => {
+            let reference = value.as_heap_reference();
             let reference = reference
                 .add_bytes(byte_offset)
                 .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 })?;
 
-            Ok(Value::heap_reference_with_meta(reference, reference_meta))
+            Ok(Word::heap_reference(reference))
         }
-        ValueTag::RawPointer => {
-            let Some(pointer) = value.as_raw_pointer() else {
-                return Err(Error::InvalidPointerType {
+        PointerClass::SharedHeap => {
+            let reference = value.as_shared_heap_reference();
+            let reference = reference
+                .add_bytes(byte_offset)
+                .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
-                });
-            };
+                })?;
 
-            let byte_offset =
-                offset
-                    .checked_mul(element.byte_stride)
-                    .ok_or(Error::InvalidPointerType {
-                        actual: format!("{value:?}"),
-                    })?;
+            Ok(Word::shared_heap_reference(reference))
+        }
+        PointerClass::Raw => {
+            let pointer = value.as_raw_pointer();
             let pointer = pointer
                 .add_bytes(byte_offset)
                 .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 })?;
 
-            Ok(Value::raw_pointer_with_meta(pointer, reference_meta))
+            Ok(Word::raw_pointer(pointer))
         }
-        ValueTag::StackPointer => {
-            let Some(pointer) = value.as_stack_pointer() else {
-                return Err(Error::InvalidPointerType {
+        PointerClass::SharedRaw => {
+            let pointer = value.as_shared_raw_pointer();
+            let pointer = pointer
+                .add_bytes(byte_offset)
+                .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
-                });
-            };
+                })?;
 
-            let slot = pointer
-                .byte_offset
-                .saturating_add(offset.saturating_mul(element.byte_stride));
-            let pointer = StackPointer::with_offset(pointer.frame_idx, pointer.slot, slot);
-
-            stack_pointer_value_with_meta(pointer, reference_meta)
+            Ok(Word::shared_raw_pointer(pointer))
         }
-        ValueTag::FramePointer => {
-            let Some(pointer) = value.as_frame_pointer() else {
-                return Err(Error::InvalidPointerType {
+        PointerClass::Stack => {
+            let pointer = value.as_stack_pointer();
+            let pointer = pointer
+                .add_bytes(byte_offset)
+                .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
-                });
-            };
+                })?;
 
-            let slot = pointer
-                .byte_offset
-                .saturating_add(offset.saturating_mul(element.byte_stride));
-            let pointer = FramePointer::with_offset(pointer.frame_idx, pointer.slot, slot);
-
-            frame_pointer_value_with_meta(pointer, reference_meta)
+            Ok(Word::stack_pointer(pointer))
         }
-        ValueTag::StaticPointer => {
-            let Some(pointer) = value.as_static_pointer() else {
-                return Err(Error::InvalidPointerType {
+        PointerClass::Frame => {
+            let pointer = value.as_frame_pointer();
+            let pointer = pointer
+                .add_bytes(byte_offset)
+                .ok_or(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
-                });
-            };
+                })?;
 
-            let slot = pointer
-                .byte_offset
-                .saturating_add(offset.saturating_mul(element.byte_stride));
-
-            static_pointer_value_with_meta(pointer.id, slot, reference_meta)
+            Ok(Word::frame_pointer(pointer))
         }
+        PointerClass::Static => {
+            let pointer = value.as_static_pointer();
+            let pointer = pointer
+                .add_bytes(byte_offset)
+                .ok_or(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                })?;
 
-        // reject non pointer values loudly
-        _ => Err(Error::InvalidPointerType {
+            Ok(Word::static_pointer(pointer))
+        }
+        PointerClass::Unknown => Err(Error::InvalidPointerType {
             actual: format!("{value:?}"),
         }),
     }
@@ -529,18 +588,18 @@ pub(crate) fn offset_pointer(
 
 /// Execute tensor.load.
 pub(crate) fn execute_tensor_load(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorLoad {
+    // decode instruction operands
+    let Operands::TensorLoad {
         dest,
         view,
         indices,
         view_type,
         element,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -579,34 +638,30 @@ pub(crate) fn execute_tensor_load(
     };
 
     // load element
-    let value = match access::load_from_pointer_with_access(
-        state,
-        pointer,
-        Some(TypedAccess::from(element)),
-    ) {
+    let value = match load_tensor_element(state, pointer, element) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.store.
 pub(crate) fn execute_tensor_store(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorStore {
+    // decode instruction operands
+    let Operands::TensorStore {
         view,
         indices,
         value,
         view_type,
         element,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -646,32 +701,27 @@ pub(crate) fn execute_tensor_store(
 
     // store element
     let value = state.get(*value);
-    if let Err(error) = access::store_to_pointer_with_access(
-        state,
-        pointer,
-        Some(TypedAccess::from(element)),
-        value,
-    ) {
+    if let Err(error) = store_tensor_element(state, pointer, element, value) {
         return Transfer::Error(error);
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.fill.
 pub(crate) fn execute_tensor_fill(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorFill {
+    // decode instruction operands
+    let Operands::TensorFill {
         view,
         value,
         view_type,
         element,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -684,7 +734,7 @@ pub(crate) fn execute_tensor_fill(
     let fill_value = state.get(*value);
     let base_pointer = state.get(*view);
 
-    // fill each slot
+    // fill each element
     let Some(element) = *element else {
         return Transfer::Error(Error::TypeMismatch {
             expected: "compiled tensor element access".to_string(),
@@ -696,35 +746,30 @@ pub(crate) fn execute_tensor_fill(
             Ok(pointer) => pointer,
             Err(error) => return Transfer::Error(error),
         };
-        if let Err(error) = access::store_to_pointer_with_access(
-            state,
-            pointer,
-            Some(TypedAccess::from(element)),
-            fill_value,
-        ) {
+        if let Err(error) = store_tensor_element(state, pointer, element, fill_value) {
             return Transfer::Error(error);
         }
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
-/// Execute tensor.copy.
+/// Execute tensor.move.
 pub(crate) fn execute_tensor_copy(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorCopy {
+    // decode instruction operands
+    let Operands::TensorCopy {
         target,
         source,
         target_type,
         source_type,
         target_element,
         source_element,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -749,7 +794,7 @@ pub(crate) fn execute_tensor_copy(
         });
     }
 
-    // copy elements
+    // move elements
     let target_ptr = state.get(*target);
     let source_ptr = state.get(*source);
     let Some(source_element) = *source_element else {
@@ -783,41 +828,32 @@ pub(crate) fn execute_tensor_copy(
             Ok(pointer) => pointer,
             Err(error) => return Transfer::Error(error),
         };
-        let value = match access::load_from_pointer_with_access(
-            state,
-            src,
-            Some(TypedAccess::from(source_element)),
-        ) {
+        let value = match load_tensor_element(state, src, source_element) {
             Ok(value) => value,
             Err(error) => return Transfer::Error(error),
         };
-        if let Err(error) = access::store_to_pointer_with_access(
-            state,
-            dst,
-            Some(TypedAccess::from(target_element)),
-            value,
-        ) {
+        if let Err(error) = store_tensor_element(state, dst, target_element, value) {
             return Transfer::Error(error);
         }
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.reshape.
 pub(crate) fn execute_tensor_reshape(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorReshape {
+    // decode instruction operands
+    let Operands::TensorReshape {
         dest,
         tensor,
         shape,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -858,36 +894,36 @@ pub(crate) fn execute_tensor_reshape(
         });
     }
 
-    // copy the source storage into the reshaped result
-    let result = match allocate_tensor_by_element(
+    // move the source storage into the reshaped result
+    if let Err(error) = write_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| tensor_element_value(state, tensor_value, tensor_type, slot_index),
+        |state, element_index| {
+            load_tensor_element_at(state, tensor_value, tensor_type, element_index)
+        },
     ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.broadcast.
 pub(crate) fn execute_tensor_broadcast(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorBroadcast {
+    // decode instruction operands
+    let Operands::TensorBroadcast {
         dest,
         tensor,
         dimensions,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -910,13 +946,13 @@ pub(crate) fn execute_tensor_broadcast(
         });
     }
 
-    // resolve source slots
+    // resolve source elements
     let tensor_value = state.get(*tensor);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for (i, dim) in dimensions.iter().enumerate() {
                 let output_value = output_index[*dim as usize];
                 let source_dim = source_layout.shape[i];
@@ -926,31 +962,30 @@ pub(crate) fn execute_tensor_broadcast(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_element_value(state, tensor_value, *source_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            load_tensor_element_at(state, tensor_value, *source_type, src_offset)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.transpose.
 pub(crate) fn execute_tensor_transpose(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorTranspose {
+    // decode instruction operands
+    let Operands::TensorTranspose {
         dest,
         tensor,
         permutation,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -978,8 +1013,8 @@ pub(crate) fn execute_tensor_transpose(
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for (out_dim, in_dim) in permutation.iter().enumerate() {
                 input_index[*in_dim as usize] = output_index[out_dim];
             }
@@ -987,25 +1022,24 @@ pub(crate) fn execute_tensor_transpose(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_element_value(state, tensor_value, *source_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            load_tensor_element_at(state, tensor_value, *source_type, src_offset)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.slice.
 pub(crate) fn execute_tensor_slice(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorSlice {
+    // decode instruction operands
+    let Operands::TensorSlice {
         dest,
         tensor,
         arguments,
@@ -1014,7 +1048,7 @@ pub(crate) fn execute_tensor_slice(
         strides_count,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1067,8 +1101,8 @@ pub(crate) fn execute_tensor_slice(
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for i in 0..input_index.len() {
                 let offset = offsets.get(i).copied().unwrap_or(0);
                 let stride = strides.get(i).copied().unwrap_or(1);
@@ -1078,25 +1112,24 @@ pub(crate) fn execute_tensor_slice(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_element_value(state, tensor_value, *source_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            load_tensor_element_at(state, tensor_value, *source_type, src_offset)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.pad.
 pub(crate) fn execute_tensor_pad(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorPad {
+    // decode instruction operands
+    let Operands::TensorPad {
         dest,
         tensor,
         arguments,
@@ -1106,7 +1139,7 @@ pub(crate) fn execute_tensor_pad(
         value,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1160,8 +1193,8 @@ pub(crate) fn execute_tensor_pad(
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             for i in 0..input_index.len() {
                 let low_pad = low.get(i).copied().unwrap_or(0);
                 let interior_pad = interior.get(i).copied().unwrap_or(0);
@@ -1186,31 +1219,30 @@ pub(crate) fn execute_tensor_pad(
             let src_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            tensor_element_value(state, tensor_value, *source_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            load_tensor_element_at(state, tensor_value, *source_type, src_offset)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.concat.
 pub(crate) fn execute_tensor_concat(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorConcat {
+    // decode instruction operands
+    let Operands::TensorConcat {
         dest,
         tensors,
         tensor_types,
         axis,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1255,8 +1287,8 @@ pub(crate) fn execute_tensor_concat(
     let mut input_index = vec![0u64; dest_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let axis_value = output_index[axis_index];
             let mut selected = None;
             for (i, offset) in axis_offsets.iter().enumerate() {
@@ -1276,25 +1308,24 @@ pub(crate) fn execute_tensor_concat(
 
             let src_offset = tensor_linear_index(&input_index, &layout.shape, &layout.strides)?;
 
-            tensor_element_value(state, *tensor_value, *tensor_type, src_offset)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            load_tensor_element_at(state, *tensor_value, *tensor_type, src_offset)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.reduce.
 pub(crate) fn execute_tensor_reduce(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorReduce {
+    // decode instruction operands
+    let Operands::TensorReduce {
         dest,
         operator,
         tensor,
@@ -1302,7 +1333,7 @@ pub(crate) fn execute_tensor_reduce(
         axes,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1314,6 +1345,10 @@ pub(crate) fn execute_tensor_reduce(
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
+        Err(error) => return Transfer::Error(error),
+    };
+    let element_type = match tensor_element_type(state.tree(), *source_type) {
+        Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
 
@@ -1338,16 +1373,19 @@ pub(crate) fn execute_tensor_reduce(
     let mut source_index = vec![0u64; source_layout.shape.len()];
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let mut output_cursor = 0usize;
-            for (dim, slot) in source_index.iter_mut().enumerate() {
+            for (dim, element) in source_index.iter_mut().enumerate() {
                 if reduce_axes.contains(&(dim as u32)) {
-                    *slot = 0;
+                    *element = 0;
                     continue;
                 }
 
-                *slot = output_index.get(output_cursor).copied().unwrap_or(0);
+                *element = output_index
+                    .get(output_cursor)
+                    .copied()
+                    .ok_or(Error::InvalidInstruction)?;
                 output_cursor += 1;
             }
 
@@ -1376,7 +1414,7 @@ pub(crate) fn execute_tensor_reduce(
                     }
                 };
                 let src_value =
-                    match tensor_element_value(state, tensor_value, *source_type, src_offset) {
+                    match load_tensor_element_at(state, tensor_value, *source_type, src_offset) {
                         Ok(value) => value,
                         Err(error) => {
                             reduce_error = Some(error);
@@ -1385,6 +1423,7 @@ pub(crate) fn execute_tensor_reduce(
                     };
 
                 accum = match apply_reduce_operator(
+                    element_type,
                     ReduceOperator::from(*operator),
                     accum,
                     src_value,
@@ -1402,24 +1441,23 @@ pub(crate) fn execute_tensor_reduce(
             }
 
             Ok(accum)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.dot.
 pub(crate) fn execute_tensor_dot(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorDot {
+    // decode instruction operands
+    let Operands::TensorDot {
         dest,
         left,
         right,
@@ -1427,7 +1465,7 @@ pub(crate) fn execute_tensor_dot(
         left_type,
         right_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1443,6 +1481,10 @@ pub(crate) fn execute_tensor_dot(
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
+        Err(error) => return Transfer::Error(error),
+    };
+    let element_type = match tensor_element_type(state.tree(), *dest_type) {
+        Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
 
@@ -1495,7 +1537,7 @@ pub(crate) fn execute_tensor_dot(
     let mut rhs_index = vec![0u64; rhs_rank];
 
     // allocate result
-    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+    if let Err(error) = allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
         for (i, dim) in lhs_batch.iter().enumerate() {
             let value = out_index[i];
             lhs_index[*dim as usize] = value;
@@ -1541,21 +1583,27 @@ pub(crate) fn execute_tensor_dot(
                         return;
                     }
                 };
-            let lhs_val = match tensor_element_value(state, left_value, *left_type, lhs_offset) {
+            let lhs_val = match load_tensor_element_at(state, left_value, *left_type, lhs_offset) {
                 Ok(value) => value,
                 Err(error) => {
                     contract_error = Some(error);
                     return;
                 }
             };
-            let rhs_val = match tensor_element_value(state, right_value, *right_type, rhs_offset) {
+            let rhs_val = match load_tensor_element_at(state, right_value, *right_type, rhs_offset)
+            {
                 Ok(value) => value,
                 Err(error) => {
                     contract_error = Some(error);
                     return;
                 }
             };
-            let product = match apply_reduce_operator(ReduceOperator::Multiply, lhs_val, rhs_val) {
+            let product = match apply_reduce_operator(
+                element_type,
+                ReduceOperator::Multiply,
+                lhs_val,
+                rhs_val,
+            ) {
                 Ok(value) => value,
                 Err(error) => {
                     contract_error = Some(error);
@@ -1566,7 +1614,8 @@ pub(crate) fn execute_tensor_dot(
             accum = match accum {
                 None => Some(product),
                 Some(current) => {
-                    match apply_reduce_operator(ReduceOperator::Add, current, product) {
+                    match apply_reduce_operator(element_type, ReduceOperator::Add, current, product)
+                    {
                         Ok(value) => Some(value),
                         Err(error) => {
                             contract_error = Some(error);
@@ -1583,23 +1632,21 @@ pub(crate) fn execute_tensor_dot(
 
         accum.ok_or(Error::InvalidInstruction)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.convolution.
 pub(crate) fn execute_tensor_convolution(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorConvolution {
+    // decode instruction operands
+    let Operands::TensorConvolution {
         dest,
         input,
         kernel,
@@ -1610,7 +1657,7 @@ pub(crate) fn execute_tensor_convolution(
         input_type,
         kernel_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1626,6 +1673,10 @@ pub(crate) fn execute_tensor_convolution(
     };
     let dest_layout = match tensor_layout_info(state.tree(), *dest_type) {
         Ok(layout) => layout,
+        Err(error) => return Transfer::Error(error),
+    };
+    let element_type = match tensor_element_type(state.tree(), *dest_type) {
+        Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
 
@@ -1707,7 +1758,7 @@ pub(crate) fn execute_tensor_convolution(
     let mut kernel_index = vec![0u64; kernel_layout.shape.len()];
 
     // allocate result
-    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+    if let Err(error) = allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
         let out_batch = out_index[output_batch_dim];
         let out_feature = out_index[output_feature_dim];
 
@@ -1799,34 +1850,47 @@ pub(crate) fn execute_tensor_convolution(
                     }
                 };
                 let input_val =
-                    match tensor_element_value(state, input_value, *input_type, input_offset) {
+                    match load_tensor_element_at(state, input_value, *input_type, input_offset) {
                         Ok(value) => value,
                         Err(error) => {
                             convolution_error = Some(error);
                             return;
                         }
                     };
-                let kernel_val =
-                    match tensor_element_value(state, kernel_value, *kernel_type, kernel_offset) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
-                let product =
-                    match apply_reduce_operator(ReduceOperator::Multiply, input_val, kernel_val) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            convolution_error = Some(error);
-                            return;
-                        }
-                    };
+                let kernel_val = match load_tensor_element_at(
+                    state,
+                    kernel_value,
+                    *kernel_type,
+                    kernel_offset,
+                ) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        convolution_error = Some(error);
+                        return;
+                    }
+                };
+                let product = match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Multiply,
+                    input_val,
+                    kernel_val,
+                ) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        convolution_error = Some(error);
+                        return;
+                    }
+                };
 
                 accum = match accum {
                     None => Some(product),
                     Some(current) => {
-                        match apply_reduce_operator(ReduceOperator::Add, current, product) {
+                        match apply_reduce_operator(
+                            element_type,
+                            ReduceOperator::Add,
+                            current,
+                            product,
+                        ) {
                             Ok(value) => Some(value),
                             Err(error) => {
                                 convolution_error = Some(error);
@@ -1844,23 +1908,21 @@ pub(crate) fn execute_tensor_convolution(
 
         accum.ok_or(Error::InvalidInstruction)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.gather.
 pub(crate) fn execute_tensor_gather(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorGather {
+    // decode instruction operands
+    let Operands::TensorGather {
         dest,
         operand,
         indices,
@@ -1869,7 +1931,7 @@ pub(crate) fn execute_tensor_gather(
         operand_type,
         indices_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1887,7 +1949,6 @@ pub(crate) fn execute_tensor_gather(
         Ok(layout) => layout,
         Err(error) => return Transfer::Error(error),
     };
-
     // resolve tensors
     let operand_value = state.get(*operand);
     let indices_value = state.get(*indices);
@@ -1897,7 +1958,7 @@ pub(crate) fn execute_tensor_gather(
         dimensions.collapsed_slice_dims.iter().copied().collect();
 
     // allocate result
-    let result = match allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
+    if let Err(error) = allocate_tensor_by_index(state, *dest, &dest_layout, |state, out_index| {
         let mut index_coords = Vec::new();
         for (dim, value) in out_index.iter().enumerate() {
             if !offset_dims.contains(&(dim as u32)) {
@@ -1908,11 +1969,11 @@ pub(crate) fn execute_tensor_gather(
         let mut index_vec = vec![0u64; dimensions.start_index_map.len()];
         let mut indices_index = vec![0u64; indices_layout.shape.len()];
         let mut coord_iter = index_coords.iter();
-        for (dim, slot) in indices_index.iter_mut().enumerate() {
+        for (dim, element) in indices_index.iter_mut().enumerate() {
             if dim as u32 == dimensions.index_vector_dim {
                 continue;
             }
-            *slot = *coord_iter.next().unwrap_or(&0);
+            *element = *coord_iter.next().unwrap_or(&0);
         }
 
         let index_offset = tensor_linear_index(
@@ -1922,8 +1983,8 @@ pub(crate) fn execute_tensor_gather(
         )?;
         let index_base = index_offset;
         for (i, &_map_dim) in dimensions.start_index_map.iter().enumerate() {
-            let slot_index = index_base + i;
-            let value = tensor_element_value(state, indices_value, *indices_type, slot_index)?;
+            let element_index = index_base + i;
+            let value = load_tensor_element_at(state, indices_value, *indices_type, element_index)?;
             index_vec[i] = value_to_u64(value)?;
             indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
         }
@@ -1934,7 +1995,7 @@ pub(crate) fn execute_tensor_gather(
         }
 
         let mut offset_iter = out_index.iter();
-        for (dim, slot) in operand_index.iter_mut().enumerate() {
+        for (dim, element) in operand_index.iter_mut().enumerate() {
             if collapsed_dims.contains(&(dim as u32)) {
                 continue;
             }
@@ -1945,8 +2006,8 @@ pub(crate) fn execute_tensor_gather(
                 0
             };
             let size = slice_sizes.get(dim).copied().unwrap_or(1) as u64;
-            let start = *slot;
-            *slot = start + offset.min(size.saturating_sub(1));
+            let start = *element;
+            *element = start + offset.min(size.saturating_sub(1));
         }
 
         let src_offset = tensor_linear_index(
@@ -1955,25 +2016,23 @@ pub(crate) fn execute_tensor_gather(
             &operand_layout.strides,
         )?;
 
-        tensor_element_value(state, operand_value, *operand_type, src_offset)
+        load_tensor_element_at(state, operand_value, *operand_type, src_offset)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.scatter.
 pub(crate) fn execute_tensor_scatter(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorScatter {
+    // decode instruction operands
+    let Operands::TensorScatter {
         dest,
         operand,
         indices,
@@ -1984,7 +2043,7 @@ pub(crate) fn execute_tensor_scatter(
         indices_type,
         updates_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -2006,19 +2065,28 @@ pub(crate) fn execute_tensor_scatter(
         Ok(layout) => layout,
         Err(error) => return Transfer::Error(error),
     };
+    let element_type = match tensor_element_type(state.tree(), *dest_type) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // resolve tensors
     let operand_value = state.get(*operand);
     let indices_value = state.get(*indices);
     let updates_value = state.get(*updates);
 
-    let result = match allocate_tensor_by_element(
+    if let Err(error) = write_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| tensor_element_value(state, operand_value, *operand_type, slot_index),
+        |state, element_index| {
+            load_tensor_element_at(state, operand_value, *operand_type, element_index)
+        },
     ) {
-        Ok(result) => result,
+        return Transfer::Error(error);
+    }
+    let result = match state.value_address(*dest) {
+        Ok(pointer) => Word::frame_pointer(pointer),
         Err(error) => return Transfer::Error(error),
     };
     let update_window_dims: std::collections::HashSet<u32> =
@@ -2042,11 +2110,11 @@ pub(crate) fn execute_tensor_scatter(
 
         let mut indices_index = vec![0u64; indices_layout.shape.len()];
         let mut coord_iter = index_coords.iter();
-        for (dim, slot) in indices_index.iter_mut().enumerate() {
+        for (dim, element) in indices_index.iter_mut().enumerate() {
             if dim as u32 == dimensions.index_vector_dim {
                 continue;
             }
-            *slot = *coord_iter.next().unwrap_or(&0);
+            *element = *coord_iter.next().unwrap_or(&0);
         }
 
         let index_offset = tensor_linear_index(
@@ -2061,8 +2129,9 @@ pub(crate) fn execute_tensor_scatter(
 
         let mut scatter_indices = Vec::with_capacity(dimensions.scatter_dims_to_operand_dims.len());
         for i in 0..dimensions.scatter_dims_to_operand_dims.len() {
-            let slot_index = index_offset + i;
-            let Ok(value) = tensor_element_value(state, indices_value, *indices_type, slot_index)
+            let element_index = index_offset + i;
+            let Ok(value) =
+                load_tensor_element_at(state, indices_value, *indices_type, element_index)
             else {
                 scatter_error = Some(Error::InvalidInstruction);
                 return;
@@ -2081,12 +2150,12 @@ pub(crate) fn execute_tensor_scatter(
         }
 
         let mut update_iter = update_index.iter();
-        for (dim, slot) in operand_index.iter_mut().enumerate() {
+        for (dim, element) in operand_index.iter_mut().enumerate() {
             if inserted_window_dims.contains(&(dim as u32)) {
                 continue;
             }
             if update_window_dims.contains(&(dim as u32)) {
-                *slot = *update_iter.next().unwrap_or(&0);
+                *element = *update_iter.next().unwrap_or(&0);
             }
         }
 
@@ -2103,12 +2172,12 @@ pub(crate) fn execute_tensor_scatter(
             return;
         };
         let Ok(update_value) =
-            tensor_element_value(state, updates_value, *updates_type, update_offset)
+            load_tensor_element_at(state, updates_value, *updates_type, update_offset)
         else {
             scatter_error = Some(Error::InvalidInstruction);
             return;
         };
-        let current_value = match tensor_element_value(state, result, *dest_type, dst_offset) {
+        let current_value = match load_tensor_element_at(state, result, *dest_type, dst_offset) {
             Ok(value) => value,
             Err(error) => {
                 scatter_error = Some(error);
@@ -2118,7 +2187,12 @@ pub(crate) fn execute_tensor_scatter(
         let new_value = match mode {
             mir::TensorScatterMode::Replace => update_value,
             mir::TensorScatterMode::Add => {
-                match apply_reduce_operator(ReduceOperator::Add, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Add,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2127,7 +2201,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::Multiply => {
-                match apply_reduce_operator(ReduceOperator::Multiply, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Multiply,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2136,7 +2215,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::Min => {
-                match apply_reduce_operator(ReduceOperator::Min, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Min,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2145,7 +2229,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::Max => {
-                match apply_reduce_operator(ReduceOperator::Max, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Max,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2154,7 +2243,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::And => {
-                match apply_reduce_operator(ReduceOperator::And, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::And,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2163,7 +2257,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::Or => {
-                match apply_reduce_operator(ReduceOperator::Or, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Or,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2172,7 +2271,12 @@ pub(crate) fn execute_tensor_scatter(
                 }
             }
             mir::TensorScatterMode::Xor => {
-                match apply_reduce_operator(ReduceOperator::Xor, current_value, update_value) {
+                match apply_reduce_operator(
+                    element_type,
+                    ReduceOperator::Xor,
+                    current_value,
+                    update_value,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         scatter_error = Some(error);
@@ -2182,7 +2286,9 @@ pub(crate) fn execute_tensor_scatter(
             }
         };
 
-        if let Err(error) = store_tensor_element(state, result, *dest_type, dst_offset, new_value) {
+        if let Err(error) =
+            store_tensor_element_at(state, result, *dest_type, dst_offset, new_value)
+        {
             scatter_error = Some(error);
         }
     });
@@ -2191,26 +2297,24 @@ pub(crate) fn execute_tensor_scatter(
         return Transfer::Error(error);
     }
 
-    state.set(*dest, result);
-
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.convert.
 pub(crate) fn execute_tensor_convert(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorConvert {
+    // decode instruction operands
+    let Operands::TensorConvert {
         dest,
         mode,
         tensor,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -2269,44 +2373,42 @@ pub(crate) fn execute_tensor_convert(
             context: "tensor convert destination element".to_string(),
         });
     };
-    let source_info = match scalar_type_info(state.tree(), source_element) {
+    let source_info = match scalar_layout(state.tree(), source_element) {
         Ok(info) => info,
         Err(error) => return Transfer::Error(error),
     };
-    let dest_info = match scalar_type_info(state.tree(), dest_element) {
+    let dest_info = match scalar_layout(state.tree(), dest_element) {
         Ok(info) => info,
         Err(error) => return Transfer::Error(error),
     };
     let convert_mode = ScalarConvertMode::from(*mode);
 
     // allocate result
-    let result = match allocate_tensor_by_element(
+    if let Err(error) = write_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| {
-            let src = tensor_element_value(state, tensor_value, *source_type, slot_index)?;
+        |state, element_index| {
+            let src = load_tensor_element_at(state, tensor_value, *source_type, element_index)?;
 
             convert_scalar_value(src, source_info, dest_info, convert_mode)
         },
     ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.compare.
 pub(crate) fn execute_tensor_compare(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorCompare {
+    // decode instruction operands
+    let Operands::TensorCompare {
         dest,
         operator,
         left,
@@ -2314,7 +2416,7 @@ pub(crate) fn execute_tensor_compare(
         left_type,
         right_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -2332,45 +2434,49 @@ pub(crate) fn execute_tensor_compare(
         Ok(layout) => layout,
         Err(error) => return Transfer::Error(error),
     };
+    let element_type = match tensor_element_type(state.tree(), *left_type) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // resolve operand tensors
     let left_value = state.get(*left);
     let right_value = state.get(*right);
 
     // allocate result
-    let result =
-        match allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
+    if let Err(error) =
+        allocate_tensor_by_index(state, *dest, &dest_layout, |state, output_index| {
             let left_offset =
                 tensor_linear_index(output_index, &left_layout.shape, &left_layout.strides)?;
             let right_offset =
                 tensor_linear_index(output_index, &right_layout.shape, &right_layout.strides)?;
-            let left_value = tensor_element_value(state, left_value, *left_type, left_offset)?;
-            let right_value = tensor_element_value(state, right_value, *right_type, right_offset)?;
+            let left_value = load_tensor_element_at(state, left_value, *left_type, left_offset)?;
+            let right_value =
+                load_tensor_element_at(state, right_value, *right_type, right_offset)?;
 
-            operator::execute_binary(*operator, left_value, right_value)
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-    state.set(*dest, result);
+            apply_binary_operator(element_type, *operator, left_value, right_value)
+        })
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.select.
 pub(crate) fn execute_tensor_select(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let Immediate::TensorSelect {
+    let Operands::TensorSelect {
         dest,
         mask,
         then_value,
         else_value,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -2395,60 +2501,52 @@ pub(crate) fn execute_tensor_select(
     let mask_value = state.get(*mask);
     let then_value = state.get(*then_value);
     let else_value = state.get(*else_value);
-    let result = match allocate_tensor_by_element(
+    if let Err(error) = write_tensor_by_element(
         state,
         *dest,
         dest_layout.storage_len,
-        |state, slot_index| {
-            let mask_value = tensor_element_value(state, mask_value, mask_type, slot_index)?;
-            let then_slot = tensor_element_value(state, then_value, then_type, slot_index)?;
-            let else_slot = tensor_element_value(state, else_value, else_type, slot_index)?;
+        |state, element_index| {
+            let mask_value = load_tensor_element_at(state, mask_value, mask_type, element_index)?;
+            let then_element = load_tensor_element_at(state, then_value, then_type, element_index)?;
+            let else_element = load_tensor_element_at(state, else_value, else_type, element_index)?;
 
-            if !matches!(mask_value.tag(), ValueTag::Bool) {
-                return Err(Error::TypeMismatch {
-                    expected: "tensor.select mask element to be bool".to_string(),
-                    actual: format!("{mask_value:?}"),
-                });
-            }
-
-            let select = mask_value.raw_data() != 0;
-            Ok(if select { then_slot } else { else_slot })
+            let select = mask_value.as_bool();
+            Ok(if select { then_element } else { else_element })
         },
     ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
-    next!(state, block, pc)
+        return Transfer::Error(error);
+    }
+    Transfer::Continue
 }
 
 /// Execute tensor.cast.
 pub(crate) fn execute_tensor_cast(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorCast { dest, tensor } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::TensorCast { dest, tensor } = &block[pc].operands else {
         unreachable!()
     };
 
-    // forward the tensor value
-    let value = state.get(*tensor);
-    state.set(*dest, value);
+    // forward the tensor bytes
+    if let Err(error) = state.move_value_to_value(*tensor, *dest) {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute tensor.view.
 pub(crate) fn execute_tensor_view(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::TensorView {
+    // decode instruction operands
+    let Operands::TensorView {
         dest,
         view,
         arguments,
@@ -2458,7 +2556,7 @@ pub(crate) fn execute_tensor_view(
         source_type,
         dest_type,
         element,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -2544,8 +2642,8 @@ pub(crate) fn execute_tensor_view(
     };
 
     // set the view result
-    state.set(*dest, pointer);
+    state.set_word(*dest, pointer);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }

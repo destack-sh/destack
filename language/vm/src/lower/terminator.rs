@@ -1,17 +1,20 @@
 use destack_mir as mir;
 
-use crate::Value;
+use crate::Word;
 
-use crate::module::{Immediate, Instruction, Opcode, pack_optional_value};
+use crate::program::{Instruction, Opcode, Operands, pack_optional_value};
 use crate::{Error, Result};
 
-use super::kind::{heap_pointee_type_for_value, heap_pointee_type_for_value_kind};
+use super::access::{interface_table_field_for_receiver, virtual_table_field_for_receiver};
 use super::lower::BlockLowerer;
 use super::opcode::{
     select_branch_opcode, select_compare_branch_const_opcode, select_compare_branch_opcode,
     select_switch_opcode, select_switch_table_opcode, swap_compare_operator,
 };
 use super::pool::Pool;
+use super::repr::{
+    heap_pointee_type_for_value, heap_pointee_type_for_value_repr, pointer_class_for_value,
+};
 
 impl<'a> BlockLowerer<'a> {
     /// Try to fuse compare + branch into a single instruction.
@@ -86,10 +89,10 @@ impl<'a> BlockLowerer<'a> {
                 let uses = self.value_use_count(destination);
                 if uses == Some(1) {
                     if destination == right {
-                        const_value = Some(Value::from(value));
+                        const_value = Some(Word::from(value));
                         pop_const = true;
                     } else if destination == left {
-                        const_value = Some(Value::from(value));
+                        const_value = Some(Word::from(value));
                         left_value = right;
                         operator = swap_compare_operator(operator);
                         pop_const = true;
@@ -115,21 +118,21 @@ impl<'a> BlockLowerer<'a> {
             .get(else_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let then_copies = pool.copy_range(then_parameters, &then_arguments);
-        let else_copies = pool.copy_range(else_parameters, &else_arguments);
+        let then_moves = pool.move_range(then_parameters, &then_arguments);
+        let else_moves = pool.move_range(else_parameters, &else_arguments);
 
         if let Some(right_const) = const_value {
             let opcode = select_compare_branch_const_opcode(operator);
             return Some(Instruction {
                 opcode,
-                immediate: Immediate::CompareAndBranchConst {
+                operands: Operands::CompareAndBranchConst {
                     left: left_value,
                     right_const,
                     operator,
                     then_target: then_index as u32,
-                    then_copies,
+                    then_moves,
                     else_target: else_index as u32,
-                    else_copies,
+                    else_moves,
                 },
             });
         }
@@ -137,14 +140,14 @@ impl<'a> BlockLowerer<'a> {
         let opcode = select_compare_branch_opcode(operator);
         Some(Instruction {
             opcode,
-            immediate: Immediate::CompareAndBranch {
+            operands: Operands::CompareAndBranch {
                 left,
                 right,
                 operator,
                 then_target: then_index as u32,
-                then_copies,
+                then_moves,
                 else_target: else_index as u32,
-                else_copies,
+                else_moves,
             },
         })
     }
@@ -163,7 +166,7 @@ impl<'a> BlockLowerer<'a> {
             }
             mir::Terminator::Return { value } => Instruction {
                 opcode: Opcode::Return,
-                immediate: Immediate::Return {
+                operands: Operands::Return {
                     value: pack_optional_value(
                         (*value)
                             .map(|value| {
@@ -200,13 +203,13 @@ impl<'a> BlockLowerer<'a> {
                     .get(target_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let copies = pool.edge_copy_plan(target_parameters, &arguments);
+                let moves = pool.edge_move_plan(target_parameters, &arguments);
 
                 Instruction {
                     opcode: Opcode::Jump,
-                    immediate: Immediate::Jump {
+                    operands: Operands::Jump {
                         target: target_index as u32,
-                        copies,
+                        moves,
                     },
                 }
             }
@@ -267,17 +270,17 @@ impl<'a> BlockLowerer<'a> {
                     .get(else_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let then_copies = pool.edge_copy_plan(then_parameters, &then_arguments);
-                let else_copies = pool.edge_copy_plan(else_parameters, &else_arguments);
+                let then_moves = pool.edge_move_plan(then_parameters, &then_arguments);
+                let else_moves = pool.edge_move_plan(else_parameters, &else_arguments);
 
                 Instruction {
-                    opcode: select_branch_opcode(self.value_kind_map(), condition),
-                    immediate: Immediate::Branch {
+                    opcode: select_branch_opcode(self.value_repr_map(), condition),
+                    operands: Operands::Branch {
                         condition,
                         then_target: then_index as u32,
-                        then_copies,
+                        then_moves,
                         else_target: else_index as u32,
-                        else_copies,
+                        else_moves,
                     },
                 }
             }
@@ -333,17 +336,17 @@ impl<'a> BlockLowerer<'a> {
                     .get(failure_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let success_copies = pool.edge_copy_plan(success_parameters, &success_arguments);
-                let failure_copies = pool.edge_copy_plan(failure_parameters, &failure_arguments);
+                let success_moves = pool.edge_move_plan(success_parameters, &success_arguments);
+                let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments);
 
                 Instruction {
                     opcode: Opcode::Check,
-                    immediate: Immediate::Check {
+                    operands: Operands::Check {
                         constraint: constraint.clone(),
                         then_target: success_index as u32,
-                        then_copies: success_copies,
+                        then_moves: success_moves,
                         else_target: failure_index as u32,
-                        else_copies: failure_copies,
+                        else_moves: failure_moves,
                     },
                 }
             }
@@ -379,23 +382,23 @@ impl<'a> BlockLowerer<'a> {
                     .get(default_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let default_copies = pool.edge_copy_plan(default_parameters, &default_arguments);
+                let default_moves = pool.edge_move_plan(default_parameters, &default_arguments);
 
                 if let Some((min_value, table_range)) = pool.switch_table_range(
                     &self.block_index_by_id,
                     &self.block_parameter,
                     cases,
                     default_index as u32,
-                    default_copies,
+                    default_moves,
                 )? {
                     Instruction {
-                        opcode: select_switch_table_opcode(self.value_kind_map(), value),
-                        immediate: Immediate::SwitchTable {
+                        opcode: select_switch_table_opcode(self.value_repr_map(), value),
+                        operands: Operands::SwitchTable {
                             value,
                             min: min_value,
                             table: table_range,
                             default_target: default_index as u32,
-                            default_copies,
+                            default_moves,
                         },
                     }
                 } else {
@@ -405,12 +408,12 @@ impl<'a> BlockLowerer<'a> {
                         cases,
                     )?;
                     Instruction {
-                        opcode: select_switch_opcode(self.value_kind_map(), value),
-                        immediate: Immediate::Switch {
+                        opcode: select_switch_opcode(self.value_repr_map(), value),
+                        operands: Operands::Switch {
                             value,
                             cases,
                             default_target: default_index as u32,
-                            default_copies,
+                            default_moves,
                         },
                     }
                 }
@@ -418,7 +421,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Trap { kind, payload } => Instruction {
                 opcode: Opcode::Trap,
-                immediate: Immediate::Trap {
+                operands: Operands::Trap {
                     kind: *kind,
                     payload: pack_optional_value(
                         (*payload)
@@ -434,7 +437,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Unreachable => Instruction {
                 opcode: Opcode::Unreachable,
-                immediate: Immediate::Unreachable,
+                operands: Operands::Unreachable,
             },
 
             mir::Terminator::Yield { value, .. } => {
@@ -454,7 +457,7 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction {
                     opcode: Opcode::Yield,
-                    immediate: Immediate::Yield {
+                    operands: Operands::Yield {
                         value,
                         source: value,
                         resume_point,
@@ -464,7 +467,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Throw { value } => Instruction {
                 opcode: Opcode::Throw,
-                immediate: Immediate::Throw {
+                operands: Operands::Throw {
                     value: pack_optional_value(Some((*value).value().ok_or_else(|| {
                         Error::ConcreteMirRequired {
                             context: "throw value".to_string(),
@@ -493,7 +496,7 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction {
                     opcode: Opcode::CallBranch,
-                    immediate: Immediate::CallBranch {
+                    operands: Operands::CallBranch {
                         function: function.id,
                         target: self.call_target(function)?,
                         arguments: args,
@@ -523,7 +526,7 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction {
                     opcode: Opcode::CallIndirectBranch,
-                    immediate: Immediate::CallIndirectBranch {
+                    operands: Operands::CallIndirectBranch {
                         callee,
                         arguments,
                         normal_resume_point,
@@ -534,7 +537,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::InvokeVirtual {
                 receiver,
-                slot_id,
+                slot_id: method,
                 call,
                 ..
             } => {
@@ -557,14 +560,14 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction {
                     opcode: Opcode::CallVirtualBranch,
-                    immediate: Immediate::CallVirtualBranch {
+                    operands: Operands::CallVirtualBranch {
                         receiver,
-                        heap_pointee: heap_pointee_type_for_value(
-                            self.tree,
-                            self.value_type(),
-                            receiver,
+                        table_field: virtual_table_field_for_receiver(
+                            self.layouts(),
+                            heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
+                            pointer_class_for_value(self.value_repr_map(), receiver),
                         ),
-                        slot_id: slot_id.0,
+                        method_index: method.0,
                         arguments,
                         normal_resume_point,
                         unwind_resume_point,
@@ -574,7 +577,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::InvokeInterface {
                 receiver,
-                slot_id,
+                slot_id: method,
                 call,
                 ..
             } => {
@@ -597,14 +600,14 @@ impl<'a> BlockLowerer<'a> {
 
                 Instruction {
                     opcode: Opcode::CallInterfaceBranch,
-                    immediate: Immediate::CallInterfaceBranch {
+                    operands: Operands::CallInterfaceBranch {
                         receiver,
-                        heap_pointee: heap_pointee_type_for_value(
-                            self.tree,
-                            self.value_type(),
-                            receiver,
+                        table_field: interface_table_field_for_receiver(
+                            self.layouts(),
+                            heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
+                            pointer_class_for_value(self.value_repr_map(), receiver),
                         ),
-                        slot_id: slot_id.0,
+                        method_index: method.0,
                         arguments,
                         normal_resume_point,
                         unwind_resume_point,
@@ -624,7 +627,7 @@ impl<'a> BlockLowerer<'a> {
                         pool.argument_reference_range(&call.arguments, "tail call argument")?;
                     Instruction {
                         opcode: Opcode::TailCallSelf,
-                        immediate: Immediate::TailCallSelf {
+                        operands: Operands::TailCallSelf {
                             entry: self.entry_block,
                             arguments: args,
                         },
@@ -642,15 +645,15 @@ impl<'a> BlockLowerer<'a> {
                                 })
                         })
                         .collect::<Result<Vec<_>>>()?;
-                    let copies = pool.parameter_copy_range(&callee.parameters, &arguments)?;
+                    let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
                     let target = self.call_target(function)?;
 
                     Instruction {
                         opcode: Opcode::TailCall,
-                        immediate: Immediate::TailCall {
+                        operands: Operands::TailCall {
                             function: function.id,
                             target,
-                            copies,
+                            moves,
                         },
                     }
                 }
@@ -666,7 +669,7 @@ impl<'a> BlockLowerer<'a> {
                     pool.argument_reference_range(&call.arguments, "tail indirect argument")?;
                 Instruction {
                     opcode: Opcode::TailCallIndirect,
-                    immediate: Immediate::TailCallIndirect {
+                    operands: Operands::TailCallIndirect {
                         callee,
                         arguments: args,
                     },
@@ -675,7 +678,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::TailCallVirtual {
                 receiver,
-                slot_id,
+                slot_id: method,
                 call,
                 ..
             } => {
@@ -688,13 +691,14 @@ impl<'a> BlockLowerer<'a> {
                     pool.argument_reference_range(&call.arguments, "tail virtual argument")?;
                 Instruction {
                     opcode: Opcode::TailCallVirtual,
-                    immediate: Immediate::TailCallVirtual {
+                    operands: Operands::TailCallVirtual {
                         receiver,
-                        heap_pointee: heap_pointee_type_for_value_kind(
-                            self.value_kind_map(),
-                            receiver,
+                        table_field: virtual_table_field_for_receiver(
+                            self.layouts(),
+                            heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
+                            pointer_class_for_value(self.value_repr_map(), receiver),
                         ),
-                        slot_id: slot_id.0,
+                        method_index: method.0,
                         arguments: args,
                     },
                 }
@@ -702,7 +706,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::TailCallInterface {
                 receiver,
-                slot_id,
+                slot_id: method,
                 call,
                 ..
             } => {
@@ -715,13 +719,14 @@ impl<'a> BlockLowerer<'a> {
                     pool.argument_reference_range(&call.arguments, "tail interface argument")?;
                 Instruction {
                     opcode: Opcode::TailCallInterface,
-                    immediate: Immediate::TailCallInterface {
+                    operands: Operands::TailCallInterface {
                         receiver,
-                        heap_pointee: heap_pointee_type_for_value_kind(
-                            self.value_kind_map(),
-                            receiver,
+                        table_field: interface_table_field_for_receiver(
+                            self.layouts(),
+                            heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
+                            pointer_class_for_value(self.value_repr_map(), receiver),
                         ),
-                        slot_id: slot_id.0,
+                        method_index: method.0,
                         arguments: args,
                     },
                 }

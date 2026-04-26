@@ -1,113 +1,120 @@
 use super::prelude::*;
-use crate::module::Transfer;
-use crate::telemetry::stat_inc;
-
-/// Record one control-flow branch in the VM statistics.
-#[inline(always)]
-fn record_branch(state: &mut ExecutionState<'_, '_>) {
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
-}
+use crate::program::Transfer;
 
 /// Return one branch jump based on the evaluated condition.
 #[inline(always)]
 fn branch_transfer(
     is_truthy: bool,
     then_target: u32,
-    then_copies: CopyRange,
+    then_moves: MoveRange,
     else_target: u32,
-    else_copies: CopyRange,
+    else_moves: MoveRange,
 ) -> Transfer {
     if is_truthy {
         return Transfer::Jump {
             block: then_target,
-            copies: then_copies,
+            moves: then_moves,
         };
     }
 
     Transfer::Jump {
         block: else_target,
-        copies: else_copies,
+        moves: else_moves,
     }
 }
 
 /// Return one default switch jump.
 #[inline(always)]
-fn default_switch_transfer(default_target: u32, default_copies: CopyRange) -> Transfer {
+fn default_switch_transfer(default_target: u32, default_moves: MoveRange) -> Transfer {
     Transfer::Jump {
         block: default_target,
-        copies: default_copies,
+        moves: default_moves,
     }
 }
 
 /// Load one switch operand as a signed integer.
 #[inline(always)]
-fn load_switch_value(state: &ExecutionState<'_, '_>, value: mir::Value) -> Result<i64, Error> {
+fn load_switch_value(state: &DispatchState<'_, '_>, value: mir::Value) -> Result<i64, Error> {
     let value = state.get(value);
 
-    value.as_int().ok_or_else(|| Error::TypeMismatch {
-        expected: "signed integer".to_string(),
-        actual: format!("{value:?}"),
-    })
+    Ok(value.as_i64())
 }
 
 /// Load one value as a signed integer.
 #[inline(always)]
-fn load_signed_value(
-    state: &ExecutionState<'_, '_>,
-    value: mir::Value,
-) -> Result<(i64, u8), Error> {
+fn load_signed_value(state: &DispatchState<'_, '_>, value: mir::Value) -> Result<(i64, u8), Error> {
+    let ty = state.value_type(value)?;
+    let ty = scalar_layout(state.tree(), ty)?;
+    let ScalarLayout::Int {
+        width,
+        is_signed: true,
+    } = ty
+    else {
+        return Err(Error::TypeMismatch {
+            expected: "signed integer".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+    let width = u8::try_from(width).map_err(|_| Error::TypeMismatch {
+        expected: "integer width <= 64".to_string(),
+        actual: width.to_string(),
+    })?;
     let value = state.get(value);
 
-    value
-        .as_int_with_width()
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "signed integer".to_string(),
-            actual: format!("{value:?}"),
-        })
+    Ok((value.as_i64(), width))
 }
 
 /// Load one value as an unsigned integer.
 #[inline(always)]
 fn load_unsigned_value(
-    state: &ExecutionState<'_, '_>,
+    state: &DispatchState<'_, '_>,
     value: mir::Value,
 ) -> Result<(u64, u8), Error> {
+    let ty = state.value_type(value)?;
+    let ty = scalar_layout(state.tree(), ty)?;
+    let ScalarLayout::Int {
+        width,
+        is_signed: false,
+    } = ty
+    else {
+        return Err(Error::TypeMismatch {
+            expected: "unsigned integer".to_string(),
+            actual: format!("{ty:?}"),
+        });
+    };
+    let width = u8::try_from(width).map_err(|_| Error::TypeMismatch {
+        expected: "integer width <= 64".to_string(),
+        actual: width.to_string(),
+    })?;
     let value = state.get(value);
 
-    value
-        .as_uint_with_width()
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "unsigned integer".to_string(),
-            actual: format!("{value:?}"),
-        })
+    Ok((value.as_u64(), width))
 }
 
 /// Load one value as a non-negative length.
 #[inline(always)]
-fn load_length_value(state: &ExecutionState<'_, '_>, value: mir::Value) -> Result<u64, Error> {
+fn load_length_value(state: &DispatchState<'_, '_>, value: mir::Value) -> Result<u64, Error> {
+    let ty = state.value_type(value)?;
+    let ty = scalar_layout(state.tree(), ty)?;
     let value = state.get(value);
 
-    if let Some((length, _)) = value.as_uint_with_width() {
-        return Ok(length);
+    match ty {
+        ScalarLayout::Int {
+            is_signed: false, ..
+        } => Ok(value.as_u64()),
+        ScalarLayout::Int {
+            is_signed: true, ..
+        } if value.as_i64() >= 0 => Ok(value.as_i64() as u64),
+        _ => Err(Error::TypeMismatch {
+            expected: "non negative integer".to_string(),
+            actual: format!("{value:?}"),
+        }),
     }
-
-    if let Some((length, _)) = value.as_int_with_width()
-        && length >= 0
-    {
-        return Ok(length as u64);
-    }
-
-    Err(Error::TypeMismatch {
-        expected: "non negative integer".to_string(),
-        actual: format!("{value:?}"),
-    })
 }
 
 /// Evaluate one overflow guard.
 fn evaluate_overflow_check(
-    state: &ExecutionState<'_, '_>,
+    state: &DispatchState<'_, '_>,
     operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
@@ -184,7 +191,7 @@ fn evaluate_overflow_check(
 
 /// Evaluate one semantic check guard.
 fn evaluate_check_constraint(
-    state: &ExecutionState<'_, '_>,
+    state: &DispatchState<'_, '_>,
     constraint: &mir::CheckConstraint,
 ) -> Result<bool, Error> {
     match constraint {
@@ -226,15 +233,7 @@ fn evaluate_check_constraint(
                 context: "null check value".to_string(),
             })?);
 
-            if let Some(reference) = value.as_heap_reference() {
-                return Ok(!reference.is_null());
-            }
-
-            if let Some(pointer) = value.as_raw_pointer() {
-                return Ok(!pointer.is_null());
-            }
-
-            Ok(true)
+            Ok(value.bits() != 0)
         }
         mir::CheckConstraint::DivZero { divisor } => {
             let divisor = (*divisor)
@@ -242,12 +241,29 @@ fn evaluate_check_constraint(
                 .ok_or_else(|| Error::ConcreteMirRequired {
                     context: "divzero divisor".to_string(),
                 })?;
-            if let Ok((value, _)) = load_signed_value(state, divisor) {
-                return Ok(value != 0);
-            }
+            let ty = state.value_type(divisor)?;
+            let ty = scalar_layout(state.tree(), ty)?;
 
-            let (value, _) = load_unsigned_value(state, divisor)?;
-            Ok(value != 0)
+            match ty {
+                ScalarLayout::Int {
+                    is_signed: true, ..
+                } => {
+                    let (value, _) = load_signed_value(state, divisor)?;
+
+                    Ok(value != 0)
+                }
+                ScalarLayout::Int {
+                    is_signed: false, ..
+                } => {
+                    let (value, _) = load_unsigned_value(state, divisor)?;
+
+                    Ok(value != 0)
+                }
+                _ => Err(Error::TypeMismatch {
+                    expected: "integer divisor".to_string(),
+                    actual: format!("{ty:?}"),
+                }),
+            }
         }
         mir::CheckConstraint::ShiftRange {
             value,
@@ -317,30 +333,32 @@ fn evaluate_check_constraint(
                 context: "type check expected".to_string(),
             })?;
             let value = state.get(value);
-            if let Some((actual, _)) = value.as_uint_with_width() {
-                return Ok(actual == u64::from(expected.id));
-            }
-            if let Some((actual, _)) = value.as_int_with_width()
-                && actual >= 0
-            {
-                return Ok(actual as u64 == u64::from(expected.id));
-            }
 
-            Err(Error::TypeMismatch {
-                expected: "type metadata".to_string(),
-                actual: format!("{value:?}"),
-            })
+            Ok(value.as_u64() == u64::from(expected.id))
         }
         mir::CheckConstraint::Union { value, expected } => {
             let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
                 context: "union check value".to_string(),
             })?;
-            if let Ok((actual, _)) = load_unsigned_value(state, value) {
-                return Ok(actual == *expected);
-            }
+            let ty = state.value_type(value)?;
+            let ty = scalar_layout(state.tree(), ty)?;
 
-            let (actual, _) = load_signed_value(state, value)?;
-            Ok(actual >= 0 && actual as u64 == *expected)
+            match ty {
+                ScalarLayout::Int {
+                    is_signed: false, ..
+                } => Ok(state.get(value).as_u64() == *expected),
+                ScalarLayout::Int {
+                    is_signed: true, ..
+                } => {
+                    let actual = state.get(value).as_i64();
+
+                    Ok(actual >= 0 && actual as u64 == *expected)
+                }
+                _ => Err(Error::TypeMismatch {
+                    expected: "union discriminator".to_string(),
+                    actual: format!("{ty:?}"),
+                }),
+            }
         }
         mir::CheckConstraint::ReceiverType { .. } => Err(Error::UnsupportedInstruction {
             name: "receiverType check".to_string(),
@@ -353,39 +371,41 @@ fn evaluate_check_constraint(
 
 /// Execute assume (optimizer hint).
 pub(crate) fn execute_assume(
-    state: &mut ExecutionState<'_, '_>,
+    _state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Assume = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Assume = &block[pc].operands else {
         unreachable!()
     };
 
     // no op: assume is handled by the optimizer
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute return (exits tail-call chain).
 pub(crate) fn execute_return(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Return { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Return { value } = &block[pc].operands else {
         unreachable!()
     };
 
     // resolve return value
     let return_value = if is_invalid_value(*value) {
-        Value::VOID
+        Ok(Word::VOID)
     } else {
-        state.get(*value)
+        state.value_operand(*value)
+    };
+    let return_value = match return_value {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
     };
 
     // return to caller
@@ -394,24 +414,25 @@ pub(crate) fn execute_return(
 
 /// Execute yield (exits tail-call chain).
 pub(crate) fn execute_yield(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Yield {
+    // decode instruction operands
+    let Operands::Yield {
         value,
         source,
         resume_point,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // resolve yielded value
-    let yield_value = state.get(*value);
+    let yield_value = match state.value_operand(*value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // return yield control
     Transfer::Yield {
@@ -423,157 +444,147 @@ pub(crate) fn execute_yield(
 
 /// Execute unconditional jump (exits tail-call chain).
 pub(crate) fn execute_jump(
-    state: &mut ExecutionState<'_, '_>,
+    _state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Jump { target, copies } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Jump { target, moves } = &block[pc].operands else {
         unreachable!()
     };
 
     // return jump control
     Transfer::Jump {
         block: *target,
-        copies: *copies,
+        moves: *moves,
     }
 }
 
 /// Execute conditional branch (exits tail-call chain).
 pub(crate) fn execute_branch(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Branch {
+    // decode instruction operands
+    let Operands::Branch {
         condition,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // evaluate branch condition
     let cond = state.get(*condition);
-    let is_truthy = cond.is_truthy();
+    let is_truthy = cond.as_bool();
 
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute boolean branch (exits tail-call chain).
 pub(crate) fn execute_branch_bool(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Branch {
+    // decode instruction operands
+    let Operands::Branch {
         condition,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // evaluate branch condition
     let cond = state.get(*condition);
-    let is_truthy = cond.raw_data() != 0;
+    let is_truthy = cond.bits() != 0;
 
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute semantic check (exits tail-call chain).
 pub(crate) fn execute_check(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Check {
+    // decode instruction operands
+    let Operands::Check {
         constraint,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // evaluate the semantic guard
-    let is_truthy = evaluate_check_constraint(state, constraint).unwrap_or(false);
+    let is_truthy = match evaluate_check_constraint(state, constraint) {
+        Ok(is_truthy) => is_truthy,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch for signed integers (most common).
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_int(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranch {
+    // decode instruction operands
+    let Operands::CompareAndBranch {
         left,
         right,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load values as signed integers
-    let lhs = state.get(*left).raw_data() as i64;
-    let rhs = state.get(*right).raw_data() as i64;
+    let lhs = state.get(*left).bits() as i64;
+    let rhs = state.get(*right).bits() as i64;
 
     // perform comparison
     let is_truthy = match operator {
@@ -585,45 +596,41 @@ pub(crate) fn execute_compare_and_branch_int(
         mir::BinaryOperator::SignedGreaterEqual => lhs >= rhs,
         _ => unreachable!(),
     };
-
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch for unsigned integers.
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_uint(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranch {
+    // decode instruction operands
+    let Operands::CompareAndBranch {
         left,
         right,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load values as unsigned integers
-    let lhs = state.get(*left).raw_data();
-    let rhs = state.get(*right).raw_data();
+    let lhs = state.get(*left).bits();
+    let rhs = state.get(*right).bits();
 
     // perform comparison
     let is_truthy = match operator {
@@ -633,38 +640,34 @@ pub(crate) fn execute_compare_and_branch_uint(
         mir::BinaryOperator::UnsignedGreaterEqual => lhs >= rhs,
         _ => unreachable!(),
     };
-
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch for floats.
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_float(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranch {
+    // decode instruction operands
+    let Operands::CompareAndBranch {
         left,
         right,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -685,35 +688,32 @@ pub(crate) fn execute_compare_and_branch_float(
     };
 
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch (generic fallback).
 pub(crate) fn execute_compare_and_branch(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranch {
+    // decode instruction operands
+    let Operands::CompareAndBranch {
         left,
         right,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -724,18 +724,16 @@ pub(crate) fn execute_compare_and_branch(
 
     // perform comparison inline
     let is_truthy = match operator {
-        mir::BinaryOperator::Equal => lhs.raw_data() == rhs.raw_data(),
-        mir::BinaryOperator::NotEqual => lhs.raw_data() != rhs.raw_data(),
-        mir::BinaryOperator::SignedLessThan => (lhs.raw_data() as i64) < (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedLessEqual => (lhs.raw_data() as i64) <= (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedGreaterThan => (lhs.raw_data() as i64) > (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedGreaterEqual => {
-            (lhs.raw_data() as i64) >= (rhs.raw_data() as i64)
-        }
-        mir::BinaryOperator::UnsignedLessThan => lhs.raw_data() < rhs.raw_data(),
-        mir::BinaryOperator::UnsignedLessEqual => lhs.raw_data() <= rhs.raw_data(),
-        mir::BinaryOperator::UnsignedGreaterThan => lhs.raw_data() > rhs.raw_data(),
-        mir::BinaryOperator::UnsignedGreaterEqual => lhs.raw_data() >= rhs.raw_data(),
+        mir::BinaryOperator::Equal => lhs.bits() == rhs.bits(),
+        mir::BinaryOperator::NotEqual => lhs.bits() != rhs.bits(),
+        mir::BinaryOperator::SignedLessThan => (lhs.bits() as i64) < (rhs.bits() as i64),
+        mir::BinaryOperator::SignedLessEqual => (lhs.bits() as i64) <= (rhs.bits() as i64),
+        mir::BinaryOperator::SignedGreaterThan => (lhs.bits() as i64) > (rhs.bits() as i64),
+        mir::BinaryOperator::SignedGreaterEqual => (lhs.bits() as i64) >= (rhs.bits() as i64),
+        mir::BinaryOperator::UnsignedLessThan => lhs.bits() < rhs.bits(),
+        mir::BinaryOperator::UnsignedLessEqual => lhs.bits() <= rhs.bits(),
+        mir::BinaryOperator::UnsignedGreaterThan => lhs.bits() > rhs.bits(),
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs.bits() >= rhs.bits(),
         mir::BinaryOperator::FloatEqual => lhs.as_float64() == rhs.as_float64(),
         mir::BinaryOperator::FloatNotEqual => lhs.as_float64() != rhs.as_float64(),
         mir::BinaryOperator::FloatLessThan => lhs.as_float64() < rhs.as_float64(),
@@ -747,43 +745,40 @@ pub(crate) fn execute_compare_and_branch(
     };
 
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch with constant right operand for signed integers.
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_const_int(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranchConst {
+    // decode instruction operands
+    let Operands::CompareAndBranchConst {
         left,
         right_const,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load values as signed integers
-    let lhs = state.get(*left).raw_data() as i64;
-    let rhs = right_const.raw_data() as i64;
+    let lhs = state.get(*left).bits() as i64;
+    let rhs = right_const.bits() as i64;
 
     // perform comparison
     let is_truthy = match operator {
@@ -795,45 +790,41 @@ pub(crate) fn execute_compare_and_branch_const_int(
         mir::BinaryOperator::SignedGreaterEqual => lhs >= rhs,
         _ => unreachable!(),
     };
-
     // record the branch and return the chosen jump
-    record_branch(state);
 
     branch_transfer(
         is_truthy,
         *then_target,
-        *then_copies,
+        *then_moves,
         *else_target,
-        *else_copies,
+        *else_moves,
     )
 }
 
 /// Execute fused compare-and-branch with constant right operand for unsigned integers.
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_const_uint(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranchConst {
+    // decode instruction operands
+    let Operands::CompareAndBranchConst {
         left,
         right_const,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load values as unsigned integers
-    let lhs = state.get(*left).raw_data();
-    let rhs = right_const.raw_data();
+    let lhs = state.get(*left).bits();
+    let rhs = right_const.bits();
 
     // perform comparison
     let is_truthy = match operator {
@@ -845,18 +836,17 @@ pub(crate) fn execute_compare_and_branch_const_uint(
     };
 
     // record the branch before selecting a target
-    record_branch(state);
 
     // branch based on comparison result
     if is_truthy {
         Transfer::Jump {
             block: *then_target,
-            copies: *then_copies,
+            moves: *then_moves,
         }
     } else {
         Transfer::Jump {
             block: *else_target,
-            copies: *else_copies,
+            moves: *else_moves,
         }
     }
 }
@@ -864,22 +854,20 @@ pub(crate) fn execute_compare_and_branch_const_uint(
 /// Execute fused compare-and-branch with constant right operand for floats.
 #[inline(always)]
 pub(crate) fn execute_compare_and_branch_const_float(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranchConst {
+    // decode instruction operands
+    let Operands::CompareAndBranchConst {
         left,
         right_const,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -899,43 +887,36 @@ pub(crate) fn execute_compare_and_branch_const_float(
         _ => unreachable!(),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
-
     // branch based on comparison result
     if is_truthy {
         Transfer::Jump {
             block: *then_target,
-            copies: *then_copies,
+            moves: *then_moves,
         }
     } else {
         Transfer::Jump {
             block: *else_target,
-            copies: *else_copies,
+            moves: *else_moves,
         }
     }
 }
 
 /// Execute fused compare-and-branch with constant right operand (generic fallback).
 pub(crate) fn execute_compare_and_branch_const(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::CompareAndBranchConst {
+    // decode instruction operands
+    let Operands::CompareAndBranchConst {
         left,
         right_const,
         operator,
         then_target,
-        then_copies,
+        then_moves,
         else_target,
-        else_copies,
-    } = &block[pc].immediate
+        else_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -946,18 +927,16 @@ pub(crate) fn execute_compare_and_branch_const(
 
     // perform comparison inline
     let is_truthy = match operator {
-        mir::BinaryOperator::Equal => lhs.raw_data() == rhs.raw_data(),
-        mir::BinaryOperator::NotEqual => lhs.raw_data() != rhs.raw_data(),
-        mir::BinaryOperator::SignedLessThan => (lhs.raw_data() as i64) < (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedLessEqual => (lhs.raw_data() as i64) <= (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedGreaterThan => (lhs.raw_data() as i64) > (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedGreaterEqual => {
-            (lhs.raw_data() as i64) >= (rhs.raw_data() as i64)
-        }
-        mir::BinaryOperator::UnsignedLessThan => lhs.raw_data() < rhs.raw_data(),
-        mir::BinaryOperator::UnsignedLessEqual => lhs.raw_data() <= rhs.raw_data(),
-        mir::BinaryOperator::UnsignedGreaterThan => lhs.raw_data() > rhs.raw_data(),
-        mir::BinaryOperator::UnsignedGreaterEqual => lhs.raw_data() >= rhs.raw_data(),
+        mir::BinaryOperator::Equal => lhs.bits() == rhs.bits(),
+        mir::BinaryOperator::NotEqual => lhs.bits() != rhs.bits(),
+        mir::BinaryOperator::SignedLessThan => (lhs.bits() as i64) < (rhs.bits() as i64),
+        mir::BinaryOperator::SignedLessEqual => (lhs.bits() as i64) <= (rhs.bits() as i64),
+        mir::BinaryOperator::SignedGreaterThan => (lhs.bits() as i64) > (rhs.bits() as i64),
+        mir::BinaryOperator::SignedGreaterEqual => (lhs.bits() as i64) >= (rhs.bits() as i64),
+        mir::BinaryOperator::UnsignedLessThan => lhs.bits() < rhs.bits(),
+        mir::BinaryOperator::UnsignedLessEqual => lhs.bits() <= rhs.bits(),
+        mir::BinaryOperator::UnsignedGreaterThan => lhs.bits() > rhs.bits(),
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs.bits() >= rhs.bits(),
         mir::BinaryOperator::FloatEqual => lhs.as_float64() == rhs.as_float64(),
         mir::BinaryOperator::FloatNotEqual => lhs.as_float64() != rhs.as_float64(),
         mir::BinaryOperator::FloatLessThan => lhs.as_float64() < rhs.as_float64(),
@@ -967,40 +946,33 @@ pub(crate) fn execute_compare_and_branch_const(
         _ => unreachable!("compare-and-branch with non-comparison operator"),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
-
     // branch based on comparison result
     if is_truthy {
         Transfer::Jump {
             block: *then_target,
-            copies: *then_copies,
+            moves: *then_moves,
         }
     } else {
         Transfer::Jump {
             block: *else_target,
-            copies: *else_copies,
+            moves: *else_moves,
         }
     }
 }
 
 /// Execute switch (exits tail-call chain).
 pub(crate) fn execute_switch(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Switch {
+    // decode instruction operands
+    let Operands::Switch {
         value,
         cases,
         default_target,
-        default_copies,
-    } = &block[pc].immediate
+        default_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1011,42 +983,35 @@ pub(crate) fn execute_switch(
         Err(error) => return Transfer::Error(error),
     };
 
-    // update branch statistics
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, branches);
-    }
-
     // find matching case
     for case in cases.as_ref() {
         if case.value == int_val {
-            // forward case copies
+            // forward case moves
             return Transfer::Jump {
                 block: case.target,
-                copies: case.copies,
+                moves: case.moves,
             };
         }
     }
 
     // otherwise jump to the default target
-    default_switch_transfer(*default_target, *default_copies)
+    default_switch_transfer(*default_target, *default_moves)
 }
 
 /// Execute switch via dense jump table (exits tail-call chain).
 pub(crate) fn execute_switch_table(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::SwitchTable {
+    // decode instruction operands
+    let Operands::SwitchTable {
         value,
         min,
         table,
         default_target,
-        default_copies,
-    } = &block[pc].immediate
+        default_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -1058,117 +1023,108 @@ pub(crate) fn execute_switch_table(
     };
 
     // record the branch before selecting a target
-    record_branch(state);
 
     // resolve jump table entry
     if int_val < *min {
-        return default_switch_transfer(*default_target, *default_copies);
+        return default_switch_transfer(*default_target, *default_moves);
     }
     let offset = (int_val - *min) as usize;
     let Some(case) = table.get(offset) else {
-        return default_switch_transfer(*default_target, *default_copies);
+        return default_switch_transfer(*default_target, *default_moves);
     };
 
     // jump to resolved case
     Transfer::Jump {
         block: case.target,
-        copies: case.copies,
+        moves: case.moves,
     }
 }
 
 /// Execute integer switch (exits tail-call chain).
 pub(crate) fn execute_switch_int(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::Switch {
+    // decode instruction operands
+    let Operands::Switch {
         value,
         cases,
         default_target,
-        default_copies,
-    } = &block[pc].immediate
+        default_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load switch value
     let switch_val = state.get(*value);
-    let int_val = switch_val.raw_data() as i64;
+    let int_val = switch_val.bits() as i64;
 
     // record the branch before selecting a target
-    record_branch(state);
 
     // find matching case
     for case in cases.as_ref() {
         if case.value == int_val {
-            // forward case copies
+            // forward case moves
             return Transfer::Jump {
                 block: case.target,
-                copies: case.copies,
+                moves: case.moves,
             };
         }
     }
 
     // otherwise jump to the default target
-    default_switch_transfer(*default_target, *default_copies)
+    default_switch_transfer(*default_target, *default_moves)
 }
 
 /// Execute integer switch via dense jump table (exits tail-call chain).
 pub(crate) fn execute_switch_table_int(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction immediate
-    let Immediate::SwitchTable {
+    // decode instruction operands
+    let Operands::SwitchTable {
         value,
         min,
         table,
         default_target,
-        default_copies,
-    } = &block[pc].immediate
+        default_moves,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load switch value
     let switch_val = state.get(*value);
-    let int_val = switch_val.raw_data() as i64;
+    let int_val = switch_val.bits() as i64;
 
     // record the branch before selecting a target
-    record_branch(state);
 
     // resolve jump table entry
     if int_val < *min {
-        return default_switch_transfer(*default_target, *default_copies);
+        return default_switch_transfer(*default_target, *default_moves);
     }
     let offset = (int_val - *min) as usize;
     let Some(case) = table.get(offset) else {
-        return default_switch_transfer(*default_target, *default_copies);
+        return default_switch_transfer(*default_target, *default_moves);
     };
 
     // jump to resolved case
     Transfer::Jump {
         block: case.target,
-        copies: case.copies,
+        moves: case.moves,
     }
 }
 
 /// Execute unreachable (errors).
 pub(crate) fn execute_trap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    let Immediate::Trap { kind, payload } = &block[pc].immediate else {
+    let Operands::Trap { kind, payload } = &block[pc].operands else {
         unreachable!()
     };
 
@@ -1192,29 +1148,28 @@ pub(crate) fn execute_trap(
 
 /// Execute throw terminator.
 pub(crate) fn execute_throw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
-    let Immediate::Throw { value } = &block[pc].immediate else {
+    let Operands::Throw { value } = &block[pc].operands else {
         unreachable!()
     };
 
-    let value = state.get(*value);
+    let value = match state.value_operand(*value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     Transfer::Throw(value)
 }
 
 /// Execute unreachable (errors).
 pub(crate) fn execute_unreachable(
-    state: &mut ExecutionState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
+    _state: &mut DispatchState<'_, '_>,
+    _block: &[Instruction],
+    _pc: usize,
 ) -> Transfer {
-    state.maybe_profile_instruction(&block[pc]);
-
     // return unreachable error
     Transfer::Error(Error::Unreachable)
 }

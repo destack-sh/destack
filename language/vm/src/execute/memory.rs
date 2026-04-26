@@ -1,118 +1,126 @@
+use super::bytes::{decode_raw_value, encode_raw_value, write_value_bytes};
 use super::prelude::*;
-use crate::telemetry::stat_inc;
+use crate::program::{PointerClass, ValueRepr, value_repr_from_type};
 use destack_heap::{HeapError, Payload};
-
-/// Record one load in the VM statistics.
-#[inline(always)]
-fn record_load(state: &mut ExecutionState<'_, '_>) {
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-}
-
-/// Record one store in the VM statistics.
-#[inline(always)]
-fn record_store(state: &mut ExecutionState<'_, '_>) {
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-}
 
 /// Load one heap array length operand as a host usize.
 #[inline(always)]
 fn load_heap_array_length(
-    state: &ExecutionState<'_, '_>,
+    state: &DispatchState<'_, '_>,
     value: mir::Value,
 ) -> Result<usize, Error> {
     let value = state.get(value);
-    let length = value.as_uint().ok_or_else(|| Error::TypeMismatch {
-        expected: "unsigned integer".to_string(),
-        actual: format!("{value:?}"),
-    })?;
+    let length = value.as_uint();
 
     usize::try_from(length).map_err(|_| Error::AllocationFailed)
 }
 
-/// Load one static value directly from isolate storage.
+/// Load one static value directly from isolate bytes.
 #[inline(always)]
 fn load_static_value(
-    state: &ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
+    dest: mir::Value,
     global: u32,
-) -> Result<(mir::LocalNodeId<mir::Global>, Value), Error> {
+) -> Result<(), Error> {
     let global_id = global_id(global);
-    let value = state
-        .globals
-        .get(global_id)
-        .copied()
+    let global = state.program.tree.get(global_id);
+    let ty = global.ty.ty().ok_or_else(|| Error::ConcreteMirRequired {
+        context: "static load type".to_string(),
+    })?;
+    let bytes = state
+        .static_bytes(global_id)
         .ok_or(Error::UndefinedGlobal { global: global_id })?;
+    if state.layout(ty)?.is_scalar() {
+        let value = decode_raw_value(state.tree(), ty, bytes)?;
+        state.set_word(dest, value);
 
-    Ok((global_id, value))
+        return Ok(());
+    }
+
+    let source = bytes.as_ptr();
+    let source_len = bytes.len();
+    let target = state.value_bytes_mut(dest)?;
+    if target.len() != source_len {
+        return Err(Error::InvalidInstruction);
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(source, target.as_mut_ptr(), source_len);
+    }
+
+    Ok(())
 }
 
 /// Execute local variable load.
 #[inline(always)]
 pub(crate) fn execute_local_get(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::LocalGet { dest, local } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::LocalGet { dest, local } = &block[pc].operands else {
         unreachable!()
     };
 
-    // load local value
-    let value = state.get_local_by_index(*local);
-
-    // store value
-    state.set(*dest, value);
+    // move local bytes into the destination region
+    if let Err(error) = state.move_local_to_value_by_index(*local, *dest) {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute local variable store.
 #[inline(always)]
 pub(crate) fn execute_local_set(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::LocalSet { local, value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::LocalSet { local, value } = &block[pc].operands else {
         unreachable!()
     };
 
-    // load value
-    let value = state.get(*value);
-
-    // store local value
-    state.set_local_by_index(*local, value);
+    // move the value bytes into the local region
+    if let Err(error) = state.move_value_to_local_by_index(*value, *local) {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute local address.
 #[inline(always)]
 pub(crate) fn execute_local_addr(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::LocalAddr {
+    // decode instruction operands
+    let Operands::LocalAddr {
         dest,
         local,
         reference,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // build frame pointer
-    let pointer = FramePointer::new(state.frame_index, *local as usize);
-    let value = match frame_pointer_value_with_meta(pointer, *reference) {
+    // take the address of the local value
+    let local = mir::LocalNodeId::new(*local);
+    let frame_layout = state.frame_layout() as *const destack_engine::FrameLayout;
+    let address = match state
+        .current_frame_mut()
+        .local_address(unsafe { &*frame_layout }, local)
+    {
+        Ok(address) => address,
+        Err(error) => return Transfer::Error(error),
+    };
+    let pointer = FramePointer::from_address(address);
+    let value = match frame_pointer_value(pointer) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -123,30 +131,34 @@ pub(crate) fn execute_local_addr(
     }
 
     // store result
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute static address.
 pub(crate) fn execute_static_addr(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::StaticAddr {
+    // decode instruction operands
+    let Operands::StaticAddr {
         dest,
         global,
         reference,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // build static pointer
-    let pointer = match static_pointer_value_with_meta(global_id(*global), 0, *reference) {
+    let global = global_id(*global);
+    let pointer = match state.static_pointer(global) {
+        Some(pointer) => pointer,
+        None => return Transfer::Error(Error::UndefinedGlobal { global }),
+    };
+    let pointer = match static_pointer_value(pointer, 0) {
         Ok(pointer) => pointer,
         Err(error) => return Transfer::Error(error),
     };
@@ -157,156 +169,136 @@ pub(crate) fn execute_static_addr(
     }
 
     // store result
-    state.set(*dest, pointer);
+    state.set_word(*dest, pointer);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute fused static address and load.
 #[inline(always)]
 pub(crate) fn execute_static_load(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::StaticLoad { dest, global } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::StaticLoad { dest, global } = &block[pc].operands else {
         unreachable!()
     };
 
     // track loads
-    record_load(state);
 
     // load static value directly
-    let value = match load_static_value(state, *global) {
-        Ok((_global_id, value)) => value,
+    match load_static_value(state, *dest, *global) {
+        Ok(()) => {}
         Err(error) => return Transfer::Error(error),
-    };
-
-    // store value
-    state.set(*dest, value);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute fused static address and store.
 #[inline(always)]
 pub(crate) fn execute_static_store(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::StaticStore {
+    // decode instruction operands
+    let Operands::StaticStore {
         global,
         value,
         reference,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // track stores
-    record_store(state);
 
     // load value to store
-    let value = state.get(*value);
+    let value = match state.value_operand(*value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // check mutability via reference metadata
     let global_id = global_id(*global);
-    if reference.mutability() != Some(mir::Mutability::Mutable) {
+    let global_def = state.program.tree.get(global_id);
+    if !global_def.is_mutable() || reference.mutability() != Some(mir::Mutability::Mutable) {
         return Transfer::Error(Error::ImmutableGlobalWrite { global: global_id });
     }
 
     // store to static directly
-    state.globals.set(global_id, value);
+    let ty = global_def
+        .ty
+        .ty()
+        .ok_or_else(|| Error::ConcreteMirRequired {
+            context: "static store type".to_string(),
+        });
+    let ty = match ty {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
+    let bytes = if state.layout(ty).is_ok_and(|layout| layout.is_scalar()) {
+        match encode_raw_value(state.tree(), ty, value) {
+            Ok(bytes) => bytes,
+            Err(error) => return Transfer::Error(error),
+        }
+    } else {
+        let byte_len = match state.layout(ty) {
+            Ok(layout) => layout.byte_len,
+            Err(error) => return Transfer::Error(error),
+        };
+        let mut bytes = vec![0u8; byte_len];
+        if let Err(error) = write_value_bytes(state, ty, value, &mut bytes) {
+            return Transfer::Error(error);
+        }
+
+        bytes
+    };
+    let Some(target) = state.statics.bytes_mut(state.program.static_id(global_id)) else {
+        return Transfer::Error(Error::UndefinedGlobal { global: global_id });
+    };
+    if target.len() != bytes.len() {
+        return Transfer::Error(Error::InvalidInstruction);
+    }
+    target.copy_from_slice(&bytes);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
-/// Execute pointer load.
-pub(crate) fn execute_load(
-    state: &mut ExecutionState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
-) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
-        dest,
-        pointer,
-        access,
-    } = &block[pc].immediate
-    else {
-        unreachable!()
-    };
-
-    // load pointer value
-    let ptr = state.get(*pointer);
-
-    // load from pointer
-    let value = match access::load_from_pointer_with_access(state, ptr, *access) {
-        Ok(v) => v,
-        Err(e) => return Transfer::Error(e),
-    };
-
-    // store loaded value
-    state.set(*dest, value);
-
-    // continue to next instruction
-    next!(state, block, pc)
-}
-
-/// Execute pointer store.
-pub(crate) fn execute_store(
-    state: &mut ExecutionState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
-) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
-        pointer,
-        value,
-        reference,
-        access,
-    } = &block[pc].immediate
-    else {
-        unreachable!()
-    };
-
-    // load values
-    let ptr = state.get(*pointer);
-    let val = state.get(*value);
-
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, ptr) {
-        return Transfer::Error(error);
+/// Return the destination bytes for one non-scalar load.
+#[inline(always)]
+fn load_destination(
+    state: &mut DispatchState<'_, '_>,
+    dest: mir::Value,
+    byte_len: usize,
+) -> Result<(*mut u8, usize), Error> {
+    let target = state.value_bytes_mut(dest)?;
+    if target.len() != byte_len {
+        return Err(Error::InvalidInstruction);
     }
 
-    // write through pointer
-    if let Err(e) = access::store_to_pointer_with_access(state, ptr, *access, val) {
-        return Transfer::Error(e);
-    }
-
-    // continue to next instruction
-    next!(state, block, pc)
+    Ok((target.as_mut_ptr(), target.len()))
 }
 
 /// Execute atomic load.
 pub(crate) fn execute_atomic_load(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AtomicLoad {
+    // decode instruction operands
+    let Operands::AtomicLoad {
         dest,
         pointer,
         raw_pointee,
         ..
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -328,25 +320,25 @@ pub(crate) fn execute_atomic_load(
     };
 
     // store the result
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute atomic store.
 pub(crate) fn execute_atomic_store(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AtomicStore {
+    // decode instruction operands
+    let Operands::AtomicStore {
         pointer,
         value,
         raw_pointee,
         ..
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -369,24 +361,24 @@ pub(crate) fn execute_atomic_store(
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute atomic compare exchange.
 pub(crate) fn execute_atomic_compare_exchange(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AtomicCompareExchange {
+    // decode instruction operands
+    let Operands::AtomicCompareExchange {
         dest,
         pointer,
         expected,
         new_value,
         raw_pointee,
         ..
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -397,7 +389,7 @@ pub(crate) fn execute_atomic_compare_exchange(
     let new_value = state.get(*new_value);
 
     // execute the compare exchange
-    let result = match state.execute_atomic_compare_exchange_value(
+    if let Err(error) = state.execute_atomic_compare_exchange_value(
         *dest,
         pointer,
         expected,
@@ -409,32 +401,28 @@ pub(crate) fn execute_atomic_compare_exchange(
         mir::MemoryScope::Device,
         mir::MemorySemantics::default(),
     ) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error.error),
-    };
-
-    // store the result
-    state.set(*dest, result);
+        return Transfer::Error(error.error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute atomic read modify write.
 pub(crate) fn execute_atomic_rmw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AtomicRmw {
+    // decode instruction operands
+    let Operands::AtomicRmw {
         dest,
         operator,
         pointer,
         value,
         raw_pointee,
         ..
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -459,20 +447,20 @@ pub(crate) fn execute_atomic_rmw(
     };
 
     // store the result
-    state.set(*dest, result);
+    state.set_word(*dest, result);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute atomic fence.
 pub(crate) fn execute_atomic_fence(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AtomicFence = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::AtomicFence = &block[pc].operands else {
         unreachable!()
     };
 
@@ -487,17 +475,17 @@ pub(crate) fn execute_atomic_fence(
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute one execution and memory synchronization barrier.
 pub(crate) fn execute_barrier(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Barrier = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Barrier = &block[pc].operands else {
         unreachable!()
     };
 
@@ -511,22 +499,22 @@ pub(crate) fn execute_barrier(
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute heap reference load.
 #[inline(always)]
 pub(crate) fn execute_load_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
+    // decode instruction operands
+    let Operands::Load {
         dest,
         pointer,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -534,35 +522,85 @@ pub(crate) fn execute_load_heap(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from heap reference
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
-    };
-    let value = match access::load_from_heap_reference_typed(state, ptr, access) {
-        Ok(v) => v,
+    if access.is_scalar {
+        let value = match access::load_heap_reference(state, ptr, *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
+    if let Err(error) =
+        access::load_heap_reference_bytes_into(state, ptr, *access, target, target_len)
+    {
+        return Transfer::Error(error);
+    }
 
-    // store loaded value
-    state.set(*dest, value);
+    Transfer::Continue
+}
 
-    // continue to next instruction
-    next!(state, block, pc)
+/// Execute shared heap reference load.
+#[inline(always)]
+pub(crate) fn execute_load_shared_heap(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Load {
+        dest,
+        pointer,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    if access.is_scalar {
+        let value = match access::load_shared_heap_reference(state, ptr, *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
+    };
+    if let Err(error) =
+        access::load_shared_heap_reference_bytes_into(state, ptr, *access, target, target_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
 }
 
 /// Execute raw pointer load.
 #[inline(always)]
 pub(crate) fn execute_load_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
+    // decode instruction operands
+    let Operands::Load {
         dest,
         pointer,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -570,35 +608,84 @@ pub(crate) fn execute_load_raw(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from raw pointer
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
+    if access.is_scalar {
+        let value = match access::load_raw_pointer(state, ptr, *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
-    let value = match access::load_from_raw_pointer_typed(state, ptr, access) {
-        Ok(v) => v,
-        Err(e) => return Transfer::Error(e),
+    if let Err(error) = access::load_raw_pointer_bytes_into(state, ptr, *access, target, target_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
+}
+
+/// Execute shared raw pointer load.
+#[inline(always)]
+pub(crate) fn execute_load_shared_raw(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Load {
+        dest,
+        pointer,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
     };
 
-    // store loaded value
-    state.set(*dest, value);
+    // load pointer value
+    let ptr = state.get(*pointer);
 
-    // continue to next instruction
-    next!(state, block, pc)
+    if access.is_scalar {
+        let value = match access::load_shared_raw_pointer(state, ptr, *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
+    };
+    if let Err(error) =
+        access::load_shared_raw_pointer_bytes_into(state, ptr, *access, target, target_len)
+    {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
 }
 
 /// Execute stack pointer load.
 #[inline(always)]
 pub(crate) fn execute_load_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
+    // decode instruction operands
+    let Operands::Load {
         dest,
         pointer,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -606,43 +693,46 @@ pub(crate) fn execute_load_stack(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from stack pointer
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
-    };
-    let pointer = match ptr.as_stack_pointer() {
-        Some(pointer) => pointer,
-        None => {
-            return Transfer::Error(Error::InvalidPointerType {
-                actual: format!("{ptr:?}"),
-            });
-        }
-    };
-    let value = match access::load_from_stack_pointer_typed(state, pointer, access) {
-        Ok(v) => v,
-        Err(e) => return Transfer::Error(e),
-    };
+    if access.is_scalar {
+        let value = match access::load_stack_pointer(state, ptr.as_stack_pointer(), *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
 
-    // store loaded value
-    state.set(*dest, value);
+        return Transfer::Continue;
+    }
 
-    // continue to next instruction
-    next!(state, block, pc)
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
+    };
+    if let Err(error) = access::load_stack_pointer_bytes_into(
+        state,
+        ptr.as_stack_pointer(),
+        *access,
+        target,
+        target_len,
+    ) {
+        return Transfer::Error(error);
+    }
+
+    Transfer::Continue
 }
 
 /// Execute frame pointer load.
 #[inline(always)]
 pub(crate) fn execute_load_frame(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
+    // decode instruction operands
+    let Operands::Load {
         dest,
         pointer,
-        access: _,
-    } = &block[pc].immediate
+        access,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -650,32 +740,46 @@ pub(crate) fn execute_load_frame(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from frame pointer
-    let value = match access::load_from_frame_pointer(state, ptr) {
-        Ok(v) => v,
-        Err(e) => return Transfer::Error(e),
+    if access.is_scalar {
+        let value = match access::load_frame_pointer(state, ptr.as_frame_pointer(), *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
+    if let Err(error) = access::load_frame_pointer_bytes_into(
+        state,
+        ptr.as_frame_pointer(),
+        *access,
+        target,
+        target_len,
+    ) {
+        return Transfer::Error(error);
+    }
 
-    // store loaded value
-    state.set(*dest, value);
-
-    // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute static pointer load.
 #[inline(always)]
 pub(crate) fn execute_load_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Load {
+    // decode instruction operands
+    let Operands::Load {
         dest,
         pointer,
-        access: _,
-    } = &block[pc].immediate
+        access,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -683,33 +787,47 @@ pub(crate) fn execute_load_static(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from static pointer
-    let value = match access::load_from_static_pointer(state, ptr) {
-        Ok(v) => v,
-        Err(e) => return Transfer::Error(e),
+    if access.is_scalar {
+        let value = match access::load_static_pointer(state, ptr.as_static_pointer(), *access) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
+        state.set_word(*dest, value);
+
+        return Transfer::Continue;
+    }
+
+    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
+        Ok(target) => target,
+        Err(error) => return Transfer::Error(error),
     };
+    if let Err(error) = access::load_static_pointer_bytes_into(
+        state,
+        ptr.as_static_pointer(),
+        *access,
+        target,
+        target_len,
+    ) {
+        return Transfer::Error(error);
+    }
 
-    // store loaded value
-    state.set(*dest, value);
-
-    // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute heap reference store.
 #[inline(always)]
 pub(crate) fn execute_store_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
+    // decode instruction operands
+    let Operands::Store {
         pointer,
         value,
         reference,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -724,31 +842,64 @@ pub(crate) fn execute_store_heap(
     }
 
     // write through heap reference
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
-    };
-    if let Err(e) = access::store_to_heap_reference_typed(state, ptr, access, val) {
+    if let Err(e) = access::store_heap_reference(state, ptr, *access, val) {
         return Transfer::Error(e);
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
+}
+
+/// Execute shared heap reference store.
+#[inline(always)]
+pub(crate) fn execute_store_shared_heap(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Store {
+        pointer,
+        value,
+        reference,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
+    };
+
+    // load values
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return Transfer::Error(error);
+    }
+
+    // write through shared heap reference
+    if let Err(e) = access::store_shared_heap_reference(state, ptr, *access, val) {
+        return Transfer::Error(e);
+    }
+
+    // continue to next instruction
+    Transfer::Continue
 }
 
 /// Execute raw pointer store.
 #[inline(always)]
 pub(crate) fn execute_store_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
+    // decode instruction operands
+    let Operands::Store {
         pointer,
         value,
         reference,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -763,31 +914,64 @@ pub(crate) fn execute_store_raw(
     }
 
     // write through raw pointer
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
-    };
-    if let Err(e) = access::store_to_raw_pointer_typed(state, ptr, access, val) {
+    if let Err(e) = access::store_raw_pointer(state, ptr, *access, val) {
         return Transfer::Error(e);
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
+}
+
+/// Execute shared raw pointer store.
+#[inline(always)]
+pub(crate) fn execute_store_shared_raw(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Store {
+        pointer,
+        value,
+        reference,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
+    };
+
+    // load values
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return Transfer::Error(error);
+    }
+
+    // write through shared raw pointer
+    if let Err(e) = access::store_shared_raw_pointer(state, ptr, *access, val) {
+        return Transfer::Error(e);
+    }
+
+    // continue to next instruction
+    Transfer::Continue
 }
 
 /// Execute stack pointer store.
 #[inline(always)]
 pub(crate) fn execute_store_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
+    // decode instruction operands
+    let Operands::Store {
         pointer,
         value,
         reference,
         access,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -802,75 +986,29 @@ pub(crate) fn execute_store_stack(
     }
 
     // write through stack pointer
-    let Some(access) = *access else {
-        return Transfer::Error(Error::InvalidHeapReference);
-    };
-    let pointer = match ptr.as_stack_pointer() {
-        Some(pointer) => pointer,
-        None => {
-            return Transfer::Error(Error::InvalidPointerType {
-                actual: format!("{ptr:?}"),
-            });
-        }
-    };
-    if let Err(e) = access::store_to_stack_pointer_typed(state, pointer, access, val) {
+    let pointer = ptr.as_stack_pointer();
+    if let Err(e) = access::store_stack_pointer(state, pointer, *access, val) {
         return Transfer::Error(e);
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute frame pointer store.
 #[inline(always)]
 pub(crate) fn execute_store_frame(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
+    // decode instruction operands
+    let Operands::Store {
         pointer,
         value,
         reference,
-        access: _,
-    } = &block[pc].immediate
-    else {
-        unreachable!()
-    };
-
-    // validate reference metadata
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-
-    // load pointer and value
-    let ptr = state.get(*pointer);
-    let val = state.get(*value);
-
-    // store to frame pointer
-    if let Err(e) = access::store_to_frame_pointer(state, ptr, val) {
-        return Transfer::Error(e);
-    }
-
-    // continue to next instruction
-    next!(state, block, pc)
-}
-
-/// Execute static pointer store.
-#[inline(always)]
-pub(crate) fn execute_store_static(
-    state: &mut ExecutionState<'_, '_>,
-    block: &[Instruction],
-    pc: usize,
-) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Store {
-        pointer,
-        value,
-        reference,
-        access: _,
-    } = &block[pc].immediate
+        access,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -878,88 +1016,114 @@ pub(crate) fn execute_store_static(
     // load values
     let ptr = state.get(*pointer);
     let val = state.get(*value);
+    let pointer = ptr.as_frame_pointer();
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
         return Transfer::Error(error);
     }
 
-    // write through static pointer
-    if let Err(e) = access::store_to_static_pointer(state, ptr, val) {
+    // write through frame pointer
+    if let Err(e) = access::store_frame_pointer(state, pointer, *access, val) {
         return Transfer::Error(e);
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
-/// Execute typed allocation.
-pub(crate) fn execute_new(
-    state: &mut ExecutionState<'_, '_>,
+/// Execute static pointer store.
+#[inline(always)]
+pub(crate) fn execute_store_static(
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let max_heap_allocations = state.options().limits.max_heap_allocations;
-
-    // decode instruction immediate
-    let Immediate::New {
-        dest,
+    // decode instruction operands
+    let Operands::Store {
+        pointer,
+        value,
         reference,
-        storage_type,
-        layout_id,
-    } = &block[pc].immediate
+        access,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // resolve the exact managed layout id first
-    let layout_id = layout_id.or_else(|| state.module.layout_id_for_type(*storage_type));
-    let Some(layout_id) = layout_id else {
-        return Transfer::Error(Error::InvalidInstruction);
-    };
-    // allocate heap storage
-    let heap_reference = {
-        if state.heap().heap_allocation_count() >= max_heap_allocations {
-            return Transfer::Error(Error::AllocationFailed);
-        }
+    // load values
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+    let pointer = ptr.as_static_pointer();
 
-        state.allocate_heap_layout(layout_id, Payload::Zeroed)
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return Transfer::Error(error);
+    }
+    if let Some(region) = state.statics.region_for_pointer(pointer)
+        && !region.is_mutable
+    {
+        let global = mir::LocalNodeId::new(region.id.0);
+
+        return Transfer::Error(Error::ImmutableGlobalWrite { global });
+    }
+
+    // write through static pointer
+    if let Err(e) = access::store_static_pointer(state, pointer, *access, val) {
+        return Transfer::Error(e);
+    }
+
+    // continue to next instruction
+    Transfer::Continue
+}
+
+/// Execute typed allocation.
+pub(crate) fn execute_new(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::New {
+        dest,
+        reference,
+        layout_id,
+    } = &block[pc].operands
+    else {
+        unreachable!()
     };
+
+    // allocate heap allocation
+    let heap_reference = state.allocate_heap_layout(*layout_id, Payload::Zeroed);
     let heap_reference = match heap_reference {
         Ok(reference) => reference,
         Err(error) => return Transfer::Error(error),
     };
-
-    if state.collect_stats {
-        state.engine.statistics.heap_allocations += 1;
-    }
-    let value = Value::heap_reference_with_meta(heap_reference, *reference);
+    let value = Word::heap_reference(heap_reference);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
         return Transfer::Error(error);
     }
 
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute slice allocation.
 pub(crate) fn execute_new_slice(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let max_heap_allocations = state.options().limits.max_heap_allocations;
-
-    // decode instruction immediate
-    let Immediate::NewSlice {
+    // decode instruction operands
+    let Operands::NewSlice {
         dest,
         length,
-        slice_type,
-    } = &block[pc].immediate
+        element_layout_id,
+        element_alignment,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -972,41 +1136,13 @@ pub(crate) fn execute_new_slice(
 
     // resolve heap array layout facts before taking the heap borrow
     let heap_reference = {
-        let element_type = match state.module.tree.get(*slice_type) {
-            mir::Type::Slice { element, .. } => match element.ty() {
-                Some(element) => element,
-                None => {
-                    return Transfer::Error(Error::TypeMismatch {
-                        expected: "concrete slice element type".to_string(),
-                        actual: format!("{slice_type:?}"),
-                    });
-                }
-            },
-            _ => {
-                return Transfer::Error(Error::TypeMismatch {
-                    expected: "slice type".to_string(),
-                    actual: format!("{slice_type:?}"),
-                });
-            }
-        };
-
-        let Some(element_layout_id) = state.module.layout_id_for_type(element_type) else {
-            return Transfer::Error(Error::TypeMismatch {
-                expected: "compiled element layout".to_string(),
-                actual: format!("{element_type:?}"),
-            });
-        };
-        let element_layout = match state.module.allocation_layout(element_layout_id) {
+        let element_layout = match state.program.allocation_layout(*element_layout_id) {
             Ok(layout) => layout,
-            Err(error) => return Transfer::Error(error),
-        };
-        let element_alignment = match state.layout(element_type) {
-            Ok(layout) => layout.alignment(),
             Err(error) => return Transfer::Error(error),
         };
         let (byte_len, reference_map) = match destack_heap::repeated_layout(
             element_layout.byte_len,
-            element_alignment,
+            *element_alignment,
             element_layout.reference_map,
             length,
         ) {
@@ -1014,9 +1150,6 @@ pub(crate) fn execute_new_slice(
             Err(error) => return Transfer::Error(Error::from(error)),
         };
         let layout = destack_heap::AllocationLayout::new(byte_len, &reference_map);
-        if state.heap().heap_allocation_count() >= max_heap_allocations {
-            return Transfer::Error(Error::AllocationFailed);
-        }
 
         state.allocate_heap(layout, Payload::Zeroed)
     };
@@ -1024,347 +1157,330 @@ pub(crate) fn execute_new_slice(
         Ok(reference) => reference,
         Err(error) => return Transfer::Error(error),
     };
-    if state.collect_stats {
-        state.engine.statistics.heap_allocations += 1;
-    }
     let result =
-        match super::value::allocate_payload_by_index(state, *dest, |state, index, value_type| {
-            match index {
-                0 => {
-                    let reference = match state.tree().get(value_type) {
-                        mir::Type::Reference {
-                            kind,
-                            address_space,
-                            mutability,
-                            is_nullable,
-                            ..
-                        } => ReferenceMeta::new(
-                            *kind,
-                            address_space.clone(),
-                            *mutability,
-                            *is_nullable,
-                        ),
-                        _ => ReferenceMeta::NONE,
-                    };
-                    let value = Value::heap_reference_with_meta(heap_reference, reference);
+        super::bytes::write_frame_fields(state, *dest, |state, index, value_type| match index {
+            0 => {
+                let reference = match state.tree().get(value_type) {
+                    mir::Type::Reference {
+                        kind,
+                        address_space,
+                        mutability,
+                        is_nullable,
+                        ..
+                    } => {
+                        ReferenceMeta::new(*kind, address_space.clone(), *mutability, *is_nullable)
+                    }
+                    _ => ReferenceMeta::NONE,
+                };
+                let value = Word::heap_reference(heap_reference);
 
-                    check_reference_kind(state, reference, value)?;
+                check_reference_kind(state, reference, value)?;
 
-                    Ok(value)
-                }
-                1 => match state.tree().get(value_type) {
-                    mir::Type::Usize => Ok(Value::uint(length as u64, usize::BITS as u8)),
-                    _ => Err(Error::TypeMismatch {
-                        expected: "slice length usize".to_string(),
-                        actual: format!("{value_type:?}"),
-                    }),
-                },
-                _ => Err(Error::InvalidFieldAccess {
-                    index,
-                    field_count: 2,
-                }),
+                Ok(value)
             }
-        }) {
-            Ok(result) => result,
-            Err(error) => return Transfer::Error(error),
-        };
-
-    state.set(*dest, result);
+            1 => match state.tree().get(value_type) {
+                mir::Type::Usize => Ok(Word::uint(length as u64, usize::BITS as u8)),
+                _ => Err(Error::TypeMismatch {
+                    expected: "slice length usize".to_string(),
+                    actual: format!("{value_type:?}"),
+                }),
+            },
+            _ => Err(Error::InvalidFieldAccess {
+                index,
+                field_count: 2,
+            }),
+        });
+    match result {
+        Ok(()) => {}
+        Err(error) => return Transfer::Error(error),
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute raw allocation.
 pub(crate) fn execute_raw_alloc(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let max_raw_allocations = state.options().limits.max_raw_allocations;
-
-    // decode instruction immediate
-    let Immediate::RawAlloc {
+    // decode instruction operands
+    let Operands::RawAlloc {
         dest,
         reference,
         byte_len,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // allocate raw heap bytes
-    let ptr = {
-        let heap = state.heap_mut();
-        if heap.raw_allocation_count() >= max_raw_allocations {
-            return Transfer::Error(Error::AllocationFailed);
-        }
-
-        heap.allocate_raw(*byte_len, Payload::Zeroed)
-    };
+    let ptr = state.heap_mut().allocate_raw(*byte_len, Payload::Zeroed);
     let ptr = match ptr {
         Ok(ptr) => ptr,
         Err(error) => return Transfer::Error(Error::from(error)),
     };
-    if state.collect_stats {
-        state.engine.statistics.heap_allocations += 1;
-    }
-    let value = Value::raw_pointer_with_meta(ptr, *reference);
+    let value = Word::raw_pointer(ptr);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, value) {
         return Transfer::Error(error);
     }
 
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute raw free.
 pub(crate) fn execute_raw_free(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::RawFree { pointer } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::RawFree { pointer } = &block[pc].operands else {
         unreachable!()
     };
 
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // accept raw pointer values
-    if let Some(p) = ptr.as_raw_pointer() {
-        // report invalid reference
-        let heap = state.heap_mut();
-        match heap.free_raw(p) {
-            Ok(true) => {}
-            Ok(false) => return Transfer::Error(Error::InvalidRawPointer),
-            Err(HeapError::InvalidRawPointer { .. }) => {
-                return Transfer::Error(Error::InvalidRawPointer);
-            }
-            Err(error) => return Transfer::Error(Error::from(error)),
+    let pointer = RawPointer::from_bits(ptr.bits() as usize);
+    let heap = state.heap_mut();
+    match heap.free_raw(pointer) {
+        Ok(true) => {}
+        Ok(false) => return Transfer::Error(Error::InvalidRawPointer),
+        Err(HeapError::InvalidRawPointer { .. }) => {
+            return Transfer::Error(Error::InvalidRawPointer);
         }
-    }
-    // otherwise report type mismatch
-    else {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "raw_pointer".to_string(),
-            actual: format!("{ptr:?}"),
-        });
+        Err(error) => return Transfer::Error(Error::from(error)),
     }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute explicit synchronous cleanup.
 pub(crate) fn execute_dispose(
-    state: &mut ExecutionState<'_, '_>,
+    _state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Dispose { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Dispose = &block[pc].operands else {
         unreachable!()
     };
 
-    // cleanup hooks are not lowered yet
-    let _ = state.get(*value);
-
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute explicit asynchronous cleanup.
 pub(crate) fn execute_async_dispose(
-    state: &mut ExecutionState<'_, '_>,
+    _state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::AsyncDispose { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::AsyncDispose = &block[pc].operands else {
         unreachable!()
     };
 
-    // async cleanup hooks are not lowered yet
-    let _ = state.get(*value);
-
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute local heap pin.
 pub(crate) fn execute_pin(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Pin { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Pin { value } = &block[pc].operands else {
         unreachable!()
     };
 
     // load the pinned value
     let pinned_value = state.get(*value);
 
-    // pin one local heap reference
-    if let Some(reference) = pinned_value.as_heap_reference() {
-        let heap = state.heap_mut();
-        match heap.pin_heap(reference) {
-            Ok(reference) => state.set(*value, Value::heap_reference(reference)),
-            Err(HeapError::InvalidHeapReference { .. }) => {
-                return Transfer::Error(Error::InvalidHeapReference);
-            }
-            Err(error) => return Transfer::Error(Error::from(error)),
+    let value_type = match state.value_type(*value) {
+        Ok(value_type) => value_type,
+        Err(error) => return Transfer::Error(error),
+    };
+    let repr = value_repr_from_type(state.tree(), value_type);
+    if !matches!(
+        repr,
+        ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap,
+            ..
         }
-    }
-    // otherwise reject the value shape
-    else {
+    ) {
         return Transfer::Error(Error::TypeMismatch {
             expected: "heap_reference".to_string(),
             actual: format!("{pinned_value:?}"),
         });
     }
 
+    let reference = HeapReference::from_bits(pinned_value.bits() as usize);
+    let heap = state.heap_mut();
+    match heap.pin_heap(reference) {
+        Ok(reference) => state.set_word(*value, Word::heap_reference(reference)),
+        Err(HeapError::InvalidHeapReference { .. }) => {
+            return Transfer::Error(Error::InvalidHeapReference);
+        }
+        Err(error) => return Transfer::Error(Error::from(error)),
+    }
+
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute local heap unpin.
 pub(crate) fn execute_unpin(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Unpin { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Unpin { value } = &block[pc].operands else {
         unreachable!()
     };
 
     // load the pinned value
-    let value = state.get(*value);
+    let pinned_value = state.get(*value);
 
-    // release one local heap pin
-    if let Some(reference) = value.as_heap_reference() {
-        let heap = state.heap_mut();
-        match heap.unpin_heap(reference) {
-            Ok(()) => {}
-            Err(HeapError::InvalidHeapReference { .. }) => {
-                return Transfer::Error(Error::InvalidHeapReference);
-            }
-            Err(error) => return Transfer::Error(Error::from(error)),
+    let value_type = match state.value_type(*value) {
+        Ok(value_type) => value_type,
+        Err(error) => return Transfer::Error(error),
+    };
+    let repr = value_repr_from_type(state.tree(), value_type);
+    if !matches!(
+        repr,
+        ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap,
+            ..
         }
-    }
-    // otherwise reject the value shape
-    else {
+    ) {
         return Transfer::Error(Error::TypeMismatch {
             expected: "heap_reference".to_string(),
-            actual: format!("{value:?}"),
+            actual: format!("{pinned_value:?}"),
         });
     }
 
+    let reference = HeapReference::from_bits(pinned_value.bits() as usize);
+    let heap = state.heap_mut();
+    match heap.unpin_heap(reference) {
+        Ok(()) => {}
+        Err(HeapError::InvalidHeapReference { .. }) => {
+            return Transfer::Error(Error::InvalidHeapReference);
+        }
+        Err(error) => return Transfer::Error(Error::from(error)),
+    }
+
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
-/// Drop one runtime value according to its value kind.
-fn drop_value(state: &mut ExecutionState<'_, '_>, value: Value) -> Result<(), Error> {
-    // raw owners free their backing storage
-    if let Some(pointer) = value.as_raw_pointer() {
-        let heap = state.heap_mut();
-        match heap.free_raw(pointer) {
-            Ok(true) => return Ok(()),
-            Ok(false) => return Err(Error::InvalidRawPointer),
-            Err(HeapError::InvalidRawPointer { .. }) => {
-                return Err(Error::InvalidRawPointer);
+/// Drop one runtime value according to its MIR type.
+fn drop_value(
+    state: &mut DispatchState<'_, '_>,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Word,
+) -> Result<(), Error> {
+    let repr = value_repr_from_type(state.tree(), ty);
+    let ValueRepr::Pointer { pointer_class, .. } = repr else {
+        return Err(Error::TypeMismatch {
+            expected: "droppable reference".to_string(),
+            actual: format!("{value:?}"),
+        });
+    };
+
+    match pointer_class {
+        PointerClass::Heap | PointerClass::SharedHeap => Ok(()),
+        PointerClass::Raw | PointerClass::SharedRaw => {
+            let pointer = RawPointer::from_bits(value.bits() as usize);
+            let heap = state.heap_mut();
+            match heap.free_raw(pointer) {
+                Ok(true) => Ok(()),
+                Ok(false) => Err(Error::InvalidRawPointer),
+                Err(HeapError::InvalidRawPointer { .. }) => Err(Error::InvalidRawPointer),
+                Err(error) => Err(Error::from(error)),
             }
-            Err(error) => return Err(Error::from(error)),
         }
-    }
+        PointerClass::Stack => {
+            let pointer = StackPointer::from_address(value.bits() as usize);
+            if state.owns_stack_range(pointer, 1) {
+                return Ok(());
+            }
 
-    // stack owners retire the current-frame allocation
-    if let Some(pointer) = value.as_stack_pointer() {
-        if pointer.frame_idx != state.frame_index {
-            return Err(Error::InvalidPointerType {
+            Err(Error::InvalidPointerType {
                 actual: format!("{pointer:?}"),
-            });
+            })
         }
-
-        if !state
-            .current_frame_mut()
-            .retire_stack_allocation(pointer.slot)
-        {
-            return Err(Error::InvalidPointerType {
-                actual: format!("{pointer:?}"),
-            });
+        PointerClass::Frame | PointerClass::Static | PointerClass::Unknown => {
+            Err(Error::InvalidPointerType {
+                actual: format!("{value:?}"),
+            })
         }
-
-        return Ok(());
     }
-
-    // heap references stay GC-managed after ownership ends
-    if value.as_heap_reference().is_some() || value.as_shared_heap_reference().is_some() {
-        return Ok(());
-    }
-
-    Err(Error::TypeMismatch {
-        expected: "droppable reference".to_string(),
-        actual: format!("{value:?}"),
-    })
 }
 
 /// Execute ownership end.
 pub(crate) fn execute_drop(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Drop { value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::Drop { value } = &block[pc].operands else {
         unreachable!()
     };
 
     // load the dropped value
-    let value = state.get(*value);
+    let dropped_value = state.get(*value);
 
-    // perform the storage-specific drop work first
-    if let Err(error) = drop_value(state, value) {
+    let value_type = match state.value_type(*value) {
+        Ok(value_type) => value_type,
+        Err(error) => return Transfer::Error(error),
+    };
+
+    // perform the reference-specific drop work first
+    if let Err(error) = drop_value(state, value_type, dropped_value) {
         return Transfer::Error(error);
     }
 
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute stack allocation.
 pub(crate) fn execute_stack_alloc(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::StackAlloc {
+    // decode instruction operands
+    let Operands::StackAlloc {
         dest,
         reference,
-        storage_type,
-    } = &block[pc].immediate
+        allocation_type,
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // allocate raw stack storage from the compiled type layout
-    let byte_len = match state.storage_byte_len(*storage_type) {
-        Ok(byte_len) => byte_len,
+    // allocate raw stack bytes from the compiled type layout
+    let layout = match state.layout(*allocation_type) {
+        Ok(layout) => layout,
         Err(error) => return Transfer::Error(error),
     };
-    let frame_index = state.frame_index;
-    let allocation = crate::interpreter::StackAllocation::new(byte_len, *storage_type);
-    let slot = state
-        .current_frame_mut()
-        .allocate_stack_allocation(allocation);
-    let sp = StackPointer::new(frame_index, slot);
-    let value = match stack_pointer_value_with_meta(sp, *reference) {
+    let address = match state.allocate_stack(layout.byte_len, layout.alignment()) {
+        Ok(address) => address,
+        Err(error) => return Transfer::Error(error),
+    };
+    let sp = StackPointer::from_address(address);
+    let value = match stack_pointer_value(sp) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1374,7 +1490,7 @@ pub(crate) fn execute_stack_alloc(
         return Transfer::Error(error);
     }
 
-    state.set(*dest, value);
+    state.set_word(*dest, value);
 
-    next!(state, block, pc)
+    Transfer::Continue
 }

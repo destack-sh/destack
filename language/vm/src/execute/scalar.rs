@@ -1,3 +1,4 @@
+use super::operator;
 use super::prelude::*;
 
 /// Reduction operators for vector or tensor reductions.
@@ -47,9 +48,9 @@ impl From<mir::TensorReduceOperator> for ReduceOperator {
     }
 }
 
-/// Scalar type information for numeric conversions.
+/// Scalar value representation for typed arithmetic.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ScalarTypeInfo {
+pub(crate) enum ScalarLayout {
     /// Signed or unsigned integers with a bit width.
     Int {
         /// The bit width.
@@ -109,19 +110,27 @@ impl From<mir::TensorConvertMode> for ScalarConvertMode {
     }
 }
 
-/// Resolve scalar type information from a MIR type.
-pub(crate) fn scalar_type_info(
+/// Resolve the scalar value representation from a MIR type.
+pub(crate) fn scalar_layout(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
-) -> Result<ScalarTypeInfo, Error> {
+) -> Result<ScalarLayout, Error> {
     // resolve scalar types
     match tree.get(ty) {
-        mir::Type::Int { width, is_signed } => Ok(ScalarTypeInfo::Int {
+        mir::Type::Int { width, is_signed } => Ok(ScalarLayout::Int {
             width: *width,
             is_signed: *is_signed,
         }),
-        mir::Type::Float { width } => Ok(ScalarTypeInfo::Float { width: *width }),
-        mir::Type::Boolean => Ok(ScalarTypeInfo::Bool),
+        mir::Type::Isize => Ok(ScalarLayout::Int {
+            width: usize::BITS as u16,
+            is_signed: true,
+        }),
+        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => Ok(ScalarLayout::Int {
+            width: usize::BITS as u16,
+            is_signed: false,
+        }),
+        mir::Type::Float { width } => Ok(ScalarLayout::Float { width: *width }),
+        mir::Type::Boolean => Ok(ScalarLayout::Bool),
         _ => Err(Error::TypeMismatch {
             expected: "scalar type".to_string(),
             actual: format!("{ty:?}"),
@@ -131,18 +140,18 @@ pub(crate) fn scalar_type_info(
 
 /// Convert a scalar value between numeric types.
 pub(crate) fn convert_scalar_value(
-    value: Value,
-    source: ScalarTypeInfo,
-    dest: ScalarTypeInfo,
+    value: Word,
+    source: ScalarLayout,
+    dest: ScalarLayout,
     mode: ScalarConvertMode,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // short-circuit identical scalar kinds
-    if matches!((source, dest), (ScalarTypeInfo::Bool, ScalarTypeInfo::Bool)) {
+    if matches!((source, dest), (ScalarLayout::Bool, ScalarLayout::Bool)) {
         return Ok(value);
     }
 
-    // reject boolean conversions for now
-    if matches!(source, ScalarTypeInfo::Bool) || matches!(dest, ScalarTypeInfo::Bool) {
+    // reject boolean numeric conversions
+    if matches!(source, ScalarLayout::Bool) || matches!(dest, ScalarLayout::Bool) {
         return Err(Error::TypeMismatch {
             expected: "numeric conversion".to_string(),
             actual: format!("{value:?}"),
@@ -152,23 +161,23 @@ pub(crate) fn convert_scalar_value(
     // convert between numeric kinds
     match (source, dest) {
         (
-            ScalarTypeInfo::Int { width, is_signed },
-            ScalarTypeInfo::Int {
+            ScalarLayout::Int { width, is_signed },
+            ScalarLayout::Int {
                 width: dest_width,
                 is_signed: dest_signed,
             },
         ) => convert_int_to_int(value, width, is_signed, dest_width, dest_signed, mode),
-        (ScalarTypeInfo::Int { width, is_signed }, ScalarTypeInfo::Float { width: dest_width }) => {
+        (ScalarLayout::Int { width, is_signed }, ScalarLayout::Float { width: dest_width }) => {
             convert_int_to_float(value, width, is_signed, dest_width, mode)
         }
         (
-            ScalarTypeInfo::Float { width },
-            ScalarTypeInfo::Int {
+            ScalarLayout::Float { width },
+            ScalarLayout::Int {
                 width: dest_width,
                 is_signed,
             },
         ) => convert_float_to_int(value, width, dest_width, is_signed, mode),
-        (ScalarTypeInfo::Float { width }, ScalarTypeInfo::Float { width: dest_width }) => {
+        (ScalarLayout::Float { width }, ScalarLayout::Float { width: dest_width }) => {
             convert_float_to_float(value, width, dest_width, mode)
         }
         _ => Err(Error::TypeMismatch {
@@ -180,46 +189,24 @@ pub(crate) fn convert_scalar_value(
 
 /// Convert an integer value to another integer type.
 pub(crate) fn convert_int_to_int(
-    value: Value,
+    value: Word,
     source_width: u16,
     source_signed: bool,
     dest_width: u16,
     dest_signed: bool,
     mode: ScalarConvertMode,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // resolve width information
     let source_width_u8 = width_u8(source_width)?;
     let dest_width_u8 = width_u8(dest_width)?;
 
     // resolve source value
     let source_value = if source_signed {
-        let (value, width) = value
-            .as_int_with_width()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "signed integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-        if width != source_width_u8 {
-            return Err(Error::TypeMismatch {
-                expected: format!("int{source_width_u8}"),
-                actual: format!("int{width}"),
-            });
-        }
+        let value = truncate_signed(value.as_i64(), source_width_u8);
 
         IntValue::Signed(value)
     } else {
-        let (value, width) = value
-            .as_uint_with_width()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "unsigned integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-        if width != source_width_u8 {
-            return Err(Error::TypeMismatch {
-                expected: format!("uint{source_width_u8}"),
-                actual: format!("uint{width}"),
-            });
-        }
+        let value = truncate_unsigned(value.as_u64(), source_width_u8);
 
         IntValue::Unsigned(value)
     };
@@ -234,7 +221,7 @@ pub(crate) fn convert_int_to_int(
                 let value = i128::from(value);
                 if value > i128::from(i64::MAX) {
                     let clamped = clamp_or_error_signed(value, min, max, mode)?;
-                    return Ok(Value::int(clamped, dest_width_u8));
+                    return Ok(Word::int(clamped, dest_width_u8));
                 }
 
                 value as i64
@@ -242,7 +229,7 @@ pub(crate) fn convert_int_to_int(
         };
         let clamped = clamp_or_error_signed(i128::from(value), min, max, mode)?;
 
-        Ok(Value::int(clamped, dest_width_u8))
+        Ok(Word::int(clamped, dest_width_u8))
     } else {
         // convert into the unsigned destination domain
         let max = unsigned_max(dest_width);
@@ -250,7 +237,7 @@ pub(crate) fn convert_int_to_int(
             IntValue::Signed(value) => {
                 if value < 0 {
                     let clamped = clamp_or_error_unsigned(-1, max, mode)?;
-                    return Ok(Value::uint(clamped, dest_width_u8));
+                    return Ok(Word::uint(clamped, dest_width_u8));
                 }
 
                 value as i128
@@ -259,50 +246,28 @@ pub(crate) fn convert_int_to_int(
         };
         let clamped = clamp_or_error_unsigned(value, max, mode)?;
 
-        Ok(Value::uint(clamped, dest_width_u8))
+        Ok(Word::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert an integer value to a float.
 pub(crate) fn convert_int_to_float(
-    value: Value,
+    value: Word,
     source_width: u16,
     source_signed: bool,
     dest_width: u16,
     mode: ScalarConvertMode,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // resolve width information
     let source_width_u8 = width_u8(source_width)?;
 
     // resolve integer value
     let int_value = if source_signed {
-        let (value, width) = value
-            .as_int_with_width()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "signed integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-        if width != source_width_u8 {
-            return Err(Error::TypeMismatch {
-                expected: format!("int{source_width_u8}"),
-                actual: format!("int{width}"),
-            });
-        }
+        let value = truncate_signed(value.as_i64(), source_width_u8);
 
         IntValue::Signed(value)
     } else {
-        let (value, width) = value
-            .as_uint_with_width()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "unsigned integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-        if width != source_width_u8 {
-            return Err(Error::TypeMismatch {
-                expected: format!("uint{source_width_u8}"),
-                actual: format!("uint{width}"),
-            });
-        }
+        let value = truncate_unsigned(value.as_u64(), source_width_u8);
 
         IntValue::Unsigned(value)
     };
@@ -330,33 +295,34 @@ pub(crate) fn convert_int_to_float(
 
     // emit destination float
     if dest_width == 32 {
-        Ok(Value::float32(float_value as f32))
+        Ok(Word::float32(float_value as f32))
     } else {
-        Ok(Value::float64(float_value))
+        Ok(Word::float64(float_value))
     }
 }
 
 /// Convert a float value to an integer.
 pub(crate) fn convert_float_to_int(
-    value: Value,
+    value: Word,
     source_width: u16,
     dest_width: u16,
     dest_signed: bool,
     mode: ScalarConvertMode,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // resolve width information
     let dest_width_u8 = width_u8(dest_width)?;
 
     // resolve float value
     let float_value = match source_width {
-        32 => value.as_float32().map(|v| v as f64),
+        32 => value.as_float32() as f64,
         64 => value.as_float64(),
-        _ => None,
-    }
-    .ok_or_else(|| Error::TypeMismatch {
-        expected: "float".to_string(),
-        actual: format!("{value:?}"),
-    })?;
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "float width 32 or 64".to_string(),
+                actual: source_width.to_string(),
+            });
+        }
+    };
 
     // require finite values for exact conversions
     if !float_value.is_finite() && !matches!(mode, ScalarConvertMode::Saturate) {
@@ -396,7 +362,7 @@ pub(crate) fn convert_float_to_int(
         };
         let clamped = clamp_or_error_signed(value, min, max, mode)?;
 
-        Ok(Value::int(clamped, dest_width_u8))
+        Ok(Word::int(clamped, dest_width_u8))
     } else {
         // clamp or reject in the unsigned destination domain
         let max = unsigned_max(dest_width);
@@ -407,27 +373,28 @@ pub(crate) fn convert_float_to_int(
         };
         let clamped = clamp_or_error_unsigned(value, max, mode)?;
 
-        Ok(Value::uint(clamped, dest_width_u8))
+        Ok(Word::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert a float value to another float type.
 pub(crate) fn convert_float_to_float(
-    value: Value,
+    value: Word,
     source_width: u16,
     dest_width: u16,
     mode: ScalarConvertMode,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // resolve float value
     let float_value = match source_width {
-        32 => value.as_float32().map(|v| v as f64),
+        32 => value.as_float32() as f64,
         64 => value.as_float64(),
-        _ => None,
-    }
-    .ok_or_else(|| Error::TypeMismatch {
-        expected: "float".to_string(),
-        actual: format!("{value:?}"),
-    })?;
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "float width 32 or 64".to_string(),
+                actual: source_width.to_string(),
+            });
+        }
+    };
 
     // apply rounding mode for narrowing conversions
     let rounded = match mode {
@@ -452,9 +419,9 @@ pub(crate) fn convert_float_to_float(
 
     // emit destination float
     if dest_width == 32 {
-        Ok(Value::float32(rounded as f32))
+        Ok(Word::float32(rounded as f32))
     } else {
-        Ok(Value::float64(rounded))
+        Ok(Word::float64(rounded))
     }
 }
 
@@ -499,6 +466,34 @@ pub(crate) fn unsigned_max(width: u16) -> u64 {
 
     // compute max
     (1u64 << width) - 1
+}
+
+/// Truncate a signed integer to one width.
+pub(crate) fn truncate_signed(value: i64, width: u8) -> i64 {
+    if width >= u64::BITS as u8 {
+        return value;
+    }
+
+    let mask = (1u64 << width) - 1;
+    let masked = (value as u64) & mask;
+    let sign_bit = 1u64 << (width - 1);
+
+    if masked & sign_bit != 0 {
+        (masked | !mask) as i64
+    } else {
+        masked as i64
+    }
+}
+
+/// Truncate an unsigned integer to one width.
+pub(crate) fn truncate_unsigned(value: u64, width: u8) -> u64 {
+    if width >= u64::BITS as u8 {
+        return value;
+    }
+
+    let mask = (1u64 << width) - 1;
+
+    value & mask
 }
 
 /// Apply saturating or exact behavior for signed conversions.
@@ -548,174 +543,185 @@ pub(crate) fn clamp_or_error_unsigned(
 
 /// Apply a reduction operator to two values.
 pub(crate) fn apply_reduce_operator(
+    ty: ScalarLayout,
     op: ReduceOperator,
-    a: Value,
-    b: Value,
-) -> Result<Value, Error> {
-    let (a_tag, b_tag) = (a.tag(), b.tag());
+    a: Word,
+    b: Word,
+) -> Result<Word, Error> {
     match op {
-        ReduceOperator::Add => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av.wrapping_add(bv), a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av.wrapping_add(bv), a.width()))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Ok(Value::float32(av + bv))
-            }
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Ok(Value::float64(av + bv))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible add operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
+        ReduceOperator::Add => reduce_add(ty, a, b),
+        ReduceOperator::Multiply => reduce_multiply(ty, a, b),
+        ReduceOperator::Min => reduce_min(ty, a, b),
+        ReduceOperator::Max => reduce_max(ty, a, b),
+        ReduceOperator::And => reduce_and(ty, a, b),
+        ReduceOperator::Or => reduce_or(ty, a, b),
+        ReduceOperator::Xor => reduce_xor(ty, a, b),
+    }
+}
+
+/// Apply a typed binary operator to two scalar values.
+pub(crate) fn apply_binary_operator(
+    ty: ScalarLayout,
+    op: mir::BinaryOperator,
+    a: Word,
+    b: Word,
+) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int {
+            is_signed: true, ..
+        } => operator::execute_binary_int(op, a, b),
+        ScalarLayout::Int {
+            is_signed: false, ..
+        } => match op {
+            mir::BinaryOperator::Equal => Ok(Word::bool(a.as_u64() == b.as_u64())),
+            mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_u64() != b.as_u64())),
+            _ => operator::execute_binary_uint(op, a, b),
         },
-        ReduceOperator::Multiply => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av.wrapping_mul(bv), a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av.wrapping_mul(bv), a.width()))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Ok(Value::float32(av * bv))
-            }
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Ok(Value::float64(av * bv))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible mul operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
+        ScalarLayout::Float { width: 32 } => operator::execute_binary_float32(op, a, b),
+        ScalarLayout::Float { width: 64 } => operator::execute_binary_float64(op, a, b),
+        ScalarLayout::Bool => match op {
+            mir::BinaryOperator::Equal => Ok(Word::bool(a.as_bool() == b.as_bool())),
+            mir::BinaryOperator::NotEqual => Ok(Word::bool(a.as_bool() != b.as_bool())),
+            _ => operator::execute_binary_bool(op, a, b),
         },
-        ReduceOperator::Min => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av.min(bv), a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av.min(bv), a.width()))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Ok(Value::float32(av.min(bv)))
-            }
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Ok(Value::float64(av.min(bv)))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible min operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
-        },
-        ReduceOperator::Max => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av.max(bv), a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av.max(bv), a.width()))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Ok(Value::float32(av.max(bv)))
-            }
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Ok(Value::float64(av.max(bv)))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible max operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
-        },
-        ReduceOperator::And => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av & bv, a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av & bv, a.width()))
-            }
-            (ValueTag::Bool, ValueTag::Bool) => {
-                Ok(Value::bool(a.raw_data() != 0 && b.raw_data() != 0))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible and operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
-        },
-        ReduceOperator::Or => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av | bv, a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av | bv, a.width()))
-            }
-            (ValueTag::Bool, ValueTag::Bool) => {
-                Ok(Value::bool(a.raw_data() != 0 || b.raw_data() != 0))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible or operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
-        },
-        ReduceOperator::Xor => match (a_tag, b_tag) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Ok(Value::int(av ^ bv, a.width()))
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Ok(Value::uint(av ^ bv, a.width()))
-            }
-            (ValueTag::Bool, ValueTag::Bool) => {
-                let av = a.raw_data() != 0;
-                let bv = b.raw_data() != 0;
-                Ok(Value::bool(av ^ bv))
-            }
-            _ => Err(Error::TypeMismatch {
-                expected: "compatible xor operands".to_string(),
-                actual: format!("{a:?}, {b:?}"),
-            }),
-        },
+        _ => Err(reduce_type_error("binary", a, b)),
+    }
+}
+
+/// Add two scalar values using the supplied type.
+fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64().wrapping_add(b.as_i64()), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64().wrapping_add(b.as_u64()), width))
+        }
+        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32() + b.as_f32())),
+        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64() + b.as_f64())),
+        _ => Err(reduce_type_error("add", a, b)),
+    }
+}
+
+/// Multiply two scalar values using the supplied type.
+fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64().wrapping_mul(b.as_i64()), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64().wrapping_mul(b.as_u64()), width))
+        }
+        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32() * b.as_f32())),
+        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64() * b.as_f64())),
+        _ => Err(reduce_type_error("multiply", a, b)),
+    }
+}
+
+/// Select the minimum of two scalar values using the supplied type.
+fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64().min(b.as_i64()), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64().min(b.as_u64()), width))
+        }
+        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32().min(b.as_f32()))),
+        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64().min(b.as_f64()))),
+        _ => Err(reduce_type_error("min", a, b)),
+    }
+}
+
+/// Select the maximum of two scalar values using the supplied type.
+fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64().max(b.as_i64()), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64().max(b.as_u64()), width))
+        }
+        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32().max(b.as_f32()))),
+        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64().max(b.as_f64()))),
+        _ => Err(reduce_type_error("max", a, b)),
+    }
+}
+
+/// Apply bitwise or logical and to two scalar values.
+fn reduce_and(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64() & b.as_i64(), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64() & b.as_u64(), width))
+        }
+        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() && b.as_bool())),
+        _ => Err(reduce_type_error("and", a, b)),
+    }
+}
+
+/// Apply bitwise or logical or to two scalar values.
+fn reduce_or(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64() | b.as_i64(), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64() | b.as_u64(), width))
+        }
+        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() || b.as_bool())),
+        _ => Err(reduce_type_error("or", a, b)),
+    }
+}
+
+/// Apply bitwise or logical xor to two scalar values.
+fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+    match ty {
+        ScalarLayout::Int { width, is_signed } if is_signed => {
+            let width = width_u8(width)?;
+
+            Ok(Word::int(a.as_i64() ^ b.as_i64(), width))
+        }
+        ScalarLayout::Int { width, .. } => {
+            let width = width_u8(width)?;
+
+            Ok(Word::uint(a.as_u64() ^ b.as_u64(), width))
+        }
+        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() ^ b.as_bool())),
+        _ => Err(reduce_type_error("xor", a, b)),
+    }
+}
+
+/// Build one scalar reduction type error.
+fn reduce_type_error(op: &str, a: Word, b: Word) -> Error {
+    Error::TypeMismatch {
+        expected: format!("scalar {op} operands"),
+        actual: format!("{a:?}, {b:?}"),
     }
 }
