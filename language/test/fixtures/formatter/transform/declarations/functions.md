@@ -571,6 +571,18 @@ function isFoo(value: unknown): value is Foo {
 }
 ```
 
+### type predicate with contextual type subject
+
+Type predicate subjects can use names that are contextual type literals elsewhere.
+
+```ts:main.d.ts
+declare function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike
+```
+
+```ts expected
+declare function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike;
+```
+
 ### asserts type predicate return type
 
 Asserted type predicates keep `asserts` and `is` spacing.
