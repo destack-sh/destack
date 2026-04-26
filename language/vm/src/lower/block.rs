@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
-use crate::module::{CallTarget, Layout};
+use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
 
-use super::kind::ValueKindMap;
+use super::repr::ValueReprMap;
 
 /// One lowered block traversal order.
 pub(super) struct BlockOrder {
@@ -174,12 +174,14 @@ pub(super) struct FunctionContext<'a> {
     >,
     /// The call target by MIR function id.
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    /// The lowered value kind by SSA value id.
-    pub(super) value_kind_map: ValueKindMap,
+    /// The lowered value representation by SSA value id.
+    pub(super) value_repr_map: ValueReprMap,
     /// The lowered value type by SSA value id.
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.
     pub(super) layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    /// The heap allocation layout id by MIR type id.
+    pub(super) layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     /// The lowered block index by MIR block id.
     pub(super) block_index_by_id: HashMap<mir::LocalNodeId<mir::Block>, usize>,
     /// The lowered block parameter values by block index.

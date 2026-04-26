@@ -2,17 +2,17 @@ use super::prelude::*;
 
 /// Execute cast opcode.
 pub(crate) fn execute_cast(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Cast {
+    // decode instruction operands
+    let Operands::Cast {
         dest,
         op,
         arg,
         to_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -28,31 +28,31 @@ pub(crate) fn execute_cast(
     };
 
     // store result
-    state.set(*dest, result);
+    state.set_word(*dest, result);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute select opcode.
 pub(crate) fn execute_select(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::Select {
+    // decode instruction operands
+    let Operands::Select {
         dest,
         condition,
         then_value,
         else_value,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
     // load condition and select result
-    let cond = state.get(*condition).as_bool().unwrap_or(false);
+    let cond = state.get(*condition).as_bool();
     let result = if cond {
         state.get(*then_value)
     } else {
@@ -60,8 +60,8 @@ pub(crate) fn execute_select(
     };
 
     // store result
-    state.set(*dest, result);
+    state.set_word(*dest, result);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }

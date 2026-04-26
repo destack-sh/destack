@@ -1,34 +1,31 @@
 use destack_mir as mir;
 
-use crate::module::{Opcode, PointerClass, ValueKind};
+use crate::diagnostic::Error;
+use crate::program::{Opcode, PointerClass, ValueRepr};
 
-use super::kind::ValueKindMap;
+use super::repr::ValueReprMap;
 
-/// Pick a binary handler based on inferred operand kind.
-pub(super) fn select_binary_opcode(
-    value_kinds: &ValueKindMap,
-    left: mir::Value,
+/// Pick a binary handler from one known operand representation.
+pub(super) fn select_binary_opcode_for_repr(
+    repr: Option<ValueRepr>,
     operator: mir::BinaryOperator,
 ) -> Opcode {
     use mir::BinaryOperator::*;
 
-    // resolve operand kind
-    let kind = value_kinds.get(left);
-
     // try specialized integer handlers first: no operator dispatch overhead
-    if let Some(ValueKind::Int { signed, .. }) = kind
+    if let Some(ValueRepr::Int { signed, .. }) = repr
         && let Some(handler) = select_specialized_int_opcode(operator, signed)
     {
         return handler;
     }
 
     // fall back to typed handlers
-    match kind {
-        Some(ValueKind::Int { signed: true, .. }) => Opcode::BinaryInt,
-        Some(ValueKind::Int { signed: false, .. }) => Opcode::BinaryUint,
-        Some(ValueKind::Float { width: 32 }) => Opcode::BinaryFloat32,
-        Some(ValueKind::Float { width: 64 }) => Opcode::BinaryFloat64,
-        Some(ValueKind::Bool) if matches!(operator, And | Or | Xor) => Opcode::BinaryBool,
+    match repr {
+        Some(ValueRepr::Int { signed: true, .. }) => Opcode::BinaryInt,
+        Some(ValueRepr::Int { signed: false, .. }) => Opcode::BinaryUint,
+        Some(ValueRepr::Float { width: 32 }) => Opcode::BinaryFloat32,
+        Some(ValueRepr::Float { width: 64 }) => Opcode::BinaryFloat64,
+        Some(ValueRepr::Bool) if matches!(operator, And | Or | Xor) => Opcode::BinaryBool,
         _ => Opcode::Binary,
     }
 }
@@ -127,340 +124,369 @@ pub(super) fn select_specialized_const_int_opcode(
     })
 }
 
-/// Pick a unary handler based on inferred operand kind.
+/// Pick a unary handler based on inferred operand representation.
 pub(super) fn select_unary_opcode(
-    value_kinds: &ValueKindMap,
+    value_reprs: &ValueReprMap,
     argument: mir::Value,
     operator: mir::UnaryOperator,
 ) -> Opcode {
-    // resolve operand kind
-    let kind = value_kinds.get(argument);
+    // resolve operand representation
+    let repr = value_reprs.get(argument);
 
-    // select handler by kind
-    match (kind, operator) {
-        (Some(ValueKind::Int { signed: true, .. }), _) => Opcode::UnaryInt,
-        (Some(ValueKind::Int { signed: false, .. }), _) => Opcode::UnaryUint,
-        (Some(ValueKind::Float { width: 32 }), mir::UnaryOperator::FloatNegate) => {
+    // select handler by representation
+    match (repr, operator) {
+        (Some(ValueRepr::Int { signed: true, .. }), _) => Opcode::UnaryInt,
+        (Some(ValueRepr::Int { signed: false, .. }), _) => Opcode::UnaryUint,
+        (Some(ValueRepr::Float { width: 32 }), mir::UnaryOperator::FloatNegate) => {
             Opcode::UnaryFloat32
         }
-        (Some(ValueKind::Float { width: 64 }), mir::UnaryOperator::FloatNegate) => {
+        (Some(ValueRepr::Float { width: 64 }), mir::UnaryOperator::FloatNegate) => {
             Opcode::UnaryFloat64
         }
-        (Some(ValueKind::Bool), mir::UnaryOperator::Not) => Opcode::UnaryBool,
+        (Some(ValueRepr::Bool), mir::UnaryOperator::Not) => Opcode::UnaryBool,
         _ => Opcode::Unary,
     }
 }
 
-/// Pick a load handler based on inferred pointer class.
-pub(super) fn select_load_opcode(value_kinds: &ValueKindMap, pointer: mir::Value) -> Opcode {
-    match value_kinds.get(pointer) {
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Heap,
-            ..
-        }) => Opcode::LoadHeap,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Opcode::LoadRaw,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Opcode::LoadStack,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Opcode::LoadFrame,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Opcode::LoadStatic,
-        _ => Opcode::Load,
+/// Pick a load handler for one known pointer class.
+pub(super) fn select_load_opcode(pointer_class: PointerClass) -> Result<Opcode, Error> {
+    match pointer_class {
+        PointerClass::Heap => Ok(Opcode::LoadHeap),
+        PointerClass::SharedHeap => Ok(Opcode::LoadSharedHeap),
+        PointerClass::Raw => Ok(Opcode::LoadRaw),
+        PointerClass::SharedRaw => Ok(Opcode::LoadSharedRaw),
+        PointerClass::Stack => Ok(Opcode::LoadStack),
+        PointerClass::Frame => Ok(Opcode::LoadFrame),
+        PointerClass::Static => Ok(Opcode::LoadStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a store handler based on inferred pointer class.
-pub(super) fn select_store_opcode(value_kinds: &ValueKindMap, pointer: mir::Value) -> Opcode {
-    match value_kinds.get(pointer) {
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Heap,
-            ..
-        }) => Opcode::StoreHeap,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Opcode::StoreRaw,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Opcode::StoreStack,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Opcode::StoreFrame,
-        Some(ValueKind::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Opcode::StoreStatic,
-        _ => Opcode::Store,
+/// Pick a store handler for one known pointer class.
+pub(super) fn select_store_opcode(pointer_class: PointerClass) -> Result<Opcode, Error> {
+    match pointer_class {
+        PointerClass::Heap => Ok(Opcode::StoreHeap),
+        PointerClass::SharedHeap => Ok(Opcode::StoreSharedHeap),
+        PointerClass::Raw => Ok(Opcode::StoreRaw),
+        PointerClass::SharedRaw => Ok(Opcode::StoreSharedRaw),
+        PointerClass::Stack => Ok(Opcode::StoreStack),
+        PointerClass::Frame => Ok(Opcode::StoreFrame),
+        PointerClass::Static => Ok(Opcode::StoreStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a field get handler based on inferred aggregate value kind.
-pub(super) fn select_field_get_opcode(value_kinds: &ValueKindMap, aggregate: mir::Value) -> Opcode {
-    match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => Opcode::FieldGet,
-        Some(ValueKind::Pointer {
+/// Pick a field get handler based on inferred value representation.
+pub(super) fn select_field_get_opcode(
+    value_reprs: &ValueReprMap,
+    base: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(base) {
+        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldGet),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::FieldLoadHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::FieldLoadRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::FieldLoadStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::FieldLoad,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldLoadStatic,
-        _ => Opcode::FieldLoad,
+        }) => Ok(Opcode::FieldLoadStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick an element get handler based on inferred array value kind.
-pub(super) fn select_element_get_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
-    match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementGet,
-        Some(ValueKind::Pointer {
+/// Pick an element get handler based on inferred value representation.
+pub(super) fn select_element_get_opcode(
+    value_reprs: &ValueReprMap,
+    array: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(array) {
+        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
+            Ok(Opcode::ElementGet)
+        }
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::ElementLoadHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::ElementLoadRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::ElementLoadStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::ElementLoad,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementLoadStatic,
-        _ => Opcode::ElementLoad,
+        }) => Ok(Opcode::ElementLoadStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a field address handler based on inferred aggregate value kind.
+/// Pick a field address handler based on inferred value representation.
 pub(super) fn select_field_addr_opcode(
-    value_kinds: &ValueKindMap,
-    aggregate: mir::Value,
-) -> Opcode {
-    match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => Opcode::FieldAddr,
-        Some(ValueKind::Pointer {
+    value_reprs: &ValueReprMap,
+    base: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(base) {
+        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldAddr),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldAddr),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::FieldAddrHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldAddrHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::FieldAddrRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldAddrRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::FieldAddrStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldAddrStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::FieldAddr,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldAddr),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldAddrStatic,
-        _ => Opcode::FieldAddr,
+        }) => Ok(Opcode::FieldAddrStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick an element address handler based on inferred array value kind.
-pub(super) fn select_element_addr_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
-    match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementAddr,
-        Some(ValueKind::Pointer {
+/// Pick an element address handler based on inferred value representation.
+pub(super) fn select_element_addr_opcode(
+    value_reprs: &ValueReprMap,
+    array: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(array) {
+        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
+            Ok(Opcode::ElementAddr)
+        }
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementAddr),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::ElementAddrHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementAddrHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::ElementAddrRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementAddrRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::ElementAddrStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementAddrStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::ElementAddr,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementAddr),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementAddrStatic,
-        _ => Opcode::ElementAddr,
+        }) => Ok(Opcode::ElementAddrStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a field load handler based on inferred aggregate value kind.
+/// Pick a field load handler based on inferred value representation.
 pub(super) fn select_field_load_opcode(
-    value_kinds: &ValueKindMap,
-    aggregate: mir::Value,
-) -> Opcode {
-    match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => Opcode::FieldLoad,
-        Some(ValueKind::Pointer {
+    value_reprs: &ValueReprMap,
+    base: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(base) {
+        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldLoad),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::FieldLoadHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::FieldLoadRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::FieldLoadStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoadStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::FieldLoad,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldLoadStatic,
-        _ => Opcode::FieldLoad,
+        }) => Ok(Opcode::FieldLoadStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a field store handler based on inferred aggregate value kind.
+/// Pick a field store handler based on inferred value representation.
 pub(super) fn select_field_store_opcode(
-    value_kinds: &ValueKindMap,
-    aggregate: mir::Value,
-) -> Opcode {
-    match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => Opcode::FieldStore,
-        Some(ValueKind::Pointer {
+    value_reprs: &ValueReprMap,
+    base: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(base) {
+        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldStore),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldStore),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::FieldStoreHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldStoreHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::FieldStoreRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldStoreRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::FieldStoreStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldStoreStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::FieldStore,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::FieldStore),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::FieldStoreStatic,
-        _ => Opcode::FieldStore,
+        }) => Ok(Opcode::FieldStoreStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick an element load handler based on inferred array value kind.
-pub(super) fn select_element_load_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
-    match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementLoad,
-        Some(ValueKind::Pointer {
+/// Pick an element load handler based on inferred value representation.
+pub(super) fn select_element_load_opcode(
+    value_reprs: &ValueReprMap,
+    array: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(array) {
+        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
+            Ok(Opcode::ElementLoad)
+        }
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::ElementLoadHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::ElementLoadRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::ElementLoadStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoadStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::ElementLoad,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementLoad),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementLoadStatic,
-        _ => Opcode::ElementLoad,
+        }) => Ok(Opcode::ElementLoadStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick an element store handler based on inferred array value kind.
-pub(super) fn select_element_store_opcode(value_kinds: &ValueKindMap, array: mir::Value) -> Opcode {
-    match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => Opcode::ElementStore,
-        Some(ValueKind::Pointer {
+/// Pick an element store handler based on inferred value representation.
+pub(super) fn select_element_store_opcode(
+    value_reprs: &ValueReprMap,
+    array: mir::Value,
+) -> Result<Opcode, Error> {
+    match value_reprs.get(array) {
+        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
+            Ok(Opcode::ElementStore)
+        }
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementStore),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Heap,
             ..
-        }) => Opcode::ElementStoreHeap,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementStoreHeap),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Raw,
             ..
-        }) => Opcode::ElementStoreRaw,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementStoreRaw),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Stack,
             ..
-        }) => Opcode::ElementStoreStack,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementStoreStack),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Frame,
             ..
-        }) => Opcode::ElementStore,
-        Some(ValueKind::Pointer {
+        }) => Ok(Opcode::ElementStore),
+        Some(ValueRepr::Pointer {
             pointer_class: PointerClass::Static,
             ..
-        }) => Opcode::ElementStoreStatic,
-        _ => Opcode::ElementStore,
+        }) => Ok(Opcode::ElementStoreStatic),
+        _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a branch handler based on inferred condition kind.
-pub(super) fn select_branch_opcode(value_kinds: &ValueKindMap, condition: mir::Value) -> Opcode {
-    // resolve condition kind
-    match value_kinds.get(condition) {
-        Some(ValueKind::Bool) => Opcode::BranchBool,
+/// Pick a branch handler based on inferred condition representation.
+pub(super) fn select_branch_opcode(value_reprs: &ValueReprMap, condition: mir::Value) -> Opcode {
+    // resolve condition representation
+    match value_reprs.get(condition) {
+        Some(ValueRepr::Bool) => Opcode::BranchBool,
         _ => Opcode::Branch,
     }
 }
 
-/// Pick a switch handler based on inferred value kind.
-pub(super) fn select_switch_opcode(value_kinds: &ValueKindMap, value: mir::Value) -> Opcode {
-    // resolve switch value kind
-    match value_kinds.get(value) {
-        Some(ValueKind::Int { .. }) => Opcode::SwitchInt,
+/// Pick a switch handler based on inferred value representation.
+pub(super) fn select_switch_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
+    // resolve switch value representation
+    match value_reprs.get(value) {
+        Some(ValueRepr::Int { .. }) => Opcode::SwitchInt,
         _ => Opcode::Switch,
     }
 }
 
-/// Pick a switch table handler based on inferred value kind.
-pub(super) fn select_switch_table_opcode(value_kinds: &ValueKindMap, value: mir::Value) -> Opcode {
-    // resolve switch value kind
-    match value_kinds.get(value) {
-        Some(ValueKind::Int { .. }) => Opcode::SwitchTableInt,
+/// Pick a switch table handler based on inferred value representation.
+pub(super) fn select_switch_table_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
+    // resolve switch value representation
+    match value_reprs.get(value) {
+        Some(ValueRepr::Int { .. }) => Opcode::SwitchTableInt,
         _ => Opcode::SwitchTable,
     }
 }

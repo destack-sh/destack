@@ -1,44 +1,26 @@
 use crate::diagnostic::Error;
-use crate::module::{ElementAccess, FieldAccess, TypedAccess};
+use crate::program::{ElementAccess, FieldAccess, PointeeAccess, PointerClass};
 use crate::{
-    FramePointer, HeapReference, RawPointer, ReferenceMeta, SharedHeapReference, SharedRawPointer,
-    StackPointer, StaticPointer, Value, ValueTag,
+    FramePointer, FunctionPointer, HeapReference, RawPointer, SharedHeapReference,
+    SharedRawPointer, StackPointer, StaticPointer, Word,
 };
-use destack_heap::Payload;
 use destack_mir as mir;
 
-use super::storage::*;
-use super::{
-    frame_pointer_value_with_meta, stack_pointer_value, stack_pointer_value_with_meta,
-    static_pointer_value_with_meta,
-};
-use crate::interpreter::ExecutionState;
-use crate::telemetry::stat_inc;
+use super::bytes::*;
+use super::{frame_pointer_value, stack_pointer_value, static_pointer_value};
+use crate::interpreter::DispatchState;
 
-pub(crate) use super::storage::{
-    allocate_callable, allocate_heap_payload_by_index, allocate_zeroed_heap_value, decode_callable,
-    decode_raw_value, encode_payload_bytes, encode_raw_value, load_from_raw_pointer_typed,
-    raw_type_size, store_to_raw_pointer_typed,
+pub(crate) use super::bytes::{
+    allocate_callable, decode_callable, decode_raw_value, encode_raw_value, encode_value_bytes,
+    load_raw_pointer, load_shared_raw_pointer, raw_type_size, store_raw_pointer,
+    store_shared_raw_pointer,
 };
-
-const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
-const POINTER_SLOT_SHIFT: u64 = 32;
-const STACK_INDEX_MASK: u64 = 0xFFFF;
-const STACK_SLOT_SHIFT: u64 = 16;
 
 /// Build one invalid-pointer-type error for the given value.
 #[inline(always)]
-pub(super) fn invalid_pointer_type(value: Value) -> Error {
+pub(super) fn invalid_pointer_type(value: Word) -> Error {
     Error::InvalidPointerType {
         actual: format!("{value:?}"),
-    }
-}
-
-/// Build one invalid-pointer-type error for the given description.
-#[inline(always)]
-fn invalid_pointer_description(actual: impl Into<String>) -> Error {
-    Error::InvalidPointerType {
-        actual: actual.into(),
     }
 }
 
@@ -51,44 +33,53 @@ fn non_scalar_load_error(ty: mir::LocalNodeId<mir::Type>) -> Error {
     }
 }
 
-/// Require one heap reference value.
+/// Return a one-word scratch slice for one scalar access.
 #[inline(always)]
-fn heap_reference_from_value(value: Value) -> Result<HeapReference, Error> {
-    value
-        .as_heap_reference()
-        .ok_or_else(|| invalid_pointer_type(value))
+fn scalar_bytes(access: PointeeAccess) -> Result<[u8; Word::BYTE_LEN], Error> {
+    if !access.is_scalar {
+        return Err(non_scalar_load_error(access.value_type));
+    }
+    if access.byte_len > Word::BYTE_LEN {
+        return Err(Error::InvalidInstruction);
+    }
+
+    Ok([0u8; Word::BYTE_LEN])
 }
 
-/// Require one shared heap reference value.
+/// Return one heap reference value.
 #[inline(always)]
-fn shared_heap_reference_from_value(value: Value) -> Result<SharedHeapReference, Error> {
-    value
-        .as_shared_heap_reference()
-        .ok_or_else(|| invalid_pointer_type(value))
+fn heap_reference_from_value(value: Word) -> HeapReference {
+    value.as_heap_reference()
 }
 
-/// Require one stack pointer value.
+/// Return one shared heap reference value.
 #[inline(always)]
-fn stack_pointer_from_value(value: Value) -> Result<StackPointer, Error> {
-    value
-        .as_stack_pointer()
-        .ok_or_else(|| invalid_pointer_type(value))
+fn shared_heap_reference_from_value(value: Word) -> SharedHeapReference {
+    value.as_shared_heap_reference()
 }
 
-/// Require one frame pointer value.
+/// Return one raw pointer value.
 #[inline(always)]
-fn frame_pointer_from_value(value: Value) -> Result<FramePointer, Error> {
-    value
-        .as_frame_pointer()
-        .ok_or_else(|| invalid_pointer_type(value))
+fn raw_pointer_from_value(value: Word) -> RawPointer {
+    value.as_raw_pointer()
 }
 
-/// Require one static pointer value.
+/// Return one shared raw pointer value.
 #[inline(always)]
-fn static_pointer_from_value(value: Value) -> Result<StaticPointer, Error> {
-    value
-        .as_static_pointer()
-        .ok_or_else(|| invalid_pointer_type(value))
+fn shared_raw_pointer_from_value(value: Word) -> SharedRawPointer {
+    value.as_shared_raw_pointer()
+}
+
+/// Return one frame pointer value.
+#[inline(always)]
+fn frame_pointer_from_value(value: Word) -> FramePointer {
+    value.as_frame_pointer()
+}
+
+/// Return one static pointer value.
+#[inline(always)]
+fn static_pointer_from_value(value: Word) -> StaticPointer {
+    value.as_static_pointer()
 }
 
 /// Return the effective field count for one error path.
@@ -106,12 +97,12 @@ fn array_length_for_error(array_length: Option<u64>, actual_length: u64) -> u64 
 /// Return one lowered element access for an already known indexed type.
 #[inline(always)]
 pub(crate) fn element_access_for_type(
-    state: &ExecutionState<'_, '_>,
+    state: &DispatchState<'_, '_>,
     indexed_type: mir::LocalNodeId<mir::Type>,
     index: u64,
-) -> Result<(ElementAccess, Option<u64>), Error> {
+) -> Result<(ElementAccess, u64), Error> {
     let layout = state.layout(indexed_type)?;
-    let element_count = layout.element_count().unwrap_or(0) as u64;
+    let element_count = layout.element_count().ok_or(Error::InvalidInstruction)? as u64;
     let element = layout.element().ok_or(Error::InvalidArrayAccess {
         index,
         length: element_count,
@@ -125,35 +116,25 @@ pub(crate) fn element_access_for_type(
     }
 
     let access = ElementAccess {
+        pointer_class: PointerClass::Frame,
         value_type: element.ty,
         byte_stride: element.stride,
         byte_len: element.byte_len,
         is_scalar: state.layout(element.ty)?.is_scalar(),
     };
 
-    Ok((access, Some(element_count)))
+    Ok((access, element_count))
 }
 
 /// Record one shared heap write barrier from one exact stored value.
 #[inline(always)]
 fn publish_shared_store(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     destination: SharedHeapReference,
     start: usize,
     bytes: &[u8],
-    value: Value,
 ) -> Result<(), Error> {
-    // exact shared reference stores can publish directly
-    if let Some(reference) = value.as_shared_heap_reference() {
-        state
-            .shared()
-            .publish_edge(reference)
-            .map_err(Error::from)?;
-
-        return Ok(());
-    }
-
-    // fall back to the generic byte-range barrier for packed values
+    // scan the stored bytes through the shared heap edge map
     state
         .shared()
         .write_barrier_bytes(destination, start, bytes)
@@ -179,236 +160,263 @@ fn map_invalid_array_reference(error: Error, index: u64, length: u64) -> Error {
 }
 
 /// Decode one raw bit pattern into a pointer-shaped VM value.
-pub(crate) fn decode_pointer_bits(raw: u64, target_type: &mir::Type) -> Result<Value, Error> {
+pub(crate) fn decode_pointer_bits(raw: u64, target_type: &mir::Type) -> Result<Word, Error> {
     match target_type {
-        mir::Type::FunctionPointer { .. } => {
-            Ok(Value::function_pointer(mir::LocalNodeId::new(raw as u32)))
-        }
+        mir::Type::FunctionPointer { .. } => Ok(Word::function_pointer(
+            FunctionPointer::from_bits(raw as usize),
+        )),
         mir::Type::Reference {
             kind,
             address_space,
-            mutability,
-            is_nullable,
             ..
         } => {
-            let meta = ReferenceMeta::new(*kind, address_space.clone(), *mutability, *is_nullable);
             let value = match (*kind, address_space.clone()) {
                 (
                     mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
                     mir::AddressSpace::Shared,
-                ) => Value::shared_heap_reference_with_meta(
-                    SharedHeapReference::from_bits(raw as usize),
-                    meta,
-                ),
+                ) => Word::shared_heap_reference(SharedHeapReference::from_bits(raw as usize)),
                 (mir::ReferenceKind::Managed | mir::ReferenceKind::Owned, _) => {
-                    Value::heap_reference_with_meta(HeapReference::from_bits(raw as usize), meta)
+                    Word::heap_reference(HeapReference::from_bits(raw as usize))
                 }
                 (mir::ReferenceKind::Borrowed, mir::AddressSpace::Shared) => {
-                    Value::shared_heap_reference_with_meta(
-                        SharedHeapReference::from_bits(raw as usize),
-                        meta,
-                    )
+                    Word::shared_heap_reference(SharedHeapReference::from_bits(raw as usize))
                 }
                 (_, mir::AddressSpace::Stack) => {
-                    let frame_index = (raw & STACK_INDEX_MASK) as usize;
-                    let slot = ((raw >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-                    let byte_offset = ((raw >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-                    let pointer = StackPointer::with_offset(frame_index, slot, byte_offset);
-
-                    stack_pointer_value_with_meta(pointer, meta)?
+                    stack_pointer_value(StackPointer::from_address(raw as usize))?
                 }
                 (_, mir::AddressSpace::Frame) => {
-                    let frame_index = (raw & STACK_INDEX_MASK) as usize;
-                    let slot = ((raw >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
-                    let byte_offset = ((raw >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-                    let pointer = FramePointer::with_offset(frame_index, slot, byte_offset);
-
-                    frame_pointer_value_with_meta(pointer, meta)?
+                    frame_pointer_value(FramePointer::from_address(raw as usize))?
                 }
                 (_, mir::AddressSpace::Static) => {
-                    let global = mir::LocalNodeId::new((raw & POINTER_BASE_MASK) as u32);
-                    let byte_offset = ((raw >> POINTER_SLOT_SHIFT) & POINTER_BASE_MASK) as usize;
-
-                    static_pointer_value_with_meta(global, byte_offset, meta)?
+                    static_pointer_value(StaticPointer::from_address(raw as usize), 0)?
                 }
                 (mir::ReferenceKind::Borrowed, _) => {
-                    Value::heap_reference_with_meta(HeapReference::from_bits(raw as usize), meta)
+                    Word::heap_reference(HeapReference::from_bits(raw as usize))
                 }
-                (_, mir::AddressSpace::Shared) => Value::shared_raw_pointer_with_meta(
-                    SharedRawPointer::from_bits(raw as usize),
-                    meta,
-                ),
-                _ => Value::raw_pointer_with_meta(RawPointer::from_bits(raw as usize), meta),
+                (_, mir::AddressSpace::Shared) => {
+                    Word::shared_raw_pointer(SharedRawPointer::from_bits(raw as usize))
+                }
+                _ => Word::raw_pointer(RawPointer::from_bits(raw as usize)),
             };
 
             Ok(value)
         }
-        _ => Ok(Value::raw_pointer(RawPointer::from_bits(raw as usize))),
+        _ => Ok(Word::raw_pointer(RawPointer::from_bits(raw as usize))),
     }
 }
 
-/// Load a value from a pointer with one optional typed access plan.
+/// Check that one destination byte range matches one access.
 #[inline(always)]
-pub(crate) fn load_from_pointer_with_access(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: Option<TypedAccess>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
+fn check_target_len(access: PointeeAccess, target_len: usize) -> Result<(), Error> {
+    if target_len != access.byte_len {
+        return Err(Error::InvalidInstruction);
     }
 
-    // resolve pointer kind and load
-    match ptr.tag() {
-        ValueTag::HeapReference => {
-            // use the compiled typed access when the pointee is known
-            if let Some(access) = access {
-                return load_from_heap_reference_typed(state, ptr, access);
-            }
+    Ok(())
+}
 
-            Err(invalid_pointer_description(
-                "heap reference without pointee type",
-            ))
-        }
-        ValueTag::SharedHeapReference => {
-            // use the compiled typed access when the pointee is known
-            if let Some(access) = access {
-                return load_from_shared_heap_reference_typed(state, ptr, access);
-            }
-
-            Err(invalid_pointer_description(
-                "shared heap reference without pointee type",
-            ))
-        }
-        ValueTag::RawPointer => {
-            // require the raw pointee type before decoding raw memory
-            let Some(access) = access else {
-                return Err(invalid_pointer_description(
-                    "raw pointer without pointee type",
-                ));
-            };
-
-            load_from_raw_pointer_typed(state, ptr, access)
-        }
-        ValueTag::StackPointer => {
-            // require the stack pointee type before decoding stack storage
-            let sp = stack_pointer_from_value(ptr)?;
-            let Some(access) = access else {
-                return Err(invalid_pointer_description(
-                    "stack pointer without pointee type",
-                ));
-            };
-
-            load_from_stack_pointer_typed(state, sp, access)
-        }
-        ValueTag::FramePointer => {
-            // load one frame slot directly
-            let pointer = frame_pointer_from_value(ptr)?;
-            load_frame_slot(state, pointer, pointer.byte_offset)
-        }
-        ValueTag::StaticPointer => {
-            // load one static value directly
-            let pointer = static_pointer_from_value(ptr)?;
-            load_static_value(state, pointer)
-        }
-
-        // reject non pointer values loudly
-        _ => Err(invalid_pointer_type(ptr)),
+/// Copy one native byte range into a destination.
+#[inline(always)]
+fn copy_address_bytes_into(address: usize, target: *mut u8, target_len: usize) {
+    unsafe {
+        std::ptr::copy_nonoverlapping(address as *const u8, target, target_len);
     }
 }
 
-/// Store a value to a pointer with one optional typed access plan.
+/// Load bytes from a heap reference.
 #[inline(always)]
-pub(crate) fn store_to_pointer_with_access(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: Option<TypedAccess>,
-    value: Value,
+pub(crate) fn load_heap_reference_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
+    check_target_len(access, target_len)?;
+
+    let handle = heap_reference_from_value(ptr);
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+    if !state.heap().is_heap_live(handle) {
+        return Err(Error::InvalidHeapReference);
     }
 
-    // resolve pointer kind and store
-    match ptr.tag() {
-        ValueTag::HeapReference => {
-            // use the compiled typed access when the pointee is known
-            if let Some(access) = access {
-                return store_to_heap_reference_typed(state, ptr, access, value);
-            }
+    let target = unsafe { std::slice::from_raw_parts_mut(target, target_len) };
+    state
+        .heap()
+        .read_heap_bytes_into(handle, access.byte_offset, target)
+        .map_err(Error::from)
+}
 
-            Err(invalid_pointer_description(
-                "heap reference without pointee type",
-            ))
-        }
-        ValueTag::SharedHeapReference => {
-            // use the compiled typed access when the pointee is known
-            if let Some(access) = access {
-                return store_to_shared_heap_reference_typed(state, ptr, access, value);
-            }
+/// Load bytes from a shared heap reference.
+#[inline(always)]
+pub(crate) fn load_shared_heap_reference_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
 
-            Err(invalid_pointer_description(
-                "shared heap reference without pointee type",
-            ))
-        }
-        ValueTag::RawPointer => {
-            // require the raw pointee type before encoding raw memory
-            let Some(access) = access else {
-                return Err(invalid_pointer_description(
-                    "raw pointer without pointee type",
-                ));
-            };
-
-            store_to_raw_pointer_typed(state, ptr, access, value)
-        }
-        ValueTag::StackPointer => {
-            // require the stack pointee type before encoding stack storage
-            let sp = stack_pointer_from_value(ptr)?;
-            let Some(access) = access else {
-                return Err(invalid_pointer_description(
-                    "stack pointer without pointee type",
-                ));
-            };
-
-            store_to_stack_pointer_typed(state, sp, access, value)
-        }
-        ValueTag::FramePointer => {
-            // store one frame slot directly
-            let pointer = frame_pointer_from_value(ptr)?;
-            store_frame_slot(state, pointer, pointer.byte_offset, value)
-        }
-        ValueTag::StaticPointer => {
-            // reject immutable statics before storing
-            let pointer = static_pointer_from_value(ptr)?;
-            let global = state.tree().get(pointer.id);
-            if !global.is_mutable() {
-                return Err(Error::ImmutableGlobalWrite { global: pointer.id });
-            }
-
-            store_static_value(state, pointer, value)
-        }
-
-        // reject non pointer values loudly
-        _ => Err(invalid_pointer_type(ptr)),
+    let handle = shared_heap_reference_from_value(ptr);
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
     }
+    if !state.shared().is_heap_live(handle) {
+        return Err(Error::InvalidHeapReference);
+    }
+
+    let target = unsafe { std::slice::from_raw_parts_mut(target, target_len) };
+    state
+        .shared()
+        .read_heap_bytes_into(handle, access.byte_offset, target)
+        .map_err(Error::from)
+}
+
+/// Load bytes from a raw pointer.
+#[inline(always)]
+pub(crate) fn load_raw_pointer_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
+
+    let pointer = raw_pointer_from_value(ptr);
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let target = unsafe { std::slice::from_raw_parts_mut(target, target_len) };
+    state
+        .heap()
+        .read_raw_bytes_into(pointer, access.byte_offset, target)
+        .map_err(Error::from)
+}
+
+/// Load bytes from a shared raw pointer.
+#[inline(always)]
+pub(crate) fn load_shared_raw_pointer_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
+
+    let pointer = shared_raw_pointer_from_value(ptr);
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let target = unsafe { std::slice::from_raw_parts_mut(target, target_len) };
+    state
+        .shared()
+        .read_raw_bytes_into(pointer, access.byte_offset, target)
+        .map_err(Error::from)
+}
+
+/// Load bytes from a stack pointer.
+#[inline(always)]
+pub(crate) fn load_stack_pointer_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    pointer: StackPointer,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
+
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "stack".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_stack_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "stack".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    copy_address_bytes_into(pointer.address(), target, target_len);
+    Ok(())
+}
+
+/// Load bytes from a frame pointer.
+#[inline(always)]
+pub(crate) fn load_frame_pointer_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    pointer: FramePointer,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
+
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "frame".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_frame_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    copy_address_bytes_into(pointer.address(), target, target_len);
+    Ok(())
+}
+
+/// Load bytes from a static pointer.
+#[inline(always)]
+pub(crate) fn load_static_pointer_bytes_into(
+    state: &mut DispatchState<'_, '_>,
+    pointer: StaticPointer,
+    access: PointeeAccess,
+    target: *mut u8,
+    target_len: usize,
+) -> Result<(), Error> {
+    check_target_len(access, target_len)?;
+
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "static".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_static_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "static".to_string(),
+            actual: "foreign".to_string(),
+        });
+    }
+
+    copy_address_bytes_into(pointer.address(), target, target_len);
+    Ok(())
 }
 
 /// Load a value from a heap reference.
 #[inline(always)]
-pub(crate) fn load_from_heap_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: TypedAccess,
-) -> Result<Value, Error> {
-    // require one heap reference value
-    if ptr.tag() != ValueTag::HeapReference {
-        return Err(invalid_pointer_type(ptr));
-    }
-
+pub(crate) fn load_heap_reference(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+) -> Result<Word, Error> {
     // reject null pointers before reading the allocation
-    let handle = heap_reference_from_value(ptr)?;
+    let handle = heap_reference_from_value(ptr);
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -419,32 +427,26 @@ pub(crate) fn load_from_heap_reference_typed(
         return Err(Error::InvalidHeapReference);
     }
 
-    if !access.is_scalar {
-        return Err(non_scalar_load_error(access.value_type));
-    }
-
-    // decode the payload bytes
-    let owned_bytes = state
-        .read_heap_bytes(handle, 0, access.byte_len)
+    // decode through one word scratch buffer
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..access.byte_len];
+    state
+        .heap()
+        .read_heap_bytes_into(handle, access.byte_offset, bytes)
         .map_err(Error::from)?;
 
-    decode_raw_value(state.tree(), access.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), access.value_type, bytes)
 }
 
 /// Load a value from a shared heap reference.
 #[inline(always)]
-pub(crate) fn load_from_shared_heap_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: TypedAccess,
-) -> Result<Value, Error> {
-    // require one shared heap reference value
-    if ptr.tag() != ValueTag::SharedHeapReference {
-        return Err(invalid_pointer_type(ptr));
-    }
-
+pub(crate) fn load_shared_heap_reference(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+) -> Result<Word, Error> {
     // reject null pointers before reading the allocation
-    let handle = shared_heap_reference_from_value(ptr)?;
+    let handle = shared_heap_reference_from_value(ptr);
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -454,95 +456,110 @@ pub(crate) fn load_from_shared_heap_reference_typed(
         return Err(Error::InvalidHeapReference);
     }
 
-    if !access.is_scalar {
-        return Err(non_scalar_load_error(access.value_type));
-    }
-
-    // decode the payload bytes
-    let owned_bytes = state
-        .read_shared_heap_bytes(handle, 0, access.byte_len)
+    // decode through one word scratch buffer
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..access.byte_len];
+    state
+        .shared()
+        .read_heap_bytes_into(handle, access.byte_offset, bytes)
         .map_err(Error::from)?;
 
-    decode_raw_value(state.tree(), access.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), access.value_type, bytes)
 }
 
 /// Load a value from a stack pointer.
 #[inline(always)]
-pub(crate) fn load_from_stack_pointer_typed(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn load_stack_pointer(
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
-    access: TypedAccess,
-) -> Result<Value, Error> {
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start = pointer.byte_offset;
-    let end = start
-        .checked_add(access.byte_len)
-        .ok_or(Error::InvalidFieldAccess {
-            index: start as u32,
-            field_count: allocation.len(),
-        })?;
-    let byte_range = allocation
-        .bytes()
-        .get(start..end)
-        .ok_or(Error::InvalidFieldAccess {
-            index: start as u32,
-            field_count: allocation.len(),
-        })?;
-    if !access.is_scalar {
-        return Err(non_scalar_load_error(access.value_type));
+    access: PointeeAccess,
+) -> Result<Word, Error> {
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "stack".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_stack_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "stack".to_string(),
+            actual: "foreign".to_string(),
+        });
     }
 
-    decode_raw_value(state.tree(), access.value_type, byte_range)
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..access.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
+
+    decode_raw_value(state.tree(), access.value_type, bytes)
 }
 
-/// Load a value from a frame pointer.
+/// Load a value from a frame value address.
 #[inline(always)]
-pub(crate) fn load_from_frame_pointer(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-) -> Result<Value, Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::FramePointer {
-        return Err(invalid_pointer_type(ptr));
+pub(crate) fn load_frame_pointer(
+    state: &mut DispatchState<'_, '_>,
+    pointer: FramePointer,
+    access: PointeeAccess,
+) -> Result<Word, Error> {
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "frame".to_string(),
+                actual: format!("0x{:x}", pointer.address()),
+            })?;
+    if !state.owns_frame_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
     }
 
-    // resolve pointer
-    let pointer = frame_pointer_from_value(ptr)?;
-    load_frame_slot(state, pointer, pointer.byte_offset)
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..access.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
+
+    decode_raw_value(state.tree(), access.value_type, bytes)
 }
 
-/// Load a value from a static pointer.
+/// Load a value from a static value address.
 #[inline(always)]
-pub(crate) fn load_from_static_pointer(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-) -> Result<Value, Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::StaticPointer {
-        return Err(invalid_pointer_type(ptr));
+pub(crate) fn load_static_pointer(
+    state: &mut DispatchState<'_, '_>,
+    pointer: StaticPointer,
+    access: PointeeAccess,
+) -> Result<Word, Error> {
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "static".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_static_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "static".to_string(),
+            actual: "foreign".to_string(),
+        });
     }
 
-    // resolve pointer
-    let pointer = static_pointer_from_value(ptr)?;
-    load_static_value(state, pointer)
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..access.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
+
+    decode_raw_value(state.tree(), access.value_type, bytes)
 }
 
 /// Store a value through a heap reference.
 #[inline(always)]
-pub(crate) fn store_to_heap_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: TypedAccess,
-    val: Value,
+pub(crate) fn store_heap_reference(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    val: Word,
 ) -> Result<(), Error> {
-    if ptr.tag() != ValueTag::HeapReference {
-        return Err(invalid_pointer_type(ptr));
-    }
-
-    let handle = heap_reference_from_value(ptr)?;
+    let handle = heap_reference_from_value(ptr);
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -554,10 +571,10 @@ pub(crate) fn store_to_heap_reference_typed(
         }
     }
 
-    let bytes = encode_payload_bytes(state, access.value_type, val)?;
+    let bytes = encode_value_bytes(state, access.value_type, val)?;
     let byte_len = state.heap().heap_byte_len(handle)?;
-    let start = 0usize;
-    let end = bytes.len();
+    let start = access.byte_offset;
+    let end = start.saturating_add(bytes.len());
 
     if end > byte_len {
         return Err(Error::InvalidFieldAccess {
@@ -575,17 +592,13 @@ pub(crate) fn store_to_heap_reference_typed(
 
 /// Store a value through a shared heap reference.
 #[inline(always)]
-pub(crate) fn store_to_shared_heap_reference_typed(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    access: TypedAccess,
-    val: Value,
+pub(crate) fn store_shared_heap_reference(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    val: Word,
 ) -> Result<(), Error> {
-    if ptr.tag() != ValueTag::SharedHeapReference {
-        return Err(invalid_pointer_type(ptr));
-    }
-
-    let handle = shared_heap_reference_from_value(ptr)?;
+    let handle = shared_heap_reference_from_value(ptr);
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
@@ -596,13 +609,13 @@ pub(crate) fn store_to_shared_heap_reference_typed(
         }
     }
 
-    let bytes = encode_payload_bytes(state, access.value_type, val)?;
+    let bytes = encode_value_bytes(state, access.value_type, val)?;
     let byte_len = state
         .shared_ref()
         .heap_byte_len(handle)
         .map_err(Error::from)?;
-    let start = 0usize;
-    let end = bytes.len();
+    let start = access.byte_offset;
+    let end = start.saturating_add(bytes.len());
 
     if end > byte_len {
         return Err(Error::InvalidFieldAccess {
@@ -615,132 +628,112 @@ pub(crate) fn store_to_shared_heap_reference_typed(
         .shared()
         .write_heap_bytes(handle, start, &bytes)
         .map_err(Error::from)?;
-    publish_shared_store(state, handle, start, &bytes, val)?;
+    publish_shared_store(state, handle, start, &bytes)?;
 
     Ok(())
 }
 
 /// Store a value through a stack pointer.
 #[inline(always)]
-pub(crate) fn store_to_stack_pointer_typed(
-    state: &mut ExecutionState<'_, '_>,
+pub(crate) fn store_stack_pointer(
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
-    access: TypedAccess,
-    value: Value,
+    access: PointeeAccess,
+    value: Word,
 ) -> Result<(), Error> {
-    // encode the typed payload
-    let bytes = encode_payload_bytes(state, access.value_type, value)?;
-
-    let frame = state.frame_by_index_mut(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation_mut(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start = pointer.byte_offset;
-    let end = start
-        .checked_add(bytes.len())
-        .ok_or(Error::InvalidFieldAccess {
-            index: start as u32,
-            field_count: allocation.len(),
-        })?;
-
-    if end > allocation.len() {
-        return Err(Error::InvalidFieldAccess {
-            index: start as u32,
-            field_count: allocation.len(),
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "stack".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_stack_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "stack".to_string(),
+            actual: "foreign".to_string(),
         });
     }
 
-    allocation.bytes_mut()[start..end].copy_from_slice(&bytes);
+    // encode the typed value
+    let bytes = encode_value_bytes(state, access.value_type, value)?;
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
+    }
 
     Ok(())
 }
 
-/// Store a value through a frame pointer.
+/// Store a value through a frame value address.
 #[inline(always)]
-pub(crate) fn store_to_frame_pointer(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    val: Value,
+pub(crate) fn store_frame_pointer(
+    state: &mut DispatchState<'_, '_>,
+    pointer: FramePointer,
+    access: PointeeAccess,
+    value: Word,
 ) -> Result<(), Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::FramePointer {
-        return Err(invalid_pointer_type(ptr));
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "frame".to_string(),
+                actual: format!("0x{:x}", pointer.address()),
+            })?;
+    if !state.owns_frame_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "frame".to_string(),
+            actual: format!("0x{:x}", pointer.address()),
+        });
     }
 
-    // resolve pointer
-    let pointer = frame_pointer_from_value(ptr)?;
-    store_frame_slot(state, pointer, pointer.byte_offset, val)
+    let bytes = encode_value_bytes(state, access.value_type, value)?;
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
+    }
+
+    Ok(())
 }
 
-/// Store a value through a static pointer.
+/// Store a value through a static value address.
 #[inline(always)]
-pub(crate) fn store_to_static_pointer(
-    state: &mut ExecutionState<'_, '_>,
-    ptr: Value,
-    val: Value,
+pub(crate) fn store_static_pointer(
+    state: &mut DispatchState<'_, '_>,
+    pointer: StaticPointer,
+    access: PointeeAccess,
+    value: Word,
 ) -> Result<(), Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::StaticPointer {
-        return Err(invalid_pointer_type(ptr));
+    let pointer =
+        pointer
+            .add_bytes(access.byte_offset)
+            .ok_or_else(|| Error::InvalidAddressSpace {
+                expected: "static".to_string(),
+                actual: "foreign".to_string(),
+            })?;
+    if !state.owns_static_range(pointer, access.byte_len) {
+        return Err(Error::InvalidAddressSpace {
+            expected: "static".to_string(),
+            actual: "foreign".to_string(),
+        });
     }
 
-    // resolve pointer
-    let pointer = static_pointer_from_value(ptr)?;
-    let global = state.tree().get(pointer.id);
-    if !global.is_mutable() {
-        return Err(Error::ImmutableGlobalWrite { global: pointer.id });
+    let bytes = encode_value_bytes(state, access.value_type, value)?;
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
     }
-    store_static_value(state, pointer, val)
-}
 
-/// Get the address of a field from an aggregate or pointer.
-#[inline(always)]
-pub(crate) fn field_addr(
-    state: &mut ExecutionState<'_, '_>,
-    aggregate: Value,
-    index: u32,
-    field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // validate field index when known
-    check_field_index(state, index, field_count)?;
-
-    // resolve the source and compute the field pointer
-    match aggregate.tag() {
-        ValueTag::HeapReference => Err(invalid_pointer_description(
-            "heap reference requires typed field access",
-        )),
-        ValueTag::SharedHeapReference => Err(invalid_pointer_description(
-            "shared heap reference requires typed field access",
-        )),
-        ValueTag::RawPointer => Err(invalid_pointer_description(
-            "raw pointer requires typed field access",
-        )),
-        ValueTag::StackPointer => Err(invalid_pointer_description(
-            "stack pointer requires typed field access",
-        )),
-        ValueTag::FramePointer => {
-            let pointer = frame_pointer_from_value(aggregate)?;
-            field_addr_local(state, pointer, index, field_count)
-        }
-        ValueTag::StaticPointer => Err(invalid_pointer_description(
-            "static pointer requires typed field access",
-        )),
-        _ => Err(Error::TypeMismatch {
-            expected: "aggregate or pointer".to_string(),
-            actual: format!("{aggregate:?}"),
-        }),
-    }
+    Ok(())
 }
 
 /// Get the address of a field from a heap reference.
 #[inline(always)]
 pub(crate) fn field_addr_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -761,18 +754,18 @@ pub(crate) fn field_addr_heap(
             field_count: field_count_for_error,
         })?;
 
-    Ok(Value::heap_reference(handle))
+    Ok(Word::heap_reference(handle))
 }
 
 /// Get the address of a field from a shared heap reference.
 #[inline(always)]
 pub(crate) fn field_addr_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -792,18 +785,18 @@ pub(crate) fn field_addr_shared_heap(
             field_count: field_count_for_error,
         })?;
 
-    Ok(Value::shared_heap_reference(handle))
+    Ok(Word::shared_heap_reference(handle))
 }
 
 /// Get the address of a field from a raw pointer.
 #[inline(always)]
 pub(crate) fn field_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -820,161 +813,62 @@ pub(crate) fn field_addr_raw(
             field_count: field_count_for_error,
         })?;
 
-    Ok(Value::raw_pointer(pointer))
+    Ok(Word::raw_pointer(pointer))
 }
 
 /// Get the address of a field from a stack pointer.
 #[inline(always)]
 pub(crate) fn field_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // validate the field byte range inside the stack allocation
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let slot_index =
-        pointer
-            .byte_offset
-            .checked_add(field.byte_offset)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: allocation.len(),
-            })?;
-    let byte_end = slot_index
-        .checked_add(field.byte_len)
+    let pointer = pointer
+        .add_bytes(field.byte_offset)
         .ok_or(Error::InvalidFieldAccess {
             index,
-            field_count: allocation.len(),
+            field_count: field_count_for_error(field_count, index as usize + 1),
         })?;
 
-    if byte_end > allocation.len() {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: allocation.len(),
-        });
-    }
-
-    stack_pointer_value(StackPointer::with_offset(
-        pointer.frame_idx,
-        pointer.slot,
-        slot_index,
-    ))
-}
-
-/// Get the address of a field from a frame pointer.
-#[inline(always)]
-pub(crate) fn field_addr_local(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: FramePointer,
-    index: u32,
-    field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // load the local value
-    let value = load_frame_slot(state, pointer, pointer.byte_offset)?;
-
-    // resolve the field address from the value
-    field_addr(state, value, index, field_count)
+    stack_pointer_value(pointer)
 }
 
 /// Get the address of a field from a static pointer.
 #[inline(always)]
 pub(crate) fn field_addr_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidFieldAccess {
-            index: pointer.byte_offset as u32,
-            field_count: 0,
-        });
-    }
+    let pointer = pointer
+        .add_bytes(field.byte_offset)
+        .ok_or(Error::InvalidFieldAccess {
+            index,
+            field_count: field_count_for_error(field_count, index as usize + 1),
+        })?;
 
-    let value = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
-
-    if let Some(handle) = value.as_heap_reference() {
-        return field_addr_heap(state, handle, field, index, field_count);
-    }
-
-    if let Some(handle) = value.as_shared_heap_reference() {
-        return field_addr_shared_heap(state, handle, field, index, field_count);
-    }
-
-    if let Some(pointer) = value.as_raw_pointer() {
-        return field_addr_raw(state, pointer, field, index, field_count);
-    }
-
-    Err(Error::InvalidFieldAccess {
-        index,
-        field_count: 0,
-    })
-}
-
-/// Get the address of an element from an array or pointer.
-#[inline(always)]
-pub(crate) fn element_addr(
-    state: &mut ExecutionState<'_, '_>,
-    array: Value,
-    index: u64,
-    array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // validate array index when known
-    check_array_index(state, index, array_length)?;
-
-    // resolve the source and compute the element pointer
-    match array.tag() {
-        ValueTag::HeapReference => Err(invalid_pointer_description(
-            "heap reference requires typed element access",
-        )),
-        ValueTag::SharedHeapReference => Err(invalid_pointer_description(
-            "shared heap reference requires typed element access",
-        )),
-        ValueTag::RawPointer => Err(invalid_pointer_description(
-            "raw pointer requires typed element access",
-        )),
-        ValueTag::StackPointer => Err(invalid_pointer_description(
-            "stack pointer requires typed element access",
-        )),
-        ValueTag::FramePointer => {
-            let pointer = frame_pointer_from_value(array)?;
-            element_addr_local(state, pointer, index, array_length)
-        }
-        ValueTag::StaticPointer => Err(invalid_pointer_description(
-            "static pointer requires typed element access",
-        )),
-        _ => Err(Error::TypeMismatch {
-            expected: "array or pointer".to_string(),
-            actual: format!("{array:?}"),
-        }),
-    }
+    Ok(Word::static_pointer(pointer))
 }
 
 /// Get the address of an element from a heap reference.
 #[inline(always)]
 pub(crate) fn element_addr_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1001,18 +895,18 @@ pub(crate) fn element_addr_heap(
             length: array_length_for_error(array_length, 0),
         })?;
 
-    Ok(Value::heap_reference(handle))
+    Ok(Word::heap_reference(handle))
 }
 
 /// Get the address of an element from a shared heap reference.
 #[inline(always)]
 pub(crate) fn element_addr_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1038,18 +932,18 @@ pub(crate) fn element_addr_shared_heap(
             length: array_length_for_error(array_length, 0),
         })?;
 
-    Ok(Value::shared_heap_reference(handle))
+    Ok(Word::shared_heap_reference(handle))
 }
 
 /// Get the address of an element from a raw pointer.
 #[inline(always)]
 pub(crate) fn element_addr_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1073,22 +967,22 @@ pub(crate) fn element_addr_raw(
             length: array_length_for_error(array_length, 0),
         })?;
 
-    Ok(Value::raw_pointer(pointer))
+    Ok(Word::raw_pointer(pointer))
 }
 
 /// Get the address of an element from a stack pointer.
 #[inline(always)]
 pub(crate) fn element_addr_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    // validate the element byte range inside the stack allocation
+    // compute the element byte offset
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element.byte_stride))
@@ -1096,112 +990,61 @@ pub(crate) fn element_addr_stack(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let slot_index =
-        pointer
-            .byte_offset
-            .checked_add(element_offset)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: allocation.len() as u64,
-            })?;
-    let byte_end = slot_index
-        .checked_add(element.byte_len)
+    let pointer = pointer
+        .add_bytes(element_offset)
         .ok_or(Error::InvalidArrayAccess {
             index,
-            length: allocation.len() as u64,
+            length: array_length_for_error(array_length, 0),
         })?;
 
-    if byte_end > allocation.len() {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: allocation.len() as u64,
-        });
-    }
-
-    stack_pointer_value(StackPointer::with_offset(
-        pointer.frame_idx,
-        pointer.slot,
-        slot_index,
-    ))
-}
-
-/// Get the address of an element from a frame pointer.
-#[inline(always)]
-pub(crate) fn element_addr_local(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: FramePointer,
-    index: u64,
-    array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // load the local value
-    let value = load_frame_slot(state, pointer, pointer.byte_offset)?;
-
-    // resolve the element address from the value
-    element_addr(state, value, index, array_length)
+    stack_pointer_value(pointer)
 }
 
 /// Get the address of an element from a static pointer.
 #[inline(always)]
 pub(crate) fn element_addr_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidArrayAccess { index, length: 0 });
-    }
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element.byte_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
+    let pointer = pointer
+        .add_bytes(element_offset)
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
 
-    let value = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
-
-    if let Some(handle) = value.as_heap_reference() {
-        return element_addr_heap(state, handle, element, index, array_length);
-    }
-
-    if let Some(handle) = value.as_shared_heap_reference() {
-        return element_addr_shared_heap(state, handle, element, index, array_length);
-    }
-
-    if let Some(pointer) = value.as_raw_pointer() {
-        return element_addr_raw(state, pointer, element, index, array_length);
-    }
-
-    Err(Error::InvalidArrayAccess { index, length: 0 })
+    Ok(Word::static_pointer(pointer))
 }
 
 /// Load a field from a heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // require one live heap allocation
     let heap = state.heap();
     if !heap.is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
 
-    // validate the requested field before decoding payload bytes
+    // validate the requested field before decoding bytes
     check_field_index(state, index, field_count)?;
 
     // reject null handles before reading the allocation bytes
@@ -1209,35 +1052,30 @@ pub(crate) fn load_field_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    if !field.is_scalar {
-        return Err(non_scalar_load_error(field.value_type));
-    }
-
-    // resolve the field bytes inside the heap payload
-    let owned_bytes = state
-        .read_heap_bytes(handle, field.byte_offset, field.byte_len)
+    // decode through one word scratch buffer
+    let access = PointeeAccess::from(field);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..field.byte_len];
+    state
+        .heap()
+        .read_heap_bytes_into(handle, field.byte_offset, bytes)
         .map_err(Error::from)
         .map_err(|error| {
             map_invalid_field_reference(error, index, field_count_for_error(field_count, 0))
         })?;
 
-    decode_raw_value(state.tree(), field.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), field.value_type, bytes)
 }
 
 /// Load a field from a shared heap allocation.
 #[inline(always)]
 pub(crate) fn load_field_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     if !state.shared().is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
@@ -1248,45 +1086,39 @@ pub(crate) fn load_field_shared_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    if !field.is_scalar {
-        return Err(non_scalar_load_error(field.value_type));
-    }
-
-    let owned_bytes = state
-        .read_shared_heap_bytes(handle, field.byte_offset, field.byte_len)
+    let access = PointeeAccess::from(field);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..field.byte_len];
+    state
+        .shared()
+        .read_heap_bytes_into(handle, field.byte_offset, bytes)
         .map_err(Error::from)
         .map_err(|error| {
             map_invalid_field_reference(error, index, field_count_for_error(field_count, 0))
         })?;
 
-    decode_raw_value(state.tree(), field.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), field.value_type, bytes)
 }
 
 /// Store a field into a heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // require one live heap allocation
     let heap = state.heap();
     if !heap.is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
 
-    // validate the requested field before encoding payload bytes
+    // validate the requested field before encoding bytes
     check_field_index(state, index, field_count)?;
 
     // reject null handles before writing the allocation bytes
@@ -1294,8 +1126,8 @@ pub(crate) fn store_field_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    // encode the field payload into managed bytes
-    let bytes = encode_payload_bytes(state, field.value_type, value)?;
+    // encode the field value into managed bytes
+    let bytes = encode_value_bytes(state, field.value_type, value)?;
     let byte_len = state.heap().heap_byte_len(handle)?;
     let start = field.byte_offset;
     let end = start
@@ -1323,19 +1155,15 @@ pub(crate) fn store_field_heap(
 /// Store a field into a shared heap allocation.
 #[inline(always)]
 pub(crate) fn store_field_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
 
     if !state.shared().is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
@@ -1347,7 +1175,7 @@ pub(crate) fn store_field_shared_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    let bytes = encode_payload_bytes(state, field.value_type, value)?;
+    let bytes = encode_value_bytes(state, field.value_type, value)?;
     let byte_len = state
         .shared_ref()
         .heap_byte_len(handle)
@@ -1371,7 +1199,7 @@ pub(crate) fn store_field_shared_heap(
         .shared()
         .write_heap_bytes(handle, start, &bytes)
         .map_err(Error::from)?;
-    publish_shared_store(state, handle, start, &bytes, value)?;
+    publish_shared_store(state, handle, start, &bytes)?;
 
     Ok(())
 }
@@ -1379,17 +1207,12 @@ pub(crate) fn store_field_shared_heap(
 /// Load a field from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_field_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -1398,33 +1221,22 @@ pub(crate) fn load_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    let pointer = pointer
-        .add_bytes(field.byte_offset)
-        .ok_or(Error::InvalidFieldAccess {
-            index,
-            field_count: field_count_for_error(field_count, index as usize + 1),
-        })?;
-    let pointer = Value::raw_pointer(pointer);
-    let access = TypedAccess::from(field);
+    let pointer = Word::raw_pointer(pointer);
+    let access = PointeeAccess::from(field);
 
-    load_from_raw_pointer_typed(state, pointer, access)
+    load_raw_pointer(state, pointer, access)
 }
 
 /// Store a field through a raw pointer.
 #[inline(always)]
 pub(crate) fn store_field_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -1433,117 +1245,64 @@ pub(crate) fn store_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
+    let pointer = Word::raw_pointer(pointer);
+    let access = PointeeAccess::from(field);
+
+    store_raw_pointer(state, pointer, access, value)
+}
+
+/// Load a field from a stack allocation.
+#[inline(always)]
+pub(crate) fn load_field_stack(
+    state: &mut DispatchState<'_, '_>,
+    pointer: StackPointer,
+    field: FieldAccess,
+    index: u32,
+    field_count: Option<u32>,
+) -> Result<Word, Error> {
+    // validate field index when known
+    check_field_index(state, index, field_count)?;
+
     let pointer = pointer
         .add_bytes(field.byte_offset)
         .ok_or(Error::InvalidFieldAccess {
             index,
             field_count: field_count_for_error(field_count, index as usize + 1),
         })?;
-    let pointer = Value::raw_pointer(pointer);
-    let access = TypedAccess::from(field);
 
-    store_to_raw_pointer_typed(state, pointer, access, value)
-}
+    let access = PointeeAccess::from(field);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..field.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
 
-/// Load a field from a stack allocation.
-#[inline(always)]
-pub(crate) fn load_field_stack(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: StackPointer,
-    field: FieldAccess,
-    index: u32,
-    field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
-    // validate field index when known
-    check_field_index(state, index, field_count)?;
-
-    if !field.is_scalar {
-        return Err(non_scalar_load_error(field.value_type));
-    }
-
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start =
-        pointer
-            .byte_offset
-            .checked_add(field.byte_offset)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: allocation.len(),
-            })?;
-    let end = start
-        .checked_add(field.byte_len)
-        .ok_or(Error::InvalidFieldAccess {
-            index,
-            field_count: allocation.len(),
-        })?;
-    let byte_range = allocation
-        .bytes()
-        .get(start..end)
-        .ok_or(Error::InvalidFieldAccess {
-            index,
-            field_count: allocation.len(),
-        })?;
-
-    decode_raw_value(state.tree(), field.value_type, byte_range)
+    decode_raw_value(state.tree(), field.value_type, bytes)
 }
 
 /// Store a field into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_field_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // encode the typed field payload
-    let bytes = encode_payload_bytes(state, field.value_type, value)?;
+    // encode the typed field value
+    let bytes = encode_value_bytes(state, field.value_type, value)?;
 
-    // write the field bytes into the stack allocation
-    let frame = state.frame_by_index_mut(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation_mut(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start =
-        pointer
-            .byte_offset
-            .checked_add(field.byte_offset)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: allocation.len(),
-            })?;
-    let end = start
-        .checked_add(bytes.len())
+    let pointer = pointer
+        .add_bytes(field.byte_offset)
         .ok_or(Error::InvalidFieldAccess {
             index,
-            field_count: allocation.len(),
+            field_count: field_count_for_error(field_count, index as usize + 1),
         })?;
-
-    if end > allocation.len() {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: allocation.len(),
-        });
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
     }
-
-    allocation.bytes_mut()[start..end].copy_from_slice(&bytes);
 
     Ok(())
 }
@@ -1551,119 +1310,73 @@ pub(crate) fn store_field_stack(
 /// Load a field through a static pointer.
 #[inline(always)]
 pub(crate) fn load_field_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidFieldAccess {
-            index: pointer.byte_offset as u32,
-            field_count: 0,
-        });
-    }
+    let pointer = pointer
+        .add_bytes(field.byte_offset)
+        .ok_or(Error::InvalidFieldAccess {
+            index,
+            field_count: field_count_for_error(field_count, index as usize + 1),
+        })?;
 
-    // load the static value
-    let value = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
+    let access = PointeeAccess::from(field);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..field.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
 
-    if let Some(handle) = value.as_heap_reference() {
-        return load_field_heap(state, handle, field, index, field_count);
-    }
-
-    if let Some(handle) = value.as_shared_heap_reference() {
-        return load_field_shared_heap(state, handle, field, index, field_count);
-    }
-
-    Err(Error::InvalidFieldAccess {
-        index,
-        field_count: 0,
-    })
+    decode_raw_value(state.tree(), field.value_type, bytes)
 }
 
 /// Store a field through a static pointer.
 #[inline(always)]
 pub(crate) fn store_field_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     field: FieldAccess,
     index: u32,
     field_count: Option<u32>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidFieldAccess {
-            index: pointer.byte_offset as u32,
-            field_count: 0,
-        });
+    let bytes = encode_value_bytes(state, field.value_type, value)?;
+    let pointer = pointer
+        .add_bytes(field.byte_offset)
+        .ok_or(Error::InvalidFieldAccess {
+            index,
+            field_count: field_count_for_error(field_count, index as usize + 1),
+        })?;
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
     }
 
-    // load the static value
-    let current = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
-
-    if let Some(handle) = current.as_heap_reference() {
-        store_field_heap(state, handle, field, index, field_count, value)?;
-        state.globals.set(pointer.id, current);
-        return Ok(());
-    }
-
-    if let Some(handle) = current.as_shared_heap_reference() {
-        store_field_shared_heap(state, handle, field, index, field_count, value)?;
-        state.globals.set(pointer.id, current);
-        return Ok(());
-    }
-
-    Err(Error::InvalidFieldAccess {
-        index,
-        field_count: 0,
-    })
+    Ok(())
 }
 
 /// Load an element from a heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // require one live heap allocation
     let heap = state.heap();
     if !heap.is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
 
-    // validate the requested element before decoding payload bytes
+    // validate the requested element before decoding bytes
     check_array_index(state, index, array_length)?;
 
     // reject null handles before reading the allocation bytes
@@ -1671,11 +1384,7 @@ pub(crate) fn load_element_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    if !element.is_scalar {
-        return Err(non_scalar_load_error(element.value_type));
-    }
-
-    // resolve the element bytes inside the heap payload
+    // resolve the element bytes inside the allocation
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element.byte_stride))
@@ -1683,29 +1392,29 @@ pub(crate) fn load_element_heap(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let owned_bytes = state
-        .read_heap_bytes(handle, element_offset, element.byte_len)
+    let access = PointeeAccess::from(element);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..element.byte_len];
+    state
+        .heap()
+        .read_heap_bytes_into(handle, element_offset, bytes)
         .map_err(Error::from)
         .map_err(|error| {
             map_invalid_array_reference(error, index, array_length_for_error(array_length, 0))
         })?;
 
-    decode_raw_value(state.tree(), element.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), element.value_type, bytes)
 }
 
 /// Load an element from a shared heap allocation.
 #[inline(always)]
 pub(crate) fn load_element_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     if !state.shared().is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
@@ -1716,10 +1425,6 @@ pub(crate) fn load_element_shared_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    if !element.is_scalar {
-        return Err(non_scalar_load_error(element.value_type));
-    }
-
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element.byte_stride))
@@ -1727,41 +1432,39 @@ pub(crate) fn load_element_shared_heap(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let owned_bytes = state
-        .read_shared_heap_bytes(handle, element_offset, element.byte_len)
+    let access = PointeeAccess::from(element);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..element.byte_len];
+    state
+        .shared()
+        .read_heap_bytes_into(handle, element_offset, bytes)
         .map_err(Error::from)
         .map_err(|error| {
             map_invalid_array_reference(error, index, array_length_for_error(array_length, 0))
         })?;
 
-    decode_raw_value(state.tree(), element.value_type, &owned_bytes)
+    decode_raw_value(state.tree(), element.value_type, bytes)
 }
 
 /// Store an element into a heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: HeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // require one live heap allocation
     let heap = state.heap();
     if !heap.is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
     }
 
-    // validate the requested element before encoding payload bytes
+    // validate the requested element before encoding bytes
     check_array_index(state, index, array_length)?;
 
     // reject null handles before writing the allocation bytes
@@ -1769,7 +1472,7 @@ pub(crate) fn store_element_heap(
         return Err(Error::NullPointerDereference);
     }
 
-    // encode the element payload into managed bytes
+    // encode the element value into managed bytes
     let element_offset = usize::try_from(index)
         .ok()
         .and_then(|index| index.checked_mul(element.byte_stride))
@@ -1777,7 +1480,7 @@ pub(crate) fn store_element_heap(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let bytes = encode_payload_bytes(state, element.value_type, value)?;
+    let bytes = encode_value_bytes(state, element.value_type, value)?;
     let allocation_len = state.heap().heap_byte_len(handle)?;
     let start = element_offset;
     let end = start
@@ -1805,19 +1508,15 @@ pub(crate) fn store_element_heap(
 /// Store an element into a shared heap allocation.
 #[inline(always)]
 pub(crate) fn store_element_shared_heap(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     handle: SharedHeapReference,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
-
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
 
     if !state.shared().is_heap_live(handle) {
         return Err(Error::InvalidHeapReference);
@@ -1836,7 +1535,7 @@ pub(crate) fn store_element_shared_heap(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let bytes = encode_payload_bytes(state, element.value_type, value)?;
+    let bytes = encode_value_bytes(state, element.value_type, value)?;
     let allocation_len = state
         .shared_ref()
         .heap_byte_len(handle)
@@ -1860,7 +1559,7 @@ pub(crate) fn store_element_shared_heap(
         .shared()
         .write_heap_bytes(handle, start, &bytes)
         .map_err(Error::from)?;
-    publish_shared_store(state, handle, start, &bytes, value)?;
+    publish_shared_store(state, handle, start, &bytes)?;
 
     Ok(())
 }
@@ -1868,17 +1567,12 @@ pub(crate) fn store_element_shared_heap(
 /// Load an element from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_element_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1900,27 +1594,22 @@ pub(crate) fn load_element_raw(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let pointer = Value::raw_pointer(pointer);
-    let access = TypedAccess::from(element);
+    let pointer = Word::raw_pointer(pointer);
+    let access = PointeeAccess::from(element);
 
-    load_from_raw_pointer_typed(state, pointer, access)
+    load_raw_pointer(state, pointer, access)
 }
 
 /// Store an element through a raw pointer.
 #[inline(always)]
 pub(crate) fn store_element_raw(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: RawPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1942,26 +1631,21 @@ pub(crate) fn store_element_raw(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    let pointer = Value::raw_pointer(pointer);
-    let access = TypedAccess::from(element);
+    let pointer = Word::raw_pointer(pointer);
+    let access = PointeeAccess::from(element);
 
-    store_to_raw_pointer_typed(state, pointer, access, value)
+    store_raw_pointer(state, pointer, access, value)
 }
 
 /// Load an element from a stack allocation.
 #[inline(always)]
 pub(crate) fn load_element_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -1973,54 +1657,31 @@ pub(crate) fn load_element_stack(
             index,
             length: array_length_for_error(array_length, 0),
         })?;
-    if !element.is_scalar {
-        return Err(non_scalar_load_error(element.value_type));
-    }
-
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start =
-        pointer
-            .byte_offset
-            .checked_add(element_offset)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: allocation.len() as u64,
-            })?;
-    let end = start
-        .checked_add(element.byte_len)
+    let pointer = pointer
+        .add_bytes(element_offset)
         .ok_or(Error::InvalidArrayAccess {
             index,
-            length: allocation.len() as u64,
-        })?;
-    let byte_range = allocation
-        .bytes()
-        .get(start..end)
-        .ok_or(Error::InvalidArrayAccess {
-            index,
-            length: allocation.len() as u64,
+            length: array_length_for_error(array_length, 0),
         })?;
 
-    decode_raw_value(state.tree(), element.value_type, byte_range)
+    let access = PointeeAccess::from(element);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..element.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
+
+    decode_raw_value(state.tree(), element.value_type, bytes)
 }
 
 /// Store an element into a stack allocation.
 #[inline(always)]
 pub(crate) fn store_element_stack(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StackPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
@@ -2033,37 +1694,18 @@ pub(crate) fn store_element_stack(
             length: array_length_for_error(array_length, 0),
         })?;
 
-    // encode the typed element payload
-    let bytes = encode_payload_bytes(state, element.value_type, value)?;
+    // encode the typed element value
+    let bytes = encode_value_bytes(state, element.value_type, value)?;
 
-    // write the element bytes into the stack allocation
-    let frame = state.frame_by_index_mut(pointer.frame_idx)?;
-    let allocation = frame
-        .stack_allocation_mut(pointer.slot)
-        .ok_or(Error::InvalidHeapReference)?;
-    let start =
-        pointer
-            .byte_offset
-            .checked_add(element_offset)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: allocation.len() as u64,
-            })?;
-    let end = start
-        .checked_add(bytes.len())
+    let pointer = pointer
+        .add_bytes(element_offset)
         .ok_or(Error::InvalidArrayAccess {
             index,
-            length: allocation.len() as u64,
+            length: array_length_for_error(array_length, 0),
         })?;
-
-    if end > allocation.len() {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: allocation.len() as u64,
-        });
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
     }
-
-    allocation.bytes_mut()[start..end].copy_from_slice(&bytes);
 
     Ok(())
 }
@@ -2071,168 +1713,135 @@ pub(crate) fn store_element_stack(
 /// Load an element through a static pointer.
 #[inline(always)]
 pub(crate) fn load_element_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-) -> Result<Value, Error> {
-    // track pointer loads
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, loads);
-    }
-
+) -> Result<Word, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidArrayAccess { index, length: 0 });
-    }
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element.byte_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
+    let pointer = pointer
+        .add_bytes(element_offset)
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
 
-    // load the static value
-    let value = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
+    let access = PointeeAccess::from(element);
+    let mut bytes = scalar_bytes(access)?;
+    let bytes = &mut bytes[..element.byte_len];
+    copy_address_bytes_into(pointer.address(), bytes.as_mut_ptr(), bytes.len());
 
-    if let Some(handle) = value.as_heap_reference() {
-        return load_element_heap(state, handle, element, index, array_length);
-    }
-
-    if let Some(handle) = value.as_shared_heap_reference() {
-        return load_element_shared_heap(state, handle, element, index, array_length);
-    }
-
-    Err(Error::InvalidArrayAccess { index, length: 0 })
+    decode_raw_value(state.tree(), element.value_type, bytes)
 }
 
 /// Store an element through a static pointer.
 #[inline(always)]
 pub(crate) fn store_element_static(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     pointer: StaticPointer,
     element: ElementAccess,
     index: u64,
     array_length: Option<u64>,
-    value: Value,
+    value: Word,
 ) -> Result<(), Error> {
-    // track pointer stores
-    if state.collect_stats {
-        stat_inc!(state.engine.statistics, stores);
-    }
-
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    if pointer.byte_offset != 0 {
-        return Err(Error::InvalidArrayAccess { index, length: 0 });
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element.byte_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
+    let bytes = encode_value_bytes(state, element.value_type, value)?;
+    let pointer = pointer
+        .add_bytes(element_offset)
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length_for_error(array_length, 0),
+        })?;
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
     }
 
-    // load the static value
-    let current = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
-
-    if let Some(handle) = current.as_heap_reference() {
-        store_element_heap(state, handle, element, index, array_length, value)?;
-        state.globals.set(pointer.id, current);
-        return Ok(());
-    }
-
-    if let Some(handle) = current.as_shared_heap_reference() {
-        store_element_shared_heap(state, handle, element, index, array_length, value)?;
-        state.globals.set(pointer.id, current);
-        return Ok(());
-    }
-
-    Err(Error::InvalidArrayAccess { index, length: 0 })
+    Ok(())
 }
 
-/// Get a field from a heap aggregate reference.
+/// Get a field from an addressable value.
 #[inline(always)]
 pub(crate) fn get_field(
-    state: &mut ExecutionState<'_, '_>,
-    agg: Value,
+    state: &mut DispatchState<'_, '_>,
+    base: Word,
     index: u32,
     field_count: Option<u32>,
     field: Option<FieldAccess>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     let Some(field) = field else {
         return Err(Error::TypeMismatch {
             expected: "typed field access".to_string(),
-            actual: format!("{agg:?}"),
+            actual: format!("{base:?}"),
         });
     };
 
-    // resolve heap aggregate
-    match agg.tag() {
-        ValueTag::HeapReference => {
-            let handle = heap_reference_from_value(agg)?;
+    match field.pointer_class {
+        PointerClass::Heap => {
+            let handle = heap_reference_from_value(base);
             load_field_heap(state, handle, field, index, field_count)
         }
-        ValueTag::SharedHeapReference => {
-            let handle = shared_heap_reference_from_value(agg)?;
+        PointerClass::SharedHeap => {
+            let handle = shared_heap_reference_from_value(base);
             load_field_shared_heap(state, handle, field, index, field_count)
         }
+        PointerClass::Raw => {
+            let pointer = RawPointer::from_bits(base.bits() as usize);
+            load_field_raw(state, pointer, field, index, field_count)
+        }
+        PointerClass::SharedRaw => {
+            check_field_index(state, index, field_count)?;
+            let pointer = Word::shared_raw_pointer(base.as_shared_raw_pointer());
+            load_shared_raw_pointer(state, pointer, field.into())
+        }
+        PointerClass::Stack => {
+            let pointer = StackPointer::from_address(base.bits() as usize);
+            load_field_stack(state, pointer, field, index, field_count)
+        }
+        PointerClass::Frame => {
+            let pointer = frame_pointer_from_value(base);
+
+            load_frame_pointer(state, pointer, field.into())
+        }
+        PointerClass::Static => {
+            let pointer = static_pointer_from_value(base);
+
+            load_static_pointer(state, pointer, field.into())
+        }
         _ => Err(Error::TypeMismatch {
-            expected: "heap aggregate".to_string(),
-            actual: format!("{agg:?}"),
+            expected: "field source".to_string(),
+            actual: format!("{base:?}"),
         }),
     }
-}
-
-/// Set a field on a copied heap aggregate reference.
-#[inline(always)]
-pub(crate) fn set_field(
-    state: &mut ExecutionState<'_, '_>,
-    agg: Value,
-    index: u32,
-    val: Value,
-    aggregate_type: mir::LocalNodeId<mir::Type>,
-    field_count: Option<u32>,
-    field: Option<FieldAccess>,
-) -> Result<Value, Error> {
-    let Some(field) = field else {
-        return Err(Error::TypeMismatch {
-            expected: "typed field access".to_string(),
-            actual: format!("{agg:?}"),
-        });
-    };
-
-    let copied = copy_aggregate_value(state, agg, aggregate_type, "aggregate")?;
-
-    match copied.tag() {
-        ValueTag::HeapReference => {
-            let handle = heap_reference_from_value(copied)?;
-            store_field_heap(state, handle, field, index, field_count, val)?;
-        }
-        ValueTag::SharedHeapReference => {
-            let handle = shared_heap_reference_from_value(copied)?;
-            store_field_shared_heap(state, handle, field, index, field_count, val)?;
-        }
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "heap aggregate".to_string(),
-                actual: format!("{copied:?}"),
-            });
-        }
-    }
-
-    Ok(copied)
 }
 
 /// Get an element from a heap array reference.
 #[inline(always)]
 pub(crate) fn get_element(
-    state: &mut ExecutionState<'_, '_>,
-    arr: Value,
+    state: &mut DispatchState<'_, '_>,
+    arr: Word,
     index: u64,
     array_length: Option<u64>,
     element: Option<ElementAccess>,
-) -> Result<Value, Error> {
+) -> Result<Word, Error> {
     let Some(element) = element else {
         return Err(Error::TypeMismatch {
             expected: "typed element access".to_string(),
@@ -2240,190 +1849,81 @@ pub(crate) fn get_element(
         });
     };
 
-    // resolve heap array
-    match arr.tag() {
-        ValueTag::HeapReference => {
-            let handle = heap_reference_from_value(arr)?;
+    match element.pointer_class {
+        PointerClass::Heap => {
+            let handle = heap_reference_from_value(arr);
             load_element_heap(state, handle, element, index, array_length)
         }
-        ValueTag::SharedHeapReference => {
-            let handle = shared_heap_reference_from_value(arr)?;
+        PointerClass::SharedHeap => {
+            let handle = shared_heap_reference_from_value(arr);
             load_element_shared_heap(state, handle, element, index, array_length)
         }
+        PointerClass::Raw => {
+            let pointer = RawPointer::from_bits(arr.bits() as usize);
+            load_element_raw(state, pointer, element, index, array_length)
+        }
+        PointerClass::SharedRaw => {
+            check_array_index(state, index, array_length)?;
+            let offset = usize::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_mul(element.byte_stride))
+                .ok_or(Error::InvalidArrayAccess {
+                    index,
+                    length: array_length_for_error(array_length, 0),
+                })?;
+            let pointer =
+                arr.as_shared_raw_pointer()
+                    .add_bytes(offset)
+                    .ok_or(Error::InvalidArrayAccess {
+                        index,
+                        length: array_length_for_error(array_length, 0),
+                    })?;
+
+            load_shared_raw_pointer(state, Word::shared_raw_pointer(pointer), element.into())
+        }
+        PointerClass::Stack => {
+            let pointer = StackPointer::from_address(arr.bits() as usize);
+            load_element_stack(state, pointer, element, index, array_length)
+        }
+        PointerClass::Frame => {
+            check_array_index(state, index, array_length)?;
+            let offset = usize::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_mul(element.byte_stride))
+                .ok_or(Error::InvalidArrayAccess {
+                    index,
+                    length: array_length_for_error(array_length, 0),
+                })?;
+            let pointer = frame_pointer_from_value(arr).add_bytes(offset).ok_or(
+                Error::InvalidArrayAccess {
+                    index,
+                    length: array_length_for_error(array_length, 0),
+                },
+            )?;
+
+            load_frame_pointer(state, pointer, element.into())
+        }
+        PointerClass::Static => {
+            check_array_index(state, index, array_length)?;
+            let offset = usize::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_mul(element.byte_stride))
+                .ok_or(Error::InvalidArrayAccess {
+                    index,
+                    length: array_length_for_error(array_length, 0),
+                })?;
+            let pointer = static_pointer_from_value(arr).add_bytes(offset).ok_or(
+                Error::InvalidArrayAccess {
+                    index,
+                    length: array_length_for_error(array_length, 0),
+                },
+            )?;
+
+            load_static_pointer(state, pointer, element.into())
+        }
         _ => Err(Error::TypeMismatch {
-            expected: "heap array".to_string(),
+            expected: "element source".to_string(),
             actual: format!("{arr:?}"),
         }),
     }
-}
-
-/// Set an element on a copied heap array reference.
-#[inline(always)]
-pub(crate) fn set_element(
-    state: &mut ExecutionState<'_, '_>,
-    arr: Value,
-    index: u64,
-    val: Value,
-    aggregate_type: mir::LocalNodeId<mir::Type>,
-    array_length: Option<u64>,
-    element: Option<ElementAccess>,
-) -> Result<Value, Error> {
-    let Some(element) = element else {
-        return Err(Error::TypeMismatch {
-            expected: "typed element access".to_string(),
-            actual: format!("{arr:?}"),
-        });
-    };
-
-    let copied = copy_aggregate_value(state, arr, aggregate_type, "array")?;
-
-    match copied.tag() {
-        ValueTag::HeapReference => {
-            let handle = heap_reference_from_value(copied)?;
-            store_element_heap(state, handle, element, index, array_length, val)?;
-        }
-        ValueTag::SharedHeapReference => {
-            let handle = shared_heap_reference_from_value(copied)?;
-            store_element_shared_heap(state, handle, element, index, array_length, val)?;
-        }
-        _ => {
-            return Err(Error::TypeMismatch {
-                expected: "heap aggregate".to_string(),
-                actual: format!("{copied:?}"),
-            });
-        }
-    }
-
-    Ok(copied)
-}
-
-/// Copy one whole aggregate payload into a fresh heap allocation in the same space.
-fn copy_aggregate_value(
-    state: &mut ExecutionState<'_, '_>,
-    value: Value,
-    aggregate_type: mir::LocalNodeId<mir::Type>,
-    expected: &'static str,
-) -> Result<Value, Error> {
-    let layout_id = state
-        .module
-        .layout_id_for_type(aggregate_type)
-        .ok_or(Error::InvalidInstruction)?;
-
-    match value.tag() {
-        ValueTag::HeapReference => {
-            let handle = heap_reference_from_value(value)?;
-            let layout = state.layout(aggregate_type)?;
-            let bytes = state.read_heap_bytes(handle, 0, layout.byte_len)?;
-            let reference = state.allocate_heap_layout(layout_id, Payload::Bytes(&bytes))?;
-
-            Ok(Value::heap_reference(reference))
-        }
-        ValueTag::SharedHeapReference => {
-            let handle = shared_heap_reference_from_value(value)?;
-            let layout = state.layout(aggregate_type)?;
-            let bytes = state.read_shared_heap_bytes(handle, 0, layout.byte_len)?;
-            let layout = state.module.allocation_layout(layout_id)?;
-            let reference = state
-                .shared()
-                .allocate(layout, Payload::Bytes(&bytes))
-                .map_err(Error::from)?;
-
-            Ok(Value::shared_heap_reference(reference))
-        }
-        _ => Err(Error::TypeMismatch {
-            expected: expected.to_string(),
-            actual: format!("{value:?}"),
-        }),
-    }
-}
-
-/// Load through a static pointer, including byte offsets.
-#[inline(always)]
-fn load_static_value(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: StaticPointer,
-) -> Result<Value, Error> {
-    // read the static value
-    let value = state
-        .globals
-        .get(pointer.id)
-        .copied()
-        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
-
-    // return the static value directly
-    if pointer.byte_offset == 0 {
-        return Ok(value);
-    }
-
-    Err(invalid_pointer_description(
-        "static pointer offset requires typed access",
-    ))
-}
-
-/// Store through a static pointer, including byte offsets.
-#[inline(always)]
-fn store_static_value(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: StaticPointer,
-    value: Value,
-) -> Result<(), Error> {
-    // update the static value directly
-    if pointer.byte_offset == 0 {
-        state.globals.set(pointer.id, value);
-        return Ok(());
-    }
-
-    Err(invalid_pointer_description(
-        "static pointer offset requires typed access",
-    ))
-}
-
-/// Load a local slot from a frame.
-#[inline(always)]
-fn load_frame_slot(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: FramePointer,
-    byte_offset: usize,
-) -> Result<Value, Error> {
-    // reject non zero offsets
-    if byte_offset != 0 {
-        return Err(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: 1,
-        });
-    }
-
-    // resolve the target frame
-    let frame = state.frame_by_index(pointer.frame_idx)?;
-
-    // resolve the local id
-    let local = mir::LocalNodeId::new(pointer.slot as u32);
-
-    // read the local slot
-    frame.get_local_or_error(local)
-}
-
-/// Store a local slot into a frame.
-#[inline(always)]
-fn store_frame_slot(
-    state: &mut ExecutionState<'_, '_>,
-    pointer: FramePointer,
-    byte_offset: usize,
-    value: Value,
-) -> Result<(), Error> {
-    // reject non zero offsets
-    if byte_offset != 0 {
-        return Err(Error::InvalidFieldAccess {
-            index: byte_offset as u32,
-            field_count: 1,
-        });
-    }
-
-    // resolve the target frame
-    // resolve the local id
-    let local = mir::LocalNodeId::new(pointer.slot as u32);
-    let frame = state.frame_by_index_mut(pointer.frame_idx)?;
-    frame.set_local(local, value);
-
-    Ok(())
 }

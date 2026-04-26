@@ -2,33 +2,33 @@ use destack_mir as mir;
 
 use crate::ReferenceMeta;
 
-use crate::module::{
-    PointerClass, ValueKind, kind_from_type, pointer_class_from_reference, repr_type,
+use crate::program::{
+    PointerClass, ValueRepr, pointer_class_from_reference, repr_type, value_repr_from_type,
 };
 
-/// One dense map from SSA value id to inferred lowered kind.
-pub(super) struct ValueKindMap {
-    /// Kind for each SSA value id.
-    kinds: Vec<Option<ValueKind>>,
+/// One dense map from SSA value id to lowered representation.
+pub(super) struct ValueReprMap {
+    /// Representation for each SSA value id.
+    reprs: Vec<Option<ValueRepr>>,
 }
 
-impl ValueKindMap {
-    /// Create a new value kind table.
+impl ValueReprMap {
+    /// Create a new value representation table.
     pub(super) fn new(value_count: usize) -> Self {
         Self {
-            kinds: vec![None; value_count],
+            reprs: vec![None; value_count],
         }
     }
 
-    /// Get the kind for a value.
-    pub(super) fn get(&self, value: mir::Value) -> Option<ValueKind> {
-        self.kinds.get(value.0 as usize).and_then(|kind| *kind)
+    /// Get the representation for a value.
+    pub(super) fn get(&self, value: mir::Value) -> Option<ValueRepr> {
+        self.reprs.get(value.0 as usize).and_then(|repr| *repr)
     }
 
-    /// Set the kind for a value.
-    pub(super) fn set(&mut self, value: mir::Value, kind: ValueKind) {
-        if let Some(slot) = self.kinds.get_mut(value.0 as usize) {
-            *slot = Some(kind);
+    /// Set the representation for a value.
+    pub(super) fn set(&mut self, value: mir::Value, repr: ValueRepr) {
+        if let Some(entry) = self.reprs.get_mut(value.0 as usize) {
+            *entry = Some(repr);
         }
     }
 }
@@ -41,8 +41,8 @@ pub(super) fn value_type_for_value(
     value_types.get(value.0 as usize).copied()
 }
 
-/// One value-kind inference builder for one function.
-pub(super) struct KindMapBuilder<'a> {
+/// One value representation builder for one function.
+pub(super) struct ReprMapBuilder<'a> {
     /// The MIR node tree.
     tree: &'a mir::NodeTree,
     /// The MIR function being lowered.
@@ -51,12 +51,12 @@ pub(super) struct KindMapBuilder<'a> {
     mir_block: &'a [mir::LocalNodeId<mir::Block>],
     /// The lowered value types by SSA value id.
     value_type: &'a [mir::LocalNodeId<mir::Type>],
-    /// The inferred value-kind map.
-    value_kind_map: ValueKindMap,
+    /// The lowered value representation map.
+    value_repr_map: ValueReprMap,
 }
 
-impl<'a> KindMapBuilder<'a> {
-    /// Create one value-kind inference builder.
+impl<'a> ReprMapBuilder<'a> {
+    /// Create one value representation builder.
     pub(super) fn new(
         tree: &'a mir::NodeTree,
         func: &'a mir::Function,
@@ -69,17 +69,17 @@ impl<'a> KindMapBuilder<'a> {
             func,
             mir_block,
             value_type,
-            value_kind_map: ValueKindMap::new(value_count),
+            value_repr_map: ValueReprMap::new(value_count),
         }
     }
 
-    /// Build the inferred value-kind map.
-    pub(super) fn build(mut self) -> ValueKindMap {
+    /// Build the lowered value representation map.
+    pub(super) fn build(mut self) -> ValueReprMap {
         // seed explicit value types
         for (index, ty) in self.value_type.iter().enumerate() {
             let value = mir::Value(index as u32);
-            self.value_kind_map
-                .set(value, kind_from_type(self.tree, *ty));
+            self.value_repr_map
+                .set(value, value_repr_from_type(self.tree, *ty));
         }
 
         // seed function parameter kinds
@@ -91,8 +91,8 @@ impl<'a> KindMapBuilder<'a> {
                 continue;
             };
 
-            self.value_kind_map
-                .set(value, kind_from_type(self.tree, ty));
+            self.value_repr_map
+                .set(value, value_repr_from_type(self.tree, ty));
         }
 
         // seed block parameter kinds
@@ -105,14 +105,14 @@ impl<'a> KindMapBuilder<'a> {
                 let Some(ty) = param.ty.ty() else {
                     continue;
                 };
-                let kind = kind_from_type(self.tree, ty);
-                let block_kind = kind_for_block_parameter(kind);
-                let next_kind = match self.value_kind_map.get(value) {
-                    Some(existing) => merge_block_parameter_kind(existing, block_kind),
-                    None => block_kind,
+                let repr = value_repr_from_type(self.tree, ty);
+                let block_repr = repr_for_block_parameter(repr);
+                let next_repr = match self.value_repr_map.get(value) {
+                    Some(existing) => merge_block_parameter_repr(existing, block_repr),
+                    None => block_repr,
                 };
 
-                self.value_kind_map.set(value, next_kind);
+                self.value_repr_map.set(value, next_repr);
             }
         }
 
@@ -123,7 +123,7 @@ impl<'a> KindMapBuilder<'a> {
             is_changed = false;
 
             // propagate block parameter kinds from control flow edges
-            if propagate_block_parameter_kinds(self.tree, self.mir_block, &mut self.value_kind_map)
+            if propagate_block_parameter_reprs(self.tree, self.mir_block, &mut self.value_repr_map)
             {
                 is_changed = true;
             }
@@ -140,39 +140,51 @@ impl<'a> KindMapBuilder<'a> {
                     let Some(destination) = destination.value() else {
                         continue;
                     };
-                    let Some(kind) = infer_instruction_kind(
+                    let Some(repr) = infer_instruction_repr(
                         self.tree,
                         inst,
-                        &self.value_kind_map,
+                        &self.value_repr_map,
                         self.value_type,
                     ) else {
                         continue;
                     };
-                    let next_kind = match self.value_kind_map.get(destination) {
-                        Some(existing) => merge_block_parameter_kind(existing, kind),
-                        None => kind,
+                    let next_repr = match self.value_repr_map.get(destination) {
+                        Some(existing) => merge_block_parameter_repr(existing, repr),
+                        None => repr,
                     };
 
-                    if self.value_kind_map.get(destination) != Some(next_kind) {
-                        self.value_kind_map.set(destination, next_kind);
+                    if self.value_repr_map.get(destination) != Some(next_repr) {
+                        self.value_repr_map.set(destination, next_repr);
                         is_changed = true;
                     }
                 }
             }
         }
 
-        self.value_kind_map
+        self.value_repr_map
     }
 }
 
 /// Get reference metadata for a value when available.
 pub(super) fn reference_meta_for_value(
-    value_kind_map: &ValueKindMap,
+    value_repr_map: &ValueReprMap,
     value: mir::Value,
 ) -> ReferenceMeta {
-    match value_kind_map.get(value) {
-        Some(ValueKind::Pointer { reference, .. }) => reference,
+    match value_repr_map.get(value) {
+        Some(ValueRepr::Pointer { reference, .. }) => reference,
         _ => ReferenceMeta::NONE,
+    }
+}
+
+/// Get the pointer class for a value when available.
+pub(super) fn pointer_class_for_value(
+    value_repr_map: &ValueReprMap,
+    value: mir::Value,
+) -> PointerClass {
+    match value_repr_map.get(value) {
+        Some(ValueRepr::Pointer { pointer_class, .. }) => pointer_class,
+        Some(ValueRepr::FrameBytes { .. } | ValueRepr::Array { .. }) => PointerClass::Frame,
+        _ => PointerClass::Unknown,
     }
 }
 
@@ -181,19 +193,19 @@ pub(super) fn reference_meta_for_type(
     tree: &mir::NodeTree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> ReferenceMeta {
-    match kind_from_type(tree, ty) {
-        ValueKind::Pointer { reference, .. } => reference,
+    match value_repr_from_type(tree, ty) {
+        ValueRepr::Pointer { reference, .. } => reference,
         _ => ReferenceMeta::NONE,
     }
 }
 
 /// Resolve one heap pointee type from a pointer value when available.
-pub(super) fn heap_pointee_type_for_value_kind(
-    value_kind_map: &ValueKindMap,
+pub(super) fn heap_pointee_type_for_value_repr(
+    value_repr_map: &ValueReprMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    match value_kind_map.get(value) {
-        Some(ValueKind::Pointer {
+    match value_repr_map.get(value) {
+        Some(ValueRepr::Pointer {
             pointee,
             pointer_class: PointerClass::Heap | PointerClass::SharedHeap,
             ..
@@ -203,12 +215,12 @@ pub(super) fn heap_pointee_type_for_value_kind(
 }
 
 /// Resolve one raw pointee type from a pointer value when available.
-pub(super) fn raw_pointee_type_for_value_kind(
-    value_kind_map: &ValueKindMap,
+pub(super) fn raw_pointee_type_for_value_repr(
+    value_repr_map: &ValueReprMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    match value_kind_map.get(value) {
-        Some(ValueKind::Pointer {
+    match value_repr_map.get(value) {
+        Some(ValueRepr::Pointer {
             pointee,
             pointer_class:
                 PointerClass::Raw
@@ -282,21 +294,21 @@ pub(super) fn raw_pointee_type_for_value(
     }
 }
 
-/// Normalize one block parameter kind.
-fn kind_for_block_parameter(kind: ValueKind) -> ValueKind {
-    match kind {
-        ValueKind::Pointer {
+/// Normalize one block parameter representation.
+fn repr_for_block_parameter(repr: ValueRepr) -> ValueRepr {
+    match repr {
+        ValueRepr::Pointer {
             pointee, reference, ..
-        } => ValueKind::Pointer {
+        } => ValueRepr::Pointer {
             pointee,
             pointer_class: PointerClass::Unknown,
             reference,
         },
-        _ => kind,
+        _ => repr,
     }
 }
 
-/// Merge pointer classes when propagating block parameter kinds.
+/// Merge pointer classes when propagating block parameter representations.
 fn merge_pointer_class(existing: PointerClass, incoming: PointerClass) -> PointerClass {
     match (existing, incoming) {
         (PointerClass::Unknown, other) => other,
@@ -306,35 +318,35 @@ fn merge_pointer_class(existing: PointerClass, incoming: PointerClass) -> Pointe
     }
 }
 
-/// Merge one block parameter kind with one incoming argument kind.
-fn merge_block_parameter_kind(existing: ValueKind, incoming: ValueKind) -> ValueKind {
+/// Merge one block parameter representation with one incoming argument representation.
+fn merge_block_parameter_repr(existing: ValueRepr, incoming: ValueRepr) -> ValueRepr {
     match (existing, incoming) {
         (
-            ValueKind::Pointer {
+            ValueRepr::Pointer {
                 pointee,
                 pointer_class,
                 reference,
             },
-            ValueKind::Pointer {
+            ValueRepr::Pointer {
                 pointer_class: incoming_pointer_class,
                 ..
             },
-        ) => ValueKind::Pointer {
+        ) => ValueRepr::Pointer {
             pointee,
             pointer_class: merge_pointer_class(pointer_class, incoming_pointer_class),
             reference,
         },
-        (ValueKind::Unknown, other) => other,
-        (other, ValueKind::Unknown) => other,
+        (ValueRepr::Unknown, other) => other,
+        (other, ValueRepr::Unknown) => other,
         (other, _) => other,
     }
 }
 
-/// Propagate value kinds into block parameters from control flow edges.
-fn propagate_block_parameter_kinds(
+/// Propagate value representations into block parameters from control flow edges.
+fn propagate_block_parameter_reprs(
     tree: &mir::NodeTree,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
-    value_kind_map: &mut ValueKindMap,
+    value_repr_map: &mut ValueReprMap,
 ) -> bool {
     let mut is_changed = false;
 
@@ -355,7 +367,7 @@ fn propagate_block_parameter_kinds(
                 let Some(arguments) = arguments else {
                     continue;
                 };
-                is_changed |= propagate_target_kind(tree, value_kind_map, target_block, &arguments);
+                is_changed |= propagate_target_repr(tree, value_repr_map, target_block, &arguments);
             }
             mir::Terminator::Branch {
                 then_target,
@@ -385,9 +397,9 @@ fn propagate_block_parameter_kinds(
                     continue;
                 };
                 is_changed |=
-                    propagate_target_kind(tree, value_kind_map, then_target_block, &then_arguments);
+                    propagate_target_repr(tree, value_repr_map, then_target_block, &then_arguments);
                 is_changed |=
-                    propagate_target_kind(tree, value_kind_map, else_target_block, &else_arguments);
+                    propagate_target_repr(tree, value_repr_map, else_target_block, &else_arguments);
             }
             mir::Terminator::Check {
                 success, failure, ..
@@ -415,9 +427,9 @@ fn propagate_block_parameter_kinds(
                     continue;
                 };
                 is_changed |=
-                    propagate_target_kind(tree, value_kind_map, success_target, &success_arguments);
+                    propagate_target_repr(tree, value_repr_map, success_target, &success_arguments);
                 is_changed |=
-                    propagate_target_kind(tree, value_kind_map, failure_target, &failure_arguments);
+                    propagate_target_repr(tree, value_repr_map, failure_target, &failure_arguments);
             }
             mir::Terminator::Switch { default, cases, .. } => {
                 let Some(default_target) = default.block.block() else {
@@ -432,7 +444,7 @@ fn propagate_block_parameter_kinds(
                     continue;
                 };
                 is_changed |=
-                    propagate_target_kind(tree, value_kind_map, default_target, &default_arguments);
+                    propagate_target_repr(tree, value_repr_map, default_target, &default_arguments);
 
                 for case in cases {
                     let Some(target) = case.target.block.block() else {
@@ -447,7 +459,7 @@ fn propagate_block_parameter_kinds(
                     let Some(arguments) = arguments else {
                         continue;
                     };
-                    is_changed |= propagate_target_kind(tree, value_kind_map, target, &arguments);
+                    is_changed |= propagate_target_repr(tree, value_repr_map, target, &arguments);
                 }
             }
             mir::Terminator::Yield { resume, .. } => {
@@ -462,7 +474,7 @@ fn propagate_block_parameter_kinds(
                 let Some(arguments) = arguments else {
                     continue;
                 };
-                is_changed |= propagate_target_kind(tree, value_kind_map, target, &arguments);
+                is_changed |= propagate_target_repr(tree, value_repr_map, target, &arguments);
             }
             mir::Terminator::Invoke {
                 normal_target,
@@ -506,15 +518,15 @@ fn propagate_block_parameter_kinds(
                 let Some(unwind_arguments) = unwind_arguments else {
                     continue;
                 };
-                is_changed |= propagate_target_kind(
+                is_changed |= propagate_target_repr(
                     tree,
-                    value_kind_map,
+                    value_repr_map,
                     normal_target_block,
                     &normal_arguments,
                 );
-                is_changed |= propagate_target_kind(
+                is_changed |= propagate_target_repr(
                     tree,
-                    value_kind_map,
+                    value_repr_map,
                     unwind_target_block,
                     &unwind_arguments,
                 );
@@ -534,10 +546,10 @@ fn propagate_block_parameter_kinds(
     is_changed
 }
 
-/// Update one target block from incoming argument kinds.
-fn propagate_target_kind(
+/// Update one target block from incoming argument representations.
+fn propagate_target_repr(
     tree: &mir::NodeTree,
-    value_kind_map: &mut ValueKindMap,
+    value_repr_map: &mut ValueReprMap,
     target: mir::LocalNodeId<mir::Block>,
     arguments: &[mir::Value],
 ) -> bool {
@@ -545,20 +557,20 @@ fn propagate_target_kind(
     let target_block = tree.get(target);
 
     for (parameter, argument) in target_block.parameters.iter().zip(arguments.iter()) {
-        let Some(argument_kind) = value_kind_map.get(*argument) else {
+        let Some(argument_repr) = value_repr_map.get(*argument) else {
             continue;
         };
         let Some(parameter_value) = parameter.value.value() else {
             continue;
         };
-        let existing = value_kind_map.get(parameter_value);
-        let next_kind = match existing {
-            Some(kind) => merge_block_parameter_kind(kind, argument_kind),
-            None => argument_kind,
+        let existing = value_repr_map.get(parameter_value);
+        let next_repr = match existing {
+            Some(repr) => merge_block_parameter_repr(repr, argument_repr),
+            None => argument_repr,
         };
 
-        if existing != Some(next_kind) {
-            value_kind_map.set(parameter_value, next_kind);
+        if existing != Some(next_repr) {
+            value_repr_map.set(parameter_value, next_repr);
             is_changed = true;
         }
     }
@@ -566,23 +578,23 @@ fn propagate_target_kind(
     is_changed
 }
 
-/// Infer the value kind for a MIR instruction.
-fn infer_instruction_kind(
+/// Infer the value representation for a MIR instruction.
+fn infer_instruction_repr(
     tree: &mir::NodeTree,
     inst: &mir::Instruction,
-    value_kind_map: &ValueKindMap,
+    value_repr_map: &ValueReprMap,
     value_types: &[mir::LocalNodeId<mir::Type>],
-) -> Option<ValueKind> {
+) -> Option<ValueRepr> {
     match inst {
         mir::Instruction::Error => None,
         mir::Instruction::Const { destination, value } => {
             if matches!(value, mir::Constant::Null) {
                 let destination = destination.value()?;
                 let ty = value_type_for_value(destination, value_types)?;
-                return Some(kind_from_type(tree, ty));
+                return Some(value_repr_from_type(tree, ty));
             }
 
-            Some(kind_from_constant(value))
+            Some(repr_from_constant(value))
         }
         mir::Instruction::Binary {
             operator,
@@ -593,16 +605,16 @@ fn infer_instruction_kind(
             let left = left.value()?;
             let right = right.value()?;
             if operator.is_comparison() {
-                return Some(ValueKind::Bool);
+                return Some(ValueRepr::Bool);
             }
 
-            let left_kind = value_kind_map.get(left);
-            let right_kind = value_kind_map.get(right);
-            let operand_kind = left_kind.or(right_kind);
+            let left_repr = value_repr_map.get(left);
+            let right_repr = value_repr_map.get(right);
+            let operand_repr = left_repr.or(right_repr);
 
-            match (operator.is_float(), operand_kind) {
-                (true, Some(ValueKind::Float { width })) => Some(ValueKind::Float { width }),
-                (false, Some(ValueKind::Bool))
+            match (operator.is_float(), operand_repr) {
+                (true, Some(ValueRepr::Float { width })) => Some(ValueRepr::Float { width }),
+                (false, Some(ValueRepr::Bool))
                     if matches!(
                         operator,
                         mir::BinaryOperator::And
@@ -610,48 +622,47 @@ fn infer_instruction_kind(
                             | mir::BinaryOperator::Xor
                     ) =>
                 {
-                    Some(ValueKind::Bool)
+                    Some(ValueRepr::Bool)
                 }
-                (false, Some(ValueKind::Int { width, signed })) => {
-                    Some(ValueKind::Int { width, signed })
+                (false, Some(ValueRepr::Int { width, signed })) => {
+                    Some(ValueRepr::Int { width, signed })
                 }
                 _ => None,
             }
         }
-        mir::Instruction::Unary { argument, .. } => value_kind_map.get(argument.value()?),
+        mir::Instruction::Unary { argument, .. } => value_repr_map.get(argument.value()?),
         mir::Instruction::Cast {
             argument, to_type, ..
         } => {
             let to_type = to_type.ty()?;
-            let result_kind = kind_from_type(tree, to_type);
-            let argument_kind = value_kind_map.get(argument.value()?);
+            let result_repr = value_repr_from_type(tree, to_type);
+            let argument_repr = value_repr_map.get(argument.value()?);
 
-            match (result_kind, argument_kind) {
+            match (result_repr, argument_repr) {
                 (
-                    ValueKind::Pointer {
+                    ValueRepr::Pointer {
                         pointee,
                         pointer_class: PointerClass::Unknown,
                         reference,
                     },
-                    Some(ValueKind::Pointer { pointer_class, .. }),
-                ) => Some(ValueKind::Pointer {
+                    Some(ValueRepr::Pointer { pointer_class, .. }),
+                ) => Some(ValueRepr::Pointer {
                     pointee,
                     pointer_class,
                     reference,
                 }),
-                (result_kind, _) => Some(result_kind),
+                (result_repr, _) => Some(result_repr),
             }
         }
-        mir::Instruction::Select { then_value, .. } => value_kind_map.get(then_value.value()?),
+        mir::Instruction::Select { then_value, .. } => value_repr_map.get(then_value.value()?),
         mir::Instruction::Call {
             destination,
             function,
             ..
         } => {
-            let destination = (*destination)?.value()?;
-            let _ = destination;
+            (*destination)?.value()?;
             let function = tree.get(function.function()?);
-            Some(kind_from_type(tree, function.return_type.ty()?))
+            Some(value_repr_from_type(tree, function.return_type.ty()?))
         }
         mir::Instruction::CallVirtual {
             destination, call, ..
@@ -662,83 +673,88 @@ fn infer_instruction_kind(
         | mir::Instruction::CallIndirect {
             destination, call, ..
         } => {
-            let destination = (*destination)?.value()?;
-            let _ = destination;
+            (*destination)?.value()?;
             let signature = call.signature.ty()?;
             let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
                 return None;
             };
 
-            Some(kind_from_type(tree, result.ty()?))
+            Some(value_repr_from_type(tree, result.ty()?))
         }
         mir::Instruction::LocalGet { local, .. } => {
             let local = tree.get(local.local()?);
-            Some(kind_from_type(tree, local.ty.ty()?))
+            Some(value_repr_from_type(tree, local.ty.ty()?))
         }
         mir::Instruction::LocalAddr { result_type, .. } => {
-            let mut kind = kind_from_type(tree, result_type.ty()?);
-            let ValueKind::Pointer { pointer_class, .. } = &mut kind else {
+            let mut repr = value_repr_from_type(tree, result_type.ty()?);
+            let ValueRepr::Pointer { pointer_class, .. } = &mut repr else {
                 return None;
             };
             *pointer_class = PointerClass::Frame;
-            Some(kind)
+            Some(repr)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
-            let mut kind = kind_from_type(tree, result_type.ty()?);
-            let ValueKind::Pointer { pointer_class, .. } = &mut kind else {
+            let mut repr = value_repr_from_type(tree, result_type.ty()?);
+            let ValueRepr::Pointer { pointer_class, .. } = &mut repr else {
                 return None;
             };
             *pointer_class = PointerClass::Static;
-            Some(kind)
+            Some(repr)
         }
         mir::Instruction::FunctionAddr { function, .. } => {
             let function = tree.get(function.function()?);
-            Some(ValueKind::FunctionPointer {
+            Some(ValueRepr::FunctionPointer {
                 result: function.return_type.ty()?,
             })
         }
         mir::Instruction::CallableBind { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(kind_from_type(tree, ty))
+            Some(value_repr_from_type(tree, ty))
         }
         mir::Instruction::CallableEnvironment { destination } => {
-            value_kind_map.get(destination.value()?)
+            value_repr_map.get(destination.value()?)
         }
-        mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, result_type.ty()?)),
+        mir::Instruction::Load { result_type, .. } => {
+            Some(value_repr_from_type(tree, result_type.ty()?))
+        }
         mir::Instruction::FieldGet {
-            aggregate, index, ..
+            aggregate: base,
+            index,
+            ..
         } => {
-            let aggregate_kind = value_kind_map.get(aggregate.value()?)?;
-            kind_from_field(tree, aggregate_kind, *index)
+            let base_repr = value_repr_map.get(base.value()?)?;
+            repr_from_field(tree, base_repr, *index)
         }
         mir::Instruction::FieldAddr {
-            aggregate,
+            aggregate: base,
             result_type,
             ..
         } => {
-            let source_kind = value_kind_map.get(aggregate.value()?)?;
-            pointer_result_kind_from_source(tree, result_type.ty()?, source_kind)
+            let source_repr = value_repr_map.get(base.value()?)?;
+            pointer_result_repr_from_source(tree, result_type.ty()?, source_repr)
         }
-        mir::Instruction::FieldSet { aggregate, .. } => value_kind_map.get(aggregate.value()?),
+        mir::Instruction::FieldSet {
+            aggregate: base, ..
+        } => value_repr_map.get(base.value()?),
         mir::Instruction::ElementGet { array, .. } => {
-            let array_kind = value_kind_map.get(array.value()?)?;
-            kind_from_element(tree, array_kind)
+            let array_repr = value_repr_map.get(array.value()?)?;
+            repr_from_element(tree, array_repr)
         }
         mir::Instruction::ElementAddr {
             array, result_type, ..
         } => {
-            let source_kind = value_kind_map.get(array.value()?)?;
-            pointer_result_kind_from_source(tree, result_type.ty()?, source_kind)
+            let source_repr = value_repr_map.get(array.value()?)?;
+            pointer_result_repr_from_source(tree, result_type.ty()?, source_repr)
         }
-        mir::Instruction::ElementSet { array, .. } => value_kind_map.get(array.value()?),
+        mir::Instruction::ElementSet { array, .. } => value_repr_map.get(array.value()?),
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
-        | mir::Instruction::Array { ty, .. } => Some(kind_from_type(tree, ty.ty()?)),
+        | mir::Instruction::Array { ty, .. } => Some(value_repr_from_type(tree, ty.ty()?)),
         mir::Instruction::TensorExtract { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(kind_from_type(tree, ty))
+            Some(value_repr_from_type(tree, ty))
         }
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
@@ -774,19 +790,19 @@ fn infer_instruction_kind(
         | mir::Instruction::RawAlloc { result_type, .. }
         | mir::Instruction::StackAlloc { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
-            Some(kind_from_type(tree, result_type.ty()?))
+            Some(value_repr_from_type(tree, result_type.ty()?))
         }
         mir::Instruction::AtomicCompareExchange { destination, .. }
         | mir::Instruction::AtomicRmw { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(kind_from_type(tree, ty))
+            Some(value_repr_from_type(tree, ty))
         }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
             ..
-        } => infer_intrinsic_kind(tree, *intrinsic, *arguments, value_kind_map),
+        } => infer_intrinsic_repr(tree, *intrinsic, *arguments, value_repr_map),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
         | mir::Instruction::AtomicStore { .. }
@@ -802,77 +818,77 @@ fn infer_instruction_kind(
     }
 }
 
-/// Infer the value kind for one intrinsic call.
-fn infer_intrinsic_kind(
+/// Infer the value representation for one intrinsic call.
+fn infer_intrinsic_repr(
     tree: &mir::NodeTree,
     intrinsic: mir::Intrinsic,
     arguments: mir::ArgumentSlice,
-    value_kind_map: &ValueKindMap,
-) -> Option<ValueKind> {
+    value_repr_map: &ValueReprMap,
+) -> Option<ValueRepr> {
     let argument = tree.get_arguments(arguments);
 
     match intrinsic.result_type() {
         mir::IntrinsicResultType::Void => None,
-        mir::IntrinsicResultType::Boolean => Some(ValueKind::Bool),
-        mir::IntrinsicResultType::I32 => Some(ValueKind::Int {
+        mir::IntrinsicResultType::Boolean => Some(ValueRepr::Bool),
+        mir::IntrinsicResultType::I32 => Some(ValueRepr::Int {
             width: 32,
             signed: true,
         }),
-        mir::IntrinsicResultType::Isize => Some(ValueKind::Int {
+        mir::IntrinsicResultType::Isize => Some(ValueRepr::Int {
             width: usize::BITS as u8,
             signed: true,
         }),
-        mir::IntrinsicResultType::Usize => Some(ValueKind::Int {
+        mir::IntrinsicResultType::Usize => Some(ValueRepr::Int {
             width: usize::BITS as u8,
             signed: false,
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
             let argument = argument.get(index as usize)?;
-            value_kind_map.get(argument.value()?)
+            value_repr_map.get(argument.value()?)
         }
         mir::IntrinsicResultType::Pointee(index) => {
             let argument = argument.get(index as usize)?;
-            let pointer_kind = value_kind_map.get(argument.value()?)?;
-            kind_from_pointer(tree, pointer_kind)
+            let pointer_repr = value_repr_map.get(argument.value()?)?;
+            repr_from_pointer(tree, pointer_repr)
         }
         mir::IntrinsicResultType::CheckedArithmetic
         | mir::IntrinsicResultType::PointeeAndBool(_)
         | mir::IntrinsicResultType::TypeDescriptor
-        | mir::IntrinsicResultType::Explicit => Some(ValueKind::Unknown),
+        | mir::IntrinsicResultType::Explicit => Some(ValueRepr::Unknown),
     }
 }
 
-/// Get the kind for one constant value.
-fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
+/// Get the representation for one constant value.
+fn repr_from_constant(constant: &mir::Constant) -> ValueRepr {
     match constant {
-        mir::Constant::Null => ValueKind::Unknown,
-        mir::Constant::Boolean { .. } => ValueKind::Bool,
+        mir::Constant::Null => ValueRepr::Unknown,
+        mir::Constant::Boolean { .. } => ValueRepr::Bool,
         mir::Constant::Int {
             width, is_signed, ..
-        } => ValueKind::Int {
+        } => ValueRepr::Int {
             width: *width,
             signed: *is_signed,
         },
-        mir::Constant::UInt { width, .. } => ValueKind::Int {
+        mir::Constant::UInt { width, .. } => ValueRepr::Int {
             width: *width,
             signed: false,
         },
-        mir::Constant::Float { width, .. } => ValueKind::Float { width: *width },
-        mir::Constant::Char { .. } => ValueKind::Char,
+        mir::Constant::Float { width, .. } => ValueRepr::Float { width: *width },
+        mir::Constant::Char { .. } => ValueRepr::Char,
     }
 }
 
-/// Resolve one pointee kind from one pointer-like value.
-fn kind_from_pointer(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
-    match kind {
-        ValueKind::Pointer { pointee, .. } => Some(kind_from_type(tree, pointee)),
+/// Resolve one pointee representation from one pointer-like value.
+fn repr_from_pointer(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr> {
+    match repr {
+        ValueRepr::Pointer { pointee, .. } => Some(value_repr_from_type(tree, pointee)),
         _ => None,
     }
 }
 
-/// Resolve the field kind for one aggregate value.
-fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<ValueKind> {
-    let ValueKind::Aggregate { ty } = kind else {
+/// Resolve the field representation for one payload value.
+fn repr_from_field(tree: &mir::NodeTree, repr: ValueRepr, index: u32) -> Option<ValueRepr> {
+    let ValueRepr::FrameBytes { ty } = repr else {
         return None;
     };
 
@@ -880,46 +896,46 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
         mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
-            Some(kind_from_type(tree, field.ty.ty()?))
+            Some(value_repr_from_type(tree, field.ty.ty()?))
         }
         mir::Type::Tuple { elements, copy: _ } => {
             let field = elements.get(index as usize)?;
-            Some(kind_from_type(tree, field.ty()?))
+            Some(value_repr_from_type(tree, field.ty()?))
         }
         _ => None,
     }
 }
 
-/// Resolve the element kind for one array value.
-fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
-    match kind {
-        ValueKind::Array { element, .. } => Some(kind_from_type(tree, element)),
-        ValueKind::Aggregate { ty } => match tree.get(ty) {
-            mir::Type::Array { element, .. } => Some(kind_from_type(tree, element.ty()?)),
+/// Resolve the element representation for one array value.
+fn repr_from_element(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr> {
+    match repr {
+        ValueRepr::Array { element, .. } => Some(value_repr_from_type(tree, element)),
+        ValueRepr::FrameBytes { ty } => match tree.get(ty) {
+            mir::Type::Array { element, .. } => Some(value_repr_from_type(tree, element.ty()?)),
             _ => None,
         },
         _ => None,
     }
 }
 
-/// Rebuild one address-producing result kind from the source pointer class.
-fn pointer_result_kind_from_source(
+/// Rebuild one address-producing result representation from the source pointer class.
+fn pointer_result_repr_from_source(
     tree: &mir::NodeTree,
     result_type: mir::LocalNodeId<mir::Type>,
-    source_kind: ValueKind,
-) -> Option<ValueKind> {
-    let ValueKind::Pointer { pointer_class, .. } = source_kind else {
-        return Some(kind_from_type(tree, result_type));
+    source_repr: ValueRepr,
+) -> Option<ValueRepr> {
+    let ValueRepr::Pointer { pointer_class, .. } = source_repr else {
+        return Some(value_repr_from_type(tree, result_type));
     };
 
-    let ValueKind::Pointer {
+    let ValueRepr::Pointer {
         pointee, reference, ..
-    } = kind_from_type(tree, result_type)
+    } = value_repr_from_type(tree, result_type)
     else {
         return None;
     };
 
-    Some(ValueKind::Pointer {
+    Some(ValueRepr::Pointer {
         pointee,
         pointer_class,
         reference,

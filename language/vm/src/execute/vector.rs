@@ -1,13 +1,16 @@
 use super::prelude::*;
 
-// TODO #Performance: improve VM vector performance
-
-/// Return the lane count for one vector value id.
-fn vector_lane_count(state: &ExecutionState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
+/// Return the vector element count for one vector value id.
+fn vector_element_count(
+    state: &DispatchState<'_, '_>,
+    value_id: mir::Value,
+) -> Result<usize, Error> {
     let vector_type = state.value_type(value_id)?;
 
     match state.tree().get(vector_type) {
-        mir::Type::Vector { lanes, .. } => Ok(*lanes as usize),
+        mir::Type::Vector {
+            lanes: elements, ..
+        } => Ok(*elements as usize),
         _ => Err(Error::TypeMismatch {
             expected: "vector type".to_string(),
             actual: format!("{vector_type:?}"),
@@ -15,78 +18,102 @@ fn vector_lane_count(state: &ExecutionState<'_, '_>, value_id: mir::Value) -> Re
     }
 }
 
-/// Load one vector lane through indexed access.
-fn vector_lane_value(
-    state: &mut ExecutionState<'_, '_>,
-    vector: Value,
+/// Return the scalar element type for one vector value.
+fn vector_element_type(
+    state: &DispatchState<'_, '_>,
+    value_id: mir::Value,
+) -> Result<ScalarLayout, Error> {
+    let vector_type = state.value_type(value_id)?;
+    let element = match state.tree().get(vector_type) {
+        mir::Type::Vector { element, .. } => {
+            element.ty().ok_or_else(|| Error::ConcreteMirRequired {
+                context: "vector element type".to_string(),
+            })?
+        }
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "vector type".to_string(),
+                actual: format!("{vector_type:?}"),
+            });
+        }
+    };
+
+    scalar_layout(state.tree(), element)
+}
+
+/// Load one vector element through indexed access.
+fn load_vector_element_at(
+    state: &mut DispatchState<'_, '_>,
+    vector: Word,
     vector_type: mir::LocalNodeId<mir::Type>,
-    lane_index: usize,
-) -> Result<Value, Error> {
-    let index = u32::try_from(lane_index).map_err(|_| Error::TypeMismatch {
-        expected: "vector lane index".to_string(),
-        actual: lane_index.to_string(),
+    element_index: usize,
+) -> Result<Word, Error> {
+    let index = u32::try_from(element_index).map_err(|_| Error::TypeMismatch {
+        expected: "vector element index".to_string(),
+        actual: element_index.to_string(),
     })?;
     let (element, element_count) =
         access::element_access_for_type(state, vector_type, index.into())?;
 
-    access::get_element(state, vector, index.into(), element_count, Some(element))
+    access::get_element(
+        state,
+        vector,
+        index.into(),
+        Some(element_count),
+        Some(element),
+    )
 }
 
-/// Allocate one vector result lane by lane.
-fn allocate_vector_by_lane<F>(
-    state: &mut ExecutionState<'_, '_>,
+/// Write one vector result into frame bytes.
+fn write_vector_by_element<F>(
+    state: &mut DispatchState<'_, '_>,
     dest: mir::Value,
-    mut lane_value: F,
-) -> Result<Value, Error>
+    mut element_value: F,
+) -> Result<(), Error>
 where
-    F: FnMut(&mut ExecutionState<'_, '_>, usize) -> Result<Value, Error>,
+    F: FnMut(&mut DispatchState<'_, '_>, usize) -> Result<Word, Error>,
 {
-    allocate_payload_by_index(state, dest, |state, lane_index, _value_type| {
-        let lane_index = usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
-            expected: "vector lane index".to_string(),
-            actual: lane_index.to_string(),
-        })?;
-
-        lane_value(state, lane_index)
+    super::bytes::write_frame_elements(state, dest, |state, element_index, _value_type| {
+        element_value(state, element_index)
     })
 }
 
 /// Execute vector.splat.
 pub(crate) fn execute_vector_splat(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorSplat { dest, value } = &block[pc].immediate else {
+    // decode instruction operands
+    let Operands::VectorSplat { dest, value } = &block[pc].operands else {
         unreachable!()
     };
 
-    let lane_value = state.get(*value);
+    let element_value = state.get(*value);
 
-    // allocate the result one lane at a time
-    let result = match allocate_vector_by_lane(state, *dest, |_state, _lane_index| Ok(lane_value)) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+    // allocate the result one element at a time
+    if let Err(error) =
+        write_vector_by_element(state, *dest, |_state, _element_index| Ok(element_value))
+    {
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.extract.
 pub(crate) fn execute_vector_extract(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorExtract {
+    // decode instruction operands
+    let Operands::VectorExtract {
         dest,
         vector,
         index,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -97,8 +124,8 @@ pub(crate) fn execute_vector_extract(
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
-    let lane_count = match vector_lane_count(state, *vector) {
-        Ok(lanes) => lanes,
+    let element_count = match vector_element_count(state, *vector) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let vector_type = match state.value_type(*vector) {
@@ -106,36 +133,36 @@ pub(crate) fn execute_vector_extract(
         Err(error) => return Transfer::Error(error),
     };
 
-    // extract lane
-    if index_value >= lane_count {
+    // extract element
+    if index_value >= element_count {
         return Transfer::Error(Error::IndexOutOfBounds {
             index: index_value as u64,
-            length: lane_count as u64,
+            length: element_count as u64,
         });
     }
-    let result = match vector_lane_value(state, vec_value, vector_type, index_value) {
+    let result = match load_vector_element_at(state, vec_value, vector_type, index_value) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    state.set(*dest, result);
+    state.set_word(*dest, result);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.insert.
 pub(crate) fn execute_vector_insert(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorInsert {
+    // decode instruction operands
+    let Operands::VectorInsert {
         dest,
         vector,
         index,
         value,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -146,8 +173,8 @@ pub(crate) fn execute_vector_insert(
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
-    let lane_count = match vector_lane_count(state, *vector) {
-        Ok(lanes) => lanes,
+    let element_count = match vector_element_count(state, *vector) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let vector_type = match state.value_type(*vector) {
@@ -155,59 +182,57 @@ pub(crate) fn execute_vector_insert(
         Err(error) => return Transfer::Error(error),
     };
 
-    // reject out of bounds lane indices
-    if index_value >= lane_count {
+    // reject out of bounds element indices
+    if index_value >= element_count {
         return Transfer::Error(Error::IndexOutOfBounds {
             index: index_value as u64,
-            length: lane_count as u64,
+            length: element_count as u64,
         });
     }
 
     let inserted_value = state.get(*value);
 
-    // allocate the updated vector one lane at a time
-    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
-        if lane_index == index_value {
+    // allocate the updated vector one element at a time
+    if let Err(error) = write_vector_by_element(state, *dest, |state, element_index| {
+        if element_index == index_value {
             return Ok(inserted_value);
         }
 
-        vector_lane_value(state, vec_value, vector_type, lane_index)
+        load_vector_element_at(state, vec_value, vector_type, element_index)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.shuffle.
 pub(crate) fn execute_vector_shuffle(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorShuffle {
+    // decode instruction operands
+    let Operands::VectorShuffle {
         dest,
         left,
         right,
         mask,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // resolve lane sources
+    // resolve element sources
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_lane_count = match vector_lane_count(state, *left) {
-        Ok(lanes) => lanes,
+    let left_element_count = match vector_element_count(state, *left) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
-    let right_lane_count = match vector_lane_count(state, *right) {
-        Ok(lanes) => lanes,
+    let right_element_count = match vector_element_count(state, *right) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let left_type = match state.value_type(*left) {
@@ -219,48 +244,46 @@ pub(crate) fn execute_vector_shuffle(
         Err(error) => return Transfer::Error(error),
     };
 
-    // allocate the shuffled lanes directly
-    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
-        let idx = *mask.get(lane_index).ok_or(Error::IndexOutOfBounds {
-            index: lane_index as u64,
+    // allocate the shuffled elements directly
+    if let Err(error) = write_vector_by_element(state, *dest, |state, element_index| {
+        let idx = *mask.get(element_index).ok_or(Error::IndexOutOfBounds {
+            index: element_index as u64,
             length: mask.len() as u64,
         })? as usize;
 
-        if idx < left_lane_count {
-            return vector_lane_value(state, left_value, left_type, idx);
+        if idx < left_element_count {
+            return load_vector_element_at(state, left_value, left_type, idx);
         }
 
-        let rhs = idx - left_lane_count;
-        if rhs >= right_lane_count {
+        let rhs = idx - left_element_count;
+        if rhs >= right_element_count {
             return Err(Error::IndexOutOfBounds {
                 index: idx as u64,
-                length: (left_lane_count + right_lane_count) as u64,
+                length: (left_element_count + right_element_count) as u64,
             });
         }
 
-        vector_lane_value(state, right_value, right_type, rhs)
+        load_vector_element_at(state, right_value, right_type, rhs)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.select.
 pub(crate) fn execute_vector_select(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    let Immediate::VectorSelect {
+    let Operands::VectorSelect {
         dest,
         mask,
         then_value,
         else_value,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -268,16 +291,16 @@ pub(crate) fn execute_vector_select(
     let mask_value = state.get(*mask);
     let then_vector = state.get(*then_value);
     let else_vector = state.get(*else_value);
-    let mask_lane_count = match vector_lane_count(state, *mask) {
-        Ok(lanes) => lanes,
+    let mask_element_count = match vector_element_count(state, *mask) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
-    let then_lane_count = match vector_lane_count(state, *then_value) {
-        Ok(lanes) => lanes,
+    let then_element_count = match vector_element_count(state, *then_value) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
-    let else_lane_count = match vector_lane_count(state, *else_value) {
-        Ok(lanes) => lanes,
+    let else_element_count = match vector_element_count(state, *else_value) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let mask_type = match state.value_type(*mask) {
@@ -293,123 +316,121 @@ pub(crate) fn execute_vector_select(
         Err(error) => return Transfer::Error(error),
     };
 
-    if mask_lane_count != then_lane_count || mask_lane_count != else_lane_count {
+    if mask_element_count != then_element_count || mask_element_count != else_element_count {
         return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector lanes".to_string(),
-            actual: format!("{mask_lane_count} vs {then_lane_count} vs {else_lane_count}"),
+            expected: "matching vector elements".to_string(),
+            actual: format!("{mask_element_count} vs {then_element_count} vs {else_element_count}"),
         });
     }
 
-    // allocate the selected lanes directly
-    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
-        let mask_lane = match vector_lane_value(state, mask_value, mask_type, lane_index) {
+    // allocate the selected elements directly
+    if let Err(error) = write_vector_by_element(state, *dest, |state, element_index| {
+        let mask_element = match load_vector_element_at(state, mask_value, mask_type, element_index)
+        {
             Ok(value) => value,
             Err(error) => return Err(error),
         };
-        if !matches!(mask_lane.tag(), ValueTag::Bool) {
-            return Err(Error::TypeMismatch {
-                expected: "vector.select mask lane to be bool".to_string(),
-                actual: format!("{mask_lane:?}"),
-            });
-        }
-        let then_lane = match vector_lane_value(state, then_vector, then_type, lane_index) {
-            Ok(value) => value,
-            Err(error) => return Err(error),
-        };
-        let else_lane = match vector_lane_value(state, else_vector, else_type, lane_index) {
-            Ok(value) => value,
-            Err(error) => return Err(error),
-        };
-        let select = mask_lane.raw_data() != 0;
-        Ok(if select { then_lane } else { else_lane })
+        let then_element =
+            match load_vector_element_at(state, then_vector, then_type, element_index) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+        let else_element =
+            match load_vector_element_at(state, else_vector, else_type, element_index) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+        let select = mask_element.as_bool();
+        Ok(if select { then_element } else { else_element })
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
-    next!(state, block, pc)
+        return Transfer::Error(error);
+    }
+    Transfer::Continue
 }
 
 /// Execute vector.reduce.
 pub(crate) fn execute_vector_reduce(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorReduce {
+    // decode instruction operands
+    let Operands::VectorReduce {
         dest,
         operator,
         vector,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // resolve vector lanes
+    // resolve vector elements
     let vec_value = state.get(*vector);
-    let lane_count = match vector_lane_count(state, *vector) {
-        Ok(lanes) => lanes,
+    let element_count = match vector_element_count(state, *vector) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let vector_type = match state.value_type(*vector) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let result = if lane_count == 0 {
-        None
-    } else {
-        let mut result = match vector_lane_value(state, vec_value, vector_type, 0) {
+    if element_count == 0 {
+        return Transfer::Error(Error::InvalidInstruction);
+    }
+
+    let mut result = match load_vector_element_at(state, vec_value, vector_type, 0) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
+    let op = ReduceOperator::from(*operator);
+    let element_type = match vector_element_type(state, *vector) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
+    for element_index in 1..element_count {
+        let element = match load_vector_element_at(state, vec_value, vector_type, element_index) {
             Ok(value) => value,
             Err(error) => return Transfer::Error(error),
         };
-        let op = ReduceOperator::from(*operator);
-        for lane_index in 1..lane_count {
-            let lane = match vector_lane_value(state, vec_value, vector_type, lane_index) {
-                Ok(value) => value,
-                Err(error) => return Transfer::Error(error),
-            };
-            match apply_reduce_operator(op, result, lane) {
-                Ok(value) => result = value,
-                Err(error) => return Transfer::Error(error),
-            }
+        match apply_reduce_operator(element_type, op, result, element) {
+            Ok(value) => result = value,
+            Err(error) => return Transfer::Error(error),
         }
-        Some(result)
-    };
+    }
 
     // store result
-    state.set(*dest, result.unwrap_or(Value::VOID));
+    state.set_word(*dest, result);
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.compare.
 pub(crate) fn execute_vector_compare(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorCompare {
+    // decode instruction operands
+    let Operands::VectorCompare {
         dest,
         operator,
         left,
         right,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
 
-    // resolve vector slots
+    // resolve vector elements
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_lane_count = match vector_lane_count(state, *left) {
-        Ok(lanes) => lanes,
+    let left_element_count = match vector_element_count(state, *left) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
-    let right_lane_count = match vector_lane_count(state, *right) {
-        Ok(lanes) => lanes,
+    let right_element_count = match vector_element_count(state, *right) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
     let left_type = match state.value_type(*left) {
@@ -420,50 +441,52 @@ pub(crate) fn execute_vector_compare(
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
+    let element_type = match vector_element_type(state, *left) {
+        Ok(ty) => ty,
+        Err(error) => return Transfer::Error(error),
+    };
 
-    // validate lane counts
-    if left_lane_count != right_lane_count {
+    // validate vector element counts
+    if left_element_count != right_element_count {
         return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector lanes".to_string(),
-            actual: format!("{left_lane_count} vs {right_lane_count}"),
+            expected: "matching vector elements".to_string(),
+            actual: format!("{left_element_count} vs {right_element_count}"),
         });
     }
 
-    // compare the vectors lane by lane
-    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
-        let lhs = match vector_lane_value(state, left_value, left_type, lane_index) {
+    // compare the vectors element by element
+    if let Err(error) = write_vector_by_element(state, *dest, |state, element_index| {
+        let lhs = match load_vector_element_at(state, left_value, left_type, element_index) {
             Ok(value) => value,
             Err(error) => return Err(error),
         };
-        let rhs = match vector_lane_value(state, right_value, right_type, lane_index) {
+        let rhs = match load_vector_element_at(state, right_value, right_type, element_index) {
             Ok(value) => value,
             Err(error) => return Err(error),
         };
-        operator::execute_binary(*operator, lhs, rhs)
+        apply_binary_operator(element_type, *operator, lhs, rhs)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
 
 /// Execute vector.convert.
 pub(crate) fn execute_vector_convert(
-    state: &mut ExecutionState<'_, '_>,
+    state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
-    // decode instruction immediate
-    let Immediate::VectorConvert {
+    // decode instruction operands
+    let Operands::VectorConvert {
         dest,
         mode,
         vector,
         source_type,
         dest_type,
-    } = &block[pc].immediate
+    } = &block[pc].operands
     else {
         unreachable!()
     };
@@ -479,8 +502,12 @@ pub(crate) fn execute_vector_convert(
         }
     };
     let dest_vector = state.tree().get(*dest_type);
-    let (dest_element, dest_lanes) = match dest_vector {
-        mir::Type::Vector { element, lanes, .. } => (*element, *lanes as usize),
+    let (dest_element, dest_elements) = match dest_vector {
+        mir::Type::Vector {
+            element,
+            lanes: elements,
+            ..
+        } => (*element, *elements as usize),
         _ => {
             return Transfer::Error(Error::TypeMismatch {
                 expected: "vector type".to_string(),
@@ -489,20 +516,20 @@ pub(crate) fn execute_vector_convert(
         }
     };
 
-    // resolve lane values
+    // resolve element values
     let vector_value = state.get(*vector);
     let vector_type = match state.value_type(*vector) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let source_lane_count = match vector_lane_count(state, *vector) {
-        Ok(lanes) => lanes,
+    let source_element_count = match vector_element_count(state, *vector) {
+        Ok(elements) => elements,
         Err(error) => return Transfer::Error(error),
     };
-    if source_lane_count != dest_lanes {
+    if source_element_count != dest_elements {
         return Transfer::Error(Error::TypeMismatch {
-            expected: "matching vector lanes".to_string(),
-            actual: format!("{source_lane_count} vs {dest_lanes}"),
+            expected: "matching vector elements".to_string(),
+            actual: format!("{source_element_count} vs {dest_elements}"),
         });
     }
 
@@ -516,27 +543,25 @@ pub(crate) fn execute_vector_convert(
             context: "vector convert destination element".to_string(),
         });
     };
-    let source_info = match scalar_type_info(state.tree(), source_element) {
+    let source_info = match scalar_layout(state.tree(), source_element) {
         Ok(info) => info,
         Err(error) => return Transfer::Error(error),
     };
-    let dest_info = match scalar_type_info(state.tree(), dest_element) {
+    let dest_info = match scalar_layout(state.tree(), dest_element) {
         Ok(info) => info,
         Err(error) => return Transfer::Error(error),
     };
     let convert_mode = ScalarConvertMode::from(*mode);
 
-    // convert the lanes one by one
-    let result = match allocate_vector_by_lane(state, *dest, |state, lane_index| {
-        let value = vector_lane_value(state, vector_value, vector_type, lane_index)?;
+    // convert the elements one by one
+    if let Err(error) = write_vector_by_element(state, *dest, |state, element_index| {
+        let value = load_vector_element_at(state, vector_value, vector_type, element_index)?;
 
         convert_scalar_value(value, source_info, dest_info, convert_mode)
     }) {
-        Ok(result) => result,
-        Err(error) => return Transfer::Error(error),
-    };
-    state.set(*dest, result);
+        return Transfer::Error(error);
+    }
 
     // continue to next instruction
-    next!(state, block, pc)
+    Transfer::Continue
 }
