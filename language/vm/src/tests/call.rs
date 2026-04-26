@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::Word;
 use crate::tests::run_mir_expect;
 
 /// function.address produces a callable pointer for call.indirect.
@@ -16,7 +16,7 @@ b0(v0: int32):
     v2: int32 = call.indirect v1(v0): (int32) -> int32
     return v2
 }"#;
-    run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
+    run_mir_expect(mir, "caller", &[Word::int32(21)], Word::int32(42));
 }
 
 /// Exceptional direct calls branch to the success continuation on return.
@@ -41,7 +41,7 @@ b2(v5: ref<void, managed, readonly>):
     return v6
 }"#;
 
-    run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(26));
+    run_mir_expect(mir, "caller", &[Word::int32(8)], Word::int32(26));
 }
 
 /// Exceptional direct calls branch to the exception continuation on throw.
@@ -69,7 +69,7 @@ b2(v1: ref<Error, managed, readonly>):
     return v2
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Value::int32(9));
+    run_mir_expect(mir, "caller", &[], Word::int32(9));
 }
 
 /// Thrown exceptions skip plain call resumes until one exception continuation handles them.
@@ -103,5 +103,5 @@ b2(v1: ref<Error, managed, readonly>):
     return v2
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Value::int32(13));
+    run_mir_expect(mir, "caller", &[], Word::int32(13));
 }

@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::Word;
 use crate::diagnostic::Error;
 use crate::tests::{assert_runtime_error, run_mir, run_mir_expect};
 
@@ -14,8 +14,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "add",
-        &[Value::int32(1), Value::int32(2)],
-        Value::int32(3),
+        &[Word::int32(1), Word::int32(2)],
+        Word::int32(3),
     );
 }
 
@@ -31,8 +31,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "sub",
-        &[Value::int32(10), Value::int32(3)],
-        Value::int32(7),
+        &[Word::int32(10), Word::int32(3)],
+        Word::int32(7),
     );
 }
 
@@ -48,8 +48,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "mul",
-        &[Value::int32(6), Value::int32(7)],
-        Value::int32(42),
+        &[Word::int32(6), Word::int32(7)],
+        Word::int32(42),
     );
 }
 
@@ -65,8 +65,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "div",
-        &[Value::int32(20), Value::int32(4)],
-        Value::int32(5),
+        &[Word::int32(20), Word::int32(4)],
+        Word::int32(5),
     );
 }
 
@@ -79,7 +79,7 @@ b0(v0: int32):
     v1: int32 = int.negate v0
     return v1
 }"#;
-    run_mir_expect(mir, "neg", &[Value::int32(42)], Value::int32(-42));
+    run_mir_expect(mir, "neg", &[Word::int32(42)], Word::int32(-42));
 }
 
 /// Equality comparison returns true for equal values, false otherwise.
@@ -94,14 +94,14 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "eq",
-        &[Value::int32(5), Value::int32(5)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "eq",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(false),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(false),
     );
 }
 
@@ -117,14 +117,14 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "lt",
-        &[Value::int32(3), Value::int32(5)],
-        Value::bool(true),
+        &[Word::int32(3), Word::int32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "lt",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(false),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(false),
     );
 }
 
@@ -137,7 +137,7 @@ b0:
     v0: int32 = 42int32
     return v0
 }"#;
-    run_mir_expect(mir, "constant", &[], Value::int32(42));
+    run_mir_expect(mir, "constant", &[], Word::int32(42));
 }
 
 /// Boolean true constant is loaded correctly.
@@ -149,7 +149,7 @@ b0:
     v0: boolean = true
     return v0
 }"#;
-    run_mir_expect(mir, "constTrue", &[], Value::bool(true));
+    run_mir_expect(mir, "constTrue", &[], Word::bool(true));
 }
 
 /// Boolean false constant is loaded correctly.
@@ -161,7 +161,7 @@ b0:
     v0: boolean = false
     return v0
 }"#;
-    run_mir_expect(mir, "constFalse", &[], Value::bool(false));
+    run_mir_expect(mir, "constFalse", &[], Word::bool(false));
 }
 
 /// Bitwise AND on booleans produces logical AND.
@@ -176,14 +176,14 @@ b0(v0: boolean, v1: boolean):
     run_mir_expect(
         mir,
         "and",
-        &[Value::bool(true), Value::bool(true)],
-        Value::bool(true),
+        &[Word::bool(true), Word::bool(true)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "and",
-        &[Value::bool(true), Value::bool(false)],
-        Value::bool(false),
+        &[Word::bool(true), Word::bool(false)],
+        Word::bool(false),
     );
 }
 
@@ -199,14 +199,14 @@ b0(v0: boolean, v1: boolean):
     run_mir_expect(
         mir,
         "or",
-        &[Value::bool(false), Value::bool(true)],
-        Value::bool(true),
+        &[Word::bool(false), Word::bool(true)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "or",
-        &[Value::bool(false), Value::bool(false)],
-        Value::bool(false),
+        &[Word::bool(false), Word::bool(false)],
+        Word::bool(false),
     );
 }
 
@@ -219,8 +219,8 @@ b0(v0: boolean):
     v1: boolean = int.not v0
     return v1
 }"#;
-    run_mir_expect(mir, "not", &[Value::bool(true)], Value::bool(false));
-    run_mir_expect(mir, "not", &[Value::bool(false)], Value::bool(true));
+    run_mir_expect(mir, "not", &[Word::bool(true)], Word::bool(false));
+    run_mir_expect(mir, "not", &[Word::bool(false)], Word::bool(true));
 }
 
 /// Floating point addition produces the sum of two f64 values.
@@ -235,8 +235,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fadd",
-        &[Value::float64(1.5), Value::float64(2.5)],
-        Value::float64(4.0),
+        &[Word::float64(1.5), Word::float64(2.5)],
+        Word::float64(4.0),
     );
 }
 
@@ -252,8 +252,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "udiv",
-        &[Value::uint32(20), Value::uint32(4)],
-        Value::uint32(5),
+        &[Word::uint32(20), Word::uint32(4)],
+        Word::uint32(5),
     );
 }
 
@@ -269,15 +269,15 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "srem",
-        &[Value::int32(17), Value::int32(5)],
-        Value::int32(2),
+        &[Word::int32(17), Word::int32(5)],
+        Word::int32(2),
     );
     // negative remainder
     run_mir_expect(
         mir,
         "srem",
-        &[Value::int32(-17), Value::int32(5)],
-        Value::int32(-2),
+        &[Word::int32(-17), Word::int32(5)],
+        Word::int32(-2),
     );
 }
 
@@ -293,8 +293,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "urem",
-        &[Value::uint32(17), Value::uint32(5)],
-        Value::uint32(2),
+        &[Word::uint32(17), Word::uint32(5)],
+        Word::uint32(2),
     );
 }
 
@@ -308,7 +308,7 @@ b0(v0: int32):
     v2: int32 = int.div.s v0, v1
     return v2
 }"#;
-    let result = run_mir(mir, "divZero", &[Value::int32(10)]);
+    let result = run_mir(mir, "divZero", &[Word::int32(10)]);
 
     assert_runtime_error(result, Error::DivisionByZero);
 }
@@ -325,14 +325,14 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "ne",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "ne",
-        &[Value::int32(5), Value::int32(5)],
-        Value::bool(false),
+        &[Word::int32(5), Word::int32(5)],
+        Word::bool(false),
     );
 }
 
@@ -348,21 +348,21 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "sgt",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "sgt",
-        &[Value::int32(3), Value::int32(5)],
-        Value::bool(false),
+        &[Word::int32(3), Word::int32(5)],
+        Word::bool(false),
     );
     // negative numbers
     run_mir_expect(
         mir,
         "sgt",
-        &[Value::int32(-1), Value::int32(-5)],
-        Value::bool(true),
+        &[Word::int32(-1), Word::int32(-5)],
+        Word::bool(true),
     );
 }
 
@@ -378,20 +378,20 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "sge",
-        &[Value::int32(5), Value::int32(5)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "sge",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "sge",
-        &[Value::int32(3), Value::int32(5)],
-        Value::bool(false),
+        &[Word::int32(3), Word::int32(5)],
+        Word::bool(false),
     );
 }
 
@@ -407,20 +407,20 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "sle",
-        &[Value::int32(3), Value::int32(5)],
-        Value::bool(true),
+        &[Word::int32(3), Word::int32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "sle",
-        &[Value::int32(5), Value::int32(5)],
-        Value::bool(true),
+        &[Word::int32(5), Word::int32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "sle",
-        &[Value::int32(5), Value::int32(3)],
-        Value::bool(false),
+        &[Word::int32(5), Word::int32(3)],
+        Word::bool(false),
     );
 }
 
@@ -436,14 +436,14 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "ult",
-        &[Value::uint32(3), Value::uint32(5)],
-        Value::bool(true),
+        &[Word::uint32(3), Word::uint32(5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "ult",
-        &[Value::uint32(5), Value::uint32(3)],
-        Value::bool(false),
+        &[Word::uint32(5), Word::uint32(3)],
+        Word::bool(false),
     );
 }
 
@@ -459,14 +459,14 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "ugt",
-        &[Value::uint32(5), Value::uint32(3)],
-        Value::bool(true),
+        &[Word::uint32(5), Word::uint32(3)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "ugt",
-        &[Value::uint32(3), Value::uint32(5)],
-        Value::bool(false),
+        &[Word::uint32(3), Word::uint32(5)],
+        Word::bool(false),
     );
 }
 
@@ -482,8 +482,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "xor",
-        &[Value::int32(0b1100), Value::int32(0b1010)],
-        Value::int32(0b0110),
+        &[Word::int32(0b1100), Word::int32(0b1010)],
+        Word::int32(0b0110),
     );
 }
 
@@ -499,8 +499,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "shl",
-        &[Value::int32(1), Value::int32(4)],
-        Value::int32(16),
+        &[Word::int32(1), Word::int32(4)],
+        Word::int32(16),
     );
 }
 
@@ -516,15 +516,15 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "sshr",
-        &[Value::int32(16), Value::int32(2)],
-        Value::int32(4),
+        &[Word::int32(16), Word::int32(2)],
+        Word::int32(4),
     );
     // negative number: sign bit preserved
     run_mir_expect(
         mir,
         "sshr",
-        &[Value::int32(-16), Value::int32(2)],
-        Value::int32(-4),
+        &[Word::int32(-16), Word::int32(2)],
+        Word::int32(-4),
     );
 }
 
@@ -540,8 +540,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "ushr",
-        &[Value::uint32(16), Value::uint32(2)],
-        Value::uint32(4),
+        &[Word::uint32(16), Word::uint32(2)],
+        Word::uint32(4),
     );
 }
 
@@ -557,8 +557,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fsub",
-        &[Value::float64(5.5), Value::float64(2.5)],
-        Value::float64(3.0),
+        &[Word::float64(5.5), Word::float64(2.5)],
+        Word::float64(3.0),
     );
 }
 
@@ -574,8 +574,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fmul",
-        &[Value::float64(3.0), Value::float64(4.0)],
-        Value::float64(12.0),
+        &[Word::float64(3.0), Word::float64(4.0)],
+        Word::float64(12.0),
     );
 }
 
@@ -591,8 +591,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fdiv",
-        &[Value::float64(10.0), Value::float64(4.0)],
-        Value::float64(2.5),
+        &[Word::float64(10.0), Word::float64(4.0)],
+        Word::float64(2.5),
     );
 }
 
@@ -605,8 +605,8 @@ b0(v0: float64):
     v1: float64 = float.negate v0
     return v1
 }"#;
-    run_mir_expect(mir, "fneg", &[Value::float64(3.5)], Value::float64(-3.5));
-    run_mir_expect(mir, "fneg", &[Value::float64(-3.5)], Value::float64(3.5));
+    run_mir_expect(mir, "fneg", &[Word::float64(3.5)], Word::float64(-3.5));
+    run_mir_expect(mir, "fneg", &[Word::float64(-3.5)], Word::float64(3.5));
 }
 
 /// Float equal comparison.
@@ -621,14 +621,14 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fcmpEq",
-        &[Value::float64(3.5), Value::float64(3.5)],
-        Value::bool(true),
+        &[Word::float64(3.5), Word::float64(3.5)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "fcmpEq",
-        &[Value::float64(3.5), Value::float64(4.5)],
-        Value::bool(false),
+        &[Word::float64(3.5), Word::float64(4.5)],
+        Word::bool(false),
     );
 }
 
@@ -644,14 +644,14 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "fcmpLt",
-        &[Value::float64(3.0), Value::float64(4.0)],
-        Value::bool(true),
+        &[Word::float64(3.0), Word::float64(4.0)],
+        Word::bool(true),
     );
     run_mir_expect(
         mir,
         "fcmpLt",
-        &[Value::float64(4.0), Value::float64(3.0)],
-        Value::bool(false),
+        &[Word::float64(4.0), Word::float64(3.0)],
+        Word::bool(false),
     );
 }
 
@@ -667,8 +667,8 @@ b0(v0: float32, v1: float32):
     run_mir_expect(
         mir,
         "f32Add",
-        &[Value::float32(1.5), Value::float32(2.5)],
-        Value::float32(4.0),
+        &[Word::float32(1.5), Word::float32(2.5)],
+        Word::float32(4.0),
     );
 }
 
@@ -684,8 +684,8 @@ b0(v0: float32, v1: float32):
     run_mir_expect(
         mir,
         "f32Lt",
-        &[Value::float32(1.0), Value::float32(2.0)],
-        Value::bool(true),
+        &[Word::float32(1.0), Word::float32(2.0)],
+        Word::bool(true),
     );
 }
 
@@ -698,7 +698,7 @@ b0(v0: int32):
     v1: int32 = int.not v0
     return v1
 }"#;
-    run_mir_expect(mir, "bnot", &[Value::int32(0)], Value::int32(-1));
+    run_mir_expect(mir, "bnot", &[Word::int32(0)], Word::int32(-1));
 }
 
 /// Bitwise operations on unsigned integers.
@@ -713,7 +713,7 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "uand",
-        &[Value::uint32(0b1100), Value::uint32(0b1010)],
-        Value::uint32(0b1000),
+        &[Word::uint32(0b1100), Word::uint32(0b1010)],
+        Word::uint32(0b1000),
     );
 }
