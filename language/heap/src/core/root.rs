@@ -31,26 +31,26 @@ impl RootSlot<'_> {
     }
 }
 
-/// Source of local roots for one collection safepoint.
-pub trait RootSource {
-    /// The root-source error type.
+/// Mutable local root slots for one collection safepoint.
+pub trait RootSlots {
+    /// The root-slot visitor error type.
     type Error: From<HeapError>;
 
     /// Visit every mutable local root slot.
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error>;
 }
 
-impl<F, E> RootSource for F
+impl<F, E> RootSlots for F
 where
     F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
     E: From<HeapError>,
 {
     type Error = E;
 
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error> {
@@ -58,10 +58,10 @@ where
     }
 }
 
-impl RootSource for [HeapReference] {
+impl RootSlots for [HeapReference] {
     type Error = HeapError;
 
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error> {
@@ -73,32 +73,32 @@ impl RootSource for [HeapReference] {
     }
 }
 
-impl RootSource for Vec<HeapReference> {
+impl RootSlots for Vec<HeapReference> {
     type Error = HeapError;
 
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error> {
-        self.as_mut_slice().visit_roots(visit)
+        self.as_mut_slice().visit_root_slots(visit)
     }
 }
 
-impl<const N: usize> RootSource for [HeapReference; N] {
+impl<const N: usize> RootSlots for [HeapReference; N] {
     type Error = HeapError;
 
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error> {
-        self.as_mut_slice().visit_roots(visit)
+        self.as_mut_slice().visit_root_slots(visit)
     }
 }
 
-impl RootSource for () {
+impl RootSlots for () {
     type Error = HeapError;
 
-    fn visit_roots(
+    fn visit_root_slots(
         &mut self,
         _visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error> {

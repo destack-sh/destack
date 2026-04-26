@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::HeapError;
 
-/// Go's small object size classes, excluding class zero.
-const GO_SIZE_CLASS_BYTES: [usize; 67] = [
+/// The default small object size classes, excluding class zero.
+const DEFAULT_SIZE_CLASS_BYTES: [usize; 67] = [
     8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352,
     384, 416, 448, 480, 512, 576, 640, 704, 768, 896, 1024, 1152, 1280, 1408, 1536, 1792, 2048,
     2304, 2688, 3072, 3200, 3456, 4096, 4864, 5376, 6144, 6528, 6784, 6912, 8192, 9472, 9728,
@@ -11,8 +11,8 @@ const GO_SIZE_CLASS_BYTES: [usize; 67] = [
     32768,
 ];
 
-/// Go's small object span widths in allocator pages, excluding class zero.
-const GO_SIZE_CLASS_SPAN_PAGES: [usize; 67] = [
+/// The default small object span widths in allocator pages, excluding class zero.
+const DEFAULT_SIZE_CLASS_SPAN_PAGES: [usize; 67] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 3, 1, 3, 2, 3, 4, 5, 6, 1, 7, 6, 5, 4, 3, 5, 7, 2, 9, 7, 5, 8, 3,
     10, 7, 4,
@@ -173,12 +173,12 @@ impl SizeClassTable {
         })
     }
 
-    /// Return the default Go size-class table.
+    /// Return the default size-class table.
     pub fn default_table() -> Self {
         Self {
-            classes: GO_SIZE_CLASS_BYTES
+            classes: DEFAULT_SIZE_CLASS_BYTES
                 .iter()
-                .zip(GO_SIZE_CLASS_SPAN_PAGES)
+                .zip(DEFAULT_SIZE_CLASS_SPAN_PAGES)
                 .map(|(&bytes, span_pages)| SizeClass::with_span_pages(bytes, span_pages))
                 .collect(),
         }

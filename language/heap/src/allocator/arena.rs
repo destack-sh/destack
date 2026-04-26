@@ -420,7 +420,7 @@ fn reserve_aligned_arena_range(byte_len: usize, alignment_bytes: usize) -> HeapR
             context: "allocator arena aligned base",
         })?;
 
-    trim_arena_reservation(reservation, reservation_byte_len, arena_base, byte_len)?;
+    unmap_arena_alignment_slack(reservation, reservation_byte_len, arena_base, byte_len)?;
     let arena_base = arena_base as *mut u8;
     if arena_base.is_null() {
         return Err(HeapError::AllocatorAddressUnsupported { address: 0 });
@@ -444,12 +444,12 @@ fn reserve_arena_bytes(byte_len: usize) -> HeapResult<*mut u8> {
     Ok(data)
 }
 
-/// Trim reservation slack around the aligned arena.
-fn trim_arena_reservation(
+/// Unmap reservation slack around the aligned arena range.
+fn unmap_arena_alignment_slack(
     reservation: *mut u8,
     reservation_byte_len: usize,
     arena_base: usize,
-    arena_bytes: usize,
+    byte_len: usize,
 ) -> HeapResult<()> {
     let reservation_base = reservation as usize;
     let reservation_end =
@@ -459,7 +459,7 @@ fn trim_arena_reservation(
                 context: "allocator arena reservation end",
             })?;
     let arena_end = arena_base
-        .checked_add(arena_bytes)
+        .checked_add(byte_len)
         .ok_or(HeapError::InvariantOverflow {
             context: "allocator arena aligned end",
         })?;
@@ -473,7 +473,7 @@ fn trim_arena_reservation(
 
     let suffix_bytes = reservation_end - arena_end;
     if let Err(error) = unmap_arena_range((arena_end as *mut u8).cast(), suffix_bytes) {
-        try_unmap_arena_range((arena_base as *mut u8).cast(), arena_bytes + suffix_bytes);
+        try_unmap_arena_range((arena_base as *mut u8).cast(), byte_len + suffix_bytes);
 
         return Err(error);
     }

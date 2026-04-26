@@ -215,17 +215,6 @@ pub enum HeapError {
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// The heap-space usage counters cannot service one release.
-    InvalidUsage {
-        /// The heap space whose counters were invalid.
-        region: AccountingRegion,
-        /// The live allocation count before the release.
-        allocated_count: usize,
-        /// The live byte count before the release.
-        allocated_bytes: u64,
-        /// The bytes being released.
-        freed_bytes: u64,
-    },
     /// One raw pointer did not resolve to one live allocation.
     InvalidRawPointer {
         /// The invalid raw pointer.
@@ -647,19 +636,6 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "heap free failed for reference {reference:?}: {error}"
-                )
-            }
-            Self::InvalidUsage {
-                region,
-                allocated_count,
-                allocated_bytes,
-                freed_bytes,
-            } => {
-                let subject = region.subject();
-
-                write!(
-                    formatter,
-                    "invalid {subject} usage: count {allocated_count}, bytes {allocated_bytes}, freed bytes {freed_bytes}"
                 )
             }
             Self::InvalidRawPointer { pointer } => {

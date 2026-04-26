@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use crate::{HeapError, HeapResult};
 
 /// The default proportional heap growth target after one cycle.
-const DEFAULT_GROWTH_PERCENT: u32 = 100;
+pub const DEFAULT_GC_GROWTH_PERCENT: u32 = 100;
 /// The standard heap trigger as a percentage of the current goal.
-const DEFAULT_TRIGGER_PERCENT: u32 = 75;
+pub const DEFAULT_GC_TRIGGER_PERCENT: u32 = 75;
 /// The default heap pacing floor.
-const DEFAULT_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
+pub const DEFAULT_GC_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Collector configuration for one heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,20 +26,20 @@ impl GcOptions {
     /// Build the default collector configuration for one heap.
     pub fn local() -> Self {
         Self {
-            growth_percent: DEFAULT_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_TRIGGER_PERCENT,
+            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
         }
     }
 
     /// Build the default collector configuration for one shared heap.
     pub fn shared() -> Self {
         Self {
-            growth_percent: DEFAULT_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_TRIGGER_PERCENT,
+            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
         }
     }
 
@@ -64,6 +64,8 @@ pub struct GcPacer {
     pub goal_bytes: u64,
     /// The current collection trigger in bytes.
     pub trigger_bytes: u64,
+    /// The pending collector assist debt in allocated bytes.
+    pub assist_debt_bytes: u64,
 }
 
 impl GcPacer {
@@ -82,6 +84,25 @@ impl GcPacer {
         self.live_bytes = live_bytes;
         self.goal_bytes = goal_bytes;
         self.trigger_bytes = trigger_bytes.max(min_bytes);
+    }
+
+    /// Add pending collector assist debt.
+    pub fn add_assist_debt(&mut self, byte_len: usize) {
+        self.assist_debt_bytes = self.assist_debt_bytes.saturating_add(byte_len as u64);
+    }
+
+    /// Consume pending collector assist debt as collector steps.
+    pub fn take_assist_work(&mut self, work_bytes: usize, bytes_per_step: usize) -> usize {
+        let work_bytes = self.assist_debt_bytes.min(work_bytes as u64);
+        self.assist_debt_bytes -= work_bytes;
+        let bytes_per_step = bytes_per_step.max(1) as u64;
+
+        work_bytes.div_ceil(bytes_per_step) as usize
+    }
+
+    /// Clear pending collector assist debt.
+    pub fn clear_assist_debt(&mut self) {
+        self.assist_debt_bytes = 0;
     }
 
     /// Return whether the current heap size should start one cycle.
