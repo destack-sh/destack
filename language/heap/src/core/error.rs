@@ -94,6 +94,13 @@ pub enum HeapError {
         /// The invalid size class in bytes.
         class_bytes: usize,
     },
+    /// The configured small span is too small for the largest size class.
+    SmallSpanTooSmall {
+        /// The configured span width in bytes.
+        span_bytes: usize,
+        /// The largest configured size class in bytes.
+        class_bytes: usize,
+    },
     /// The allocator arena count cannot grow far enough for one allocation.
     AllocatorArenaLimitExceeded {
         /// The required arena count.
@@ -110,11 +117,6 @@ pub enum HeapError {
     AllocatorAddressUnsupported {
         /// The mapped arena address.
         address: usize,
-    },
-    /// One allocator arena-map index was outside the supported arena map.
-    AllocatorArenaMapIndexUnsupported {
-        /// The sparse arena-map index.
-        index: usize,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -290,12 +292,10 @@ pub enum HeapError {
         /// The missing slot index.
         slot_index: usize,
     },
-    /// One live young allocation disappeared before initialization or access.
-    MissingYoungAllocation {
-        /// The missing young-space generation.
-        generation: u32,
-        /// The missing young-allocation index.
-        allocation_index: u32,
+    /// One live young range disappeared before initialization or access.
+    MissingYoungRange {
+        /// The missing young range base offset.
+        first_offset: usize,
     },
     /// One live large allocation disappeared before access.
     MissingLargeAllocation {
@@ -306,18 +306,6 @@ pub enum HeapError {
     InvalidLargeAllocationId {
         /// The invalid large-allocation id.
         id: u64,
-    },
-    /// One run refcount entry was missing for one live run.
-    MissingRunRefcount {
-        /// The first page of the live run.
-        first_page: PageId,
-    },
-    /// One run refcount cannot service one retain or release.
-    InvalidRunRefcount {
-        /// The first page of the live run.
-        first_page: PageId,
-        /// The invalid refcount value.
-        refcount: u32,
     },
     /// One page identifier exceeded the encoded allocator page range.
     InvalidPageId {
@@ -390,6 +378,8 @@ pub enum HeapError {
         /// The actual byte length requested by the caller.
         actual: usize,
     },
+    /// Managed heap allocation with no bytes reached runtime.
+    ZeroSizeAllocation,
 }
 
 impl Display for HeapError {
@@ -509,6 +499,15 @@ impl Display for HeapError {
                     "size class is not present in the configured heap table: {class_bytes}"
                 )
             }
+            Self::SmallSpanTooSmall {
+                span_bytes,
+                class_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "small span is smaller than the largest size class: {span_bytes} < {class_bytes}"
+                )
+            }
             Self::AllocatorArenaLimitExceeded {
                 required_arenas,
                 max_arenas,
@@ -528,12 +527,6 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "allocator arena address is outside the supported arena map: {address:#x}"
-                )
-            }
-            Self::AllocatorArenaMapIndexUnsupported { index } => {
-                write!(
-                    formatter,
-                    "allocator arena-map index is outside the supported arena map: {index}"
                 )
             }
             Self::LimitExceeded {
@@ -721,13 +714,10 @@ impl Display for HeapError {
                     "heap lost live span slot at span {span_index}, slot {slot_index}"
                 )
             }
-            Self::MissingYoungAllocation {
-                generation,
-                allocation_index,
-            } => {
+            Self::MissingYoungRange { first_offset } => {
                 write!(
                     formatter,
-                    "heap lost live young allocation in generation {generation} at index {allocation_index}"
+                    "heap lost live young range at byte offset {first_offset}"
                 )
             }
             Self::MissingLargeAllocation { allocation_id } => {
@@ -738,21 +728,6 @@ impl Display for HeapError {
             }
             Self::InvalidLargeAllocationId { id } => {
                 write!(formatter, "invalid large-allocation id: {id}")
-            }
-            Self::MissingRunRefcount { first_page } => {
-                write!(
-                    formatter,
-                    "heap lost run refcount for live run starting at {first_page:?}"
-                )
-            }
-            Self::InvalidRunRefcount {
-                first_page,
-                refcount,
-            } => {
-                write!(
-                    formatter,
-                    "invalid run refcount for run starting at {first_page:?}: {refcount}"
-                )
             }
             Self::InvalidPageId { index } => {
                 write!(
@@ -824,6 +799,12 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "allocation bytes do not match requested length: expected {expected}, got {actual}"
+                )
+            }
+            Self::ZeroSizeAllocation => {
+                write!(
+                    formatter,
+                    "zero-size managed heap allocation reached runtime"
                 )
             }
         }

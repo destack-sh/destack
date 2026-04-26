@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::{HeapReference, SharedHeapReference};
 
 /// One reference type that may appear in one trace queue.
-pub(crate) trait TraceReference: Copy + Ord {
+pub(crate) trait TraceReference: Copy {
     /// Report whether this reference is null.
     fn is_null(self) -> bool;
 }
@@ -40,13 +40,6 @@ impl<R: TraceReference> TraceQueue<R> {
     pub(crate) fn push(&mut self, reference: R) {
         if !reference.is_null() {
             self.pending.push_back(reference);
-        }
-    }
-
-    /// Extend the pending queue with more references.
-    pub(crate) fn extend(&mut self, references: impl IntoIterator<Item = R>) {
-        for reference in references {
-            self.push(reference);
         }
     }
 

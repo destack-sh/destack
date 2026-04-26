@@ -2,9 +2,10 @@ mod cow;
 mod edge;
 mod error;
 mod gc;
+mod layout;
 mod mark;
 mod payload;
-mod shape;
+mod root;
 mod usage;
 
 pub(crate) use cow::*;
@@ -18,10 +19,11 @@ pub(crate) use edge::{
 };
 pub use error::*;
 pub use gc::*;
+pub(crate) use layout::*;
+pub use layout::{AllocationLayout, repeated_layout};
 pub(crate) use mark::*;
 pub use payload::Payload;
-pub(crate) use shape::*;
-pub use shape::{AllocationLayout, repeated_layout};
+pub use root::*;
 pub use usage::*;
 
 #[cfg(test)]

@@ -6,10 +6,8 @@ use crate::{HeapError, HeapResult};
 const DEFAULT_GROWTH_PERCENT: u32 = 100;
 /// The standard heap trigger as a percentage of the current goal.
 const DEFAULT_TRIGGER_PERCENT: u32 = 75;
-/// The default local-heap pacing floor for small worker heaps.
-const DEFAULT_LOCAL_MINIMUM_HEAP_BYTES: u64 = 128 * 1024;
-/// The default shared-heap pacing floor for heavier shared state.
-const DEFAULT_SHARED_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
+/// The default heap pacing floor.
+const DEFAULT_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Collector configuration for one heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,13 +23,13 @@ pub struct GcOptions {
 }
 
 impl GcOptions {
-    /// Build the default collector configuration for one local heap.
+    /// Build the default collector configuration for one heap.
     pub fn local() -> Self {
         Self {
             growth_percent: DEFAULT_GROWTH_PERCENT,
             trigger_percent: DEFAULT_TRIGGER_PERCENT,
             soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_LOCAL_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
         }
     }
 
@@ -41,7 +39,7 @@ impl GcOptions {
             growth_percent: DEFAULT_GROWTH_PERCENT,
             trigger_percent: DEFAULT_TRIGGER_PERCENT,
             soft_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_SHARED_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
         }
     }
 
@@ -119,6 +117,33 @@ pub struct GcStats {
     pub allocated_bytes: u64,
     /// Total active allocator bytes after the collection.
     pub active_bytes: u64,
+}
+
+/// Result of one bounded collector increment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GcProgress {
+    /// No collector work was available.
+    #[default]
+    Idle,
+    /// Collector work ran but the cycle is not complete.
+    Active,
+    /// One collection cycle completed.
+    Complete(GcStats),
+}
+
+impl GcProgress {
+    /// Return whether this increment did collector work.
+    pub const fn made_progress(self) -> bool {
+        !matches!(self, Self::Idle)
+    }
+
+    /// Return the completed cycle stats when this increment finished a cycle.
+    pub const fn completed_stats(self) -> Option<GcStats> {
+        match self {
+            Self::Complete(stats) => Some(stats),
+            Self::Idle | Self::Active => None,
+        }
+    }
 }
 
 /// GC summary tracked across collection cycles.
