@@ -1,39 +1,8 @@
 use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
-use destack_mir as mir;
 
-/// One durable address into one captured frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FrameAddress {
-    /// One address into one captured frame allocation.
-    Allocation {
-        /// The captured allocation index.
-        allocation: u32,
-        /// The byte offset within the captured allocation.
-        byte_offset: u32,
-    },
-    /// One address into one captured local slot.
-    Local {
-        /// The local slot index.
-        local: u32,
-        /// The byte offset within the local slot.
-        byte_offset: u32,
-    },
-}
-
-/// One durable address into one static value.
+/// One engine boundary value.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct StaticAddress {
-    /// The referenced MIR global.
-    pub global: mir::LocalNodeId<mir::Global>,
-    /// The byte offset within the static value.
-    pub byte_offset: u32,
-}
-
-/// One durable logical slot value.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum MaterializedValue {
-    /// One slot that is not materialized at this boundary.
-    Undefined,
+pub enum Value {
     /// The void value.
     Void,
     /// One boolean value.
@@ -72,10 +41,4 @@ pub enum MaterializedValue {
     RawPointer(RawPointer),
     /// One shared raw-space pointer.
     SharedRawPointer(SharedRawPointer),
-    /// One durable address into one captured frame allocation.
-    FrameAddress(FrameAddress),
-    /// One durable address into one static value.
-    StaticAddress(StaticAddress),
-    /// One MIR function reference.
-    Function(mir::LocalNodeId<mir::Function>),
 }
