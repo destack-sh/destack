@@ -10,16 +10,16 @@ use super::constants::{
     DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES,
 };
 
-/// Constructor policy for resolving local heap options.
+/// Constructor policy for resolving heap options.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LocalHeapPolicy {
+pub struct HeapPolicy {
     /// The collector configuration.
     pub gc: GcOptions,
     /// The small-allocation policy.
     pub small: SizeClassPolicy,
     /// The byte size for heap young space.
     pub heap_young_bytes: usize,
-    /// The maximum payload size admitted into heap young space.
+    /// The maximum payload size routed to heap young space.
     pub max_heap_young_allocation_bytes: usize,
     /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
@@ -31,7 +31,7 @@ pub struct LocalHeapPolicy {
     pub allocator_arena_bytes: usize,
 }
 
-impl Default for LocalHeapPolicy {
+impl Default for HeapPolicy {
     fn default() -> Self {
         Self {
             gc: GcOptions::local(),
@@ -46,7 +46,7 @@ impl Default for LocalHeapPolicy {
     }
 }
 
-impl LocalHeapPolicy {
+impl HeapPolicy {
     /// Resolve this constructor policy into heap options.
     pub fn resolve(&self) -> Result<HeapOptions, HeapError> {
         let options = HeapOptions {
@@ -124,7 +124,7 @@ pub struct HeapOptions {
     pub size_classes: SizeClassTable,
     /// The byte size for heap young space.
     pub heap_young_bytes: usize,
-    /// The maximum payload size admitted into heap young space.
+    /// The maximum payload size routed to heap young space.
     pub max_heap_young_allocation_bytes: usize,
     /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
@@ -139,7 +139,7 @@ pub struct HeapOptions {
 }
 
 impl HeapOptions {
-    /// Build the default option set for one local heap.
+    /// Build the default option set for one heap.
     pub fn local() -> Self {
         Self {
             gc: GcOptions::local(),
@@ -167,6 +167,20 @@ impl HeapOptions {
             allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
+    }
+
+    /// Return the number of allocator pages in one small span.
+    pub(crate) fn small_span_pages(&self) -> usize {
+        self.heap_small_bytes.div_ceil(self.page_bytes).max(1)
+    }
+
+    /// Return the minimum number of payload slots in one small span.
+    pub(crate) fn minimum_small_span_slots(&self) -> usize {
+        self.size_classes
+            .min_small_allocation_bytes()
+            .map(|min_bytes| self.heap_small_bytes / min_bytes)
+            .unwrap_or(1)
+            .max(1)
     }
 
     /// Validate one configured heap page size.
@@ -235,10 +249,29 @@ impl HeapOptions {
             }
         }
 
+        // keep each small span large enough for every configured class
+        let max_small_bytes = self
+            .size_classes
+            .max_small_allocation_bytes()
+            .ok_or(HeapError::EmptySizeClassTable)?;
+        if self.heap_small_bytes < max_small_bytes {
+            return Err(HeapError::SmallSpanTooSmall {
+                span_bytes: self.heap_small_bytes,
+                class_bytes: max_small_bytes,
+            });
+        }
+
+        if self.raw_small_bytes < max_small_bytes {
+            return Err(HeapError::SmallSpanTooSmall {
+                span_bytes: self.raw_small_bytes,
+                class_bytes: max_small_bytes,
+            });
+        }
+
         Ok(())
     }
 
-    /// Validate these options for one local heap.
+    /// Validate these options for one heap.
     pub fn validate_local(&self) -> Result<(), HeapError> {
         self.validate_common()?;
 
