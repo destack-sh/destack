@@ -25,15 +25,18 @@ fn token_type_is_trivia(token_type: TokenType) -> bool {
     token_type_is_whitespace(token_type) || token_type_is_comment(token_type)
 }
 
-/// Return the next non-whitespace token index at or after one start index.
-fn next_non_whitespace_token_index(tokens: &[TokenSpan], mut token_index: usize) -> Option<usize> {
-    while let Some(token) = tokens.get(token_index).copied() {
+/// Return the next non-whitespace token and slice cursor at or after one cursor.
+fn next_non_whitespace_token(
+    tokens: &[TokenSpan],
+    mut cursor: usize,
+) -> Option<(usize, TokenSpan)> {
+    while let Some(token) = tokens.get(cursor).copied() {
         if token_type_is_whitespace(token.token.ty) {
-            token_index += 1;
+            cursor += 1;
             continue;
         }
 
-        return Some(token_index);
+        return Some((cursor, token));
     }
 
     None
@@ -68,10 +71,7 @@ fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
 /// Extend one span to include a standalone trailing semicolon.
 fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Span) -> Span {
     let token_index = tokens.partition_point(|token| token.span.start < span.end);
-    let Some(candidate_index) = next_non_whitespace_token_index(tokens, token_index) else {
-        return span;
-    };
-    let Some(candidate) = tokens.get(candidate_index).copied() else {
+    let Some((candidate_cursor, candidate)) = next_non_whitespace_token(tokens, token_index) else {
         return span;
     };
 
@@ -79,9 +79,9 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
         return span;
     }
 
-    let mut lookahead_index = candidate_index + 1;
+    let mut lookahead_cursor = candidate_cursor + 1;
 
-    while let Some(token) = tokens.get(lookahead_index).copied() {
+    while let Some(token) = tokens.get(lookahead_cursor).copied() {
         match token.token.ty {
             TokenType::Whitespace => {}
             TokenType::Newline | TokenType::End => {
@@ -92,7 +92,7 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
             }
         }
 
-        lookahead_index += 1;
+        lookahead_cursor += 1;
     }
 
     Span::new(span.file, span.start, candidate.span.end)
@@ -476,7 +476,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     fn comment_tokens_after(&self, pos: u32) -> &[TokenSpan] {
         let comment_tokens = self.comment_tokens();
-        let start_index = comment_tokens.partition_point(|token| token.span.end < pos);
+        let start_index = comment_tokens.partition_point(|token| token.span.end <= pos);
 
         &comment_tokens[start_index..]
     }

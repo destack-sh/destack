@@ -925,29 +925,3 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     // multiline wrappers stay visible
     context.has_newline(outer_span)
 }
-
-/// Return whether one expression appears inside a template interpolation.
-pub(crate) fn expression_is_in_template_literal_interpolation(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = node_id.id;
-
-    loop {
-        let Some(parent_id) = context.parents.get_by_id(current_id) else {
-            return false;
-        };
-
-        let is_template_parent = context.tree.get_node_type(parent_id) == NodeType::Expression
-            && matches!(
-                context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                Expression::TemplateExpression { .. }
-            );
-
-        if is_template_parent {
-            return true;
-        }
-
-        current_id = parent_id;
-    }
-}

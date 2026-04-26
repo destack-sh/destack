@@ -1,6 +1,5 @@
 use super::conditional::ConditionalLayout;
 use super::dispatch::write_expression_without_trailing_comments;
-use super::parentheses::expression_is_in_template_literal_interpolation;
 use crate::annotation::FormatTrailingComments;
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -272,31 +271,6 @@ fn format_jsx_chain_branch<'ast>(
     )
 }
 
-/// Format one standard ternary expression.
-fn write_inline_template_ternary<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    condition: LocalNodeId<Expression>,
-    then_expression: LocalNodeId<Expression>,
-    else_expression: Option<LocalNodeId<Expression>>,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [group(&format_args![
-            condition,
-            space(),
-            token("?"),
-            space(),
-            then_expression,
-            space(),
-            token(":"),
-            space(),
-            else_expression
-        ])]
-    )?;
-
-    Ok(())
-}
-
 /// Return whether a ternary branch needs inline disambiguating parentheses.
 fn ternary_branch_needs_inline_parentheses(
     context: &DestackFormatContext<'_>,
@@ -421,7 +395,6 @@ fn write_standard_ternary_tail<'ast>(
 fn format_standard_ternary<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    keep_inline_template_ternary: bool,
     force_expand: bool,
 ) -> FormatResult<()> {
     let Some((condition, then_expression, else_expression)) =
@@ -429,10 +402,6 @@ fn format_standard_ternary<'ast>(
     else {
         return Ok(());
     };
-
-    if keep_inline_template_ternary {
-        return write_inline_template_ternary(f, condition, then_expression, else_expression);
-    }
 
     let layout = ternary_layout(f.context(), node_id);
     let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -482,7 +451,7 @@ pub(crate) fn format_expanded_ternary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    format_standard_ternary(f, node_id, false, true)
+    format_standard_ternary(f, node_id, true)
 }
 
 /// Format one jsx ternary chain expression.
@@ -527,37 +496,16 @@ fn format_jsx_chain_ternary<'ast>(
     Ok(())
 }
 
-/// Return whether a template interpolation has source line breaks around the ternary body.
-fn template_interpolation_has_surrounding_newline(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    if !expression_is_in_template_literal_interpolation(context, node_id) {
-        return false;
-    }
-
-    if context.is_at_line_start(node_id.id) {
-        return true;
-    }
-
-    context.span_has_newline_before_next_non_whitespace_token(context.span(node_id))
-}
-
 /// Format a ternary expression with the standard breaking layout.
 /// Nested ternaries get progressive indentation when they break.
 pub(crate) fn format_ternary(
     f: &mut DestackFormatter<'_, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let keep_inline_template_ternary = ternary_parts(f.context().tree, node_id).is_some()
-        && expression_is_in_template_literal_interpolation(f.context(), node_id)
-        && !f.context().node_has_newline(node_id)
-        && !template_interpolation_has_surrounding_newline(f.context(), node_id);
-
-    if ternary_chain_has_tree_branch(f.context(), node_id) && !keep_inline_template_ternary {
+    if ternary_chain_has_tree_branch(f.context(), node_id) {
         format_jsx_chain_ternary(f, node_id)?;
     } else {
-        format_standard_ternary(f, node_id, keep_inline_template_ternary, false)?;
+        format_standard_ternary(f, node_id, false)?;
     }
 
     Ok(())

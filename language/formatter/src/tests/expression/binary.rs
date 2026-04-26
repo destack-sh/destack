@@ -1,11 +1,13 @@
 use crate::{assert_format_program, assert_format_program_reference_widths};
+use destack_source::FileType;
+
 /// Logical chains should indent continuation operands under the head.
 #[test]
 fn test_format_logical_chain_indents_tail_operands() {
     assert_format_program_reference_widths(
         r#"a && b && c && d
 "#,
-        destack_source::FileType::Destack,
+        FileType::Destack,
         &[(
             12,
             r#"a &&
@@ -25,7 +27,7 @@ fn test_format_binary_expression_drops_redundant_grouping_parentheses() {
 "#,
         r#"a + b * c && d - e / f;
 "#,
-        destack_source::FileType::Destack,
+        FileType::Destack,
     );
 }
 
@@ -37,7 +39,7 @@ fn test_format_binary_expression_keeps_mixed_bitwise_precedence_explicit() {
 "#,
         r#"(flags & mask) | other;
 "#,
-        destack_source::FileType::Destack,
+        FileType::Destack,
     );
 }
 
@@ -56,7 +58,7 @@ fn test_format_logical_expression_in_object_property_breaks_after_colon() {
         thirdVeryLongThingThatKeepsGoingAndGoingAndGoing,
 };
 "#,
-        destack_source::FileType::TypeScript,
+        FileType::TypeScript,
     );
 }
 
@@ -75,7 +77,7 @@ fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals
         thirdVeryLongThingThatKeepsGoingAndGoingAndGoing;
 }
 "#,
-        destack_source::FileType::TypeScript,
+        FileType::TypeScript,
     );
 }
 
@@ -92,6 +94,6 @@ fn test_format_logical_expression_in_ternary_test_indents_tail_operands() {
         ? void 0
         : fallbackValue;
 "#,
-        destack_source::FileType::TypeScript,
+        FileType::TypeScript,
     );
 }
