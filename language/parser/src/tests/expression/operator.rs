@@ -209,6 +209,111 @@ fn test_parse_precedence_elementwise_vs_addition() {
     );
 }
 
+/// Elementwise and binds tighter than elementwise or.
+#[test]
+fn test_parse_precedence_elementwise_and_before_or() {
+    let mut test = TestParser::new("a & b | c");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // a & b | c
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+            // a & b
+            assert_node!(
+                parser.tree,
+                *left,
+                Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+
+                    // a
+                    assert_expression_path!(parser, parser.tree.get(*left), "a");
+
+                    // b
+                    assert_expression_path!(parser, parser.tree.get(*right), "b");
+                }
+            );
+
+            // c
+            assert_expression_path!(parser, parser.tree.get(*right), "c");
+        }
+    );
+}
+
+/// Elementwise and binds tighter on the right side of elementwise or.
+#[test]
+fn test_parse_precedence_elementwise_and_before_or_right_side() {
+    let mut test = TestParser::new("a | b & c");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // a | b & c
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+            // a
+            assert_expression_path!(parser, parser.tree.get(*left), "a");
+
+            // b & c
+            assert_node!(
+                parser.tree,
+                *right,
+                Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+
+                    // b
+                    assert_expression_path!(parser, parser.tree.get(*left), "b");
+
+                    // c
+                    assert_expression_path!(parser, parser.tree.get(*right), "c");
+                }
+            );
+        }
+    );
+}
+
+/// Comparison binds tighter than equality.
+#[test]
+fn test_parse_precedence_comparison_before_equality() {
+    let mut test = TestParser::new("a < b == c");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // a < b == c
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::Equal);
+
+            // a < b
+            assert_node!(
+                parser.tree,
+                *left,
+                Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::LessThan);
+
+                    // a
+                    assert_expression_path!(parser, parser.tree.get(*left), "a");
+
+                    // b
+                    assert_expression_path!(parser, parser.tree.get(*right), "b");
+                }
+            );
+
+            // c
+            assert_expression_path!(parser, parser.tree.get(*right), "c");
+        }
+    );
+}
+
 /// Comparison has higher precedence than logical and.
 #[test]
 fn test_parse_precedence_comparison_vs_logical() {

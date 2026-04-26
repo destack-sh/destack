@@ -101,29 +101,29 @@ fn test_parse_precedence_cast_after_multiply() {
     });
 }
 
-/// Type casts bind tighter than comparisons.
+/// Type casts bind to the full comparison expression on the left.
 #[test]
-fn test_parse_precedence_cast_before_comparison() {
+fn test_parse_precedence_cast_after_comparison() {
     let mut test = TestParser::new("a >= b as number");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // a >= b as number
-    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
-        assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+    assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
+        // a >= b
+        assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
 
-        // a
-        assert_expression_path!(parser, parser.tree.get(*left), "a");
+            // a
+            assert_expression_path!(parser, parser.tree.get(*left), "a");
 
-        // b as number
-        assert_node!(parser.tree, *right, Expression::As { expression, target_type } => {
             // b
-            assert_expression_path!(parser, parser.tree.get(*expression), "b");
+            assert_expression_path!(parser, parser.tree.get(*right), "b");
+        });
 
-            // number
-            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Number);
-            });
+        // number
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::Number);
         });
     });
 }

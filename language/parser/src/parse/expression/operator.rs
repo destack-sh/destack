@@ -16,6 +16,7 @@ use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 const AS_ASSERTION_PRECEDENCE: u16 = 1355;
 const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
 const TYPE_UNARY_PRECEDENCE: u16 = 1800;
+const IS_PREDICATE_PRECEDENCE: u16 = 1225;
 
 /// One parser-local type unary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -109,7 +110,7 @@ impl ParseInfixOperator {
     pub(super) fn precedence(self) -> u16 {
         match self {
             ParseInfixOperator::Binary(binary_operator) => binary_operator.precedence(),
-            ParseInfixOperator::Is => OperatorPrecedence::Comparison as u16,
+            ParseInfixOperator::Is => IS_PREDICATE_PRECEDENCE,
             ParseInfixOperator::InstanceOf => OperatorPrecedence::Comparison as u16,
             ParseInfixOperator::As => AS_ASSERTION_PRECEDENCE,
             ParseInfixOperator::Satisfies => SATISFIES_ASSERTION_PRECEDENCE,
