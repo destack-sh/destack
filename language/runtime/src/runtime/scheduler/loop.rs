@@ -1,18 +1,17 @@
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 
-use destack_engine as engine;
-use destack_engine::Continuation;
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use {destack_engine as engine, destack_heap as heap};
 
 use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerHandle, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::engine::Engine;
+use crate::runtime::engine::{ContinuationImage, Engine};
 use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
@@ -21,9 +20,9 @@ use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventLoopWatch {
     /// Runnable continuation image to restore when dispatched.
-    pub runnable: Continuation,
+    pub runnable: ContinuationImage,
     /// Resume value passed into the continuation.
-    pub resume_value: engine::MaterializedValue,
+    pub resume_value: engine::Value,
     /// Task priority used when queueing watched tasks.
     pub priority: u8,
 }
@@ -207,33 +206,69 @@ impl EventLoop {
     /// Visit GC roots retained by queued and watched event-loop state.
     pub(crate) fn visit_roots(
         &mut self,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
         roots: &mut RootVisitor<'_>,
     ) -> RuntimeResult<()> {
         // queued tasks
         for task in &self.tasks {
-            engine.visit_live_continuation_roots(&task.runnable, roots)?;
-            visit_materialized_value_roots(&task.resume_value, engine, roots)?;
+            engine.visit_continuation_roots(&task.runnable, roots)?;
+            visit_value_roots(&task.resume_value, roots)?;
         }
 
         // queued microtasks
         for microtask in &self.microtasks {
-            engine.visit_live_continuation_roots(&microtask.continuation, roots)?;
-            visit_materialized_value_roots(&microtask.resume_value, engine, roots)?;
+            engine.visit_continuation_roots(&microtask.continuation, roots)?;
+            visit_value_roots(&microtask.resume_value, roots)?;
         }
 
         // watched continuations
         for watch in self.timer_watches.values() {
             engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
+            visit_value_roots(&watch.resume_value, roots)?;
         }
         for watch in self.poller_event_watches.values() {
             engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
+            visit_value_roots(&watch.resume_value, roots)?;
         }
         for watch in self.host_event_watches.values() {
             engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_materialized_value_roots(&watch.resume_value, engine, roots)?;
+            visit_value_roots(&watch.resume_value, roots)?;
+        }
+
+        Ok(())
+    }
+
+    /// Visit mutable local root slots retained by queued scheduler state.
+    pub(crate) fn visit_root_slots(
+        &mut self,
+        engine: &mut Engine,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        // queued work
+        for task in &mut self.tasks {
+            engine.visit_continuation_root_slots(&mut task.runnable, visit)?;
+            visit_value_root_slot(&mut task.resume_value, visit)?;
+        }
+
+        for microtask in &mut self.microtasks {
+            engine.visit_continuation_root_slots(&mut microtask.continuation, visit)?;
+            visit_value_root_slot(&mut microtask.resume_value, visit)?;
+        }
+
+        // watched work
+        for watch in self.timer_watches.values_mut() {
+            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
+            visit_value_root_slot(&mut watch.resume_value, visit)?;
+        }
+
+        for watch in self.poller_event_watches.values_mut() {
+            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
+            visit_value_root_slot(&mut watch.resume_value, visit)?;
+        }
+
+        for watch in self.host_event_watches.values_mut() {
+            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
+            visit_value_root_slot(&mut watch.resume_value, visit)?;
         }
 
         Ok(())
@@ -250,15 +285,11 @@ impl EventLoop {
             .boxed());
         }
 
-        // reject unsupported pool options until worker pools land
-        if options.worker_threads.is_some()
-            || options.io_threads.is_some()
-            || options.blocking_threads.is_some()
-            || options.max_tasks.is_some()
-        {
+        // reject unsupported admission limits until task admission lands
+        if options.task_limit.is_some() {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options.scheduler",
-                "worker and pool options are not implemented yet",
+                "options.scheduler.task_limit",
+                "task limit is not implemented yet",
             ))
             .boxed());
         }
@@ -291,40 +322,40 @@ impl EventLoop {
     }
 }
 
-/// Visit heap roots embedded in one materialized resume payload.
-fn visit_materialized_value_roots(
-    value: &engine::MaterializedValue,
-    engine: &mut dyn Engine,
-    roots: &mut RootVisitor<'_>,
-) -> RuntimeResult<()> {
+/// Visit heap roots embedded in one resume value.
+fn visit_value_roots(value: &engine::Value, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
     // direct heap roots
     match value {
-        engine::MaterializedValue::HeapReference(reference) => {
+        engine::Value::HeapReference(reference) => {
             roots.push_heap(*reference);
         }
-        engine::MaterializedValue::SharedHeapReference(reference) => {
+        engine::Value::SharedHeapReference(reference) => {
             roots.push_shared(*reference);
         }
 
-        // delegate engine specific addresses
-        engine::MaterializedValue::FrameAddress(_)
-        | engine::MaterializedValue::StaticAddress(_) => {
-            engine.visit_materialized_value_roots(value, roots)?;
-        }
-
         // non root payloads
-        engine::MaterializedValue::Undefined
-        | engine::MaterializedValue::Void
-        | engine::MaterializedValue::Bool(_)
-        | engine::MaterializedValue::Int { .. }
-        | engine::MaterializedValue::UInt { .. }
-        | engine::MaterializedValue::Float32 { .. }
-        | engine::MaterializedValue::Float64 { .. }
-        | engine::MaterializedValue::Char(_)
-        | engine::MaterializedValue::RawPointer(_)
-        | engine::MaterializedValue::SharedRawPointer(_)
-        | engine::MaterializedValue::Function(_) => {}
+        engine::Value::Void
+        | engine::Value::Bool(_)
+        | engine::Value::Int { .. }
+        | engine::Value::UInt { .. }
+        | engine::Value::Float32 { .. }
+        | engine::Value::Float64 { .. }
+        | engine::Value::Char(_)
+        | engine::Value::RawPointer(_)
+        | engine::Value::SharedRawPointer(_) => {}
     }
 
     Ok(())
+}
+
+/// Visit the mutable local root slot in one value.
+fn visit_value_root_slot(
+    value: &mut engine::Value,
+    visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+) -> RuntimeResult<()> {
+    let engine::Value::HeapReference(reference) = value else {
+        return Ok(());
+    };
+
+    visit(heap::RootSlot::Reference(reference)).map_err(Box::<RuntimeError>::from)
 }

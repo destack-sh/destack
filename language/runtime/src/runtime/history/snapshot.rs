@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_core::{CaptureMode, fnv1a_128};
-use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -16,7 +15,7 @@ use crate::runtime::world::{World, WorldResource, WorldResourceId};
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::simulation::Simulation;
 use destack_workspace::{
-    ExecutionMode, ExecutorMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode,
+    ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, SchedulerMode, TimeMode,
 };
 use postcard::to_allocvec;
 
@@ -27,8 +26,8 @@ use super::{CheckpointId, Lineage, LineageSnapshot, Revision, RevisionState};
 pub struct SnapshotConfig {
     /// Execution mode for the rebuilt world.
     pub execution: ExecutionMode,
-    /// Executor mode for the rebuilt world.
-    pub executor_mode: ExecutorMode,
+    /// Scheduler mode for the rebuilt world.
+    pub scheduler_mode: SchedulerMode,
     /// Effective world time mode.
     pub time_mode: TimeMode,
     /// Effective world random mode.
@@ -90,8 +89,6 @@ pub struct WorldImage {
     pub(crate) clock: ClockImage,
     /// Captured world random state.
     pub(crate) random: RandomImage,
-    /// Captured world shared-heap state.
-    pub(crate) shared: heap::SharedHeapImage,
     /// Captured runtime metadata keyed by runtime id.
     pub(crate) runtimes: BTreeMap<RuntimeId, Arc<RuntimeImage>>,
     /// Captured worker metadata keyed by worker id.
@@ -365,7 +362,7 @@ impl World {
 
         SnapshotConfig {
             execution: self.trace.mode(),
-            executor_mode: self.collector.mode().to_executor_mode(),
+            scheduler_mode: self.lineage.read().collector().mode().to_scheduler_mode(),
             time_mode: self.time_mode,
             random_mode: self.random_mode,
             replay_payload,
@@ -378,7 +375,7 @@ impl World {
         let mut options = RuntimeOptions::default();
 
         options.set_execution_mode(snapshot.config.execution);
-        options.execution.mode = snapshot.config.executor_mode;
+        options.scheduler.mode = snapshot.config.scheduler_mode;
         options.trace.chunk_size_mb = snapshot.config.replay_chunk_size_mb;
         options.trace.payload = snapshot.config.replay_payload;
 
@@ -636,8 +633,8 @@ impl World {
             .boxed());
         }
 
-        *self.lineage.write() =
-            Lineage::from_snapshot(snapshot.lineage.clone(), self.collector.clone())?;
+        let collector = self.lineage.read().collector();
+        *self.lineage.write() = Lineage::from_snapshot(snapshot.lineage.clone(), collector)?;
         let (image, trace_image) = {
             let (_, image, trace_image) = self.revision_data(snapshot.revision)?;
 
@@ -671,7 +668,6 @@ impl World {
                 simulation: self.simulation.clone(),
                 clock: self.clock.snapshot(),
                 random: self.random.snapshot(),
-                shared: self.shared.image(),
                 runtimes: runtime_images,
                 workers: worker_images,
             })
@@ -697,17 +693,6 @@ impl World {
             self.topology = image.topology.clone();
             self.resources = image.resources.clone();
             self.simulation = image.simulation.clone();
-
-            self.shared = Arc::new(
-                heap::SharedHeap::from_image_with_allocator_limits_and_options(
-                    self.shared_allocator(),
-                    &image.shared,
-                    self.shared.limits(),
-                    self.shared.options().clone(),
-                )
-                .map_err(Box::<RuntimeError>::from)?,
-            );
-            self.rebuild_shared_collection();
 
             self.clock.restore_snapshot(&image.clock);
             self.random.restore_snapshot(&image.random)?;
@@ -743,6 +728,7 @@ impl World {
                     .collect::<RuntimeResult<BTreeMap<_, _>>>()?;
                 let runtime = Runtime::from_image(
                     &self.world_ref(),
+                    self.lineage.read().collector(),
                     *runtime_id,
                     runtime_name,
                     runtime_image.as_ref(),

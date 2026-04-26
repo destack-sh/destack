@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use destack_core::CaptureMode;
-use {destack_heap as heap, destack_vm as vm};
+use destack_engine as engine;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry, RunOutput};
+use crate::runtime::engine::{Engine, Entry, Output};
 use crate::runtime::trace::{Outcome, SpawnedWorkerImage};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
@@ -18,11 +18,22 @@ impl World {
         &mut self,
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<RuntimeId> {
         let mode = self.trace.mode();
         let world = self.world_ref();
-        let mut runtime = Runtime::from_options_in_world(platform_args, options, &world, engine)?;
+        let lineage = self.lineage.read();
+        let allocator = lineage.allocator();
+        let collector = lineage.collector();
+        drop(lineage);
+        let mut runtime = Runtime::from_options_in_world(
+            platform_args,
+            options,
+            &world,
+            allocator,
+            collector,
+            engine,
+        )?;
         let runtime_id = runtime.runtime_id();
 
         // fast and deterministic modes do not need one structural spawn image
@@ -45,7 +56,11 @@ impl World {
         }
 
         // workers spawned during shared marking must join the active root-scan pass
-        if self.shared.gc_phase() == heap::SharedGcPhase::Mark {
+        if self
+            .runtimes
+            .get(&runtime_id)
+            .is_some_and(|runtime| runtime.shared_gc_marking())
+        {
             let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
                 RuntimeError::RuntimeNotFound {
                     runtime_id: runtime_id.0,
@@ -55,8 +70,8 @@ impl World {
             runtime.start_shared_edge_scan();
 
             for worker_id in runtime.worker_ids() {
-                world.queue_shared_root_scan(worker_id);
-                world.join_shared_edge_scan(worker_id);
+                runtime.queue_shared_root_scan(worker_id);
+                runtime.join_shared_edge_scan(worker_id);
             }
         }
 
@@ -125,7 +140,7 @@ impl World {
     pub fn spawn_worker(
         &mut self,
         runtime_id: RuntimeId,
-        engine: impl Engine + 'static,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<WorkerId> {
         self.spawn_worker_with_options(runtime_id, &RuntimeOptions::default(), engine)
     }
@@ -135,7 +150,7 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         options: &RuntimeOptions,
-        engine: impl Engine + 'static,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<WorkerId> {
         let world = self.world_ref();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
@@ -146,7 +161,7 @@ impl World {
         })?;
 
         let mode = self.trace.mode();
-        let is_marking_shared = self.shared.gc_phase() == heap::SharedGcPhase::Mark;
+        let is_marking_shared = runtime.shared_gc_marking();
         let worker_id = runtime.spawn_worker_with_options(&world, options, engine)?;
 
         // workers spawned during shared marking must join the active root-scan pass
@@ -158,8 +173,8 @@ impl World {
                 .boxed()
             })?;
             worker.start_shared_edge_scan();
-            world.queue_shared_root_scan(worker_id);
-            world.join_shared_edge_scan(worker_id);
+            runtime.queue_shared_root_scan(worker_id);
+            runtime.join_shared_edge_scan(worker_id);
         }
 
         // record mode needs one structural spawn record for suffix replay
@@ -202,8 +217,8 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<RunOutput> {
+        args: &[engine::Value],
+    ) -> RuntimeResult<Output> {
         let command = Command::RunEntrypoint {
             runtime_id,
             entry: entry.clone(),
@@ -237,8 +252,7 @@ impl World {
     }
 
     /// Borrow one stored runtime mutably.
-    #[cfg(test)]
-    pub(crate) fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
+    pub fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
         self.runtimes
             .get_mut(&runtime_id)
             .map(Box::as_mut)
@@ -276,8 +290,8 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
-        args: &[vm::Value],
-    ) -> RuntimeResult<RunOutput> {
+        args: &[engine::Value],
+    ) -> RuntimeResult<Output> {
         let world = self.world_ref();
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
@@ -333,6 +347,7 @@ impl World {
             .collect();
         let runtime = Runtime::from_image(
             &world,
+            self.lineage.read().collector(),
             runtime_id,
             runtime_name,
             runtime_image.as_ref(),
@@ -353,7 +368,11 @@ impl World {
         }
 
         // restored workers must join the active root-scan pass too
-        if self.shared.gc_phase() == heap::SharedGcPhase::Mark {
+        if self
+            .runtimes
+            .get(&runtime_id)
+            .is_some_and(|runtime| runtime.shared_gc_marking())
+        {
             let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
                 RuntimeError::RuntimeNotFound {
                     runtime_id: runtime_id.0,
@@ -363,8 +382,8 @@ impl World {
             runtime.start_shared_edge_scan();
 
             for worker_id in runtime.worker_ids() {
-                world.queue_shared_root_scan(worker_id);
-                world.join_shared_edge_scan(worker_id);
+                runtime.queue_shared_root_scan(worker_id);
+                runtime.join_shared_edge_scan(worker_id);
             }
         }
 
@@ -399,16 +418,27 @@ impl World {
             worker_name.clone(),
             worker_labels,
         )?;
-        let worker = Worker::from_image(
-            &world,
-            runtime_id,
-            worker_id,
-            worker_name,
-            platform_args,
-            worker_image.as_ref(),
-            None,
-            rebind_context,
-        )?;
+        let worker = {
+            let runtime = self.runtimes.get(&runtime_id).ok_or_else(|| {
+                RuntimeError::RuntimeNotFound {
+                    runtime_id: runtime_id.0,
+                }
+                .boxed()
+            })?;
+
+            Worker::from_image(
+                &world,
+                &runtime.shared,
+                runtime.runtime_static(),
+                runtime_id,
+                worker_id,
+                worker_name,
+                platform_args,
+                worker_image.as_ref(),
+                None,
+                rebind_context,
+            )?
+        };
 
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
@@ -420,7 +450,7 @@ impl World {
         runtime.insert_restored_worker(worker)?;
 
         // restored workers must join the active root-scan pass too
-        if self.shared.gc_phase() == heap::SharedGcPhase::Mark {
+        if runtime.shared_gc_marking() {
             let worker = runtime.worker_mut(worker_id).ok_or_else(|| {
                 RuntimeError::WorkerNotFound {
                     worker_id: worker_id.0,
@@ -428,8 +458,8 @@ impl World {
                 .boxed()
             })?;
             worker.start_shared_edge_scan();
-            world.queue_shared_root_scan(worker_id);
-            world.join_shared_edge_scan(worker_id);
+            runtime.queue_shared_root_scan(worker_id);
+            runtime.join_shared_edge_scan(worker_id);
         }
 
         Ok(())

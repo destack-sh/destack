@@ -323,14 +323,14 @@ impl Lineage {
         Ok(lineage)
     }
 
-    /// Return the shared allocator for this lineage.
-    pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
-        self.allocator.clone()
-    }
-
     /// Return the shared collector for this lineage.
     pub(crate) fn collector(&self) -> Arc<Collector> {
         self.collector.clone()
+    }
+
+    /// Return the shared allocator for this lineage.
+    pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
+        self.allocator.clone()
     }
 
     /// Collect the allocator pages reachable from one set of retained world images.
@@ -341,7 +341,9 @@ impl Lineage {
         let mut reachable_pages = Vec::new();
 
         for image in images {
-            reachable_pages.extend(image.shared.page_ids());
+            for runtime in image.runtimes.values() {
+                reachable_pages.extend(runtime.shared.page_ids());
+            }
         }
 
         reachable_pages.sort_unstable();

@@ -7,13 +7,12 @@ use parking_lot::RwLock;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::memory::{MarkRootSet, resolve_shared_heap_options};
 use crate::runtime::observe::{Observation, ObservationSequence, Observations};
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
 use crate::runtime::time::{Clock, HostClockSource, Nanos, WorldInstant};
 use crate::runtime::trace::{EnvironmentConfig, Outcome, Trace, TraceHeader, TraceSequence};
-use crate::runtime::{Collection, Collector, CollectorMode, Runtime, WorkerId};
+use crate::runtime::{Collector, CollectorMode, Runtime, WorkerId};
 use crate::simulation::Simulation;
 use destack_workspace::{RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
@@ -197,15 +196,6 @@ pub struct World {
 
     /// Lineage-root metadata for this live world.
     pub(crate) lineage: Arc<RwLock<Lineage>>,
-    /// Shared heap visible across workers in this world.
-    pub(crate) shared: Arc<heap::SharedHeap>,
-    /// Mark roots used by shared heap collection.
-    pub(crate) mark_roots: Arc<MarkRootSet>,
-    /// Lineage-owned shared heap collector.
-    pub(crate) collector: Arc<Collector>,
-    /// Per-world shared heap collection state.
-    pub(crate) collection: Arc<Collection>,
-
     /// Effective world time mode after execution-mode resolution.
     pub(crate) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
@@ -221,30 +211,17 @@ pub struct World {
 }
 
 impl World {
-    /// Return the shared allocator for this world lineage.
-    pub(crate) fn shared_allocator(&self) -> Arc<heap::Allocator> {
-        self.lineage.read().allocator()
-    }
-
-    /// Replace shared collection state after one heap rebuild.
-    pub(crate) fn rebuild_shared_collection(&mut self) {
-        self.mark_roots = Arc::new(MarkRootSet::default());
-        self.collection = Collection::new(self.shared.clone(), self.mark_roots.clone());
-    }
-
-    /// Suspend shared GC while one quiescent world operation runs.
+    /// Suspend runtime shared GC while one quiescent world operation runs.
     pub(crate) fn quiesce_shared_gc(&self) {
-        self.collection.quiesce();
+        for runtime in self.runtimes.values() {
+            runtime.shared.quiesce();
+        }
     }
 
-    /// Resume shared GC after one quiescent world operation.
+    /// Resume runtime shared GC after one quiescent world operation.
     pub(crate) fn resume_shared_gc(&self) {
-        self.collection.resume();
-
-        if self.collector.mode().is_concurrent()
-            && self.shared.gc_phase() != heap::SharedGcPhase::Idle
-        {
-            self.collector.wake(&self.collection);
+        for runtime in self.runtimes.values() {
+            runtime.shared.resume();
         }
     }
 
@@ -300,22 +277,13 @@ impl World {
             Clock::from_options(&time_options)
         };
         let random = Random::new(options.random_options().seed.unwrap_or(0));
-        let policy = Policy::from_workspace_rules(&options.policy.rules);
+        let policy = Policy::from_workspace_rules(&options.effect.rules);
         let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
-        let shared_allocator = Arc::new(
+        let allocator = Arc::new(
             heap::Allocator::try_new(
                 options.heap.layout.page_bytes,
                 options.heap.layout.arena_bytes,
-            )
-            .map_err(Box::<RuntimeError>::from)?,
-        );
-        let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
-        let shared = Arc::new(
-            heap::SharedHeap::with_allocator_limits_and_options(
-                shared_allocator.clone(),
-                shared_heap_options.limits,
-                shared_heap_options.options,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
@@ -330,25 +298,21 @@ impl World {
             simulation: Simulation::default(),
             clock: clock.snapshot(),
             random: random.snapshot(),
-            shared: shared.image(),
             runtimes: BTreeMap::new(),
             workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(trace.capture_image());
-        let collector_mode = CollectorMode::from_executor_mode(options.execution.mode);
+        let collector_mode = CollectorMode::from_scheduler_mode(options.scheduler.mode);
         let collector = Collector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
-            shared_allocator,
-            collector.clone(),
+            allocator,
+            collector,
             root_image.clock.virtual_wall,
             root_image.clock.virtual_mono,
             root_trace_image.next_sequence,
             root_image,
             root_trace_image,
         )));
-        let mark_roots = Arc::new(MarkRootSet::default());
-        let collection = Collection::new(shared.clone(), mark_roots.clone());
-        let collector = lineage.read().collector();
         policy.validate_with_kind_catalog(&topology)?;
 
         let world = Self {
@@ -367,10 +331,6 @@ impl World {
             trace,
             observations: Observations::default(),
             lineage,
-            shared,
-            mark_roots,
-            collector,
-            collection,
         };
 
         Ok(world)
@@ -467,10 +427,6 @@ impl World {
             &self.random,
             &self.trace,
             &self.observations,
-            self.shared.as_ref(),
-            self.mark_roots.as_ref(),
-            &self.collector,
-            &self.collection,
         )
     }
 

@@ -3,11 +3,11 @@ use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
 use destack_heap::{SharedGcPhase, SharedHeap};
-use destack_workspace::ExecutorMode;
+use destack_workspace::SchedulerMode;
 use parking_lot::{Condvar, Mutex};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::memory::MarkRootSet;
+use crate::runtime::memory::SharedMarkRoots;
 
 /// Shared heap collection scheduling mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,11 +19,11 @@ pub enum CollectorMode {
 }
 
 impl CollectorMode {
-    /// Convert workspace execution mode into shared heap collection mode.
-    pub const fn from_executor_mode(mode: ExecutorMode) -> Self {
+    /// Convert workspace scheduler mode into shared heap collection mode.
+    pub const fn from_scheduler_mode(mode: SchedulerMode) -> Self {
         match mode {
-            ExecutorMode::Cooperative => Self::Cooperative,
-            ExecutorMode::Parallel => Self::Concurrent,
+            SchedulerMode::Cooperative => Self::Cooperative,
+            SchedulerMode::Parallel => Self::Concurrent,
         }
     }
 
@@ -32,11 +32,11 @@ impl CollectorMode {
         matches!(self, Self::Concurrent)
     }
 
-    /// Convert this collector mode into workspace execution mode.
-    pub const fn to_executor_mode(self) -> ExecutorMode {
+    /// Convert this collector mode into workspace scheduler mode.
+    pub const fn to_scheduler_mode(self) -> SchedulerMode {
         match self {
-            Self::Cooperative => ExecutorMode::Cooperative,
-            Self::Concurrent => ExecutorMode::Parallel,
+            Self::Cooperative => SchedulerMode::Cooperative,
+            Self::Concurrent => SchedulerMode::Parallel,
         }
     }
 }
@@ -56,7 +56,7 @@ pub struct Collection {
     /// Shared heap driven by this collection.
     heap: Arc<SharedHeap>,
     /// Mark roots consumed by shared mark steps.
-    roots: Arc<MarkRootSet>,
+    roots: Arc<SharedMarkRoots>,
     /// Collection state changed by world and collector threads.
     state: Mutex<CollectionState>,
     /// Wake quiescence waiters when pending collection work drains.
@@ -146,7 +146,7 @@ impl Collector {
 
 impl Collection {
     /// Create one per-world shared collection state.
-    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<MarkRootSet>) -> Arc<Self> {
+    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedMarkRoots>) -> Arc<Self> {
         Arc::new(Self {
             heap,
             roots,
@@ -273,7 +273,7 @@ impl Collection {
         let roots = self.roots.roots_snapshot();
         let roots_complete = self.roots.roots_complete();
         let work_items = self.heap.take_collection_budget(1);
-        let stats = self
+        let progress = self
             .heap
             .gc_step(&roots, roots_complete, work_items)
             .map_err(Box::<RuntimeError>::from)?;
@@ -288,7 +288,7 @@ impl Collection {
         let is_waiting_on_roots =
             self.heap.gc_phase() == SharedGcPhase::Mark && self.heap.mark_idle() && !roots_complete;
 
-        Ok(stats.is_some() || (is_active && !is_waiting_on_roots))
+        Ok(progress.made_progress() || (is_active && !is_waiting_on_roots))
     }
 }
 

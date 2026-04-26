@@ -1,6 +1,5 @@
 use destack_core::{Capture, CaptureMode};
 use destack_engine as engine;
-use destack_engine::Continuation;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -10,7 +9,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::ResourceId;
 use crate::runtime::ExecutionContextId;
-use crate::runtime::engine::{Engine, LiveContinuation};
+use crate::runtime::engine::{Continuation, ContinuationImage, Engine};
 use crate::runtime::poller::{PollerEvent, PollerToken};
 
 /// Scalar event-loop state needed for restore.
@@ -70,9 +69,9 @@ pub struct TaskImage {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation image.
-    pub runnable: Continuation,
+    pub runnable: ContinuationImage,
     /// Resume payload passed back into the executor.
-    pub resume_value: engine::MaterializedValue,
+    pub resume_value: engine::Value,
     /// Current scheduling status.
     pub status: TaskStatus,
     /// Priority value for event-loop ordering.
@@ -85,9 +84,9 @@ pub struct MicrotaskImage {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation image.
-    pub continuation: Continuation,
+    pub continuation: ContinuationImage,
     /// Resume payload passed back into the executor.
-    pub resume_value: engine::MaterializedValue,
+    pub resume_value: engine::Value,
     /// Current scheduling status.
     pub status: TaskStatus,
 }
@@ -123,8 +122,8 @@ impl EventLoop {
     /// Fork one event loop for one child worker.
     pub(crate) fn fork(
         &self,
-        parent_engine: &mut dyn Engine,
-        child_engine: &mut dyn Engine,
+        parent_engine: &mut Engine,
+        child_engine: &mut Engine,
     ) -> RuntimeResult<Self> {
         let snapshot = self.snapshot(CaptureMode::Suspend, parent_engine)?;
         let mut forked = Self::default();
@@ -148,7 +147,7 @@ impl EventLoop {
     pub(crate) fn snapshot(
         &self,
         mode: CaptureMode,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<EventLoopSnapshot> {
         // fork capture requires a quiescent scheduler state (TODO #Architecture?)
         if mode == CaptureMode::Fork && !self.is_quiescent() {
@@ -238,7 +237,7 @@ impl EventLoop {
     pub(crate) fn restore_snapshot(
         &mut self,
         snapshot: &EventLoopSnapshot,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<()> {
         // clear dynamic state before rebuilding the image
         self.tasks.clear();
@@ -341,7 +340,7 @@ impl EventLoop {
         &self,
         task: &Task,
         mode: CaptureMode,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<TaskImage> {
         let runnable = self.capture_continuation_image(&task.runnable, mode, engine)?;
 
@@ -355,7 +354,7 @@ impl EventLoop {
     }
 
     /// Restore one task from one immutable task image.
-    fn task_from_image(&self, image: &TaskImage, engine: &mut dyn Engine) -> RuntimeResult<Task> {
+    fn task_from_image(&self, image: &TaskImage, engine: &mut Engine) -> RuntimeResult<Task> {
         let runnable = engine.restore_continuation_image(&image.runnable)?;
 
         Ok(Task {
@@ -372,7 +371,7 @@ impl EventLoop {
         &self,
         microtask: &Microtask,
         mode: CaptureMode,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<MicrotaskImage> {
         let continuation =
             self.capture_continuation_image(&microtask.continuation, mode, engine)?;
@@ -389,7 +388,7 @@ impl EventLoop {
     fn microtask_from_image(
         &self,
         image: &MicrotaskImage,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<Microtask> {
         let continuation = engine.restore_continuation_image(&image.continuation)?;
 
@@ -465,8 +464,8 @@ impl EventLoop {
 impl Capture for EventLoop {
     type Image = EventLoopSnapshot;
     type Error = Box<RuntimeError>;
-    type CaptureContext<'a> = &'a mut dyn Engine;
-    type RestoreContext<'a> = &'a mut dyn Engine;
+    type CaptureContext<'a> = &'a mut Engine;
+    type RestoreContext<'a> = &'a mut Engine;
 
     /// Capture one event-loop image.
     fn capture_image(
@@ -565,10 +564,10 @@ impl EventLoop {
     /// Capture one continuation image or return one explicit capture barrier.
     fn capture_continuation_image(
         &self,
-        continuation: &LiveContinuation,
+        continuation: &Continuation,
         mode: CaptureMode,
-        engine: &mut dyn Engine,
-    ) -> RuntimeResult<Continuation> {
+        engine: &mut Engine,
+    ) -> RuntimeResult<ContinuationImage> {
         engine.continuation_image(continuation, mode)
     }
 }

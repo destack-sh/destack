@@ -48,10 +48,11 @@ impl World {
     /// Execute one world tick without tracing the outer invocation.
     pub(crate) fn tick_inner(&mut self) -> RuntimeResult<TickOutcome> {
         let world = self.world_ref();
+
         // runnable work and ingress
         for runtime in self.runtimes.values_mut() {
             if runtime.tick(&world)?.progressed() {
-                self.tick_shared_gc()?;
+                runtime.tick_shared_gc()?;
 
                 world.observe(Observation::scheduler_progressed());
 
@@ -60,15 +61,21 @@ impl World {
         }
 
         // shared heap work also counts as scheduler progress
-        if self.tick_shared_gc()? {
-            world.observe(Observation::scheduler_progressed());
+        for runtime in self.runtimes.values_mut() {
+            if runtime.tick_shared_gc()? {
+                world.observe(Observation::scheduler_progressed());
 
-            return Ok(TickOutcome::Progressed);
+                return Ok(TickOutcome::Progressed);
+            }
         }
 
         // background shared GC still counts as live world work,
         // but it did not advance on this caller lane
-        if self.shared_gc_in_flight() {
+        if self
+            .runtimes
+            .values()
+            .any(|runtime| runtime.shared_gc_in_flight())
+        {
             return Ok(TickOutcome::Concurrent);
         }
 

@@ -1,17 +1,12 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
-
-use destack_heap as heap;
-
-use crate::runtime::memory::MarkRootSet;
 use crate::runtime::observe::{Observation, ObservationSequence, Observations};
 use crate::runtime::policy::PolicyState;
 use crate::runtime::random::Random;
 use crate::runtime::time::Clock;
 use crate::runtime::trace::Trace;
-use crate::runtime::{Collection, Collector, RuntimeId, WorkerId};
+use crate::runtime::{RuntimeId, WorkerId};
 use crate::simulation::Simulation;
 use destack_workspace::{RandomMode, TimeMode};
+use std::collections::BTreeMap;
 
 use super::{BranchId, Topology, WorldResource, WorldResourceId};
 
@@ -44,14 +39,6 @@ pub(crate) struct WorldRef {
     trace: *const Trace,
     /// Emitted observations.
     observations: *const Observations,
-    /// Shared heap visible across workers in this world.
-    shared: *const heap::SharedHeap,
-    /// Mark roots used by shared heap collection.
-    pub(crate) mark_roots: *const MarkRootSet,
-    /// Lineage-owned shared heap collector.
-    collector: *const Arc<Collector>,
-    /// Per-world shared heap collection state.
-    collection: *const Arc<Collection>,
 }
 
 impl WorldRef {
@@ -71,10 +58,6 @@ impl WorldRef {
         random: &Random,
         trace: &Trace,
         observations: &Observations,
-        shared: &heap::SharedHeap,
-        mark_roots: &MarkRootSet,
-        collector: &Arc<Collector>,
-        collection: &Arc<Collection>,
     ) -> Self {
         Self {
             branch_id,
@@ -90,10 +73,6 @@ impl WorldRef {
             random,
             trace,
             observations,
-            shared,
-            mark_roots,
-            collector,
-            collection,
         }
     }
 
@@ -175,24 +154,6 @@ impl WorldRef {
     /// Emit one observation at the current execution coordinate.
     pub(crate) fn observe(&self, observation: Observation) -> ObservationSequence {
         self.observations().record_at(self.moment(), observation)
-    }
-
-    /// Borrow the shared world heap.
-    #[inline]
-    pub(crate) fn shared(&self) -> &heap::SharedHeap {
-        // safety: the execution scope owns the live shared-heap borrow
-        unsafe { &*self.shared }
-    }
-
-    /// Wake shared heap collection.
-    #[inline]
-    pub(crate) fn wake_shared_gc(&self) {
-        // safety: the execution scope owns the live shared collector
-        unsafe {
-            let collector = &*self.collector;
-            let collection = &*self.collection;
-            collector.wake(collection);
-        }
     }
 
     /// Allocate one runtime identifier.

@@ -15,9 +15,8 @@ use crate::runtime::world::WorldRef;
 use crate::simulation::Simulation;
 
 use super::{
-    BindingCallBuilder, EventLoopScope, ExecutionContext, ExecutionContextId, Worker,
-    binding_affinity_name, current_event_loop_scope, current_worker_context,
-    with_binding_call_arena,
+    BindingCallBuilder, ExecutionContext, ExecutionContextId, RunnableScope, Worker,
+    binding_affinity_name, current_runnable_scope, current_worker_context, with_binding_call_arena,
 };
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::runtime::{Hooks, PolicyCallId};
@@ -36,8 +35,8 @@ pub struct BindingCallContext {
     world: *const WorldRef,
     /// Engine kind for this binding call.
     engine: BindingEngine,
-    /// Event loop scope metadata for the current call.
-    scope: EventLoopScope,
+    /// Currently running task or microtask.
+    scope: RunnableScope,
     /// Execution-affinity context for the current call.
     execution_context: ExecutionContext,
 }
@@ -61,27 +60,6 @@ impl Drop for BindingHookGuard<'_> {
 }
 
 impl BindingCallContext {
-    /// Create a binding call context for tests.
-    #[cfg(test)]
-    pub(crate) fn new(
-        worker: &Worker,
-        event_loop: &EventLoop,
-        host: &Session,
-        world: &WorldRef,
-    ) -> Self {
-        let execution_context = event_loop.execution_context(host.is_process_main_context());
-
-        Self {
-            worker,
-            event_loop,
-            host,
-            world,
-            engine: BindingEngine::Native,
-            scope: current_event_loop_scope(),
-            execution_context,
-        }
-    }
-
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
         worker: *const Worker,
@@ -100,7 +78,7 @@ impl BindingCallContext {
             host: host as *const Session,
             world,
             engine,
-            scope: current_event_loop_scope(),
+            scope: current_runnable_scope(),
             execution_context,
         }
     }
@@ -244,8 +222,8 @@ impl BindingCallContext {
         self.world().simulation()
     }
 
-    /// Return the current event loop scope.
-    pub const fn scope(&self) -> EventLoopScope {
+    /// Return the currently running task or microtask.
+    pub const fn scope(&self) -> RunnableScope {
         self.scope
     }
 

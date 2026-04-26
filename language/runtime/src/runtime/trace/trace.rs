@@ -97,7 +97,6 @@ pub struct TraceImage {
 /// Trace controller for record and replay pipelines.
 #[derive(Debug)]
 pub struct Trace {
-    /// TODO #Incomplete: validate trace sequences and enforce log compatibility
     /// Active execution mode.
     mode: ExecutionMode,
     /// Trace log backing store.

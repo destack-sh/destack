@@ -2,7 +2,7 @@ use super::{EventLoop, EventLoopWatch, Task, TaskStatus, Timer};
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::ResourceId;
-use crate::runtime::engine::{Engine, LiveContinuation};
+use crate::runtime::engine::{Continuation, Engine};
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use destack_core::CaptureMode;
 use destack_engine as engine;
@@ -11,10 +11,10 @@ impl EventLoop {
     pub fn watch_timer(
         &mut self,
         handle: ResourceId,
-        runnable: LiveContinuation,
-        resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<()> {
         let watch = self.capture_watch(runnable, resume_value, priority, engine)?;
         self.timer_watches.insert(handle, watch);
@@ -31,10 +31,10 @@ impl EventLoop {
     pub fn watch_event(
         &mut self,
         token: PollerToken,
-        runnable: LiveContinuation,
-        resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<()> {
         let watch = self.capture_watch(runnable, resume_value, priority, engine)?;
         self.poller_event_watches.insert(token, watch);
@@ -56,10 +56,10 @@ impl EventLoop {
     pub fn watch_host_event(
         &mut self,
         kind: HostEventKind,
-        runnable: LiveContinuation,
-        resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<()> {
         let watch = self.capture_watch(runnable, resume_value, priority, engine)?;
         self.host_event_watches.insert(kind, watch);
@@ -78,7 +78,7 @@ impl EventLoop {
     }
 
     /// Build one task for a fired timer watch.
-    pub fn task_for_timer(&mut self, timer: Timer, engine: &mut dyn Engine) -> Option<Task> {
+    pub fn task_for_timer(&mut self, timer: Timer, engine: &mut Engine) -> Option<Task> {
         let handle = timer.handle.resource_id()?;
         let watch = self.timer_watches.get(&handle)?.clone();
 
@@ -86,18 +86,14 @@ impl EventLoop {
     }
 
     /// Build one task for one external event watch.
-    pub fn task_for_event(&mut self, event: PollerEvent, engine: &mut dyn Engine) -> Option<Task> {
+    pub fn task_for_event(&mut self, event: PollerEvent, engine: &mut Engine) -> Option<Task> {
         let watch = self.poller_event_watches.get(&event.token)?.clone();
 
         self.task_for_watch(&watch, engine).ok()
     }
 
     /// Build one task for one host semantic event watch.
-    pub fn task_for_host_event(
-        &mut self,
-        event: HostEvent,
-        engine: &mut dyn Engine,
-    ) -> Option<Task> {
+    pub fn task_for_host_event(&mut self, event: HostEvent, engine: &mut Engine) -> Option<Task> {
         let kind = event.kind();
         let watch = self.host_event_watches.get(&kind)?.clone();
 
@@ -108,7 +104,7 @@ impl EventLoop {
     fn task_for_watch(
         &mut self,
         watch: &EventLoopWatch,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<Task> {
         let task_id = self.next_task_id();
         let runnable = engine.restore_continuation_image(&watch.runnable)?;
@@ -125,10 +121,10 @@ impl EventLoop {
     /// Capture one immutable watch payload for repeatable dispatch.
     fn capture_watch(
         &self,
-        runnable: LiveContinuation,
-        resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
-        engine: &mut dyn Engine,
+        engine: &mut Engine,
     ) -> RuntimeResult<EventLoopWatch> {
         let runnable = engine.continuation_image(&runnable, CaptureMode::Fork)?;
 
