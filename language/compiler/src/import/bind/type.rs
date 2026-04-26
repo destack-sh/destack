@@ -873,6 +873,29 @@ impl Compiler {
 
                 tree.insert(type_expression_id, TypeExpression::Tuple { elements })
             }
+            ast::TypeExpression::ArrayTuple { elements } => {
+                let elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.bind_tuple_element(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            scope,
+                            *element,
+                            Some(type_expression_id.into()),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        )
+                    })
+                    .collect();
+
+                tree.insert(type_expression_id, TypeExpression::ArrayTuple { elements })
+            }
             ast::TypeExpression::Array { element } => {
                 let element = self.bind_type_expression(
                     module,

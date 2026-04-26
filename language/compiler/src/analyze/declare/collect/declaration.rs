@@ -1776,7 +1776,7 @@ impl Compiler {
             let defer_type_evaluation =
                 self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
             match ctx.tree.get(value_expression_id) {
-                TypeExpression::Tuple { elements } => {
+                TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
                     for element_id in elements {
                         let Some(argument_value) =
                             ctx.tree.get::<TupleElement>(*element_id).value()

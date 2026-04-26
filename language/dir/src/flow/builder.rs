@@ -2010,7 +2010,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | TypeExpression::This
             | TypeExpression::Missing
             | TypeExpression::Error => Some(current_block_id),
-            TypeExpression::Tuple { elements } => {
+            TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
                 self.build_tuple_elements(elements, current_block_id)
             }
             TypeExpression::Array { element } => {

@@ -174,9 +174,9 @@ impl Compiler {
             .get_declared_type_id(declaration.value.into_global_any(view.module_id))?;
         let constructor_kind = match view.types.get_type(declared_type_id) {
             Type::Unevaluated(expression_id) => match view.tree.get(*expression_id) {
-                TypeExpression::Tuple { .. } | TypeExpression::Array { .. } => {
-                    ConstructorKind::Tuple
-                }
+                TypeExpression::Tuple { .. }
+                | TypeExpression::ArrayTuple { .. }
+                | TypeExpression::Array { .. } => ConstructorKind::Tuple,
                 TypeExpression::Object { .. } => ConstructorKind::Object,
                 _ => ConstructorKind::Scalar,
             },

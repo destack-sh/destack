@@ -1232,6 +1232,7 @@ impl Compiler {
             ctx.tree.get(expression_id),
             TypeExpression::Mapped { .. }
                 | TypeExpression::Tuple { .. }
+                | TypeExpression::ArrayTuple { .. }
                 | TypeExpression::Index { .. }
                 | TypeExpression::Parenthesized { .. }
                 | TypeExpression::AsComptime { .. }
@@ -1274,7 +1275,7 @@ impl Compiler {
                     substitutions,
                 );
             }
-            TypeExpression::Tuple { elements } => {
+            TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
                 return self.apply_projection_substitutions_to_tuple_type(
                     &mut ctx.reborrow(),
                     &elements,

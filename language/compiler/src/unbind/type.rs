@@ -560,6 +560,25 @@ impl Compiler {
 
                 ast::TypeExpression::Tuple { elements }
             }
+            dir::TypeExpression::ArrayTuple { elements } => {
+                let elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.unbind_tuple_element(
+                            module,
+                            *element,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+
+                ast::TypeExpression::ArrayTuple { elements }
+            }
             dir::TypeExpression::Array { element } => {
                 let element = self.unbind_type_expression(
                     module,

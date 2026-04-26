@@ -1741,7 +1741,7 @@ impl Compiler {
 
                 Type::Intersection { elements }
             }
-            TypeExpression::Tuple { elements } => {
+            TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                 let mut element_types = Vec::with_capacity(elements.len());
                 for element_id in elements {
