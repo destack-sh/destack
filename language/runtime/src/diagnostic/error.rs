@@ -191,6 +191,11 @@ pub enum RuntimeError {
         /// Continuation kind that was requested.
         continuation: String,
     } = 139,
+    /// Engine backend is not implemented yet.
+    EngineUnsupported {
+        /// Requested engine kind.
+        engine: String,
+    } = 148,
     /// Runtime image contains duplicate worker records.
     DuplicateWorkerImage {
         /// Runtime identifier owning the duplicate worker image.
@@ -381,6 +386,9 @@ impl RuntimeError {
                 continuation,
             } => {
                 format!("{engine} engine cannot handle {continuation} continuation")
+            }
+            RuntimeError::EngineUnsupported { engine } => {
+                format!("{engine} engine is not implemented")
             }
             RuntimeError::DuplicateWorkerImage {
                 runtime_id,
