@@ -7,7 +7,7 @@ use destack_ast::{
     is_identifier_start, is_whitespace,
 };
 
-use destack_source::{File, LanguageType, Span};
+use destack_source::{File, LanguageType};
 use destack_unicode::UnicodeEmoji;
 
 /// Result of lexing with additional flags.
@@ -23,7 +23,8 @@ pub struct LexResult {
     pub has_at: bool,
 }
 
-pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
+pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
+    TokenType::Newline,
     TokenType::Whitespace,
     TokenType::LineComment,
     TokenType::BlockComment,
@@ -111,7 +112,8 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
 pub fn is_semantic(token_type: TokenType) -> bool {
     !matches!(
         token_type,
-        TokenType::Whitespace
+        TokenType::Newline
+            | TokenType::Whitespace
             | TokenType::LineComment
             | TokenType::BlockComment
             | TokenType::DocLineComment
@@ -144,7 +146,7 @@ impl Lexer {
 
         // tree child text is the hot path between structural delimiters
         if let Some(token) = self.try_eat_tree_text() {
-            if is_semantic(token.ty) && token.ty != TokenType::Newline {
+            if is_semantic(token.ty) {
                 self.options.in_tree_attribute_value = false;
             }
 
@@ -187,12 +189,12 @@ impl Lexer {
             }
         };
 
-        if is_semantic(token_type) && token_type != TokenType::Newline {
+        if is_semantic(token_type) {
             self.options.in_tree_attribute_value = false;
         }
 
-        let token = Token::new(token_type, self.get_pos_within_token(), literal);
-        self.reset_pos_within_token();
+        let token = Token::new(token_type, self.token_len(), literal);
+        self.reset_token_start();
         token
     }
 
@@ -219,68 +221,18 @@ impl Lexer {
     /// Lex the input string and return extra flags.
     pub fn lex_with_flags(file: Arc<File>, language: LanguageType) -> LexResult {
         let mut lexer = Lexer::new(file, language);
-        let source_len = lexer.file.text().len();
-        let estimated_tokens = source_len / 6;
-        let estimated_semantic = estimated_tokens * 3 / 5;
-        let estimated_side = estimated_tokens - estimated_semantic;
-        let (tokens, side_tokens, eof_token) =
-            lexer.run_with_buffers(estimated_semantic, estimated_side);
+        lexer.lex_to_end();
+
+        let eof_token = lexer.eof_token();
+        let has_at = lexer.has_at;
+        let (tokens, side_tokens) = lexer.take_tokens();
+
         LexResult {
             tokens,
             side_tokens,
             eof_token,
-            has_at: lexer.has_at,
+            has_at,
         }
-    }
-
-    /// Runs the lexer until the end of the input string.
-    /// Returns the end-of-sequence Token.
-    fn run_with_buffers(
-        &mut self,
-        semantic_capacity: usize,
-        side_capacity: usize,
-    ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
-        let mut tokens = Vec::with_capacity(semantic_capacity);
-        let mut side_tokens = Vec::with_capacity(side_capacity);
-
-        // tokenize with spans, classifying into semantic vs side tokens
-        loop {
-            let start = self.pos as u32;
-            let token = self.advance();
-            let token_span = TokenSpan {
-                token,
-                span: Span {
-                    file: self.file_id,
-                    start,
-                    end: (start + token.len),
-                },
-            };
-
-            // push to appropriate vec based on token type
-            if is_semantic(token.ty) {
-                tokens.push(token_span);
-                if token.ty == TokenType::At {
-                    self.has_at = true;
-                }
-            } else {
-                side_tokens.push(token_span);
-            }
-
-            if token.ty == TokenType::End {
-                break;
-            }
-        }
-
-        // eof token (always in semantic tokens)
-        let eof_token = *tokens.last().unwrap_or(&TokenSpan {
-            span: Span {
-                file: self.file_id,
-                start: 0,
-                end: 0,
-            },
-            token: Token::end(),
-        });
-        (tokens, side_tokens, eof_token)
     }
 
     /// Parses a token from the input string.
@@ -309,7 +261,7 @@ impl Lexer {
 
             // slash, comments, regex, or divide ops
             '/' => {
-                let bytes = self.as_str().as_bytes();
+                let bytes = self.remaining_text().as_bytes();
                 let next = bytes.first().copied();
                 match next {
                     // //
@@ -395,7 +347,7 @@ impl Lexer {
             '@' => (TokenType::At, None),
             '#' => {
                 // hashbang prefix to a file
-                let is_hashbang = self.pos == 1
+                let is_hashbang = self.position() == 1
                     && self.peek() == '!'
                     && (self.language.is_javascript() || self.language.is_typescript());
                 if is_hashbang {
@@ -865,17 +817,17 @@ impl Lexer {
             _ => (TokenType::Unknown, None),
         };
 
-        if is_semantic(token_type) && token_type != TokenType::Newline {
+        if is_semantic(token_type) {
             self.options.in_tree_attribute_value = false;
         }
 
-        let token = Token::new(token_type, self.get_pos_within_token(), literal);
-        self.reset_pos_within_token();
+        let token = Token::new(token_type, self.token_len(), literal);
+        self.reset_token_start();
         token
     }
 
     fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
-        let rest = self.as_str();
+        let rest = self.remaining_text();
         let semicolon_idx = rest.find(';')?;
         if semicolon_idx == 0 {
             return None;
@@ -893,9 +845,9 @@ impl Lexer {
             return None;
         }
 
-        let start = self.pos.saturating_sub(1);
-        let end = self.pos + semicolon_idx + 1;
-        let source = self.file.text();
+        let start = self.position().saturating_sub(1);
+        let end = self.position() + semicolon_idx + 1;
+        let source = self.source_text();
         if end > source.len() {
             return None;
         }
@@ -919,7 +871,7 @@ impl Lexer {
     /// Eat ascii identifier continuation bytes.
     #[inline]
     fn eat_ascii_identifier_continue(&mut self) {
-        let bytes = self.as_str().as_bytes();
+        let bytes = self.remaining_text().as_bytes();
         let mut index = 0usize;
         while index < bytes.len() && is_ascii_identifier_continue_byte(bytes[index]) {
             index += 1;
@@ -933,7 +885,7 @@ impl Lexer {
     /// Eat non-newline ascii whitespace bytes.
     #[inline]
     fn eat_ascii_non_newline_whitespace(&mut self) {
-        let bytes = self.as_str().as_bytes();
+        let bytes = self.remaining_text().as_bytes();
         let mut index = 0usize;
         while index < bytes.len() && is_ascii_non_newline_whitespace_byte(bytes[index]) {
             index += 1;
@@ -946,12 +898,12 @@ impl Lexer {
 
     /// Parses a whitespace sequence (excluding first character).
     fn eat_whitespace(&mut self) -> TokenType {
-        debug_assert!(is_whitespace(self.prev()));
+        debug_assert!(is_whitespace(self.previous()));
 
         // fast path: consume contiguous ascii spaces and tabs in bulk
         self.eat_ascii_non_newline_whitespace();
 
-        // fallback: consume remaining unicode whitespace that is not a line terminator
+        // unicode whitespace tail
         self.eat_while(|c| is_whitespace(c) && !is_line_terminator_char(c));
         TokenType::Whitespace
     }
@@ -960,9 +912,9 @@ impl Lexer {
     /// Returns the token type and the literal type if it's a hardcoded literal.
     fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<LiteralType>) {
         debug_assert!(is_identifier_start(first_char));
-        let start_pos = self.pos;
+        let start_position = self.position();
 
-        // fast path: ascii identifier tails dominate compatibility-mode sources
+        // fast path: ascii identifier tails dominate script sources
         if first_char.is_ascii() {
             // consume mixed ascii and unicode identifier tails without char by char ascii scans
             loop {
@@ -981,7 +933,7 @@ impl Lexer {
                 break;
             }
         } else {
-            // fallback: full unicode continuation scan
+            // unicode continuation tail
             self.eat_while(is_identifier_continue);
         }
 
@@ -1003,15 +955,15 @@ impl Lexer {
             _ => {}
         }
         // boolean
-        let source = self.file.text();
-        if first_char == 't' && source[start_pos - 1..self.pos].eq("true") {
+        let source = self.source_text();
+        if first_char == 't' && source[start_position - 1..self.position()].eq("true") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: true }),
             )
         }
         // false
-        else if first_char == 'f' && source[start_pos - 1..self.pos].eq("false") {
+        else if first_char == 'f' && source[start_position - 1..self.position()].eq("false") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: false }),
@@ -1134,7 +1086,7 @@ impl Lexer {
     ///
     /// The lexer cursor must be positioned after `'u'` when this is called.
     fn eat_unicode_escape_char(&mut self) -> Option<char> {
-        let bytes = self.as_str().as_bytes();
+        let bytes = self.remaining_text().as_bytes();
         let Some((decoded, consumed)) = Self::decode_identifier_unicode_escape_body(bytes) else {
             self.eat_invalid_identifier_unicode_escape_body_prefix();
             return None;
@@ -1175,7 +1127,7 @@ impl Lexer {
 
     /// Decode a unicode escape sequence at the current position without consuming it.
     fn peek_unicode_escape_ahead_char(&self) -> Option<char> {
-        let bytes = self.as_str().as_bytes();
+        let bytes = self.remaining_text().as_bytes();
         if bytes.len() < 2 || bytes[0] != b'\\' || bytes[1] != b'u' {
             return None;
         }
@@ -1194,7 +1146,7 @@ impl Lexer {
     /// Parses a number literal (excluding first digit).
     /// Returns the number literal.
     fn eat_number_literal(&mut self, first_digit: char) -> LiteralType {
-        debug_assert!('0' <= self.prev() && self.prev() <= '9');
+        debug_assert!('0' <= self.previous() && self.previous() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // parse encoding base
@@ -1261,7 +1213,7 @@ impl Lexer {
         }
 
         match self.peek() {
-            // js and ts compatibility: `123..prop` and `0..prop`
+            // js and ts decimal member syntax: `123..prop` and `0..prop`
             // consume the first dot into a float literal so the second dot can start member access
             '.' if self.peek_next() == '.'
                 && is_identifier_start(self.peek_next_next())
@@ -1350,7 +1302,7 @@ impl Lexer {
 
     /// Parse a quoted string literal after its opening quote.
     fn eat_quoted_string(&mut self, quote: char) -> (bool, bool) {
-        debug_assert!(self.prev() == quote);
+        debug_assert!(self.previous() == quote);
 
         let mut has_invalid_escape = false;
 
@@ -1447,7 +1399,12 @@ impl Lexer {
             let mut overflowed = false;
             while self.peek().is_ascii_hexdigit() {
                 if !overflowed {
-                    let digit = self.peek().to_digit(16).unwrap_or(0);
+                    let digit = match self.peek() {
+                        '0'..='9' => self.peek() as u32 - '0' as u32,
+                        'a'..='f' => self.peek() as u32 - 'a' as u32 + 10,
+                        'A'..='F' => self.peek() as u32 - 'A' as u32 + 10,
+                        _ => unreachable!("checked ascii hex digit"),
+                    };
                     if let Some(next) = value.checked_mul(16).and_then(|v| v.checked_add(digit)) {
                         value = next;
                     } else {
@@ -1481,9 +1438,9 @@ impl Lexer {
     }
 
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
-    /// Works exactly like modern compatibility regex literals.
+    /// Works exactly like modern regex literals.
     pub(super) fn eat_regex_string(&mut self) -> bool {
-        debug_assert!(self.prev() == '/');
+        debug_assert!(self.previous() == '/');
         let mut escaped = false;
         let mut in_character_class = false;
 
@@ -1596,7 +1553,7 @@ impl Lexer {
     /// Parses the float exponent (excluding `e` or `E`).
     /// Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
-        debug_assert!(self.prev() == 'e' || self.prev() == 'E');
+        debug_assert!(self.previous() == 'e' || self.previous() == 'E');
         if self.peek() == '-' || self.peek() == '+' {
             self.eat();
         }
@@ -1611,7 +1568,7 @@ impl Lexer {
 
         // scan until the first closing delimiter
         while !self.is_end() {
-            let bytes = self.as_str().as_bytes();
+            let bytes = self.remaining_text().as_bytes();
             if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
                 // consume "*/"
                 self.eat();
@@ -1645,7 +1602,7 @@ impl Lexer {
 
         // stop at the first closing delimiter
         while !self.is_end() {
-            let bytes = self.as_str().as_bytes();
+            let bytes = self.remaining_text().as_bytes();
             if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
                 self.eat();
                 self.eat();
@@ -1696,13 +1653,13 @@ impl Lexer {
         }
 
         // always produce a token for consumed text
-        // the parser will normalize and trim whitespace as needed for tree compatibility
+        // the parser will normalize and trim whitespace as needed for tree strings
         let token = Token::new(
             TokenType::Literal,
-            self.get_pos_within_token(),
+            self.token_len(),
             Some(LiteralType::TreeString),
         );
-        self.reset_pos_within_token();
+        self.reset_token_start();
         Some(token)
     }
 

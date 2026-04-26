@@ -21,11 +21,18 @@ fn lex_source_tokens(input: &str, language: LanguageType) -> (Vec<Token>, Vec<To
     let (semantic_tokens, side_tokens, _) = lex_source(input, language);
     let semantic_tokens = semantic_tokens
         .into_iter()
-        .map(|token| token.token)
+        .map(|token| token_without_line_boundary(token.token))
         .collect();
-    let side_tokens = side_tokens.into_iter().map(|token| token.token).collect();
+    let side_tokens = side_tokens
+        .into_iter()
+        .map(|token| token_without_line_boundary(token.token))
+        .collect();
 
     (semantic_tokens, side_tokens)
+}
+
+fn token_without_line_boundary(token: Token) -> Token {
+    token.with_on_new_line(false)
 }
 
 fn assert_single_string_literal_token(
@@ -102,7 +109,10 @@ macro_rules! assert_tokenize_eq_roundtrip {
         // merge and sort by position to get all tokens in order
         let mut all_tokens: Vec<TokenSpan> = semantic_tokens.into_iter().chain(side_tokens).collect();
         all_tokens.sort_by_key(|t| t.span.start);
-        let tokens: Vec<Token> = all_tokens.into_iter().map(|token| token.token).collect();
+        let tokens: Vec<Token> = all_tokens
+            .into_iter()
+            .map(|token| token_without_line_boundary(token.token))
+            .collect();
 
         // must match the expected tokens
         let mut expected_tokens = vec![$($expected),*];
@@ -121,7 +131,10 @@ macro_rules! assert_tokenize_eq_roundtrip {
         let (semantic_again, side_again, _) = lex_source(&rendered_input, language);
         let mut all_again: Vec<TokenSpan> = semantic_again.into_iter().chain(side_again).collect();
         all_again.sort_by_key(|t| t.span.start);
-        let tokens_again: Vec<Token> = all_again.into_iter().map(|token| token.token).collect();
+        let tokens_again: Vec<Token> = all_again
+            .into_iter()
+            .map(|token| token_without_line_boundary(token.token))
+            .collect();
         assert_eq!(tokens_again, tokens);
     };
 }
@@ -137,7 +150,10 @@ macro_rules! assert_tree_tokenize_eq_roundtrip {
         // merge and sort by position to get all tokens in order
         let mut all_tokens: Vec<TokenSpan> = semantic_tokens.into_iter().chain(side_tokens).collect();
         all_tokens.sort_by_key(|t| t.span.start);
-        let tokens: Vec<Token> = all_tokens.into_iter().map(|token| token.token).collect();
+        let tokens: Vec<Token> = all_tokens
+            .into_iter()
+            .map(|token| token_without_line_boundary(token.token))
+            .collect();
 
         // must match the expected tokens
         let mut expected_tokens = vec![$($expected),*];
@@ -156,12 +172,32 @@ macro_rules! assert_tree_tokenize_eq_roundtrip {
         let (semantic_again, side_again, _) = lex_source_with_tree_literals(&rendered_input, language);
         let mut all_again: Vec<TokenSpan> = semantic_again.into_iter().chain(side_again).collect();
         all_again.sort_by_key(|t| t.span.start);
-        let tokens_again: Vec<Token> = all_again.into_iter().map(|token| token.token).collect();
+        let tokens_again: Vec<Token> = all_again
+            .into_iter()
+            .map(|token| token_without_line_boundary(token.token))
+            .collect();
         assert_eq!(tokens_again, tokens);
     };
 }
 
-// Raw strings (r"...", r#"..."#) have been removed from the language
+#[test]
+fn test_lex_tracks_semantic_token_line_boundaries() {
+    let (semantic_tokens, _, _) = lex_source("a b\nc", LanguageType::default());
+    let semantic_tokens: Vec<Token> = semantic_tokens
+        .into_iter()
+        .map(|token| token.token)
+        .collect();
+
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None).with_on_new_line(true),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Identifier, 1, None).with_on_new_line(true),
+            Token::end(),
+        ],
+    );
+}
 
 #[test]
 fn test_lex_valid_weird_unicode() {
@@ -176,7 +212,6 @@ fn test_lex_valid_weird_unicode() {
 fn test_lex_hashbang_as_line_comment() {
     let source = "#!/usr/bin/env node\nimport value from 'pkg';\n";
     let expected_semantic_tokens = vec![
-        Token::new(TokenType::Newline, 1, None),
         Token::new(TokenType::Identifier, 6, None),
         Token::new(TokenType::Identifier, 5, None),
         Token::new(TokenType::Identifier, 4, None),
@@ -189,14 +224,15 @@ fn test_lex_hashbang_as_line_comment() {
             }),
         ),
         Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::Newline, 1, None),
         Token::end(),
     ];
     let expected_side_tokens = vec![
         Token::new(TokenType::LineComment, 19, None),
+        Token::new(TokenType::Newline, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Newline, 1, None),
     ];
 
     // typed source
@@ -1176,7 +1212,7 @@ fn test_lex_coalesce_assignment() {
     );
 }
 
-// tree literals (TSX-compatible)
+// tree literals
 
 #[test]
 fn test_lex_tree_self_closing() {
@@ -1964,12 +2000,11 @@ fn test_lex_unterminated_single_quote_newline() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::new(TokenType::Newline, 1, None),
             Token::end(),
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(side_tokens, vec![Token::new(TokenType::Newline, 1, None)]);
 }
 
 /// Double quoted strings cannot span raw newlines.
@@ -1989,7 +2024,6 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::new(TokenType::Newline, 1, None),
             Token::new(TokenType::Identifier, 5, None),
             Token::new(
                 TokenType::Literal,
@@ -2003,7 +2037,7 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
         ],
     );
 
-    assert_eq!(side_tokens, vec![]);
+    assert_eq!(side_tokens, vec![Token::new(TokenType::Newline, 1, None)]);
 }
 
 /// Legacy escaped digits in strings are invalid across language modes.
