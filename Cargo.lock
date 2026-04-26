@@ -1585,6 +1585,7 @@ dependencies = [
  "destack_core",
  "destack_css",
  "destack_dir",
+ "destack_engine",
  "destack_fir",
  "destack_formatter",
  "destack_html",

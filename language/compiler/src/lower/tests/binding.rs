@@ -1,4 +1,4 @@
-use destack_vm::Value;
+use destack_engine::Value;
 use destack_workspace::{BoundsCheckPolicy, CheckFailurePolicy};
 
 use crate::TestProgram;

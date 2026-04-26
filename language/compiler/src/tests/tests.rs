@@ -20,18 +20,19 @@ use destack_dir::{
     LocalNodeIdAny, LocalScopeId, NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable,
     TypeTable,
 };
+use destack_engine::Value;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_linter::Linter;
 use destack_mir as mir;
-use destack_mir::{LayoutTable, MirFormatOptions, format_mir};
+use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
     FileType, MemoryFileSystem, ModuleId, ModuleVersion, MultiSpan, PackageId, PhysicalFileSystem,
     TargetId, Uri, print_diff,
 };
 use destack_vm::{
-    Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateOptions, SharedHeap,
-    SharedHeapLimits, Value,
+    Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateId, IsolateOptions, SharedHeap,
+    SharedHeapLimits, StaticSpace,
 };
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
@@ -486,6 +487,8 @@ pub fn expect_let_declarator_by_name(
 pub struct TestIsolate {
     /// The underlying MIR interpreter.
     isolate: Isolate,
+    /// The worker static space used by the interpreter.
+    statics: StaticSpace,
     /// The authoritative heap for the isolate.
     heap: Heap,
     /// The world-shared heap for the isolate.
@@ -499,8 +502,13 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> destack_vm::RuntimeResult<destack_vm::RunOutput> {
-        self.isolate
-            .run_function_by_name(&mut self.heap, &mut self.shared, function, arguments)
+        self.isolate.run_function_by_name(
+            &mut self.statics,
+            &mut self.heap,
+            &self.shared,
+            function,
+            arguments,
+        )
     }
 
     /// Run a MIR function by name and return its output value.
@@ -513,34 +521,9 @@ impl TestIsolate {
     }
 }
 
-/// Return one plain VM value from one materialized boundary value.
-pub(crate) fn materialized_plain_value(value: &destack_vm::MaterializedValue) -> Value {
-    match value {
-        destack_vm::MaterializedValue::Void => Value::VOID,
-        destack_vm::MaterializedValue::Bool(value) => Value::bool(*value),
-        destack_vm::MaterializedValue::Int { value, width } => Value::int(*value, *width),
-        destack_vm::MaterializedValue::UInt { value, width } => Value::uint(*value, *width),
-        destack_vm::MaterializedValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
-        destack_vm::MaterializedValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
-        destack_vm::MaterializedValue::Char(value) => Value::char(*value),
-        destack_vm::MaterializedValue::HeapReference(reference) => {
-            Value::heap_reference(*reference)
-        }
-        destack_vm::MaterializedValue::SharedHeapReference(reference) => {
-            Value::shared_heap_reference(*reference)
-        }
-        destack_vm::MaterializedValue::RawPointer(pointer) => Value::raw_pointer(*pointer),
-        destack_vm::MaterializedValue::SharedRawPointer(pointer) => {
-            Value::shared_raw_pointer(*pointer)
-        }
-        destack_vm::MaterializedValue::Undefined
-        | destack_vm::MaterializedValue::Aggregate { .. }
-        | destack_vm::MaterializedValue::FrameAddress(_)
-        | destack_vm::MaterializedValue::GlobalAddress(_)
-        | destack_vm::MaterializedValue::Function(_) => {
-            panic!("expected plain materialized value, got {value:?}")
-        }
-    }
+/// Return one plain VM value.
+pub(crate) fn materialized_plain_value(value: &Value) -> Value {
+    value.clone()
 }
 
 impl TestProgram {
@@ -2832,18 +2815,19 @@ impl TestProgram {
         let target_id = self.target_id(module.package_id, target);
         let profile = self.default_profile_id(module_id);
         let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
-        let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
-            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-        let layouts = Arc::new(isolate.layout_table().clone());
-
-        let (mut heap, mut shared) = create_test_heaps(layouts);
+        let mut isolate =
+            Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
+                .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+        let mut statics = StaticSpace::empty();
+        let (heap, shared) = create_test_heaps();
 
         isolate
-            .initialize(&mut heap, &mut shared)
+            .initialize_statics(&mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         TestIsolate {
             isolate,
+            statics,
             heap,
             shared,
         }
@@ -3289,8 +3273,8 @@ impl TestProgram {
     }
 }
 
-/// Create local and shared test heaps over one allocator and explicit layouts.
-fn create_test_heaps(layouts: Arc<LayoutTable>) -> (Heap, SharedHeap) {
+/// Create local and shared test heaps over one allocator.
+fn create_test_heaps() -> (Heap, SharedHeap) {
     let local_options = HeapOptions::local();
     let shared_options = HeapOptions::shared();
     let allocator = Arc::new(
@@ -3300,16 +3284,14 @@ fn create_test_heaps(layouts: Arc<LayoutTable>) -> (Heap, SharedHeap) {
         )
         .expect("test allocator should build"),
     );
-    let heap = Heap::with_allocator_limits_layouts_and_options(
+    let heap = Heap::with_allocator_limits_and_options(
         allocator.clone(),
-        layouts.clone(),
         HeapLimits::default(),
         local_options,
     )
     .expect("test heap should build");
-    let shared = SharedHeap::with_allocator_limits_layouts_and_options(
+    let shared = SharedHeap::with_allocator_limits_and_options(
         allocator,
-        layouts,
         SharedHeapLimits::default(),
         shared_options,
     )
