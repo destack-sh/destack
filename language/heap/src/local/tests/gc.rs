@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use crate::local::space::HeapPlace;
 use crate::{
-    Allocator, GcKind, GcOptions, Heap, HeapError, HeapOptions, HeapReference, HeapSpace, Payload,
-    SharedHeapReference, TestLayout, test_allocator, test_layout, test_layouts,
+    Allocator, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
+    HeapSpace, Payload, SharedHeapReference, SizeClassTable, TestLayout, test_allocator,
+    test_layout, test_layouts,
 };
 use destack_mir::ReferenceMap;
 
-/// Build one local heap whose pacer triggers immediately in step-driven tests.
+/// Build one heap whose pacer triggers immediately in step-driven tests.
 fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<TestLayout>) {
     let options = HeapOptions {
         gc: GcOptions {
@@ -30,9 +31,18 @@ fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<TestLayout>) {
     (heap, layouts)
 }
 
+/// Build heap options with tiny mature spans for focused GC tests.
+fn tiny_heap_options() -> HeapOptions {
+    HeapOptions {
+        heap_small_bytes: 32,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
+        ..HeapOptions::local()
+    }
+}
+
 /// Report whether one heap reference is currently young.
 fn is_young(heap: &HeapSpace, reference: HeapReference) -> bool {
-    matches!(heap.place(reference), Some(HeapPlace::Young(_)))
+    matches!(heap.place(reference), Some(HeapPlace::Young { .. }))
 }
 
 /// Report whether one heap reference is currently mature.
@@ -57,10 +67,7 @@ fn expected_heap_bytes(heap: &HeapSpace, reference: HeapReference, payload: &[u8
 /// Promote reachable young allocations and clear unreachable young-space state.
 #[test]
 fn test_collect_minor_promotes_reachable_entries() {
-    let options = HeapOptions {
-        heap_small_bytes: 32,
-        ..HeapOptions::local()
-    };
+    let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let layout = test_layout(3, ReferenceMap::empty());
     let mut heap =
@@ -102,10 +109,7 @@ fn test_collect_minor_promotes_reachable_entries() {
 /// Promote young allocations reached through traced young references.
 #[test]
 fn test_collect_minor_promotes_reachable_child_entries() {
-    let options = HeapOptions {
-        heap_small_bytes: 32,
-        ..HeapOptions::local()
-    };
+    let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let reference_map = ReferenceMap::Reference {
         local_offsets: vec![0].into_boxed_slice(),
@@ -193,10 +197,7 @@ fn test_collect_minor_updates_gc_state() {
 /// Pinning one young reference should tenure it immediately.
 #[test]
 fn test_pin_promotes_young_reference() {
-    let options = HeapOptions {
-        heap_small_bytes: 32,
-        ..HeapOptions::local()
-    };
+    let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let layout = test_layout(3, ReferenceMap::empty());
     let mut heap =
@@ -220,10 +221,7 @@ fn test_pin_promotes_young_reference() {
 /// Pinned mature roots should keep young children alive during minor collection.
 #[test]
 fn test_collect_minor_traces_pinned_roots() {
-    let options = HeapOptions {
-        heap_small_bytes: 32,
-        ..HeapOptions::local()
-    };
+    let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let reference_map = ReferenceMap::Reference {
         local_offsets: vec![0].into_boxed_slice(),
@@ -400,12 +398,12 @@ fn test_heap_gc_step_stays_idle_without_request() {
             .expect("heap should build");
     let mut roots = [];
 
-    let stats = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
 
-    assert_eq!(stats, None);
+    assert_eq!(progress, GcProgress::Idle);
 }
 
-/// Run one minor cycle after local heap allocation pressure.
+/// Run one minor cycle after heap allocation pressure.
 #[test]
 fn test_heap_gc_step_runs_minor_after_pressure() {
     let (mut heap, layout_ids) = test_heap(&[(64, ReferenceMap::empty())]);
@@ -415,9 +413,9 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
-    let stats = heap
-        .gc_step(&mut roots)
-        .expect("gc step should succeed")
+    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let stats = progress
+        .completed_stats()
         .expect("pressure should request one cycle");
     let root = roots[0];
 
@@ -445,9 +443,9 @@ fn test_heap_gc_step_honors_manual_full_request() {
 
     heap.request_full_gc();
 
-    let stats = heap
-        .gc_step(&mut roots)
-        .expect("gc step should succeed")
+    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let stats = progress
+        .completed_stats()
         .expect("manual request should run one cycle");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -480,14 +478,14 @@ fn test_step_major_gc_spreads_full_cycle() {
         .step_major_gc(&mut roots, 1)
         .expect("major step should succeed");
 
-    assert_eq!(first, None);
+    assert_eq!(first, GcProgress::Active);
     assert!(heap.major_gc_active());
 
     let stats = loop {
-        if let Some(stats) = heap
+        let progress = heap
             .step_major_gc(&mut roots, 1)
-            .expect("major step should succeed")
-        {
+            .expect("major step should succeed");
+        if let Some(stats) = progress.completed_stats() {
             break stats;
         }
     };
@@ -496,6 +494,68 @@ fn test_step_major_gc_spreads_full_cycle() {
     assert!(heap.is_live(root));
     assert!(!heap.is_live(garbage));
     assert!(!heap.major_gc_active());
+}
+
+/// Continue local major marking across large allocation pages.
+#[test]
+fn test_step_major_gc_scans_large_allocations_incrementally() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let first_offset = 0usize;
+    let second_offset = options.page_bytes;
+    let parent_byte_len = second_offset + HeapReference::BYTE_LEN;
+    let second_offset = u32::try_from(second_offset).expect("page offset should fit uint32");
+    let reference_map = ReferenceMap::Reference {
+        local_offsets: vec![first_offset as u32, second_offset].into_boxed_slice(),
+        shared_offsets: Vec::new().into_boxed_slice(),
+    };
+    let allocator = test_allocator(&options);
+
+    let layouts = test_layouts(&[(2, ReferenceMap::empty()), (parent_byte_len, reference_map)]);
+    let child_layout = &layouts[0];
+    let parent_layout = &layouts[1];
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
+    let first_child = heap
+        .allocate(child_layout.allocation(), Payload::Bytes(&[0xC1, 0x1D]))
+        .expect("heap allocation should succeed");
+    let second_child = heap
+        .allocate(child_layout.allocation(), Payload::Bytes(&[0xC2, 0x1D]))
+        .expect("heap allocation should succeed");
+    let mut parent_bytes = vec![0; parent_byte_len];
+    parent_bytes[first_offset..first_offset + HeapReference::BYTE_LEN]
+        .copy_from_slice(&first_child.bits().to_le_bytes());
+    parent_bytes[second_offset as usize..second_offset as usize + HeapReference::BYTE_LEN]
+        .copy_from_slice(&second_child.bits().to_le_bytes());
+    let parent = heap
+        .allocate(parent_layout.allocation(), Payload::Bytes(&parent_bytes))
+        .expect("heap allocation should succeed");
+    let mut roots = [parent];
+
+    heap.start_major_gc(&mut roots)
+        .expect("major collection should start");
+
+    let first = heap
+        .step_major_gc(&mut roots, 1)
+        .expect("major step should succeed");
+
+    assert_eq!(first, GcProgress::Active);
+    assert!(heap.major_gc_active());
+
+    let stats = loop {
+        let progress = heap
+            .step_major_gc(&mut roots, 1)
+            .expect("major step should succeed");
+        if let Some(stats) = progress.completed_stats() {
+            break stats;
+        }
+    };
+
+    assert_eq!(stats.freed_allocations, 0);
+    assert!(heap.is_live(first_child));
+    assert!(heap.is_live(second_child));
 }
 
 /// Repeated full collection should free later unreachable allocations too.

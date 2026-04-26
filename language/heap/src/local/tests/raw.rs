@@ -1,4 +1,6 @@
-use crate::{HeapError, HeapOptions, Payload, RawPointer, RawSpace, test_allocator};
+use crate::{
+    HeapError, HeapOptions, Payload, RawPointer, RawSpace, SizeClassTable, test_allocator,
+};
 
 /// Reclaim one freed raw allocation and keep the allocator live.
 #[test]
@@ -22,9 +24,14 @@ fn test_free_raw_reclaims_large_allocation() {
     let options = HeapOptions {
         heap_small_bytes: 32,
         raw_small_bytes: 32,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let large_byte_len = options.size_classes.max_small_allocation_bytes() + 1;
+    let large_byte_len = options
+        .size_classes
+        .max_small_allocation_bytes()
+        .expect("size class table should not be empty")
+        + 1;
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
     let pointer = raw
