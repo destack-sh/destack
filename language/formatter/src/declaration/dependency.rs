@@ -131,6 +131,17 @@ pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> bo
     import_expression(expr_id, tree).is_some()
 }
 
+/// Return whether one import source is a triple-slash reference directive.
+pub(crate) fn import_source_is_reference_directive(source: ImportSource) -> bool {
+    matches!(
+        source,
+        ImportSource::ReferencePathDirective
+            | ImportSource::ReferenceTypesDirective
+            | ImportSource::ReferenceLibDirective
+            | ImportSource::ReferenceNoDefaultLibDirective
+    )
+}
+
 /// Format one `export as namespace` statement.
 pub(crate) fn format_export_namespace_statement<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1411,6 +1422,25 @@ fn format_import_call_expression<'ast>(
     Ok(true)
 }
 
+/// Format one triple-slash reference directive and report whether it handled output.
+fn format_reference_directive_import_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    source: ImportSource,
+) -> FormatResult<bool> {
+    if !import_source_is_reference_directive(source) {
+        return Ok(false);
+    }
+
+    let span = f.context().span(node_id);
+    f.context_mut()
+        .comments_mut()
+        .skip_comments_before(span.end);
+    write!(f, [source_text_slice(span)])?;
+
+    Ok(true)
+}
+
 /// Write one `import = require(...)` statement body.
 fn write_import_equals_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1508,6 +1538,10 @@ pub(crate) fn format_import_expression<'ast>(
     let items = items.unwrap_or(&[]);
 
     if format_import_call_expression(f, node_id, source, target, arguments)? {
+        return Ok(());
+    }
+
+    if format_reference_directive_import_expression(f, node_id, source)? {
         return Ok(());
     }
 
