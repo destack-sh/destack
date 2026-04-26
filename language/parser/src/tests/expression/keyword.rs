@@ -90,7 +90,6 @@ if (value is string) {
 ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { condition, then_expression, .. } => {
@@ -305,7 +304,6 @@ type = type * 2
 ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
 
     // let type = 1
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -318,7 +316,6 @@ type = type * 2
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });
-    parser.eat_newline().unwrap();
 
     // type = type * 2
     let expression_id = parser.eat_expression(parser.options).unwrap();
@@ -333,7 +330,6 @@ type = type * 2
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     });
-    parser.eat_newline().unwrap();
 }
 
 /// Parse `namespace[this.dest] = values`.
@@ -608,7 +604,6 @@ React = require("react")
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
@@ -705,6 +700,32 @@ fn test_parse_import_call_expression() {
         assert_eq!(*kind, DependencyKind::Value);
         assert_import_target_string(&parser, target, "foo");
         assert!(items.is_none());
+    });
+}
+
+/// Parse dynamic import calls with a commented source and multiline close parenthesis.
+#[test]
+fn test_parse_import_call_with_source_comment() {
+    let mut test = TestParser::new(
+        r#"import(
+    // dynamic-source
+    "module"
+)"#,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
+        assert_eq!(*source, ImportSource::ImportCall);
+        assert_eq!(*kind, DependencyKind::Value);
+        assert!(items.is_none());
+        assert_node!(target, ImportTarget::Expression { target } => {
+            assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                assert_string!(parser, *value, "module");
+            });
+        });
     });
 }
 

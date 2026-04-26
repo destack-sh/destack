@@ -7,7 +7,6 @@ impl Parser {
     fn eat_type_import_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         // argument list: `(`
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         // empty argument list: `()`
         if self.peek_is(TokenType::CloseParenthesis) {
@@ -22,7 +21,6 @@ impl Parser {
         })?;
 
         // argument list: `)`
-        self.eat_newlines_maybe()?;
         self.eat_type_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
@@ -40,7 +38,7 @@ impl Parser {
     /// import("pkg").Foo<string>
     /// ```
     pub fn eat_type_import_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // `import`
         self.eat_keyword(Keyword::Import)?;
@@ -56,8 +54,6 @@ impl Parser {
         let (target, target_span) = if arguments.is_empty() {
             let target = self.recover_missing_expression_here(NodeType::Expression);
             let target_span = self.tree.get_span(target);
-            let argument_id = self.insert_node(Argument::Positional { value: target }, target_span);
-            arguments.push(argument_id);
 
             (target, target_span)
         } else {
@@ -66,9 +62,6 @@ impl Parser {
                 Argument::Error => {
                     let target = self.recover_missing_expression_here(NodeType::Expression);
                     let target_span = self.tree.get_span(target);
-                    let argument_id =
-                        self.insert_node(Argument::Positional { value: target }, target_span);
-                    arguments[0] = argument_id;
 
                     (target, target_span)
                 }
@@ -80,21 +73,15 @@ impl Parser {
                 }
             }
         };
+        if !arguments.is_empty() {
+            arguments.remove(0);
+        }
 
         // qualifier: `import("mod").Type<T>`
         let (qualifier, generic_arguments) = if self.peek_is(TokenType::Dot) {
             self.bump(); // eat dot
             let qualifier = self.eat_path()?;
-
-            let generic_arguments = if self.peek_is(TokenType::Newline)
-                && (self.is_token_after_newlines(self.pos(), TokenType::LessThan)
-                    || self.is_token_after_newlines(self.pos(), TokenType::ShiftLeft))
-            {
-                self.eat_newlines_maybe()?;
-                self.eat_generic_arguments_maybe()?.unwrap_or_default()
-            } else {
-                self.eat_generic_arguments_maybe()?.unwrap_or_default()
-            };
+            let generic_arguments = self.eat_generic_arguments_maybe()?.unwrap_or_default();
 
             (Some(qualifier), generic_arguments)
         } else {

@@ -20,7 +20,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_loop(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // keyword
         self.eat_keyword(Keyword::Loop)?;
@@ -56,32 +56,31 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_for(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // keyword
         self.eat_keyword(Keyword::For)?;
-        self.eat_newlines_maybe()?;
 
         // asynchrony
         let asynchrony = if self.is_keyword(Keyword::Await) {
             self.bump(); // eat await keyword
-            self.eat_newlines_maybe()?;
             Asynchrony::Async
         } else {
             Asynchrony::Sync
         };
 
-        let open_pos = self.pos();
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
-        let close_pos = self.find_matching_close_in_expression_maybe(
-            open_pos,
+        let close_span = self.find_matching_close_after_open_maybe(
             TokenType::OpenParenthesis,
             TokenType::CloseParenthesis,
         );
-        let has_top_level_semicolon = if let Some(close_pos) = close_pos {
-            self.has_token_before_matching_close(open_pos, close_pos, TokenType::Semicolon, false)?
+        let has_top_level_semicolon = if let Some(close_span) = close_span {
+            self.has_token_before_matching_close_after_open(
+                close_span,
+                TokenType::Semicolon,
+                false,
+            )?
         } else {
             false
         };
@@ -98,9 +97,7 @@ impl Parser {
             } else {
                 Some(self.eat_expression(clause_options)?)
             };
-            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
-            self.eat_newlines_maybe()?;
 
             // condition
             let condition_id = if self.peek_is(TokenType::Semicolon) {
@@ -108,9 +105,7 @@ impl Parser {
             } else {
                 Some(self.eat_expression(clause_options)?)
             };
-            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
-            self.eat_newlines_maybe()?;
 
             // increment
             let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
@@ -120,7 +115,6 @@ impl Parser {
             };
 
             // close parenthesis
-            self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseParenthesis,
                 NodeType::Expression,
@@ -148,7 +142,6 @@ impl Parser {
         else {
             // binding
             let binding = self.eat_for_each_binding()?;
-            self.eat_newlines_maybe()?;
 
             // in
             let kind = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
@@ -167,14 +160,12 @@ impl Parser {
             }
 
             // iterator
-            self.eat_newlines_maybe()?;
             let iterator_options = self.options.nested().in_before_block();
             let iterator_id = self.with_options(iterator_options, |parser| {
                 parser.eat_expression(parser.options)
             })?;
 
             // close parenthesis
-            self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseParenthesis,
                 NodeType::Expression,
@@ -226,7 +217,7 @@ impl Parser {
 
             if declaration_kind.is_none() {
                 // for each without declarations keeps expression heads as expression patterns
-                let start = self.mark_span();
+                let start = self.span_start();
                 let expression = self.eat_expression(
                     self.options
                         .not_in_position()
@@ -261,27 +252,31 @@ impl Parser {
     /// Return the using asynchrony when a for each header starts a using binding.
     fn for_each_using_binding_asynchrony(&mut self) -> Option<Asynchrony> {
         // resolve `using` with optional `await` prefix
-        let (asynchrony, using_index) =
-            if let Some(using_index) = self.using_keyword_index(Asynchrony::Async) {
-                (Asynchrony::Async, using_index)
-            } else if let Some(using_index) = self.using_keyword_index(Asynchrony::Sync) {
-                (Asynchrony::Sync, using_index)
-            } else {
-                return None;
-            };
+        let asynchrony = if self.using_keyword_is(Asynchrony::Async) {
+            Asynchrony::Async
+        } else if self.using_keyword_is(Asynchrony::Sync) {
+            Asynchrony::Sync
+        } else {
+            return None;
+        };
 
         // keep the binding head on the same line
-        let declarator_cursor = self.using_binding_head_cursor(using_index)?;
+        let declarator_token_type = self.using_binding_head_token(asynchrony)?;
 
         // using bindings start with a binding pattern shape
-        let declarator_token_type = declarator_cursor.token_type;
         if !self.token_can_start_using_binding_pattern(declarator_token_type) {
             return None;
         }
 
         // disambiguate identifier starts that should remain expression headers
         if declarator_token_type == TokenType::Identifier {
-            let declarator_keyword = self.keyword_for_index(declarator_cursor.index);
+            let declarator_keyword = self.lookahead(|parser| {
+                if asynchrony == Asynchrony::Async {
+                    parser.bump();
+                }
+                parser.bump();
+                parser.current_keyword()
+            });
 
             // `for (using in ...)` should parse as identifier `using`
             if declarator_keyword == Some(Keyword::In) {
@@ -296,7 +291,6 @@ impl Parser {
 
         Some(asynchrony)
     }
-
     /// Return the declaration keyword for a for each pattern binding.
     fn peek_for_each_declaration_kind(&mut self) -> Option<ForEachDeclarationKind> {
         let keyword = self.peek_any_keyword().ok()?;
@@ -328,7 +322,7 @@ impl Parser {
     /// do console.log("test"); while (true)
     /// ```
     pub fn eat_while(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // do-while loop
         if self.is_keyword(Keyword::Do) {
@@ -336,11 +330,9 @@ impl Parser {
             self.bump(); // eat do keyword
 
             // body
-            self.eat_newlines_maybe()?;
             let body_id = self.eat_block_or_statement()?;
 
             // while keyword
-            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::While)?;
 
             // condition
@@ -413,7 +405,6 @@ loop {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let loop_id = parser.eat_loop().unwrap();
         assert_node!(parser.tree, loop_id, Expression::Loop { body, .. } => {
@@ -431,7 +422,6 @@ for (const item in items) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
@@ -510,7 +500,6 @@ for (const item in items) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
@@ -536,7 +525,6 @@ for await (const item of items) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
@@ -568,7 +556,6 @@ for (
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         // for (const { ... } of selectedRelations) {}
@@ -605,7 +592,6 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding, iterator, body } => {
@@ -664,11 +650,9 @@ for (const { item } of fetchList<{ item: string }>(values)) {}
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         parser.eat_keyword(Keyword::For).unwrap();
         parser.eat_token(TokenType::OpenParenthesis).unwrap();
-        parser.eat_newlines_maybe().unwrap();
 
         let binding = parser.eat_for_each_binding().unwrap();
         assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
@@ -690,7 +674,6 @@ for (var r in t)
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body, .. } => {
@@ -721,7 +704,6 @@ for (const item in items) outer: {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern, declaration_kind }, iterator, body: _, .. } => {
@@ -746,7 +728,6 @@ for (using item of items) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Using { asynchrony, pattern }, iterator, body: _, .. } => {
@@ -961,7 +942,6 @@ for (;;) {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body: _, .. } => {
@@ -981,7 +961,6 @@ for (var x = 0; x < 10; x++) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body: _, .. } => {
@@ -1030,7 +1009,6 @@ for (
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
@@ -1054,7 +1032,6 @@ for (start = 0, end = 10; start < end; start++, end--) {}
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, .. } => {
@@ -1080,7 +1057,6 @@ for (type of values) {}
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { binding, kind, iterator, .. } => {
@@ -1110,7 +1086,6 @@ while (x) {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let while_id = parser.eat_while().unwrap();
         assert_node!(parser.tree, while_id, Expression::While { condition, body: _, .. } => {
@@ -1131,7 +1106,6 @@ while (x > y) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let while_id = parser.eat_while().unwrap();
 
@@ -1192,7 +1166,6 @@ do { x } while (true)
         );
 
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         // do { x } while true
         let do_while_id = parser.eat_while().unwrap();

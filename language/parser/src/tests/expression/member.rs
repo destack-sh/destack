@@ -197,8 +197,7 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end
-                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
         })
         .copied()
         .expect("line comment should have one following token");
@@ -233,8 +232,7 @@ fn test_parse_function_member_comment_boundary_before_dot() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end
-                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
         })
         .copied()
         .expect("line comment should have one following token");
@@ -263,8 +261,7 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end
-                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
         })
         .copied()
         .expect("member hop comment should attach to one boundary token");
@@ -447,7 +444,6 @@ self
 ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left: baz_recv, .. } => {
         assert_node!(parser.tree, *baz_recv, Expression::Member { left, name, .. } => {

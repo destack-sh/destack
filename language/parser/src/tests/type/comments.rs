@@ -1129,8 +1129,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
                         token.span.end <= key_remap_span.start
                             && !matches!(
                                 token.token.ty,
-                                TokenType::Newline
-                                    | TokenType::Whitespace
+                                TokenType::Whitespace
                                     | TokenType::LineComment
                                     | TokenType::BlockComment
                                     | TokenType::DocLineComment

@@ -4,7 +4,7 @@ use super::common::{
 use super::lookahead::ParenthesizedGroupShape;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 use destack_source::{NodeSpanBoundary, NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
@@ -28,25 +28,25 @@ enum IdentifierPrimaryLead {
     Expression(LocalNodeId<Expression>),
 }
 
-/// The normalized facts after an identifier primary head.
-struct IdentifierPrimaryFacts {
-    /// The raw token type immediately after the identifier.
-    next_raw_token_type: TokenType,
-    /// The normalized next token type after skipping newlines.
+/// Lookahead after one identifier primary head.
+struct IdentifierPrimaryLookahead {
+    /// The next token type.
     next_token_type: TokenType,
-    /// The normalized next token index after skipping newlines.
-    next_token_index: usize,
-    /// Whether the normalized next token starts after a line break.
-    next_has_line_break: bool,
-    /// Whether the normalized next token can start a declaration.
-    is_declaration_start: bool,
+    /// Whether the next token starts on a new source line.
+    next_is_on_new_line: bool,
+    /// The contextual keyword at the next token, if any.
+    next_keyword: Option<Keyword>,
+    /// The token type after the next token.
+    following_token_type: TokenType,
+    /// Whether the next token can start a declaration.
+    next_is_declaration_start: bool,
     /// The contextual keyword at the current identifier, if any.
     keyword: Option<Keyword>,
     /// Whether the identifier starts a contextual module declaration.
     is_module_declaration_start: bool,
 }
 
-/// The parser-local facts for one expression before continuation parsing.
+/// One expression before continuation parsing.
 #[derive(Clone, Copy, Debug)]
 struct ParsedExpression {
     /// The parsed expression id.
@@ -142,13 +142,14 @@ impl Parser {
         let (path, segment_spans) = self.eat_path_with_segment_spans()?;
 
         // optional generic arguments
-        let generic_arguments =
-            if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
-                self.try_eat_generic_arguments(true, false)
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
+        let generic_arguments = if !self.current_token_is_on_new_line()
+            && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
+        {
+            self.try_eat_generic_arguments(true, false)
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
         Ok((path, segment_spans, generic_arguments))
     }
@@ -156,7 +157,7 @@ impl Parser {
     /// Eat one qualified identifier path in type space.
     fn eat_type_identifier_expression_path(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let (path, segment_spans, generic_arguments) =
             self.eat_identifier_path_with_generic_arguments()?;
@@ -176,7 +177,7 @@ impl Parser {
     /// Eat one qualified identifier path in static space.
     fn eat_static_identifier_expression_path(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let (path, segment_spans, generic_arguments) =
             self.eat_identifier_path_with_generic_arguments()?;
@@ -197,7 +198,7 @@ impl Parser {
     /// Eat one value-space bare identifier expression.
     fn eat_value_identifier_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // value identifiers stay bare until continuation parsing builds the chain
         let (name, name_span) = self.eat_identifier_with_span()?;
@@ -210,16 +211,15 @@ impl Parser {
 
     /// Return whether the current identifier head could be forced into type space.
     fn identifier_head_may_need_type_space(&mut self) -> bool {
-        let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
-        let next_token_type = self.token_type_at(next_index);
+        let next_token_type = self.next_token_type();
+        let next_keyword = self.next_keyword();
 
         // class and extension heads may continue through `.` or generic arguments before `extends`
         if self.options.is_in_before_block() {
             return matches!(
                 next_token_type,
                 TokenType::Dot | TokenType::LessThan | TokenType::ShiftLeft
-            ) || next_token_type == TokenType::Identifier
-                && self.keyword_for_index(next_index) == Some(Keyword::Extends);
+            ) || next_keyword == Some(Keyword::Extends);
         }
 
         // tagged object literal receivers may continue through `.` or generic arguments before `{`
@@ -250,7 +250,7 @@ impl Parser {
     /// Try to eat one identifier head that must lower through type space.
     fn try_eat_forced_identifier_type_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // only language modes with value-space type reentry admit this path
         if self.options.is_in_static() || !self.language.is_destack() {
@@ -263,7 +263,7 @@ impl Parser {
         }
 
         // speculate the identifier head in type space
-        let speculative_start = self.mark();
+        let speculative_start = self.checkpoint();
         let speculative_start_idx = self.tree.next_id();
         let type_expression_id = self.with_options(self.options.in_type(), |parser| {
             let type_expression_id = parser.eat_type_identifier_expression_path(start)?;
@@ -300,7 +300,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_identifier_expression_path(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _identifier_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
 
@@ -449,21 +449,17 @@ impl Parser {
         result
     }
 
-    /// Try to eat an expression and recover to an error node.
-    pub fn try_eat_expression(
+    /// Try to eat an expression and recover to a statement boundary.
+    pub fn try_eat_expression_until_statement_boundary(
         &mut self,
-        recover: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
         match self.eat_expression_in_scope() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::from_span(span);
-                self.try_recover(&start, recover, Some(err))?;
-                let error_id = self
-                    .tree
-                    .insert(Expression::Error, self.get_span_from(&start));
+                let recovered_span = self.try_recover_in_statement_from_span(span, Some(err))?;
+                let error_id = self.tree.insert(Expression::Error, recovered_span);
                 Ok(error_id)
             }
         }
@@ -472,7 +468,7 @@ impl Parser {
     /// Try to parse a plain identifier expression and continuation in common value contexts.
     pub(crate) fn try_parse_plain_identifier_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // plain identifier fast paths only exist on bare identifier heads
         if !self.peek_is(TokenType::Identifier)
@@ -484,28 +480,25 @@ impl Parser {
         }
 
         // value-space plain identifiers yield to lambda heads, labels, and contextual declarations
-        if self.keyword_for_index(self.pos_index()).is_some()
-            || self.should_try_contextual_type_literal()
-        {
+        if self.current_keyword().is_some() || self.should_try_contextual_type_literal() {
             return Ok(None);
         }
 
-        let next_raw_index = self.index_for_next();
-        let next_raw_token_type = self.token_type_at(next_raw_index);
-        if matches!(next_raw_token_type, TokenType::Arrow | TokenType::ArrowWide)
-            || self.options.is_in_statement_position() && next_raw_token_type == TokenType::Colon
+        let next_token_type = self.next_token_type();
+        if matches!(next_token_type, TokenType::Arrow | TokenType::ArrowWide)
+            || self.options.is_in_statement_position() && next_token_type == TokenType::Colon
         {
             return Ok(None);
         }
 
         // contextual declarations use the declaration entry path
-        let is_global_identifier = self.is_global_identifier_at(self.pos_index());
-        let is_module_identifier = self.language.supports_module_declaration()
-            && self.is_module_identifier_at(self.pos_index());
+        let is_global_identifier = self.is_global_identifier();
+        let is_module_identifier =
+            self.language.supports_module_declaration() && self.is_module_identifier();
         if is_global_identifier || is_module_identifier {
-            let next_cursor = self.scanner_cursor_from(next_raw_index);
-            let next_token_type = next_cursor.token_type;
-            let next_token_index = next_cursor.index;
+            let next_token = self.next_token();
+            let next_token_type = next_token.token.ty;
+            let next_keyword = self.next_keyword();
 
             if is_global_identifier
                 && matches!(
@@ -517,12 +510,11 @@ impl Parser {
             }
 
             if is_module_identifier
-                && !next_cursor.has_line_break_before
+                && !next_token.token.is_on_new_line
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
                 && matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
                 && (next_token_type != TokenType::Identifier
-                    || !is_type_relation_keyword(self.keyword_for_index(next_token_index)))
-                && next_raw_token_type == next_token_type
+                    || !is_type_relation_keyword(next_keyword))
             {
                 return Ok(None);
             }
@@ -537,10 +529,15 @@ impl Parser {
     /// Return one contextual type literal type expression when the current token sequence allows it.
     fn try_eat_contextual_type_literal_type_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         // only contextual literal positions can use this path
         if !self.should_try_contextual_type_literal() {
+            return Ok(None);
+        }
+
+        // type predicate subjects stay identifier shaped
+        if self.next_keyword() == Some(Keyword::Is) {
             return Ok(None);
         }
 
@@ -563,10 +560,10 @@ impl Parser {
     /// Return one declaration header or one early expression for an identifier start.
     fn eat_identifier_primary_lead(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<IdentifierPrimaryLead> {
-        let descriptor_head_keyword = self.keyword_for_index(self.pos_index());
+        let descriptor_head_keyword = self.current_keyword();
         let can_parse_declaration_descriptor = self.options.is_in_statement_position()
             || self.options.is_in_type()
             || self.options.is_in_variant()
@@ -596,16 +593,19 @@ impl Parser {
         }
     }
 
-    /// Return the normalized parse facts after one identifier-start primary head.
-    fn identifier_primary_facts(&mut self) -> IdentifierPrimaryFacts {
-        let next_raw_index = self.index_for_next();
-        let next_raw_token_type = self.token_type_at(next_raw_index);
-        let next_cursor = self.scanner_cursor_from(next_raw_index);
-        let next_token_type = next_cursor.token_type;
-        let next_token_index = next_cursor.index;
-        let next_has_line_break = next_cursor.has_line_break_before;
-        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-        let keyword = self.keyword_for_index(self.pos_index());
+    /// Return the lookahead after one identifier-start primary head.
+    fn identifier_primary_lookahead(&mut self) -> IdentifierPrimaryLookahead {
+        let next_token = self.next_token();
+        let next_token_type = next_token.token.ty;
+        let next_is_on_new_line = next_token.token.is_on_new_line;
+        let next_keyword = self.next_keyword();
+        let following_token_type = self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.peek_token_type()
+        });
+        let next_is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+        let keyword = self.current_keyword();
 
         // decorators only keep the small keyword subset that still behaves like operators or heads
         let keyword = if self.options.is_in_decorator() && !self.options.is_in_type() {
@@ -638,30 +638,24 @@ impl Parser {
         // module declarations only exist in value space
         let is_module_declaration_start = if self.options.is_in_decorator()
             || self.options.is_in_type()
-            || next_has_line_break
-            || !is_declaration_start
+            || next_is_on_new_line
+            || !next_is_declaration_start
             || !self.language.supports_module_declaration()
-            || !self.is_module_identifier_at(self.pos_index())
+            || !self.is_module_identifier()
             || !matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
         {
             false
         } else {
             // module names must not collide with relation keywords
-            let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index(next_token_index)
-            } else {
-                None
-            };
-
             !is_type_relation_keyword(next_keyword)
         };
 
-        IdentifierPrimaryFacts {
-            next_raw_token_type,
+        IdentifierPrimaryLookahead {
             next_token_type,
-            next_token_index,
-            next_has_line_break,
-            is_declaration_start,
+            next_is_on_new_line,
+            next_keyword,
+            following_token_type,
+            next_is_declaration_start,
             keyword,
             is_module_declaration_start,
         }
@@ -670,7 +664,7 @@ impl Parser {
     /// Eat one value-space unary keyword primary expression.
     fn eat_value_unary_keyword_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         keyword: Keyword,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let operator = match keyword {
@@ -680,9 +674,8 @@ impl Parser {
         };
 
         // operator head
-        let operator_start = self.mark_span();
+        let operator_start = self.span_start();
         self.bump(); // eat unary operator
-        self.eat_newlines_maybe()?;
         let operator_span = self.get_span_from(&operator_start);
 
         // operand
@@ -711,7 +704,7 @@ impl Parser {
     /// Eat one type-space unary keyword primary expression.
     fn eat_type_unary_keyword_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         keyword: Keyword,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let operator = match keyword {
@@ -721,9 +714,8 @@ impl Parser {
         };
 
         // operator head
-        let operator_start = self.mark_span();
+        let operator_start = self.span_start();
         self.bump(); // eat type unary operator
-        self.eat_newlines_maybe()?;
         let operator_span = self.get_span_from(&operator_start);
 
         // operand context
@@ -853,7 +845,7 @@ impl Parser {
     /// ```
     fn eat_identifier_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // declaration header prefixes or early declaration expressions
@@ -866,15 +858,16 @@ impl Parser {
             }
         };
 
-        // next token facts after the identifier head
-        let facts = self.identifier_primary_facts();
-        let is_unary_keyword = matches!(facts.keyword, Some(Keyword::Typeof | Keyword::Void));
-        let is_type_unary_keyword = matches!(facts.keyword, Some(Keyword::Typeof | Keyword::Keyof));
+        // lookahead after the identifier head
+        let lookahead = self.identifier_primary_lookahead();
+        let is_unary_keyword = matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Void));
+        let is_type_unary_keyword =
+            matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Keyof));
 
         // shorthand lambda form
         if !self.options.is_in_match_case()
             && matches!(
-                facts.next_raw_token_type,
+                lookahead.next_token_type,
                 TokenType::Arrow | TokenType::ArrowWide
             )
         {
@@ -883,9 +876,9 @@ impl Parser {
         }
 
         // plain identifier path or contextual literal
-        if facts.keyword.is_none()
+        if lookahead.keyword.is_none()
             && !self.options.is_in_decorator()
-            && !facts.is_module_declaration_start
+            && !lookahead.is_module_declaration_start
         {
             if let Some(type_expression_id) =
                 self.try_eat_contextual_type_literal_type_expression(start)?
@@ -900,7 +893,7 @@ impl Parser {
         if is_unary_keyword {
             return self.eat_value_unary_keyword_primary_expression(
                 start,
-                facts.keyword.expect("checked unary keyword"),
+                lookahead.keyword.expect("checked unary keyword"),
             );
         }
 
@@ -908,19 +901,19 @@ impl Parser {
         if is_type_unary_keyword {
             let type_expression_id = self.eat_type_unary_keyword_primary_expression(
                 start,
-                facts.keyword.expect("checked type unary keyword"),
+                lookahead.keyword.expect("checked type unary keyword"),
             )?;
 
             return Ok(self.wrap_type_expression(type_expression_id));
         }
 
         // do block expression or do while
-        if facts.keyword == Some(Keyword::Do) {
-            if self.is_do_while_statement(facts.next_token_type) {
+        if lookahead.keyword == Some(Keyword::Do) {
+            if self.is_do_while_statement(lookahead.next_token_type) {
                 return self.eat_while();
             }
 
-            if facts.next_token_type == TokenType::OpenBrace {
+            if lookahead.next_token_type == TokenType::OpenBrace {
                 let block_id = self.eat_block(BlockContext::Expression)?;
                 let expression_id =
                     self.insert_node(Expression::Block(block_id), self.get_span_from(start));
@@ -930,23 +923,23 @@ impl Parser {
         }
 
         // contextual module declaration
-        if facts.keyword.is_none() && facts.is_module_declaration_start {
+        if lookahead.keyword.is_none() && lookahead.is_module_declaration_start {
             let namespace_id = self.eat_namespace(start, header)?;
             return Ok(self.insert_declaration_expression(start, namespace_id));
         }
 
         // keyword expressions and declaration starters
-        if let Some(keyword) = facts.keyword {
+        if let Some(keyword) = lookahead.keyword {
             let _keyword_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
             if let Some(expression_id) = self.eat_keyword_expression(
                 start,
                 header,
                 keyword,
-                facts.next_token_type,
-                facts.next_token_index,
-                facts.next_has_line_break,
-                facts.next_raw_token_type,
-                facts.is_declaration_start,
+                lookahead.next_token_type,
+                lookahead.next_is_on_new_line,
+                lookahead.next_keyword,
+                lookahead.following_token_type,
+                lookahead.next_is_declaration_start,
             )? {
                 return Ok(expression_id);
             }
@@ -974,7 +967,7 @@ impl Parser {
     /// ```
     fn eat_type_identifier_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // declaration header prefixes or early declaration expressions
@@ -991,14 +984,15 @@ impl Parser {
             }
         };
 
-        // next token facts after the identifier head
-        let facts = self.identifier_primary_facts();
-        let is_type_unary_keyword = matches!(facts.keyword, Some(Keyword::Typeof | Keyword::Keyof));
+        // lookahead after the identifier head
+        let lookahead = self.identifier_primary_lookahead();
+        let is_type_unary_keyword =
+            matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Keyof));
 
         // plain identifier path or contextual literal
-        if facts.keyword.is_none()
+        if lookahead.keyword.is_none()
             && !self.options.is_in_decorator()
-            && !facts.is_module_declaration_start
+            && !lookahead.is_module_declaration_start
         {
             if let Some(type_expression_id) =
                 self.try_eat_contextual_type_literal_type_expression(start)?
@@ -1013,28 +1007,28 @@ impl Parser {
         if is_type_unary_keyword {
             return self.eat_type_unary_keyword_primary_expression(
                 start,
-                facts.keyword.expect("checked type unary keyword"),
+                lookahead.keyword.expect("checked type unary keyword"),
             );
         }
 
         // contextual module declaration
-        if facts.keyword.is_none() && facts.is_module_declaration_start {
+        if lookahead.keyword.is_none() && lookahead.is_module_declaration_start {
             let namespace_id = self.eat_namespace(start, header)?;
             return Ok(self.insert_declaration_type_expression(start, namespace_id));
         }
 
         // direct type keyword forms
-        if let Some(keyword) = facts.keyword {
+        if let Some(keyword) = lookahead.keyword {
             let _keyword_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
             if let Some(type_expression_id) = self.eat_type_keyword_expression(
                 start,
                 header,
                 keyword,
-                facts.next_token_type,
-                facts.next_token_index,
-                facts.next_has_line_break,
-                facts.next_raw_token_type,
-                facts.is_declaration_start,
+                lookahead.next_token_type,
+                lookahead.next_is_on_new_line,
+                lookahead.next_keyword,
+                lookahead.following_token_type,
+                lookahead.next_is_declaration_start,
             )? {
                 return Ok(type_expression_id);
             }
@@ -1062,13 +1056,12 @@ impl Parser {
             return false;
         };
 
-        let next_identifier_span = self.peek_next().ok().and_then(|token| {
-            if token.token.ty == TokenType::Identifier {
-                Some(token.span)
-            } else {
-                None
-            }
-        });
+        let next_token = self.next_token();
+        let next_identifier_span = if next_token.token.ty == TokenType::Identifier {
+            Some(next_token.span)
+        } else {
+            None
+        };
         let identifier = self.file.span_str(identifier_span);
         let next_identifier = next_identifier_span.map(|span| self.file.span_str(span));
 
@@ -1097,7 +1090,6 @@ impl Parser {
         inner_options.set_allow_sequence_expression(true);
 
         let expression_id = self.eat_expression(inner_options)?;
-        self.eat_newlines_maybe()?;
         if !self.preserves_parenthesized_wrappers() {
             let close_parenthesis_start = self.peek()?.span.start;
             self.set_node_trailing_span(expression_id, close_parenthesis_start);
@@ -1116,7 +1108,6 @@ impl Parser {
 
         let expression_id =
             self.with_options(inner_options, |parser| parser.eat_type_expression())?;
-        self.eat_newlines_maybe()?;
         if !self.preserves_parenthesized_wrappers() {
             let close_parenthesis_start = self.peek()?.span.start;
             self.set_node_trailing_span(expression_id, close_parenthesis_start);
@@ -1132,7 +1123,7 @@ impl Parser {
     /// Finish a parenthesized expression after the inner value has been parsed.
     fn finish_parenthesized_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
         // wrapped type expressions keep a type-space parenthesized node
@@ -1177,7 +1168,7 @@ impl Parser {
     /// Finish one parenthesized type expression after the inner value has been parsed.
     fn finish_type_parenthesized_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_id: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
         if !self.preserves_parenthesized_wrappers() {
@@ -1236,7 +1227,10 @@ impl Parser {
         // named tuple elements start with `name:`
         let starts_named_tuple_element = self.language.is_destack()
             && self.peek_is(TokenType::Identifier)
-            && self.peek_next_is(TokenType::Colon);
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            });
         let starts_spread_tuple_element =
             self.language.is_destack() && self.peek_is(TokenType::Spread);
 
@@ -1249,7 +1243,7 @@ impl Parser {
             return false;
         }
 
-        let mark = self.mark();
+        let mark = self.checkpoint();
         let tree_mark = self.tree.next_id();
         let can_start = self
             .can_start_parenthesized_function_type_inner()
@@ -1263,12 +1257,10 @@ impl Parser {
     fn can_start_parenthesized_function_type_inner(&mut self) -> ParseResult<bool> {
         // open parameter list
         self.bump();
-        self.eat_newlines_maybe()?;
 
         // empty parameter list
         if self.peek_is(TokenType::CloseParenthesis) {
             self.bump();
-            self.eat_newlines_maybe()?;
 
             return Ok(matches!(
                 self.peek_token_type(),
@@ -1285,7 +1277,6 @@ impl Parser {
         if self.eat_function_type_parameter_head().is_err() {
             return Ok(false);
         }
-        self.eat_newlines_maybe()?;
 
         // annotated, optional, defaulted, or followed by more parameters
         if matches!(
@@ -1300,7 +1291,6 @@ impl Parser {
             return Ok(false);
         }
         self.bump();
-        self.eat_newlines_maybe()?;
 
         Ok(!self.options.is_in_arrow_return_type()
             && matches!(
@@ -1338,7 +1328,7 @@ impl Parser {
     /// Try to parse one parenthesized lambda declaration from one known group shape.
     fn try_eat_parenthesized_lambda_declaration_from_group(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require one lambda follow token first
@@ -1350,13 +1340,13 @@ impl Parser {
 
         // ternary conditions need one speculative parse to keep `?:` honest
         if is_colon_lambda && self.options.is_in_ternary_condition() {
-            let speculative_start = self.mark();
+            let speculative_start = self.checkpoint();
             let speculative_start_idx = self.tree.next_id();
             if let Ok(lambda_id) =
                 self.eat_function(start, DeclarationHeader::default(), false, false)
             {
-                let has_ternary_delimiter = self.peek_is(TokenType::Colon)
-                    || self.is_token_after_newlines(self.pos(), TokenType::Colon);
+                let has_ternary_delimiter =
+                    self.peek_is(TokenType::Colon) || self.next_token_type() == TokenType::Colon;
                 let should_accept = match self.tree.get(lambda_id) {
                     Declaration::Function(declaration) => {
                         declaration.body.is_some() && has_ternary_delimiter
@@ -1381,7 +1371,7 @@ impl Parser {
     /// Try to parse a parenthesized lambda from one known group shape.
     fn try_eat_parenthesized_lambda_from_group(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // parse the shared lambda declaration form
@@ -1393,7 +1383,7 @@ impl Parser {
     /// Try to parse a parenthesized function type in strict type space.
     fn try_eat_parenthesized_function_type(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
         if !matches!(
@@ -1416,7 +1406,7 @@ impl Parser {
     /// Parse a parenthesized primary expression from one known group shape.
     fn eat_parenthesized_primary_from_group(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<ParsedExpression> {
         // base grouped expressions can skip the full lambda path
@@ -1442,7 +1432,6 @@ impl Parser {
         // consume the grouped body
         self.bump(); // eat open parenthesis
         let open_parenthesis_end = self.prev_token_end();
-        self.eat_newlines_maybe()?;
 
         // empty tuple or sequence when we immediately see a closing parenthesis
         if self.peek_is(TokenType::CloseParenthesis) {
@@ -1471,7 +1460,10 @@ impl Parser {
     }
 
     /// Eat one empty parenthesized primary expression after `(` has been consumed.
-    fn eat_empty_parenthesized_primary(&mut self, start: &ParserMark) -> LocalNodeId<Expression> {
+    fn eat_empty_parenthesized_primary(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> LocalNodeId<Expression> {
         self.bump(); // eat closing parenthesis
 
         if self.language.is_destack() {
@@ -1492,7 +1484,7 @@ impl Parser {
     /// Eat one empty type parenthesized primary expression after `(` has been consumed.
     fn eat_empty_type_parenthesized_primary(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         self.bump(); // eat closing parenthesis
 
@@ -1514,12 +1506,11 @@ impl Parser {
     /// Eat one comma parenthesized primary expression after `(` has been consumed.
     fn eat_comma_parenthesized_primary(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let tuple_elements = self
             .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
             .for_node_type(NodeType::Expression)?;
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
         let tuple_id = self.insert_node(
@@ -1535,10 +1526,9 @@ impl Parser {
     /// Eat one comma grouped type primary expression after `(` has been consumed.
     fn eat_type_comma_parenthesized_primary(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let elements = self.eat_type_tuple_elements_body(TokenType::CloseParenthesis)?;
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
@@ -1559,7 +1549,10 @@ impl Parser {
     /// (a, b)
     /// (value): string => other
     /// ```
-    fn eat_parenthesized_primary(&mut self, start: &ParserMark) -> ParseResult<ParsedExpression> {
+    fn eat_parenthesized_primary(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<ParsedExpression> {
         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
         let group = self.parenthesized_group_shape()?;
         self.eat_parenthesized_primary_from_group(start, group)
@@ -1576,7 +1569,7 @@ impl Parser {
     /// ```
     fn eat_type_parenthesized_primary(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
         let group = self.parenthesized_group_shape()?;
@@ -1589,7 +1582,6 @@ impl Parser {
         // consume the grouped body
         self.bump(); // eat open parenthesis
         let open_parenthesis_end = self.prev_token_end();
-        self.eat_newlines_maybe()?;
 
         // empty tuple when we immediately see a closing parenthesis
         if self.peek_is(TokenType::CloseParenthesis) {
@@ -1611,7 +1603,7 @@ impl Parser {
     /// Try to parse a labelled statement or labelled expression.
     fn try_eat_labelled_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // decorators treat keywords as identifiers, so skip label parsing there
@@ -1639,7 +1631,7 @@ impl Parser {
     /// Try to parse the plain identifier fast path before full primary dispatch.
     fn try_eat_plain_identifier_primary(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // identifier fast paths
@@ -1664,7 +1656,7 @@ impl Parser {
     /// Eat one leading elementwise chain head.
     fn eat_leading_elementwise_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let leading_binary_operator = match token_type {
@@ -1700,7 +1692,7 @@ impl Parser {
     /// Eat one leading elementwise type chain head.
     fn eat_type_leading_elementwise_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let leading_binary_operator = match token_type {
@@ -1712,7 +1704,6 @@ impl Parser {
         // separator and following trivia
         self.bump(); // eat elementwise operator
         let separator_end = self.prev_token_end();
-        self.eat_newlines_maybe()?;
 
         // operand
         let expression_id =
@@ -1785,12 +1776,11 @@ impl Parser {
     /// Eat one signed scalar literal type.
     fn eat_type_signed_scalar_literal_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         operator: UnaryOperator,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let operator_start = self.mark_span();
+        let operator_start = self.span_start();
         self.bump(); // eat unary operator
-        self.eat_newlines_maybe()?;
         let operator_span = self.get_span_from(&operator_start);
 
         let scalar_literal = self.eat_scalar_literal()?;
@@ -1824,12 +1814,11 @@ impl Parser {
     /// Eat one value-space unary prefix expression.
     fn eat_unary_prefix_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         operator: UnaryOperator,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let operator_start = self.mark_span();
+        let operator_start = self.span_start();
         self.bump(); // eat unary operator
-        self.eat_newlines_maybe()?;
         let operator_span = self.get_span_from(&operator_start);
 
         let mut right_options = self
@@ -1852,12 +1841,11 @@ impl Parser {
     /// Eat one type-space unary prefix expression.
     fn eat_type_unary_prefix_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         operator: TypeUnaryOperator,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let operator_start = self.mark_span();
+        let operator_start = self.span_start();
         self.bump(); // eat type unary operator
-        self.eat_newlines_maybe()?;
         let operator_span = self.get_span_from(&operator_start);
 
         let mut right_options = self
@@ -1901,7 +1889,7 @@ impl Parser {
     /// Eat one type-space `^` or `&` prefix expression family.
     fn eat_type_reference_or_value_of_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let is_value_of = token_type == TokenType::ElementwiseXor;
@@ -1934,7 +1922,7 @@ impl Parser {
     /// Eat one value-space `^` or `&` prefix expression family.
     fn eat_value_reference_or_value_of_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let is_value_of = token_type == TokenType::ElementwiseXor;
@@ -1963,11 +1951,10 @@ impl Parser {
     /// Eat one type-space bracket primary expression.
     fn eat_type_bracket_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
         let elements = self.eat_type_tuple_elements_body(TokenType::CloseBracket)?;
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(
@@ -1979,7 +1966,7 @@ impl Parser {
     /// Eat one value-space bracket primary expression.
     fn eat_value_bracket_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let elements = self.with_options(self.options.not_in_position(), |parser| {
             parser.eat_array_literal()
@@ -1994,7 +1981,7 @@ impl Parser {
     /// Eat one type-space brace primary expression.
     fn eat_type_brace_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         if self.can_start_type_mapped_expression() {
             return self.eat_type_mapped_expression();
@@ -2013,7 +2000,7 @@ impl Parser {
     /// Eat one value-space brace primary expression.
     fn eat_value_brace_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let can_start_object_literal = !self.options.is_in_statement_position()
             || self.can_parse_object_literal_in_statement_position();
@@ -2055,7 +2042,7 @@ impl Parser {
     /// ```
     fn eat_non_identifier_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<ParsedExpression> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
         let token_type = self.peek_token_type();
@@ -2143,10 +2130,17 @@ impl Parser {
                     self.wrap_type_expression(type_expression_id),
                 ))
             }
-            TokenType::Hash if self.peek_next_is(TokenType::Identifier) => {
-                let hash_index = self.pos_index();
-                let ident_index = hash_index + 1;
-                self.check_tokens_are_adjacent(hash_index, ident_index)?;
+            TokenType::Hash
+                if self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Identifier)
+                }) =>
+            {
+                let hash_span = self.peek()?.span;
+                let identifier_span = self.next_token().span;
+                if hash_span.end != identifier_span.start {
+                    return Err(ParseError::unexpected(identifier_span));
+                }
 
                 self.bump(); // eat #
                 let (name, name_span) = self.eat_identifier_with_span()?;
@@ -2190,7 +2184,7 @@ impl Parser {
     /// ```
     fn eat_type_non_identifier_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
         let token_type = self.peek_token_type();
@@ -2283,13 +2277,8 @@ impl Parser {
         left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // trailing `?` is either an outer conditional boundary or a tuple optional marker
-        let tail_cursor = self.scanner_cursor_from(self.pos_index());
-        if tail_cursor.token_type != TokenType::Maybe {
+        if !self.peek_is(TokenType::Maybe) {
             return Ok(left_type_id);
-        }
-
-        if tail_cursor.index != self.pos_index() {
-            self.advance_to(tail_cursor.index);
         }
 
         // nested conditional right sides and constrained infer parses stop before the outer `?`
@@ -2300,9 +2289,9 @@ impl Parser {
         }
 
         // tuple element optionals belong to the surrounding tuple parser
-        let question_pos = self.pos();
-        let is_tuple_optional = self.is_token_after_newlines(question_pos, TokenType::Comma)
-            || self.is_token_after_newlines(question_pos, TokenType::CloseBracket);
+        let next_token_type = self.next_token_type();
+        let is_tuple_optional =
+            matches!(next_token_type, TokenType::Comma | TokenType::CloseBracket);
         if is_tuple_optional {
             return Ok(left_type_id);
         }
@@ -2321,7 +2310,7 @@ impl Parser {
     /// ```
     fn eat_type_primary_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // primary expression
@@ -2358,7 +2347,7 @@ impl Parser {
             };
 
         // capture expression span
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // primary expression
         let left_type_id = self.eat_type_primary_expression(&start, &mut expression_decorators)?;
@@ -2392,7 +2381,7 @@ impl Parser {
             };
 
         // capture expression span and scanner cursor metadata
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // labelled statements and labelled expressions
         if let Some(labelled_id) =

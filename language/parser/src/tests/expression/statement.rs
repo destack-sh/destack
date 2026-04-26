@@ -76,7 +76,6 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     // type Value = | string | number | boolean
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -111,7 +110,6 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // type Value = ...
@@ -155,7 +153,6 @@ type Target =
             "###,
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     // type Target = | "bun" | "node" | "browser"
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -197,7 +194,6 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     // const value = | 1 | 2 | 3
     assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
@@ -233,7 +229,6 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // const value = ...
@@ -384,7 +379,6 @@ const x =
 ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
         assert_eq!(*mutability, Mutability::Immutable);

@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node, assert_string};
+use crate::{assert_expression_path, assert_name, assert_node, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
@@ -14,7 +14,6 @@ function isStringy(value: any): asserts value is string {
 ",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
 
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
@@ -69,6 +68,56 @@ fn test_parse_type_predicate_in_before_block_context() {
         assert!(!asserts);
         assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
         assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
+    });
+}
+
+/// Parse a predicate return type whose subject is also a contextual type literal.
+#[test]
+fn test_parse_return_type_predicate_with_object_subject() {
+    let mut test = TestParser::new_with_options(
+        r#"function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike;"#,
+        LanguageType::TypeScriptDeclaration,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike
+    assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
+        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { name, export, ambient, signature, body }) => {
+            assert_name!(parser, name.expect("expected function name"), "isAnyArrayBuffer");
+            assert!(export.is_none());
+            assert_eq!(*ambient, Ambientness::Concrete);
+            assert!(!signature.is_abstract);
+            assert!(!signature.is_override);
+            assert_eq!(signature.asynchrony, Asynchrony::Sync);
+            assert_eq!(signature.cardinality, FunctionCardinality::Scalar);
+            assert!(signature.mode.is_none());
+            assert_eq!(signature.kind, FunctionKind::Function);
+            assert!(signature.generic_parameters.is_empty());
+            assert!(signature.where_clauses.is_empty());
+            assert!(signature.this_parameter.is_none());
+            assert_eq!(signature.parameters.len(), 1);
+            assert!(body.is_none());
+
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default } => {
+                assert_string!(parser, *name, "object");
+                assert!(visibility.is_none());
+                assert!(!*is_readonly);
+                assert!(!*is_optional);
+                assert!(default.is_none());
+                assert_node!(parser.tree, declared_type.expect("expected parameter type"), TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Unknown);
+                });
+            });
+
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
+                assert!(!*asserts);
+                assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("object")));
+                assert_expression_path!(parser, parser.tree.get(target.expect("expected predicate target")), "ArrayBufferLike");
+            });
+        });
     });
 }
 

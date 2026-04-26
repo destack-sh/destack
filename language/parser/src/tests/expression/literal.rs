@@ -53,7 +53,6 @@ const shapes = (
 )",
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -373,7 +372,6 @@ geom.Mesh<2, 4> {
         LanguageType::Destack,
     );
     let mut parser = test.prepare();
-    parser.eat_newline().unwrap();
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(
         parser.tree,

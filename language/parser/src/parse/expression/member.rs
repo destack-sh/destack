@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, ScalarLiteral, TokenType,
+    Expression, Keyword, LiteralType, LocalNodeId, NodeType, ScalarLiteral, TokenType,
     TypeExpression,
 };
 use destack_core::StringId;
@@ -13,7 +13,7 @@ impl Parser {
     pub(super) fn expression_is_decimal_integer_before_dot(
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
-        dot_index: usize,
+        dot_span: Span,
     ) -> bool {
         // only integer scalar literals can use decimal separators for member access
         if !matches!(
@@ -23,34 +23,21 @@ impl Parser {
             return false;
         }
 
-        // the candidate must be a dot token adjacent to the literal span
+        // the dot must be directly adjacent to the literal span
         let left_span = self.tree.get_span(left_expression_id);
-        let Some(dot_token) = self.token_ref_at(dot_index).copied() else {
-            return false;
-        };
-        if dot_token.token.ty != TokenType::Dot || left_span.end != dot_token.span.start {
+        if left_span.end != dot_span.start {
             return false;
         }
 
-        // the left expression must map to one decimal integer literal token
-        let Some(literal_index) = dot_index.checked_sub(1) else {
-            return false;
-        };
-        let Some(literal_token) = self.token_ref_at(literal_index).copied() else {
-            return false;
-        };
-        if literal_token.span != left_span || literal_token.token.ty != TokenType::Literal {
-            return false;
-        }
-
-        matches!(
-            literal_token.token.literal,
-            Some(LiteralType::Int {
-                base: NumberBase::Decimal,
-                is_bigint: false,
-                ..
-            })
-        )
+        // only decimal integer source text needs the extra separator dot
+        let source_text = self.get_span_str(left_span);
+        !source_text.ends_with('n')
+            && !source_text.starts_with("0x")
+            && !source_text.starts_with("0X")
+            && !source_text.starts_with("0b")
+            && !source_text.starts_with("0B")
+            && !source_text.starts_with("0o")
+            && !source_text.starts_with("0O")
     }
 
     /// Return true when a decimal integer uses member access without a separator.
@@ -59,15 +46,14 @@ impl Parser {
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
         distance: u8,
+        dot_span: Span,
     ) -> bool {
         // only direct `.name` member access needs the separator rule
         if distance != 2 {
             return false;
         }
 
-        // reject direct member access when the receiver is a decimal integer
-        let dot_index = self.pos_index().saturating_sub(1);
-        self.expression_is_decimal_integer_before_dot(left_expression_id, dot_index)
+        self.expression_is_decimal_integer_before_dot(left_expression_id, dot_span)
     }
 
     /// Return true when a type expression is a decimal integer token directly before `.`.
@@ -75,7 +61,7 @@ impl Parser {
     pub(super) fn type_is_decimal_integer_before_dot(
         &mut self,
         left_type_id: LocalNodeId<TypeExpression>,
-        dot_index: usize,
+        dot_span: Span,
     ) -> bool {
         // only integer scalar literals can use decimal separators for member access
         if !matches!(
@@ -87,34 +73,21 @@ impl Parser {
             return false;
         }
 
-        // the candidate must be a dot token adjacent to the literal span
+        // the dot must be directly adjacent to the literal span
         let left_span = self.tree.get_span(left_type_id);
-        let Some(dot_token) = self.token_ref_at(dot_index).copied() else {
-            return false;
-        };
-        if dot_token.token.ty != TokenType::Dot || left_span.end != dot_token.span.start {
+        if left_span.end != dot_span.start {
             return false;
         }
 
-        // the left expression must map to one decimal integer literal token
-        let Some(literal_index) = dot_index.checked_sub(1) else {
-            return false;
-        };
-        let Some(literal_token) = self.token_ref_at(literal_index).copied() else {
-            return false;
-        };
-        if literal_token.span != left_span || literal_token.token.ty != TokenType::Literal {
-            return false;
-        }
-
-        matches!(
-            literal_token.token.literal,
-            Some(LiteralType::Int {
-                base: NumberBase::Decimal,
-                is_bigint: false,
-                ..
-            })
-        )
+        // only decimal integer source text needs the extra separator dot
+        let source_text = self.get_span_str(left_span);
+        !source_text.ends_with('n')
+            && !source_text.starts_with("0x")
+            && !source_text.starts_with("0X")
+            && !source_text.starts_with("0b")
+            && !source_text.starts_with("0B")
+            && !source_text.starts_with("0o")
+            && !source_text.starts_with("0O")
     }
 
     /// Return true when a decimal integer type uses member access without a separator.
@@ -123,15 +96,14 @@ impl Parser {
         &mut self,
         left_type_id: LocalNodeId<TypeExpression>,
         distance: u8,
+        dot_span: Span,
     ) -> bool {
         // only direct `.name` member access needs the separator rule
         if distance != 2 {
             return false;
         }
 
-        // reject direct member access when the receiver is a decimal integer
-        let dot_index = self.pos_index().saturating_sub(1);
-        self.type_is_decimal_integer_before_dot(left_type_id, dot_index)
+        self.type_is_decimal_integer_before_dot(left_type_id, dot_span)
     }
 
     /// Eat a static member name and return both the name and its span.
@@ -161,20 +133,17 @@ impl Parser {
     /// Check whether `?.` starts an optional chaining segment.
     #[inline]
     pub(super) fn is_optional_chain_after_maybe(&mut self) -> bool {
-        self.is_optional_chain_after_maybe_at(self.pos_index())
-    }
-
-    /// Check whether `?.` starts an optional chaining segment at a token index.
-    #[inline]
-    pub(super) fn is_optional_chain_after_maybe_at(&mut self, maybe_index: usize) -> bool {
         // require ?. before we look at the target
-        if self.token_type_at(maybe_index.saturating_add(1)) != TokenType::Dot {
+        if self.next_token_type() != TokenType::Dot {
             return false;
         }
 
         // accept valid optional chain targets after ?., including line-delimited targets
-        let next_target_index = self.first_non_newline_index_from(maybe_index.saturating_add(2));
-        let next_target_type = self.token_type_at(next_target_index);
+        let next_target_type = self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.peek_token_type()
+        });
         matches!(
             next_target_type,
             TokenType::Identifier
@@ -195,21 +164,18 @@ impl Parser {
             return false;
         }
 
-        let next_index = self.first_non_newline_index_from(self.pos_index().saturating_add(1));
-        if self.keyword_for_index(next_index) == Some(Keyword::This) {
+        if self.next_keyword() == Some(Keyword::This) {
             return true;
         }
 
-        self.token_type_at(next_index) == TokenType::Identifier
+        self.next_token_type() == TokenType::Identifier
     }
 
     /// Eat a parenthesized expression and return the inner expression.
     pub fn eat_parenthesized_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         let expression_id = self.eat_expression(self.options)?;
-        self.eat_newlines_maybe()?;
 
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 

@@ -233,14 +233,13 @@ impl Parser {
     /// Eat a dynamic import call expression (`import("foo")`).
     pub fn eat_import_call_expression(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
         // open call
         self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
 
         // parse the first argument as the import target
         let target_options = self
@@ -264,10 +263,9 @@ impl Parser {
             },
         };
 
-        // parse optional import attributes argument(s)
-        self.eat_newlines_maybe()?;
-        let arguments = if self.peek_is(TokenType::Comma) || self.peek_is(TokenType::Newline) {
-            self.eat_item_stop_with_newlines()?;
+        // parse optional import attributes argument
+        let arguments = if self.peek_is(TokenType::Comma) {
+            self.eat_item_stop()?;
             if self.peek_is(TokenType::CloseParenthesis) || self.peek_is(TokenType::End) {
                 Some(vec![])
             } else {
@@ -280,7 +278,6 @@ impl Parser {
         } else {
             None
         };
-        self.eat_newlines_maybe()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
         // import
@@ -318,30 +315,26 @@ impl Parser {
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_IMPORT);
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
-        // skip newlines before a type modifier
-        if self.peek_is(TokenType::Newline) && self.is_keyword_after_newlines(Keyword::Type) {
-            self.eat_newlines_maybe()?;
-        }
-
-        // allow multiline import heads before bindings or bare targets
-        self.eat_newlines_maybe()?;
-
         // kind
         let kind = if self.should_parse_import_type_modifier() {
             self.bump(); // eat type
-            self.eat_newlines_maybe()?;
             Some(DependencyKind::Type)
         } else {
             None
         };
 
         // import equals: `import A = B.C` or `import a = require("a")`
-        if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Assign) {
+        if self.peek_is(TokenType::Identifier)
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Assign)
+            })
+        {
             let (name, name_span) = self.eat_import_equals_name_with_span()?;
             self.eat_token(TokenType::Assign)?;
 
@@ -383,13 +376,10 @@ impl Parser {
         };
 
         if has_binding {
-            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
-            self.eat_newlines_maybe()?;
         }
 
         // allow bare import targets on the next line (`import\n"foo"` and comment separated forms)
-        self.eat_newlines_maybe()?;
         let (target, target_span) = self.eat_dependency_target_with_span()?;
 
         // arguments
@@ -424,22 +414,22 @@ impl Parser {
 
     /// Check whether the tokens after the current `import` keyword form an import equals clause.
     pub(crate) fn peek_import_equals_after_import(&mut self) -> bool {
-        let mut pos = self.pos_index() + 1;
-        pos = self.next_non_newline_index_from(pos);
+        self.lookahead(|parser| {
+            parser.bump();
 
-        // skip optional type modifier
-        if self.keyword_for_index(pos) == Some(Keyword::Type) {
-            pos = self.next_non_newline_index_from(pos + 1);
-        }
-
-        // require `name =`
-        self.token_ref_at(pos)
-            .is_some_and(|token| token.token.ty == TokenType::Identifier)
-            && {
-                let after = self.next_non_newline_index_from(pos + 1);
-                self.token_ref_at(after)
-                    .is_some_and(|token| token.token.ty == TokenType::Assign)
+            // skip optional type modifier
+            if parser.is_keyword(Keyword::Type) {
+                parser.bump();
             }
+
+            // require `name =`
+            if !parser.peek_is(TokenType::Identifier) {
+                return false;
+            }
+
+            parser.bump();
+            parser.peek_is(TokenType::Assign)
+        })
     }
 
     /// Decide whether `type` after `import` is a type-only modifier.
@@ -448,39 +438,29 @@ impl Parser {
             return false;
         }
 
-        // examine the token after type
-        let mut pos = self.pos_index() + 1;
-        pos = self.next_non_newline_index_from(pos);
-        let token = self.token_ref_at(pos);
+        self.lookahead(|parser| {
+            parser.bump();
 
-        // binding forms like `import type { ... }` or `import type * as`
-        if matches!(
-            token,
-            Some(token)
-                if token.token.ty == TokenType::OpenBrace
-                    || token.token.ty == TokenType::Multiply
-        ) {
-            return true;
-        }
-
-        // identifier bindings like `import type A = B.C`
-        if token.is_some_and(|token| token.token.ty == TokenType::Identifier) {
-            if self.keyword_for_index(pos) == Some(Keyword::From) {
-                let mut after_from = pos + 1;
-                after_from = self.next_non_newline_index_from(after_from);
-                if self
-                    .token_ref_at(after_from)
-                    .is_some_and(|token| token.token.ty == TokenType::Assign)
-                    || self.keyword_for_index(after_from) == Some(Keyword::From)
-                {
-                    return true;
-                }
-                return false;
+            // binding forms like `import type { ... }` or `import type * as`
+            if matches!(
+                parser.peek_token_type(),
+                TokenType::OpenBrace | TokenType::Multiply
+            ) {
+                return true;
             }
-            return true;
-        }
 
-        false
+            // identifier bindings like `import type A = B.C`
+            if parser.peek_is(TokenType::Identifier) {
+                if parser.current_keyword() == Some(Keyword::From) {
+                    parser.bump();
+                    return parser.peek_is(TokenType::Assign)
+                        || parser.current_keyword() == Some(Keyword::From);
+                }
+                return true;
+            }
+
+            false
+        })
     }
 
     /// Eat an import equals binding name and return its span.
@@ -500,9 +480,21 @@ impl Parser {
     /// Eat `require("a")` and return its target.
     fn try_eat_import_equals_require_target(&mut self) -> ParseResult<Option<(StringId, Span)>> {
         if !(self.peek_identifier_str_is("require")
-            && self.peek_next_is(TokenType::OpenParenthesis)
-            && self.peek_next_next_is(TokenType::Literal)
-            && self.peek_next_next_next_is(TokenType::CloseParenthesis))
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::OpenParenthesis)
+            })
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                parser.peek_is(TokenType::Literal)
+            })
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                parser.bump();
+                parser.peek_is(TokenType::CloseParenthesis)
+            }))
         {
             return Ok(None);
         }
@@ -517,17 +509,15 @@ impl Parser {
     /// Eat `export import Foo = Bar.Baz` as an exported import alias.
     pub(crate) fn eat_export_import_equals(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // import keyword
         self.eat_keyword(Keyword::Import)?;
-        self.eat_newlines_maybe()?;
 
         // kind
         let kind = if self.is_keyword(Keyword::Type) {
             self.bump(); // eat type
-            self.eat_newlines_maybe()?;
             Some(DependencyKind::Type)
         } else {
             None
@@ -555,7 +545,7 @@ impl Parser {
     /// Build an import alias declaration.
     fn build_import_alias(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
         kind: Option<DependencyKind>,
         name: StringId,
@@ -588,10 +578,9 @@ impl Parser {
     /// export = foo
     /// ```
     pub fn eat_export(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         self.eat_keyword(Keyword::Export)?;
-        self.eat_newlines_maybe()?;
 
         // export default <expression>
         if self.is_keyword(Keyword::Default) {
@@ -673,15 +662,11 @@ impl Parser {
         };
 
         // export * from
-        let has_namespace_reexport_from = self.peek_is(TokenType::Multiply) && {
-            let from_index = self.next_non_newline_index_from(self.pos_index() + 1);
-            self.keyword_for_index(from_index) == Some(Keyword::From)
-        };
+        let has_namespace_reexport_from =
+            self.peek_is(TokenType::Multiply) && { self.next_keyword() == Some(Keyword::From) };
         if has_namespace_reexport_from {
             self.bump(); // eat *
-            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
-            self.eat_newlines_maybe()?;
             let (target, target_span) = self.eat_dependency_target_with_span()?;
             let parsed_attributes = self.eat_dependency_arguments_maybe()?;
             let attributes = parsed_attributes
@@ -724,12 +709,9 @@ impl Parser {
         // binding
         let allow_type_modifier = kind != Some(DependencyKind::Type);
         let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
-        let has_from_target = self.is_keyword(Keyword::From)
-            || self.peek_is(TokenType::Newline) && self.is_keyword_after_newlines(Keyword::From);
+        let has_from_target = self.is_keyword(Keyword::From);
         let (target, target_span) = if has_from_target {
-            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
-            self.eat_newlines_maybe()?;
             let (target, span) = self.eat_dependency_target_with_span()?;
             (Some(target), Some(span))
         } else {
@@ -892,11 +874,10 @@ impl Parser {
             return Ok(None);
         }
 
-        let start = self.mark_span();
+        let start = self.span_start();
         self.bump(); // eat with
 
         // attribute clause body
-        self.eat_newlines_maybe()?;
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         let argument_options = self.options.nested();
         let arguments = self.with_options(argument_options, |parser| {
@@ -945,10 +926,9 @@ impl Parser {
         }
 
         if self.peek_is(TokenType::Identifier) {
-            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
-            let next_token_type = self.token_type_at(next_index);
+            let next_token_type = self.next_token_type();
             return next_token_type == TokenType::Comma
-                || self.keyword_for_index(next_index) == Some(Keyword::From);
+                || self.next_keyword() == Some(Keyword::From);
         }
 
         false
@@ -956,11 +936,10 @@ impl Parser {
 
     /// Return true when tokens after `import` can start an import statement.
     pub(crate) fn can_start_import_statement(&mut self) -> bool {
-        let after_import = self.pos().saturating_add(1);
-        self.is_token_after_newlines(after_import, TokenType::Identifier)
-            || self.is_token_after_newlines(after_import, TokenType::OpenBrace)
-            || self.is_token_after_newlines(after_import, TokenType::Multiply)
-            || self.is_token_after_newlines(after_import, TokenType::Literal)
+        matches!(
+            self.next_token_type(),
+            TokenType::Identifier | TokenType::OpenBrace | TokenType::Multiply | TokenType::Literal
+        )
     }
 
     /// Eat an dependency target and return both the string and its span.
@@ -1010,33 +989,24 @@ impl Parser {
 
         // `Default,` or `foo from`
         let can_start_default_item = if self.peek_is(TokenType::Identifier) {
-            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
-            let next_token_type = self.token_type_at(next_index);
-            next_token_type == TokenType::Comma
-                || self.keyword_for_index(next_index) == Some(Keyword::From)
+            self.next_token_type() == TokenType::Comma || self.next_keyword() == Some(Keyword::From)
         } else {
             false
         };
 
         if can_start_default_item {
-            let start = self.mark_span();
+            let start = self.span_start();
             let (alias, alias_span) = self.eat_identifier_with_span()?;
 
             // parse optional default binding separator
             if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
-                self.eat_newlines_maybe()?;
 
                 // require a supported binding continuation
                 if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
-            // allow line breaks before `from`
-            else {
-                self.eat_newlines_maybe()?;
-            }
-
             let item = DependencyItem::Item {
                 mode: DependencyMode::Default,
                 kind: None,
@@ -1051,7 +1021,7 @@ impl Parser {
 
         // `* as foo` (can follow a default import)
         if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::As) {
-            let start = self.mark_span();
+            let start = self.span_start();
             self.bump(); // eat *
             self.bump(); // eat as
             let (alias, alias_span) = if self.peek_is(TokenType::Literal) {
@@ -1074,10 +1044,9 @@ impl Parser {
         // main items
         if items.is_empty() || self.peek_is(TokenType::OpenBrace) {
             self.eat_token(TokenType::OpenBrace)?;
-            self.eat_newlines_maybe()?;
 
             while !self.peek_is(TokenType::CloseBrace) {
-                let item_start = self.mark_span();
+                let item_start = self.span_start();
 
                 let item = match self.eat_dependency_item(allow_type_modifier, allow_literal_alias)
                 {
@@ -1095,14 +1064,12 @@ impl Parser {
 
                 items.push(item);
 
-                self.eat_newlines_maybe()?;
-
                 if self.peek_is(TokenType::CloseBrace) {
                     break;
                 }
 
                 if self.peek_comma_is() {
-                    self.eat_item_stop_with_newlines()?;
+                    self.eat_item_stop()?;
 
                     // recover a missing close brace before the clause boundary
                     if self.is_keyword(Keyword::From)
@@ -1122,7 +1089,6 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing_with(
                 TokenType::CloseBrace,
                 NodeType::DependencyItem,
@@ -1147,7 +1113,7 @@ impl Parser {
         allow_type_modifier: bool,
         allow_literal_alias: bool,
     ) -> ParseResult<LocalNodeId<DependencyItem>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // kind
         let kind = if self.should_parse_dependency_type_modifier() {
@@ -1166,15 +1132,10 @@ impl Parser {
             self.bump(); // eat default
 
             // alias
-            let has_alias_separator = self.is_keyword(Keyword::As)
-                || self.peek_is(TokenType::Colon)
-                || self.peek_is(TokenType::Newline)
-                    && (self.is_keyword_after_newlines(Keyword::As)
-                        || self.is_token_after_newlines(self.pos(), TokenType::Colon));
+            let has_alias_separator =
+                self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
             let (alias, alias_span) = if has_alias_separator {
-                self.eat_newlines_maybe()?;
                 self.bump(); // eat `as` or `:`
-                self.eat_newlines_maybe()?;
                 let (alias, alias_span) =
                     self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                 (Some(alias), Some(alias_span))
@@ -1204,15 +1165,10 @@ impl Parser {
             let (name, name_span) = self.eat_dependency_item_name_with_span()?;
 
             // alias
-            let has_alias_separator = self.is_keyword(Keyword::As)
-                || self.peek_is(TokenType::Colon)
-                || self.peek_is(TokenType::Newline)
-                    && (self.is_keyword_after_newlines(Keyword::As)
-                        || self.is_token_after_newlines(self.pos(), TokenType::Colon));
+            let has_alias_separator =
+                self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon);
             let (alias, alias_span) = if has_alias_separator {
-                self.eat_newlines_maybe()?;
                 self.bump(); // eat `as` or `:`
-                self.eat_newlines_maybe()?;
                 let (alias, alias_span) =
                     self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
                 (Some(alias), Some(alias_span))
@@ -1247,18 +1203,33 @@ impl Parser {
         }
 
         // require a name after `type`
-        if !self.peek_next_is(TokenType::Identifier) && !self.peek_next_is(TokenType::Literal) {
+        if !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::Identifier)
+        }) && !self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_is(TokenType::Literal)
+        }) {
             return false;
         }
 
         // handle `type as` disambiguation
         if self.is_next_keyword(Keyword::As) {
-            if !self.peek_next_next_is(TokenType::Identifier) {
+            if !self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                parser.peek_is(TokenType::Identifier)
+            }) {
                 return true;
             }
 
             if self.is_next_next_keyword(Keyword::As) {
-                return self.peek_next_next_next_is(TokenType::Identifier);
+                return self.lookahead(|parser| {
+                    parser.bump();
+                    parser.bump();
+                    parser.bump();
+                    parser.peek_is(TokenType::Identifier)
+                });
             }
 
             return false;
@@ -1685,7 +1656,6 @@ import {
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let import_id = parser.eat_import().unwrap();
         assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
@@ -2267,7 +2237,6 @@ export type { CreateUIMessage, UIMessage }
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let export_id = parser.eat_export().unwrap();
         assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {

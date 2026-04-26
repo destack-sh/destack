@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Ambientness, BlockContext, BlockFormat, Declaration, Expression, GlobalDeclaration, Keyword,
@@ -12,11 +12,10 @@ impl Parser {
     /// Eat a global augmentation declaration (like `declare global { ... }`).
     pub(crate) fn eat_global(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("global")?;
-        self.eat_newlines_maybe()?;
 
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
@@ -38,7 +37,7 @@ impl Parser {
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
     pub(crate) fn eat_namespace(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
@@ -84,10 +83,8 @@ impl Parser {
             self.options
         };
 
-        let has_body =
-            self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace);
+        let has_body = self.peek_is(TokenType::OpenBrace);
         let expressions = if has_body {
-            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions_result = self.with_options(body_options, |parser| {
                 parser.eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
@@ -180,7 +177,6 @@ declare global {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -202,7 +198,6 @@ global {
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -224,7 +219,6 @@ declare module "foo" {
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -244,7 +238,7 @@ declare module "foo" {
         let mut test = TestParser::new("namespace Foo { interface Bar { }");
         let mut parser = test.prepare();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let namespace_id = parser
             .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
@@ -342,7 +336,6 @@ declare module "buffer" {
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -377,7 +370,6 @@ declare module "m" {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -410,7 +402,6 @@ module "foo" {
             LanguageType::DestackDeclaration,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -436,7 +427,6 @@ module "foo" {
             LanguageType::Destack,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -462,7 +452,7 @@ module "foo" {
     fn test_parse_empty_namespace() {
         let mut test = TestParser::new("namespace { }");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let result = parser.eat_namespace(&start, DeclarationHeader::default());
         assert!(result.is_err());
     }
@@ -476,9 +466,8 @@ namespace Foo where Guard: Limit {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let namespace_id = parser
             .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
@@ -502,7 +491,7 @@ namespace Foo where Guard: Limit {
     fn test_parse_forward_namespace_with_where() {
         let mut test = TestParser::new("namespace Foo where Requirement: Interface { }");
         let mut parser = test.prepare();
-        let start = parser.mark();
+        let start = parser.span_start();
         let namespace_id = parser
             .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();

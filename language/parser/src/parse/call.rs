@@ -12,12 +12,11 @@ impl Parser {
         &mut self,
         receiver_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         let receiver_span = self.tree.get_span(receiver_id);
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
-        self.eat_newlines_maybe()?;
 
         // bare brackets in type positions mean array type form: `T[]`
         if self.peek_is(TokenType::CloseBracket) {
@@ -44,8 +43,6 @@ impl Parser {
                 NodeType::TypeExpression,
             )?
         };
-
-        self.eat_newlines_maybe()?;
 
         // close bracket
         if !is_missing_index {
@@ -79,12 +76,11 @@ impl Parser {
         receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         let receiver_span = self.tree.get_span(receiver_id);
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
-        self.eat_newlines_maybe()?;
 
         // bare index
         if self.peek_is(TokenType::CloseBracket) {
@@ -109,8 +105,6 @@ impl Parser {
         } else {
             self.eat_expression(self.options.nested())?
         };
-
-        self.eat_newlines_maybe()?;
 
         // close bracket
         if !is_missing_index {
@@ -138,13 +132,13 @@ impl Parser {
     /// new Foo<T>()
     /// ```
     pub fn eat_new(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // keyword
         self.eat_keyword(Keyword::New)?;
 
         // receiver
-        let left = if self.peek_token_type() == TokenType::Newline {
+        let left = if self.current_token_is_on_new_line() {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
             let receiver_options = self.options.not_in_position().in_new_receiver();
@@ -193,7 +187,7 @@ impl Parser {
     /// delete foo['result']
     /// ```
     pub fn eat_delete(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // keyword
         self.eat_keyword(Keyword::Delete)?;
@@ -227,7 +221,7 @@ impl Parser {
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         let receiver_span = self.tree.get_span(receiver_id);
 
         // generic arguments from postfix or immediate call form

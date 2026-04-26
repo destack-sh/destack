@@ -132,11 +132,11 @@ impl Parser {
         }
 
         // contextual identifiers like `number` or `unique symbol`
-        let next_next = self.peek_next().ok().copied();
-        let next_next_type = next_next.map(|next| next.token.ty);
+        let next_next = self.next_token();
+        let next_next_type = next_next.token.ty;
         if let Some(identifier_span) = identifier_span {
-            let next_identifier_span = if next_next_type == Some(TokenType::Identifier) {
-                next_next.map(|next| next.span)
+            let next_identifier_span = if next_next_type == TokenType::Identifier {
+                Some(next_next.span)
             } else {
                 None
             };
@@ -148,12 +148,12 @@ impl Parser {
         }
 
         let next_str = self.get_span_str(next.span);
-        let next_next_str = next_next.map(|next| self.get_span_str(next.span));
+        let next_next_str =
+            (next_next_type != TokenType::End).then(|| self.get_span_str(next_next.span));
 
         // `!` means `never` unless another expression follows
         if next_type == TokenType::Not {
             if let Some(next_next_str) = next_next_str
-                && let Some(next_next_type) = next_next_type
                 && self.is_start_of_expression(next_next_str, next_next_type)
             {
                 // do nothing

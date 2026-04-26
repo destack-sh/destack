@@ -20,19 +20,17 @@ impl Parser {
         let mut decorators = PendingDecorators::new();
 
         while self.peek_is(TokenType::At) {
-            let start = self.mark_span();
-            let decorator = self.with_recovery(
+            let start = self.span_start();
+            let decorator = self.with_statement_recovery(
                 &start,
                 |parser| parser.eat_decorator().map(Some),
                 None,
-                TokenType::Newline,
             );
             if let Some(decorator_id) = decorator {
                 decorators.push(PendingDecorator { decorator_id });
             }
 
             // consume trailing newlines between decorator entries
-            self.eat_newlines_maybe()?;
         }
 
         Ok(decorators)
@@ -51,7 +49,7 @@ impl Parser {
 
     /// Parse one decorator expression.
     fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // eat @ marker
         self.eat_token(TokenType::At)?;

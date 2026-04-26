@@ -150,9 +150,8 @@ impl Parser {
             return false;
         }
 
-        // direct and newline member access keep the keyword as an identifier
-        let has_member_after_keyword = next_token_type == TokenType::Dot
-            || (next_token_type == TokenType::Newline && next_next_token_type == TokenType::Dot);
+        // member access keeps the keyword as an identifier
+        let has_member_after_keyword = next_token_type == TokenType::Dot;
 
         // optional chain member access keeps the keyword as an identifier
         let has_optional_member_after_keyword =
@@ -356,12 +355,12 @@ impl Parser {
         }
 
         // allow `as comptime` across line breaks
-        let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
-        if self.token_type_at(next_index) != TokenType::Identifier {
+        let next_token = self.next_token();
+        if next_token.token.ty != TokenType::Identifier {
             return None;
         }
 
-        let next_keyword = self.keyword_for_index(next_index);
+        let next_keyword = self.next_keyword();
         match next_keyword {
             Some(Keyword::Comptime) => Some(TypeUnaryOperator::AsComptime),
             _ => None,
@@ -378,34 +377,43 @@ impl Parser {
     /// Peek next assign operator.
     #[inline]
     pub fn peek_next_assign_operator(&mut self) -> ParseResult<AssignOperator> {
-        let token = *self.peek_next()?;
+        let token = self.next_token();
         AssignOperator::from_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
     /// Return true when the next token is an assignment operator.
     #[inline]
     pub fn peek_next_assign_operator_is(&mut self) -> bool {
-        AssignOperator::from_token(self.peek_next_token_type()).is_some()
+        AssignOperator::from_token(self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_token_type()
+        }))
+        .is_some()
     }
 
-    /// Return true when a token index could be an infix or assign operator.
+    /// Return true when the current token could be an infix or assign operator.
     #[inline]
-    pub(crate) fn has_infix_or_assign_operator_at_index(&mut self, index: usize) -> bool {
-        let token_type = self.token_type_at(index);
+    pub(crate) fn current_token_can_start_infix_or_assign_operator(&mut self) -> bool {
+        let token_type = self.peek_token_type();
         if AssignOperator::from_token(token_type).is_some() {
             return true;
         }
         if token_type != TokenType::Identifier {
             return BinaryOperator::from_token("", token_type).is_some();
         }
+
         // only identifiers mapped to contextual operator keywords can act as infix operators
-        let Some(keyword) = self.keyword_for_index(index) else {
+        let Some(keyword) = self.current_keyword() else {
             return false;
         };
 
         // `as` and `satisfies` followed by member access continue as identifiers
-        let next_token_type = self.token_type_at(index.saturating_add(1));
-        let next_next_token_type = self.token_type_at(index.saturating_add(2));
+        let next_token_type = self.next_token_type();
+        let next_next_token_type = self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.peek_token_type()
+        });
         if self.contextual_cast_keyword_continues_identifier(
             keyword,
             next_token_type,
@@ -426,23 +434,29 @@ impl Parser {
         )
     }
 
-    /// Peek an infix operator at a semantic token index.
+    /// Peek an infix operator at the current parser token.
     #[inline]
-    pub(super) fn peek_infix_operator_at_index_maybe(
+    pub(super) fn peek_infix_operator_maybe(
         &mut self,
-        index: usize,
         has_newline: bool,
     ) -> Option<(ParseInfixOperator, u8)> {
-        let token = *self.token_ref_at(index)?;
+        let token = self.current_token();
         let token_type = token.token.ty;
         let (next_token, next_next_token) =
             if matches!(token_type, TokenType::GreaterThan | TokenType::Identifier) {
-                (self.token_at(index + 1), self.token_at(index + 2))
+                let next_token = self.next_token();
+                let next_next_token = self.lookahead(|parser| {
+                    parser.bump();
+                    parser.bump();
+                    parser.current_token()
+                });
+
+                (Some(next_token), Some(next_next_token))
             } else {
                 (None, None)
             };
         let token_str = if token_type == TokenType::Identifier {
-            let keyword = self.keyword_for_index(index)?;
+            let keyword = self.current_keyword()?;
             Self::infix_identifier_keyword_text(keyword)?
         } else {
             ""

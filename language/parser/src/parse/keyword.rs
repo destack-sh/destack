@@ -1,47 +1,30 @@
-use std::str::FromStr;
-
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, keyword_from_identifier};
 use destack_ast::{Keyword, TokenSpan, TokenType};
 
 impl Parser {
-    /// Return true when the token at index is the given keyword.
-    #[inline]
-    fn keyword_is_at(&mut self, index: usize, keyword: Keyword) -> bool {
-        self.keyword_for_index(index) == Some(keyword)
-    }
-
     /// Return true when the current token is the given keyword.
     #[inline]
     pub fn is_keyword(&mut self, keyword: Keyword) -> bool {
-        let pos = self.pos_index();
-        self.keyword_is_at(pos, keyword)
+        self.current_keyword() == Some(keyword)
     }
 
     /// Return true when the next token is the given keyword.
     #[inline]
     pub fn is_next_keyword(&mut self, keyword: Keyword) -> bool {
-        let pos = self.index_for_next();
-        self.keyword_is_at(pos, keyword)
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.current_keyword() == Some(keyword)
+        })
     }
 
     /// Return true when the next next token is the given keyword.
     #[inline]
     pub fn is_next_next_keyword(&mut self, keyword: Keyword) -> bool {
-        let pos = self.index_for_next_next();
-        self.keyword_is_at(pos, keyword)
-    }
-
-    /// Return the keyword after any leading newlines.
-    #[inline]
-    pub fn keyword_after_newlines(&mut self) -> Option<Keyword> {
-        let cursor = self.scanner_cursor_from(self.pos_index());
-        self.keyword_for_index(cursor.index)
-    }
-
-    /// Return true when the token after any leading newlines is the given keyword.
-    #[inline]
-    pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {
-        self.keyword_after_newlines() == Some(keyword)
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.current_keyword() == Some(keyword)
+        })
     }
 
     /// Peek a keyword.
@@ -59,57 +42,46 @@ impl Parser {
     #[inline]
     pub fn peek_any_keyword(&mut self) -> ParseResult<Keyword> {
         let current = *self.peek_token(TokenType::Identifier)?;
-        self.keyword_for_index(self.pos_index())
+        self.current_keyword()
             .ok_or_else(|| ParseError::expected(current.span, TokenType::Identifier))
     }
 
     /// Peek the next keyword.
     #[inline]
-    pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        let current = *self.peek_next_token(TokenType::Identifier)?;
-        if !self.is_next_keyword(keyword) {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
-        } else {
-            self.peek_next_token(TokenType::Identifier)
-        }
+    pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParseResult<TokenSpan> {
+        self.lookahead(|parser| {
+            parser.bump();
+            let current = *parser.peek_token(TokenType::Identifier)?;
+            if !parser.is_keyword(keyword) {
+                Err(ParseError::expected(current.span, TokenType::Identifier))
+            } else {
+                Ok(current)
+            }
+        })
     }
 
     /// Peek any next keyword.
     #[inline]
     pub fn peek_next_any_keyword(&mut self) -> ParseResult<Keyword> {
-        let current = *self.peek_next_token(TokenType::Identifier)?;
-        let pos = self.index_for_next();
-        self.keyword_for_index(pos)
-            .ok_or_else(|| ParseError::expected(current.span, TokenType::Identifier))
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.peek_any_keyword()
+        })
     }
 
     /// Peek the next next keyword.
     #[inline]
-    pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        let current = *self.peek_next_next_token(TokenType::Identifier)?;
-        let pos = self.index_for_next_next();
-        if self.keyword_for_index(pos) != Some(keyword) {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
-        } else {
-            self.peek_next_next_token(TokenType::Identifier)
-        }
-    }
-
-    /// Peek a keyword after any newlines.
-    #[inline]
-    pub fn peek_keyword_after_newlines(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        let cursor = self.scanner_cursor_from(self.pos_index());
-        let pos = cursor.index;
-        let matches_keyword = self.keyword_for_index(pos) == Some(keyword);
-        let eof_span = self.eof_span();
-        let current = self
-            .token_ref_at(pos)
-            .ok_or_else(|| ParseError::expected(eof_span, TokenType::Identifier))?;
-        if matches_keyword {
-            Ok(current)
-        } else {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
-        }
+    pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParseResult<TokenSpan> {
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            let current = *parser.peek_token(TokenType::Identifier)?;
+            if !parser.is_keyword(keyword) {
+                Err(ParseError::expected(current.span, TokenType::Identifier))
+            } else {
+                Ok(current)
+            }
+        })
     }
 
     /// Eat a keyword.
@@ -121,8 +93,8 @@ impl Parser {
     /// Eat any keyword.
     pub fn eat_keyword_any(&mut self) -> ParseResult<Keyword> {
         let current = *self.eat_token(TokenType::Identifier)?;
-        Keyword::from_str(self.get_token_str(current))
-            .map_err(|_| ParseError::expected(current.span, TokenType::Identifier))
+        keyword_from_identifier(self.get_token_str(current))
+            .ok_or_else(|| ParseError::expected(current.span, TokenType::Identifier))
     }
 
     /// Eat one of a list of keywords.

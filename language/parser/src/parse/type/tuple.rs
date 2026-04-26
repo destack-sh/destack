@@ -6,15 +6,28 @@ impl Parser {
     /// Return whether the current token starts a labeled type tuple head.
     fn starts_labeled_type_tuple_head(&mut self) -> bool {
         self.peek_is(TokenType::Identifier)
-            && (self.peek_next_is(TokenType::Colon)
-                || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon))
+            && (self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            }) || self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Maybe)
+            }) && self.lookahead(|parser| {
+                parser.bump();
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            }))
     }
 
     /// Return whether one trailing `?` belongs to the surrounding type tuple element.
     fn current_type_tuple_element_is_optional(&mut self, terminator: TokenType) -> bool {
-        self.peek_is(TokenType::Maybe)
-            && (self.is_token_after_newlines(self.pos(), TokenType::Comma)
-                || self.is_token_after_newlines(self.pos(), terminator))
+        if !self.peek_is(TokenType::Maybe) {
+            return false;
+        }
+
+        let next_token_type = self.next_token_type();
+
+        next_token_type == TokenType::Comma || next_token_type == terminator
     }
 
     /// Eat one labeled type tuple head.
@@ -29,7 +42,6 @@ impl Parser {
         };
 
         self.eat_token(TokenType::Colon)?;
-        self.eat_newlines_maybe()?;
 
         Ok((label, is_optional))
     }
@@ -39,7 +51,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
     ) -> ParseResult<LocalNodeId<TupleElement>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // readonly element modifier
         let next = *self.peek()?;
@@ -47,7 +59,6 @@ impl Parser {
             && self.get_span_str(next.span) == "readonly"
         {
             self.bump(); // eat readonly
-            self.eat_newlines_maybe()?;
             true
         } else {
             false
@@ -56,7 +67,6 @@ impl Parser {
         // spread element
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat ...
-            self.eat_newlines_maybe()?;
 
             // readonly spread elements are not modeled in the tuple IR
             if is_readonly {
@@ -93,6 +103,23 @@ impl Parser {
             (None, false)
         };
 
+        // named rest payload: `label: ...T`
+        if label.is_some() && self.peek_is(TokenType::Spread) {
+            self.bump(); // eat ...
+
+            if is_optional || is_readonly {
+                return Err(ParseError::unexpected(self.get_span_from(&start)));
+            }
+
+            let value = self.eat_type_expression()?;
+            let element_id = self.insert_node(
+                TupleElement::Spread { label, value },
+                self.get_span_from(&start),
+            );
+
+            return Ok(element_id);
+        }
+
         // element payload
         let value = self.eat_type_expression()?;
 
@@ -125,7 +152,6 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<TupleElement>>> {
         let mut element_ids = Vec::new();
-        self.eat_newlines_maybe()?;
 
         while self.has_more_tokens() {
             // closing token
@@ -134,7 +160,7 @@ impl Parser {
             }
 
             // one tuple element
-            let element_start = self.mark_span();
+            let element_start = self.span_start();
             let is_recovered_element;
             let element_id = match self.eat_type_tuple_element(terminator) {
                 Ok(element_id) => {
@@ -150,12 +176,11 @@ impl Parser {
                 }
             };
 
-            self.eat_newlines_maybe()?;
             element_ids.push(element_id);
 
             // separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
             }
             // recovery boundary
             else if !self.can_continue_after_recovered_item(terminator, is_recovered_element) {

@@ -2,7 +2,7 @@ use super::PendingDecorators;
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::parser::ParserOptions;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LiteralType, LocalNodeId, Member,
@@ -51,7 +51,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_enum(
         &mut self,
-        start: &ParserMark,
+        start: &ParserSpanStart,
         kind: EnumKind,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -67,7 +67,7 @@ impl Parser {
         };
 
         // optional generic parameters: < ... >
-        let generic_parameter_container_start = self.mark_span();
+        let generic_parameter_container_start = self.span_start();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
@@ -93,7 +93,6 @@ impl Parser {
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
-        self.eat_newlines_maybe()?;
         let (fields, members) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
@@ -138,7 +137,6 @@ impl Parser {
         let mut pending_decorators = PendingDecorators::new();
 
         while self.has_more_tokens() {
-            self.eat_newlines_maybe()?;
             let token_type = self.peek_token_type();
 
             // stop on closing brace
@@ -153,7 +151,7 @@ impl Parser {
             }
             // consume any stop
             else if Self::is_any_stop_token(token_type) {
-                self.eat_any_stop_with_newlines()?;
+                self.eat_any_stop()?;
             }
             // consume decorator prefixes
             else if token_type == TokenType::At {
@@ -176,7 +174,7 @@ impl Parser {
                     self.options
                         .with_ambient_context(member_ambient_context)
                         .with_expression_context(member_expression_context),
-                    |parser| parser.try_eat_member(TokenType::Newline),
+                    |parser| parser.try_eat_member(),
                 )?;
                 let member_id = member_result;
                 if !pending_decorators.is_empty() {
@@ -194,18 +192,29 @@ impl Parser {
     fn peek_enum_field_is(&mut self) -> bool {
         let is_computed_name = self.peek_is(TokenType::OpenBracket);
         let is_bare_name = (self.peek_name_is() || self.peek_numeric_literal_is())
-            && (self.peek_next_is(TokenType::Assign)
-                || self.peek_next_is(TokenType::Newline)
-                || self.peek_next_is(TokenType::Comma)
-                || self.peek_next_is(TokenType::Semicolon)
-                || self.peek_next_is(TokenType::CloseBrace));
+            && (self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Assign)
+            }) || self.lookahead(|parser| {
+                parser.bump();
+                parser.current_token_is_on_new_line()
+            }) || self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Comma)
+            }) || self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Semicolon)
+            }) || self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::CloseBrace)
+            }));
 
         is_computed_name || is_bare_name
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
     fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
-        let start = self.mark_span();
+        let start = self.span_start();
         let (name, name_span) = self
             .eat_enum_field_name_with_span()
             .for_node_type(NodeType::EnumField)?;
@@ -234,9 +243,8 @@ impl Parser {
     /// Eat an enum field name, including computed string/number names.
     fn eat_enum_field_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         if self.peek_is(TokenType::OpenBracket) {
-            let start = self.mark_span();
+            let start = self.span_start();
             self.bump(); // eat open bracket
-            self.eat_newlines_maybe()?;
 
             let name = if self.peek_is(TokenType::Literal)
                 && matches!(self.peek()?.token.literal, Some(LiteralType::String { .. }))
@@ -264,7 +272,6 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             };
 
-            self.eat_newlines_maybe()?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
             Ok((name, self.get_span_from(&start)))
         } else if self.peek_numeric_literal_is() {
@@ -298,9 +305,8 @@ enum Foo extends Day {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
@@ -327,9 +333,8 @@ enum {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
@@ -362,9 +367,8 @@ enum Foo extends Day {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
@@ -408,8 +412,7 @@ enum CHAR {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
@@ -443,9 +446,8 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();
@@ -490,9 +492,8 @@ enum Foo where Requirement: Interface {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
-        let start = parser.mark();
+        let start = parser.span_start();
         let enum_id = parser
             .eat_enum(&start, EnumKind::Enum, DeclarationHeader::default())
             .unwrap();

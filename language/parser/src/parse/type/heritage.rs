@@ -6,17 +6,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 impl Parser {
     /// Return whether one optional heritage keyword is present at the current position.
     fn eat_heritage_keyword_maybe(&mut self, keyword: Keyword) -> ParseResult<bool> {
-        let start_index = self.pos_index();
-        let keyword_index = self.next_non_newline_index_from(start_index);
-        if self.token_type_at(keyword_index) != TokenType::Identifier
-            || self.keyword_for_index(keyword_index) != Some(keyword)
-        {
+        if !self.is_keyword(keyword) {
             return Ok(false);
-        }
-
-        // consume newlines before the keyword
-        if keyword_index != start_index {
-            self.eat_newlines_maybe()?;
         }
 
         self.bump(); // eat heritage keyword
@@ -25,14 +16,11 @@ impl Parser {
 
     /// Return whether the next non-newline token terminates one heritage clause.
     fn newline_before_super_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
-        let current_index = self.pos_index();
-        let next_index = self.next_non_newline_index_from(current_index);
-
-        self.token_type_at(next_index) == TokenType::OpenBrace
-            || self.token_type_at(next_index) == TokenType::CloseParenthesis
+        self.peek_is(TokenType::OpenBrace)
+            || self.peek_is(TokenType::CloseParenthesis)
             || terminators
                 .iter()
-                .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator))
+                .any(|terminator| self.is_keyword(*terminator))
     }
 
     /// Eat one heritage list with shared separator and recovery rules.
@@ -59,7 +47,7 @@ impl Parser {
             }
 
             // newline separator or newline before the next clause
-            if self.peek_is(TokenType::Newline) {
+            if self.current_token_is_on_new_line() {
                 if self.newline_before_super_clause_terminator(terminators) {
                     if expect_item && !items.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
@@ -67,20 +55,17 @@ impl Parser {
                     break;
                 }
 
-                self.eat_newlines_maybe()?;
-
                 if !allow_newline_separator && !expect_item {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 if !expect_item {
                     expect_item = true;
                 }
-                continue;
             }
 
             // explicit comma separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
                 expect_item = true;
                 continue;
             }
@@ -91,7 +76,7 @@ impl Parser {
                     break;
                 }
 
-                self.eat_item_stop_with_newlines()?;
+                self.eat_item_stop()?;
                 expect_item = true;
                 continue;
             }
@@ -101,7 +86,7 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            let item_start = self.mark_span();
+            let item_start = self.span_start();
             let item_starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
             let item = eat_item(self)?;
             let item_span = self.get_span_from(&item_start);

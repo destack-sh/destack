@@ -62,7 +62,7 @@ impl Parser {
 
     /// Eat a match body (without the match keyword)
     pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // value
         let (value_ambient_context, value_expression_context) = self.match_value_contexts();
@@ -107,8 +107,7 @@ impl Parser {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
         let mut has_default_case = false;
         while self.has_more_tokens() {
-            // normalize cursor to the next non newline token
-            self.eat_newlines_maybe()?;
+            // read the current token once per iteration
             let token_type = self.peek_token_type();
 
             // stop on closing brace
@@ -117,7 +116,7 @@ impl Parser {
             }
             // allow statement separators between cases (newline/semicolon)
             else if Self::is_statement_stop_token(token_type) {
-                self.eat_statement_stop_with_newlines()?;
+                self.eat_statement_stop()?;
             }
             // case
             else {
@@ -168,7 +167,7 @@ impl Parser {
             smallvec::SmallVec::new()
         };
 
-        let start = self.mark_span();
+        let start = self.span_start();
 
         let selector = match kind {
             MatchKind::Switch => {
@@ -176,13 +175,12 @@ impl Parser {
                 if self.is_keyword(Keyword::Default) {
                     self.bump();
                     self.eat_colon()?;
-                    self.eat_newlines_maybe()?;
                     MatchSelector::Default
                 }
                 // regular case
                 else {
                     self.eat_keyword(Keyword::Case)?;
-                    let pattern_start = self.mark_span();
+                    let pattern_start = self.span_start();
                     // allow a wildcard here so switch cases do not bind `_`
                     let pattern = if self.peek_identifier_str_is("_") {
                         self.bump();
@@ -218,7 +216,6 @@ impl Parser {
                     };
 
                     self.eat_colon()?;
-                    self.eat_newlines_maybe()?;
                     MatchSelector::Pattern { pattern, guard }
                 }
             }
@@ -260,25 +257,12 @@ impl Parser {
         // switch case body: consume statements until break or next case boundary
         if kind == MatchKind::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
-            self.eat_newlines_maybe()?;
-
-            // look ahead once across a newline boundary
-            let keyword_after_newlines = if self.peek_is(TokenType::Newline) {
-                self.keyword_after_newlines()
-            } else {
-                None
-            };
 
             // empty case body before the next case, default, or closing brace
             let is_empty_case = self.is_keyword(Keyword::Case)
                 || self.is_keyword(Keyword::Default)
-                || self.peek_is(TokenType::CloseBrace)
-                || keyword_after_newlines
-                    .is_some_and(|keyword| matches!(keyword, Keyword::Case | Keyword::Default))
-                || self.peek_is(TokenType::Newline)
-                    && self.is_token_after_newlines(self.pos(), TokenType::CloseBrace);
+                || self.peek_is(TokenType::CloseBrace);
             if is_empty_case {
-                self.eat_newlines_maybe()?;
                 let block_id = self.insert_node(
                     Block {
                         context: BlockContext::Statement,
@@ -306,11 +290,10 @@ impl Parser {
             let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
             loop {
                 // skip empty lines before statements
-                self.eat_newlines_maybe()?;
 
                 // consume empty statements (`;`) between switch body statements
                 if self.is_statement_stop() {
-                    self.eat_statement_stop_with_newlines()?;
+                    self.eat_statement_stop()?;
                     continue;
                 }
 
@@ -321,13 +304,12 @@ impl Parser {
                 {
                     break;
                 }
-                let statement_start = self.mark_span();
+                let statement_start = self.span_start();
                 let expression_id = self
-                    .with_recovery(
+                    .with_statement_recovery(
                         &statement_start,
                         |parser| parser.try_eat_statement_expression().map(Some),
                         None,
-                        TokenType::Newline,
                     )
                     .unwrap_or_else(|| {
                         self.tree
@@ -335,7 +317,7 @@ impl Parser {
                     });
                 expressions.push(expression_id);
                 if self.is_any_stop() {
-                    self.eat_any_stop_with_newlines()?;
+                    self.eat_any_stop()?;
                 }
             }
             // single expression case
@@ -395,7 +377,7 @@ impl Parser {
         }
         // single expression
         else {
-            let expression_id = self.try_eat_expression(TokenType::Newline)?;
+            let expression_id = self.try_eat_expression_until_statement_boundary()?;
             let match_case_id = self.insert_node(
                 MatchCase::Expression {
                     selector,
@@ -439,7 +421,6 @@ match (x) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
 
@@ -494,7 +475,6 @@ match (x) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value: _, cases } => {
@@ -529,7 +509,6 @@ match (self) {
     ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
 
@@ -582,7 +561,6 @@ match (value) {
 ",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, match_id, Expression::Match { value, .. } => {
@@ -617,7 +595,6 @@ switch (left.type) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let switch_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, value: _, cases } => {
@@ -691,7 +668,6 @@ switch(a) { case 1: {}
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         // switch(a) { case 1: {} /foo/ }
         let switch_id = parser.eat_match().unwrap();
@@ -721,7 +697,6 @@ switch (tag.injectTo) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let switch_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
@@ -775,7 +750,6 @@ switch (tag) {
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let switch_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
@@ -833,7 +807,6 @@ switch (value) {
 "###,
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
 
         let switch_id = parser.eat_match().unwrap();
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {

@@ -23,7 +23,7 @@ impl Parser {
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let _timing = self.timing_scope(tags::PARSE_PATTERN);
-        let start = self.mark_span();
+        let start = self.span_start();
 
         // mutability
         let mutability = self.eat_mutability_maybe()?;
@@ -67,7 +67,6 @@ impl Parser {
             // tuple (without type, no struct tuples)
             else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump(); // eat open parenthesis
-                self.eat_newlines_maybe()?;
                 let field_options = self.options.nested();
                 let fields_result = self.with_options(field_options, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
@@ -83,7 +82,6 @@ impl Parser {
             // struct (without type)
             else if self.peek_is(TokenType::OpenBrace) {
                 self.bump(); // eat open brace
-                self.eat_newlines_maybe()?;
                 let field_options = self.options.nested();
                 let fields_result = self.with_options(field_options, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
@@ -96,13 +94,11 @@ impl Parser {
             // array or slice
             else if self.peek_is(TokenType::OpenBracket) {
                 self.bump(); // eat open bracket
-                self.eat_newlines_maybe()?;
                 let field_options = self.options.nested();
                 let fields_result = self.with_options(field_options, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)
                 })?;
                 let fields = fields_result;
-                self.eat_newlines_maybe()?;
                 self.eat_close_token_or_recover_missing(
                     TokenType::CloseBracket,
                     NodeType::Pattern,
@@ -156,7 +152,10 @@ impl Parser {
             // binding with expression or pattern
             else if !self.options.is_in_before_type()
                 && self.peek_identifier_is()
-                && self.peek_next_is(TokenType::Colon)
+                && self.lookahead(|parser| {
+                    parser.bump();
+                    parser.peek_is(TokenType::Colon)
+                })
             {
                 let (name, name_span) = self.eat_binding_identifier_with_span()?;
                 self.bump(); // eat colon
@@ -183,7 +182,6 @@ impl Parser {
                 // tuple with path
                 if self.peek_is(TokenType::OpenParenthesis) {
                     self.bump(); // eat open parenthesis
-                    self.eat_newlines_maybe()?;
                     let fields = self
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Pattern)?;
@@ -207,7 +205,6 @@ impl Parser {
                 // struct with path
                 else if !self.options.is_in_before_block() && self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat open brace
-                    self.eat_newlines_maybe()?;
                     let fields = self
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                         .for_node_type(NodeType::Pattern)?;
@@ -342,7 +339,7 @@ impl Parser {
             }
 
             // parse one field
-            let field_start = self.mark_span();
+            let field_start = self.span_start();
             let mut name_span = None;
             let has_object_literal_alias_head =
                 is_object_pattern && self.peek_object_pattern_alias_head();
@@ -358,14 +355,21 @@ impl Parser {
                 // positional wildcard for tuples/arrays
                 else if !is_object_pattern
                     && self.peek_identifier_str_is("_")
-                    && !self.peek_next_is(TokenType::Colon)
+                    && !self.lookahead(|parser| {
+                        parser.bump();
+                        parser.peek_is(TokenType::Colon)
+                    })
                 {
                     self.eat_positional_pattern_field()?
                 }
                 // computed property (object patterns only)
                 else if is_object_pattern
                     && (self.peek_is(TokenType::OpenBracket)
-                        || (self.peek_mutability_is() && self.peek_next_is(TokenType::OpenBracket)))
+                        || (self.peek_mutability_is()
+                            && self.lookahead(|parser| {
+                                parser.bump();
+                                parser.peek_is(TokenType::OpenBracket)
+                            })))
                 {
                     let mutability = self.eat_mutability_maybe()?;
                     self.eat_token(TokenType::OpenBracket)?;
@@ -380,9 +384,7 @@ impl Parser {
                                 || token_type == TokenType::Colon
                         },
                     )?;
-                    self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
-                    self.eat_newlines_maybe()?;
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     let pattern = self
                         .eat_pattern_assignment_maybe(pattern, self.get_span_from(&field_start))?;
@@ -396,21 +398,23 @@ impl Parser {
                 else if can_start_named_or_spread_field {
                     let mutability = if is_object_pattern && self.peek_mutability_is() {
                         // treat mutability keywords as field names when a separator follows
-                        // NOTE #Cleanup: revisit mutability in pattern field list
-                        let has_separator_or_assignment = self.peek_next_is(TokenType::Colon)
-                            || self.peek_next_is(seperator)
-                            || self.peek_next_is(terminator)
-                            || self.peek_next_is(TokenType::Assign)
-                            || self.peek_next_is(TokenType::Maybe);
-                        let has_separator_or_assignment_after_newline = self
-                            .is_token_after_newlines(self.pos(), TokenType::Colon)
-                            || self.is_token_after_newlines(self.pos(), seperator)
-                            || self.is_token_after_newlines(self.pos(), terminator)
-                            || self.is_token_after_newlines(self.pos(), TokenType::Assign)
-                            || self.is_token_after_newlines(self.pos(), TokenType::Maybe);
-
-                        if has_separator_or_assignment || has_separator_or_assignment_after_newline
-                        {
+                        let has_separator_or_assignment = self.lookahead(|parser| {
+                            parser.bump();
+                            parser.peek_is(TokenType::Colon)
+                        }) || self.lookahead(|parser| {
+                            parser.bump();
+                            parser.peek_is(seperator)
+                        }) || self.lookahead(|parser| {
+                            parser.bump();
+                            parser.peek_is(terminator)
+                        }) || self.lookahead(|parser| {
+                            parser.bump();
+                            parser.peek_is(TokenType::Assign)
+                        }) || self.lookahead(|parser| {
+                            parser.bump();
+                            parser.peek_is(TokenType::Maybe)
+                        });
+                        if has_separator_or_assignment {
                             None
                         } else {
                             self.eat_mutability_maybe()?
@@ -421,16 +425,17 @@ impl Parser {
 
                     // spread fields
                     if self.peek_is(TokenType::Spread) {
-                        self.bump(); // eat spread
+                        // eat spread
+                        self.bump();
 
                         // spread with omitted target is allowed before separators and terminators
-                        let pattern = if self.peek_is(TokenType::Newline)
-                            && (self.is_token_after_newlines(self.pos(), seperator)
-                                || self.is_token_after_newlines(self.pos(), terminator))
-                        {
-                            self.eat_newlines_maybe()?;
-                            None
-                        } else if self.peek_token_type() == seperator || self.peek_is(terminator) {
+                        let has_omitted_target =
+                            self.peek_token_type() == seperator || self.peek_is(terminator);
+                        let has_line_omitted_target = self.current_token_is_on_new_line() && {
+                            let next_token_type = self.next_token_type();
+                            next_token_type == seperator || next_token_type == terminator
+                        };
+                        let pattern = if has_omitted_target || has_line_omitted_target {
                             None
                         } else {
                             let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
@@ -444,14 +449,15 @@ impl Parser {
                     // named alias and named pattern fields
                     else {
                         let has_named_colon_field = self.peek_name_is()
-                            && self.peek_next_is(TokenType::Colon)
+                            && self.lookahead(|parser| {
+                                parser.bump();
+                                parser.peek_is(TokenType::Colon)
+                            })
                             || is_object_pattern && self.peek_object_pattern_alias_head();
                         if has_named_colon_field {
                             let (name, _name_span) =
                                 self.eat_pattern_field_name_with_span(terminator)?;
-                            self.eat_newlines_maybe()?;
                             self.bump(); // eat colon
-                            self.eat_newlines_maybe()?;
 
                             // named alias field
                             if self.peek_identifier_is() {
@@ -532,17 +538,20 @@ impl Parser {
             {
                 has_spread_field = true;
                 let has_separator_after_spread = self.peek_token_type() == seperator;
-                let has_non_terminal_newline_after_spread = self.peek_is(TokenType::Newline)
-                    && !self.is_token_after_newlines(self.pos(), terminator);
+                let has_non_terminal_newline_after_spread =
+                    self.current_token_is_on_new_line() && !self.peek_is(terminator);
                 if has_separator_after_spread || has_non_terminal_newline_after_spread {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
 
             // consume separators and newline separators
-            if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {
+            if self.peek_token_type() == seperator {
                 self.bump(); // eat separator
-                self.eat_newlines_maybe()?;
+            } else if self.current_token_is_on_new_line() {
+                if self.peek_is(terminator) {
+                    break;
+                }
             } else {
                 break;
             }
@@ -566,14 +575,10 @@ impl Parser {
         span: Span,
     ) -> ParseResult<LocalNodeId<Pattern>> {
         let has_immediate_default = self.peek_is(TokenType::Assign);
-        let has_newline_default = self.peek_is(TokenType::Newline)
-            && self.is_token_after_newlines(self.pos(), TokenType::Assign);
+        let has_newline_default =
+            self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign);
         if !has_immediate_default && !has_newline_default {
             return Ok(pattern_id);
-        }
-
-        if has_newline_default {
-            self.eat_newlines_maybe()?;
         }
 
         self.bump(); // eat assign
@@ -617,10 +622,16 @@ impl Parser {
 
     // check whether object pattern field head is a literal alias key before `:`
     fn peek_object_pattern_alias_head(&mut self) -> bool {
-        let has_numeric_alias_head =
-            self.peek_numeric_literal_is() && self.peek_next_is(TokenType::Colon);
-        let has_boolean_alias_head =
-            self.peek_boolean_pattern_name_head() && self.peek_next_is(TokenType::Colon);
+        let has_numeric_alias_head = self.peek_numeric_literal_is()
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            });
+        let has_boolean_alias_head = self.peek_boolean_pattern_name_head()
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Colon)
+            });
         has_numeric_alias_head || has_boolean_alias_head
     }
 
@@ -936,7 +947,6 @@ mod tests {
 )",
         );
         let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
         let pattern_id = parser.eat_pattern().unwrap();
 
         // (x: 1, 2, ..)
