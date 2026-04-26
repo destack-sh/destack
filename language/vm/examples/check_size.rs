@@ -1,10 +1,10 @@
 use destack_vm::{
-    Continuation, Frame, HeapReference, Interpreter, Isolate, Module, RawPointer, StackPointer,
-    Value,
+    Continuation, Frame, HeapReference, Interpreter, Isolate, Program, RawPointer, StackPointer,
+    Word,
 };
 
 fn main() {
-    println!("Module: {} bytes", std::mem::size_of::<Module>());
+    println!("Program: {} bytes", std::mem::size_of::<Program>());
     println!("Isolate: {} bytes", std::mem::size_of::<Isolate>());
     println!("Interpreter: {} bytes", std::mem::size_of::<Interpreter>());
     println!(
@@ -13,7 +13,7 @@ fn main() {
     );
     println!("Frame: {} bytes", std::mem::size_of::<Frame>());
 
-    println!("Value: {} bytes", std::mem::size_of::<Value>());
+    println!("Word: {} bytes", std::mem::size_of::<Word>());
     println!(
         "HeapReference: {} bytes",
         std::mem::size_of::<HeapReference>()
@@ -24,7 +24,7 @@ fn main() {
         std::mem::size_of::<StackPointer>()
     );
     println!(
-        "Option<Value>: {} bytes",
-        std::mem::size_of::<Option<Value>>()
+        "Option<Word>: {} bytes",
+        std::mem::size_of::<Option<Word>>()
     );
 }
