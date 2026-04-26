@@ -14,7 +14,7 @@ impl Parser {
     /// ```
     /// loop {
     ///     y = getNext()
-    ///     if y < 0 {
+    ///     if (y < 0) {
     ///         break
     ///     }
     /// }
@@ -45,7 +45,7 @@ impl Parser {
     /// }
     ///
     /// for (const x in zeds.iter()) a: {
-    ///     if y > 5 {
+    ///     if (y > 5) {
     ///         continue :a
     ///     }
     ///     y = 2
@@ -71,38 +71,26 @@ impl Parser {
             Asynchrony::Sync
         };
 
-        let in_parenthesis = self.peek_is(TokenType::OpenParenthesis);
-        let has_top_level_semicolon = if in_parenthesis {
-            let open_pos = self.pos();
-            let close_pos = self.find_matching_close_in_expression_maybe(
-                open_pos,
-                TokenType::OpenParenthesis,
-                TokenType::CloseParenthesis,
-            );
+        let open_pos = self.pos();
+        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
 
-            if let Some(close_pos) = close_pos {
-                self.has_token_before_matching_close(
-                    open_pos,
-                    close_pos,
-                    TokenType::Semicolon,
-                    false,
-                )?
-            } else {
-                false
-            }
+        let close_pos = self.find_matching_close_in_expression_maybe(
+            open_pos,
+            TokenType::OpenParenthesis,
+            TokenType::CloseParenthesis,
+        );
+        let has_top_level_semicolon = if let Some(close_pos) = close_pos {
+            self.has_token_before_matching_close(open_pos, close_pos, TokenType::Semicolon, false)?
         } else {
             false
         };
 
         // for condition loop
-        if asynchrony == Asynchrony::Sync && in_parenthesis && has_top_level_semicolon {
-            // C style for clauses always allow comma operator expressions
+        if asynchrony == Asynchrony::Sync && has_top_level_semicolon {
+            // c style for clauses always allow comma operator expressions
             let mut clause_options = self.options.nested();
             clause_options.set_allow_sequence_expression(true);
-
-            // open parenthesis
-            self.bump();
-            self.eat_newlines_maybe()?;
 
             // initialization
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
@@ -158,12 +146,6 @@ impl Parser {
         }
         // explicit pattern for loop
         else {
-            if in_parenthesis {
-                // open parenthesis
-                self.bump();
-                self.eat_newlines_maybe()?;
-            }
-
             // binding
             let binding = self.eat_for_each_binding()?;
             self.eat_newlines_maybe()?;
@@ -191,18 +173,15 @@ impl Parser {
                 parser.eat_expression(parser.options)
             })?;
 
-            if in_parenthesis {
-                // close parenthesis
-                self.eat_newlines_maybe()?;
-                self.eat_close_token_or_recover_missing_with(
-                    TokenType::CloseParenthesis,
-                    NodeType::Expression,
-                    |parser, token_type| {
-                        Self::is_close_delimiter_boundary_token(token_type)
-                            || parser.is_block_start()
-                    },
-                )?;
-            }
+            // close parenthesis
+            self.eat_newlines_maybe()?;
+            self.eat_close_token_or_recover_missing_with(
+                TokenType::CloseParenthesis,
+                NodeType::Expression,
+                |parser, token_type| {
+                    Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
+                },
+            )?;
 
             // body
             let body_id = self.eat_block_or_statement()?;
@@ -367,7 +346,7 @@ impl Parser {
             // condition
             let condition_options = self.options.not_in_position();
             let condition_id = self.with_options(condition_options, |parser| {
-                parser.eat_expression_parenthesized_maybe()
+                parser.eat_parenthesized_expression()
             })?;
 
             // while
@@ -389,7 +368,7 @@ impl Parser {
             // condition
             let condition_options = self.options.not_in_position().in_before_block();
             let condition_id = self.with_options(condition_options, |parser| {
-                parser.eat_expression_parenthesized_maybe()
+                parser.eat_parenthesized_expression()
             })?;
 
             // body
@@ -1144,7 +1123,7 @@ while (x) {}
         let mut test = TestParser::new(
             r###"
 while (x > y) {
-    while a < b {
+    while (a < b) {
         inner_work()
     }
     outer_work()
@@ -1156,7 +1135,7 @@ while (x > y) {
 
         let while_id = parser.eat_while().unwrap();
 
-        // while x > y
+        // while (x > y)
         assert_node!(parser.tree, while_id, Expression::While { condition, body, .. } => {
             // x > y
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {

@@ -32,11 +32,11 @@ impl Parser {
         (ambient_context, expression_context)
     }
 
-    /// Eat a match statement. Tolerates switch-kind syntax for #Compatibility.
+    /// Eat a match statement.
     ///
     /// Examples:
     /// ```
-    /// match <expr> {
+    /// match (<expr>) {
     ///     (x, y, ..) => {
     ///         ...
     ///     }
@@ -49,7 +49,6 @@ impl Parser {
     pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_MATCH);
         // keyword
-        // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let kind = if keyword == Keyword::Switch {
             MatchKind::Switch
@@ -71,7 +70,7 @@ impl Parser {
             self.options
                 .with_ambient_context(value_ambient_context)
                 .with_expression_context(value_expression_context),
-            |parser| parser.eat_expression_parenthesized_maybe(),
+            |parser| parser.eat_parenthesized_expression(),
         )?;
 
         // cases
@@ -157,7 +156,7 @@ impl Parser {
     /// ```
     /// 2 => parse_int(2)
     ///
-    /// (x, y) if x > y => {
+    /// (x, y) if (x > y) => {
     ///     ...
     /// }
     /// ```
@@ -211,7 +210,7 @@ impl Parser {
                             self.options
                                 .with_ambient_context(guard_ambient_context)
                                 .with_expression_context(guard_expression_context),
-                            |parser| parser.eat_expression_parenthesized_maybe(),
+                            |parser| parser.eat_parenthesized_expression(),
                         )?;
                         Some(guard)
                     } else {
@@ -244,7 +243,7 @@ impl Parser {
                         self.options
                             .with_ambient_context(guard_ambient_context)
                             .with_expression_context(guard_expression_context),
-                        |parser| parser.eat_expression_parenthesized_maybe(),
+                        |parser| parser.eat_parenthesized_expression(),
                     )?;
                     Some(guard)
                 } else {
@@ -431,7 +430,7 @@ mod tests {
     fn test_parse_match_simple_arms() {
         let mut test = TestParser::new(
             r###"
-match x {
+match (x) {
     1 => 10
     2 => 20
     x => x
@@ -489,8 +488,8 @@ match x {
     fn test_parse_match_with_guard() {
         let mut test = TestParser::new(
             r###"
-match x {
-    2 if true => 20
+match (x) {
+    2 if (true) => 20
 }
 "###,
         );
@@ -501,7 +500,7 @@ match x {
         assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value: _, cases } => {
             assert_eq!(cases.len(), 1);
 
-            // case: 2 if true => 20
+            // case: 2 if (true) => 20
             assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 // guard: true
                 let guard_id = guard.expect("expected guard");
@@ -522,7 +521,7 @@ match x {
     fn test_parse_match_with_paths() {
         let mut test = TestParser::new(
             r"
-match self {
+match (self) {
     TetrisPieceShape.I => Color.Blue
     TetrisPieceShape.J => Color.Red
     _ => Color.Gray
@@ -534,7 +533,7 @@ match self {
 
         let match_id = parser.eat_match().unwrap();
 
-        // match self { ... }
+        // match (self) { ... }
         assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
             // self
             assert_expression_path!(parser, parser.tree.get(*value), "self");
@@ -595,7 +594,7 @@ match (value) {
         });
     }
 
-    /// Parse a switch-case statement for #Compatibility.
+    /// Parse a switch-case statement.
     #[test]
     fn test_parse_match_from_switch_case() {
         let mut test = TestParser::new(

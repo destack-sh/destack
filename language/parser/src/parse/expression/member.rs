@@ -203,21 +203,16 @@ impl Parser {
         self.token_type_at(next_index) == TokenType::Identifier
     }
 
-    /// Eat an expression that might be parenthesized.
-    pub fn eat_expression_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        if self.peek_is(TokenType::OpenParenthesis) {
-            self.bump(); // eat open parenthesis
-            self.eat_newlines_maybe()?;
-            let expression_id = self.eat_expression(self.options)?;
-            self.eat_newlines_maybe()?;
+    /// Eat a parenthesized expression and return the inner expression.
+    pub fn eat_parenthesized_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
 
-            self.eat_close_token_or_recover_missing(
-                TokenType::CloseParenthesis,
-                NodeType::Expression,
-            )?;
-            Ok(expression_id)
-        } else {
-            self.eat_expression(self.options)
-        }
+        let expression_id = self.eat_expression(self.options)?;
+        self.eat_newlines_maybe()?;
+
+        self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
+
+        Ok(expression_id)
     }
 }

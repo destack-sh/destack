@@ -8,14 +8,14 @@ impl Parser {
     /// ```
     /// try {
     ///     fileOperation()?;
-    /// } catch e {
+    /// } catch (e) {
     ///     handle(e);
     /// }
     ///
     /// try {
     ///     let a = riskyOperationA()?;
     ///     riskyOperationB(a)?;
-    /// } catch e {
+    /// } catch (e) {
     ///     log("failed", e);
     /// } finally {
     ///     cleanup();
@@ -60,65 +60,41 @@ impl Parser {
                 // catch pattern with expression content
                 else {
                     // parse catch binding pattern
-                    let (catch_pattern, catch_ty) = if self.peek_is(TokenType::OpenParenthesis) {
-                        self.bump(); // eat (
+                    self.eat_token(TokenType::OpenParenthesis)?;
+                    self.eat_newlines_maybe()?;
+
+                    let catch_pattern_options = self
+                        .options
+                        .not_in_position()
+                        .in_before_type()
+                        .in_before_block();
+                    let catch_pattern =
+                        self.with_options(catch_pattern_options, |parser| parser.eat_pattern())?;
+
+                    self.eat_newlines_maybe()?;
+
+                    let catch_ty = if self.peek_colon_is() {
+                        self.bump(); // eat :
                         self.eat_newlines_maybe()?;
-
-                        let catch_pattern_options = self
-                            .options
-                            .not_in_position()
-                            .in_before_type()
-                            .in_before_block();
-                        let catch_pattern = self
-                            .with_options(catch_pattern_options, |parser| parser.eat_pattern())?;
-
-                        self.eat_newlines_maybe()?;
-
-                        let catch_ty = if self.peek_colon_is() {
-                            self.bump(); // eat :
-                            self.eat_newlines_maybe()?;
-                            let catch_ty = self.eat_type_expression_node_or_recover_missing(
-                                self.options.not_in_position().in_type().in_before_block(),
-                                NodeType::Pattern,
-                            )?;
-                            self.eat_newlines_maybe()?;
-                            Some(catch_ty)
-                        } else {
-                            None
-                        };
-
-                        self.eat_close_token_or_recover_missing_with(
-                            TokenType::CloseParenthesis,
+                        let catch_ty = self.eat_type_expression_node_or_recover_missing(
+                            self.options.not_in_position().in_type().in_before_block(),
                             NodeType::Pattern,
-                            |parser, token_type| {
-                                Self::is_close_delimiter_boundary_token(token_type)
-                                    || parser.is_block_start()
-                                    || parser.is_keyword(Keyword::Match)
-                            },
                         )?;
-                        (catch_pattern, catch_ty)
+                        self.eat_newlines_maybe()?;
+                        Some(catch_ty)
                     } else {
-                        let catch_pattern_options = self
-                            .options
-                            .not_in_position()
-                            .in_before_type()
-                            .in_before_block();
-                        let catch_pattern = self
-                            .with_options(catch_pattern_options, |parser| parser.eat_pattern())?;
-                        let catch_ty = if self.peek_colon_is() {
-                            self.bump(); // eat :
-                            self.eat_newlines_maybe()?;
-                            let catch_ty = self.eat_type_expression_node_or_recover_missing(
-                                self.options.not_in_position().in_type().in_before_block(),
-                                NodeType::Pattern,
-                            )?;
-                            self.eat_newlines_maybe()?;
-                            Some(catch_ty)
-                        } else {
-                            None
-                        };
-                        (catch_pattern, catch_ty)
+                        None
                     };
+
+                    self.eat_close_token_or_recover_missing_with(
+                        TokenType::CloseParenthesis,
+                        NodeType::Pattern,
+                        |parser, token_type| {
+                            Self::is_close_delimiter_boundary_token(token_type)
+                                || parser.is_block_start()
+                                || parser.is_keyword(Keyword::Match)
+                        },
+                    )?;
 
                     let catch_expression = self
                         .with_options(self.options.not_in_position(), |parser| {
@@ -257,7 +233,7 @@ try /* comment */ {
             r###"
 try {
     foo()
-} catch e {
+} catch (e) {
     bar()
 } finally {
     baz()
@@ -280,7 +256,7 @@ try {
                     });
                 });
             });
-            // catch e
+            // catch (e)
             assert_node!(parser.tree, *catch_pattern, Pattern::Binding { mutability: _, name, pattern: _ } => {
                 assert_string!(parser, *name, "e");
             });
@@ -361,30 +337,6 @@ try {
             });
             assert_expression_path!(parser, parser.tree.get(*catch_ty), "Error");
             assert_node!(parser.tree, *catch_expression, Expression::Block(..));
-        });
-    }
-
-    /// Parse typed catch binding without parentheses.
-    #[test]
-    fn test_try_expression_with_typed_catch_pattern_without_parentheses() {
-        let mut test = TestParser::new(
-            r###"
-try {
-    foo()
-} catch ex: Error {
-    bar()
-}
-"###,
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-
-        let try_id = parser.eat_try().unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), catch_ty: Some(catch_ty), .. } => {
-            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: None, .. } => {
-                assert_string!(parser, *name, "ex");
-            });
-            assert_expression_path!(parser, parser.tree.get(*catch_ty), "Error");
         });
     }
 
