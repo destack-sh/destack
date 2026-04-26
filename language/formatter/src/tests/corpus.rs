@@ -1,0 +1,234 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use crate::format_file_source;
+use destack_parser::{Parser, ParserSettings, source_colorizer};
+use destack_source::{
+    DiagnosticCollection, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
+    print_diagnostics, print_diff,
+};
+use destack_workspace::FormatterOptions;
+
+const CORPUS_SECTION_SEPARATOR: &str =
+    "================================================================================";
+
+/// One builtin corpus failure summary.
+#[derive(Debug)]
+struct CorpusFailure {
+    /// The builtin-relative path.
+    path: String,
+    /// The failed formatter pass.
+    pass: &'static str,
+    /// The failure detail.
+    detail: String,
+}
+
+impl CorpusFailure {
+    /// Create one failure summary.
+    fn new(path: &Path, pass: &'static str, detail: impl Into<String>) -> Self {
+        let detail = detail.into().replace('\n', "; ");
+
+        Self {
+            path: path.display().to_string(),
+            pass,
+            detail,
+        }
+    }
+
+    /// Format the failure as one summary line.
+    fn summary(&self) -> String {
+        format!("- {}: {}: {}", self.path, self.pass, self.detail)
+    }
+}
+
+/// Return whether one source file belongs to the builtin formatter corpus.
+fn is_builtin_formatter_source(file_type: FileType) -> bool {
+    matches!(
+        file_type,
+        FileType::Destack
+            | FileType::DestackDeclaration
+            | FileType::JavaScript
+            | FileType::JavaScriptXml
+            | FileType::TypeScript
+            | FileType::TypeScriptDeclaration
+            | FileType::TypeScriptXml
+    )
+}
+
+/// Collect builtin source files accepted by the formatter.
+fn collect_builtin_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
+    let entries = fs::read_dir(root).unwrap();
+
+    // recurse in lexical order for stable failure lists
+    let mut entries = entries
+        .map(|entry| entry.unwrap().path())
+        .collect::<Vec<_>>();
+    entries.sort();
+
+    for path in entries {
+        // nested directories
+        if path.is_dir() {
+            collect_builtin_formatter_sources(&path, files);
+            continue;
+        }
+
+        let Some(file_type) = FileType::from_path(&path) else {
+            continue;
+        };
+
+        if is_builtin_formatter_source(file_type) {
+            files.push(path);
+        }
+    }
+}
+
+/// Get the builtin corpus root path.
+fn builtin_corpus_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../builtin")
+}
+
+/// Return one path relative to the builtin corpus root.
+fn relative_builtin_path<'a>(root: &Path, path: &'a Path) -> &'a Path {
+    path.strip_prefix(root).unwrap()
+}
+
+/// Format one path once.
+fn format_builtin_source(path: &Path, source: &str) -> Result<String, String> {
+    let file = build_builtin_file(path, source);
+
+    format_file_source(&file, source, FormatterOptions::default()).map_err(|error| error.message)
+}
+
+/// Print one corpus diagnostics section header.
+fn print_corpus_section(title: &str, path: &Path) {
+    eprintln!();
+    eprintln!("{CORPUS_SECTION_SEPARATOR}");
+    eprintln!("=== {title}");
+    eprintln!("=== {}", path.display());
+    eprintln!("{CORPUS_SECTION_SEPARATOR}");
+    eprintln!();
+}
+
+/// Build a source file for one builtin path.
+fn build_builtin_file(path: &Path, source: &str) -> File {
+    let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+    let path_text = path.to_string_lossy();
+    File::from_text(
+        FileId::from_logical_path(path),
+        file_name,
+        Uri::from_string(path_text.as_ref()),
+        Some(path.to_path_buf()),
+        FileType::from_path(path).unwrap(),
+        source.to_string(),
+    )
+}
+
+/// Print parser diagnostics for one builtin source.
+fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
+    let file = Arc::new(build_builtin_file(path, source));
+    let file_id = file.id;
+    let file_for_id = |current_file_id| {
+        if current_file_id == file_id {
+            Some(file.clone())
+        } else {
+            None
+        }
+    };
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        language_type,
+        ParserSettings {
+            preserve_parenthesized_wrappers: false,
+            ..ParserSettings::default()
+        },
+    );
+    parser.parse();
+
+    let mut diagnostics = DiagnosticCollection::new();
+    for diagnostic in parser.diagnostics.iter() {
+        diagnostics.insert(diagnostic);
+    }
+
+    let options = PrintOptions::new().with_colorizer(source_colorizer());
+    print_diagnostics(&file_for_id, &diagnostics, options);
+}
+
+/// Assert parser and formatter idempotence over the checked-in builtin corpus.
+#[test]
+#[ignore]
+fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
+    let root = builtin_corpus_root();
+    let mut paths = Vec::new();
+    collect_builtin_formatter_sources(&root, &mut paths);
+
+    let checked_file_count = paths.len();
+    let mut failures = Vec::new();
+
+    for path in paths {
+        let source = fs::read_to_string(&path).unwrap();
+        let relative_path = relative_builtin_path(&root, &path);
+
+        // first pass must parse and format
+        let first = match format_builtin_source(&path, &source) {
+            Ok(first) => first,
+            Err(error) => {
+                print_corpus_section(
+                    "builtin formatter corpus: first pass parse failure",
+                    relative_path,
+                );
+                print_builtin_parse_diagnostics(&path, &source);
+                failures.push(CorpusFailure::new(relative_path, "first pass", error));
+                continue;
+            }
+        };
+
+        // second pass must parse and reach a fixed point
+        let second = match format_builtin_source(&path, &first) {
+            Ok(second) => second,
+            Err(error) => {
+                print_corpus_section(
+                    "builtin formatter corpus: second pass parse failure",
+                    relative_path,
+                );
+                print_builtin_parse_diagnostics(&path, &first);
+                failures.push(CorpusFailure::new(relative_path, "second pass", error));
+                continue;
+            }
+        };
+
+        if first != second {
+            print_corpus_section("builtin formatter corpus: idempotence diff", relative_path);
+            let diff_options = DiffOptions::new().with_path(relative_path.display().to_string());
+            print_diff(&first, &second, &diff_options);
+            failures.push(CorpusFailure::new(
+                relative_path,
+                "idempotence",
+                "second pass changed output",
+            ));
+        }
+    }
+
+    if !failures.is_empty() {
+        print_corpus_section("builtin formatter corpus: summary", Path::new("."));
+        let summary = failures
+            .iter()
+            .map(CorpusFailure::summary)
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        eprintln!(
+            "checked {checked_file_count} files, found {} failures",
+            failures.len()
+        );
+        eprintln!("{summary}");
+
+        return Err(format!(
+            "builtin formatter corpus failed: {} of {checked_file_count} files",
+            failures.len()
+        ));
+    }
+
+    Ok(())
+}
