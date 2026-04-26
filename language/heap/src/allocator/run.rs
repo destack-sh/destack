@@ -6,41 +6,40 @@ use super::PageRun;
 #[derive(Debug)]
 pub(crate) struct PageRunSet {
     /// Small free runs keyed directly by page count.
-    small_by_len: Vec<Vec<PageRun>>,
+    small_runs: Vec<Vec<PageRun>>,
     /// Large free runs keyed by page count.
-    large_by_len: BTreeMap<usize, Vec<PageRun>>,
+    large_runs: BTreeMap<usize, Vec<PageRun>>,
     /// Free runs keyed by first page index.
-    by_start: BTreeMap<usize, PageRun>,
+    runs_by_start: BTreeMap<usize, PageRun>,
 }
 
 impl PageRunSet {
     /// Create one free-run set with small buckets up to one arena.
     pub(crate) fn new(pages_per_arena: usize) -> Self {
-        let mut small_by_len = Vec::with_capacity(pages_per_arena + 1);
-        small_by_len.resize_with(pages_per_arena + 1, Vec::new);
+        let mut small_runs = Vec::with_capacity(pages_per_arena + 1);
+        small_runs.resize_with(pages_per_arena + 1, Vec::new);
 
         Self {
-            small_by_len,
-            large_by_len: BTreeMap::new(),
-            by_start: BTreeMap::new(),
+            small_runs,
+            large_runs: BTreeMap::new(),
+            runs_by_start: BTreeMap::new(),
         }
     }
 
-    /// Return one free run large enough for the requested size.
-    pub(crate) fn take(&mut self, page_count: usize) -> Option<PageRun> {
-        let small_limit = self.small_by_len.len().saturating_sub(1);
+    /// Allocate one free run large enough for the requested size.
+    pub(crate) fn allocate(&mut self, page_count: usize) -> Option<PageRun> {
+        let small_limit = self.small_runs.len().saturating_sub(1);
 
         // prefer small buckets first
         if page_count <= small_limit {
             for run_len in page_count..=small_limit {
-                let runs = &mut self.small_by_len[run_len];
+                let runs = &mut self.small_runs[run_len];
                 if let Some(run) = runs.pop() {
-                    self.by_start.remove(&run.first_page.index());
+                    self.runs_by_start.remove(&run.first_page.index());
 
-                    let (allocation, remainder) = run.split_prefix(page_count)?;
-
+                    let (allocation, remainder) = run.split_prefix_unchecked(page_count);
                     if !remainder.is_empty() {
-                        self.insert(remainder);
+                        self.free(remainder);
                     }
 
                     return Some(allocation);
@@ -49,28 +48,30 @@ impl PageRunSet {
         }
 
         // then fall back to larger ordered runs
-        let (run_len, run) = self
-            .large_by_len
+        let Some((run_len, run)) = self
+            .large_runs
             .range_mut(page_count..)
-            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))?;
+            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
+        else {
+            return None;
+        };
 
-        self.by_start.remove(&run.first_page.index());
+        self.runs_by_start.remove(&run.first_page.index());
 
-        if self.large_by_len.get(&run_len).is_some_and(Vec::is_empty) {
-            self.large_by_len.remove(&run_len);
+        if self.large_runs.get(&run_len).is_some_and(Vec::is_empty) {
+            self.large_runs.remove(&run_len);
         }
 
-        let (allocation, remainder) = run.split_prefix(page_count)?;
-
+        let (allocation, remainder) = run.split_prefix_unchecked(page_count);
         if !remainder.is_empty() {
-            self.insert(remainder);
+            self.free(remainder);
         }
 
         Some(allocation)
     }
 
-    /// Return one free run to both free-run indexes.
-    pub(crate) fn insert(&mut self, run: PageRun) {
+    /// Free one run into both free-run indexes.
+    pub(crate) fn free(&mut self, run: PageRun) {
         let mut run = run;
 
         // merge the immediate predecessor when it touches this run
@@ -89,38 +90,38 @@ impl PageRunSet {
             run = Self::merged(run, next_run);
         }
 
-        if run.len() < self.small_by_len.len() {
-            self.small_by_len[run.len()].push(run);
+        if run.len() < self.small_runs.len() {
+            self.small_runs[run.len()].push(run);
         } else {
-            self.large_by_len.entry(run.len()).or_default().push(run);
+            self.large_runs.entry(run.len()).or_default().push(run);
         }
 
-        self.by_start.insert(run.first_page.index(), run);
+        self.runs_by_start.insert(run.first_page.index(), run);
     }
 
     /// Remove one free run from both free-run indexes.
     fn remove(&mut self, run: PageRun) {
-        if run.len() < self.small_by_len.len() {
-            let runs = &mut self.small_by_len[run.len()];
+        if run.len() < self.small_runs.len() {
+            let runs = &mut self.small_runs[run.len()];
             if let Some(run_index) = runs.iter().position(|candidate| *candidate == run) {
                 runs.swap_remove(run_index);
             }
-        } else if let Some(runs) = self.large_by_len.get_mut(&run.len()) {
+        } else if let Some(runs) = self.large_runs.get_mut(&run.len()) {
             if let Some(run_index) = runs.iter().position(|candidate| *candidate == run) {
                 runs.swap_remove(run_index);
             }
 
             if runs.is_empty() {
-                self.large_by_len.remove(&run.len());
+                self.large_runs.remove(&run.len());
             }
         }
 
-        self.by_start.remove(&run.first_page.index());
+        self.runs_by_start.remove(&run.first_page.index());
     }
 
     /// Return the immediately preceding free run when one exists.
     fn previous(&self, run: PageRun) -> Option<PageRun> {
-        self.by_start
+        self.runs_by_start
             .range(..run.start_page_index())
             .next_back()
             .map(|(_, run)| *run)
@@ -128,7 +129,7 @@ impl PageRunSet {
 
     /// Return the immediately following free run when one exists.
     fn next(&self, run: PageRun) -> Option<PageRun> {
-        self.by_start
+        self.runs_by_start
             .range(run.end_page_index()..)
             .next()
             .map(|(_, run)| *run)
@@ -136,16 +137,8 @@ impl PageRunSet {
 
     /// Merge two adjacent free runs.
     fn merged(left: PageRun, right: PageRun) -> PageRun {
-        let page_count = left.len().checked_add(right.len()).unwrap_or_else(|| {
-            panic!(
-                "adjacent free runs should not overflow: first_page={}, left_len={}, right_len={}",
-                left.first_page.index(),
-                left.len(),
-                right.len()
-            )
-        });
+        debug_assert!(left.is_immediately_before(right));
 
-        PageRun::new(left.first_page, page_count)
-            .unwrap_or_else(|error| panic!("adjacent free runs should stay valid: {error}"))
+        PageRun::from_raw_parts(left.first_page, left.page_count + right.page_count)
     }
 }

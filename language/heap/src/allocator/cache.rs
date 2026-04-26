@@ -40,7 +40,7 @@ impl PageRunCache {
         }
 
         // reuse one cached run when possible
-        if let Some(run) = self.take(page_count) {
+        if let Some(run) = self.allocate(page_count) {
             allocator.zero_run(run)?;
 
             return Ok(PageView::from_run(run));
@@ -77,7 +77,7 @@ impl PageRunCache {
             return allocator.release_page_view(&page_view);
         }
 
-        if self.insert(run) {
+        if self.cache(run) {
             return Ok(());
         }
 
@@ -101,29 +101,31 @@ impl PageRunCache {
     }
 
     /// Return one cached run that satisfies the requested page count.
-    pub(crate) fn take(&mut self, page_count: usize) -> Option<PageRun> {
+    pub(crate) fn allocate(&mut self, page_count: usize) -> Option<PageRun> {
         if page_count == 0 {
             return Some(PageRun::empty());
         }
 
         // prefer the most recently released run first
-        let run_index = self.runs.iter().rposition(|run| run.len() >= page_count)?;
+        let Some(run_index) = self.runs.iter().rposition(|run| run.len() >= page_count) else {
+            return None;
+        };
         let run = self.runs.swap_remove(run_index);
         self.cached_pages -= run.len();
         if run.len() == page_count {
             return Some(run);
         }
 
-        let (allocation, remainder) = run.split_prefix(page_count)?;
+        let (allocation, remainder) = run.split_prefix_unchecked(page_count);
         if !remainder.is_empty() {
-            self.insert(remainder);
+            self.cache(remainder);
         }
 
         Some(allocation)
     }
 
-    /// Insert one contiguous run when it fits this cache.
-    pub(crate) fn insert(&mut self, run: PageRun) -> bool {
+    /// Cache one contiguous run when it fits this cache.
+    pub(crate) fn cache(&mut self, run: PageRun) -> bool {
         if run.is_empty() {
             return true;
         }
@@ -182,16 +184,8 @@ impl PageRunCache {
 
     /// Merge two adjacent cached runs.
     fn merged_run(left: PageRun, right: PageRun) -> PageRun {
-        let page_count = left.len().checked_add(right.len()).unwrap_or_else(|| {
-            panic!(
-                "adjacent cached runs should not overflow: first_page={}, left_len={}, right_len={}",
-                left.first_page.index(),
-                left.len(),
-                right.len()
-            )
-        });
+        debug_assert!(left.is_immediately_before(right));
 
-        PageRun::new(left.first_page, page_count)
-            .unwrap_or_else(|error| panic!("adjacent cached runs should stay valid: {error}"))
+        PageRun::from_raw_parts(left.first_page, left.page_count + right.page_count)
     }
 }

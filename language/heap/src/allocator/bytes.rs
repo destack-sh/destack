@@ -88,21 +88,15 @@ impl Allocator {
         for page_view in page_views {
             for page_index in 0..page_view.len() {
                 let Some(slot) = page_view.slot(page_index) else {
-                    panic!("invalid page view: missing logical page {page_index}")
-                };
-
-                let is_unique = self
-                    .run_is_unique(slot.run)
-                    .unwrap_or_else(|error| panic!("invalid page view run: {error}"));
-                if is_unique {
                     continue;
-                }
-
-                let Some(page_id) = slot.run.page(slot.run_page_index) else {
-                    panic!("invalid patched run at logical page {page_index}")
+                };
+                let Ok(is_unique) = self.run_is_unique(slot.run) else {
+                    continue;
                 };
 
-                borrowed_pages.insert(page_id);
+                if !is_unique && let Some(page_id) = slot.run.page(slot.run_page_index) {
+                    borrowed_pages.insert(page_id);
+                }
             }
         }
 
