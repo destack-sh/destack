@@ -45,23 +45,23 @@ impl ArgumentRange {
     }
 }
 
-/// Copy pair for parameter binding.
+/// Move pair for parameter binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct CopyPair {
+pub(crate) struct MovePair {
     /// Destination SSA value id.
     pub dest: u32,
     /// Source SSA value id.
     pub src: u32,
 }
 
-/// Copy range within one function copy pool.
+/// Move range within one function move pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct CopyRange {
-    /// Start offset into the copy pool.
+pub(crate) struct MoveRange {
+    /// Start offset into the move pool.
     pub start: u32,
     /// Number of pairs in the range.
     pub len: u32,
-    /// Whether the copies are contiguous pairs.
+    /// Whether the moves are contiguous pairs.
     pub is_contiguous: bool,
     /// First source id when contiguous.
     pub contiguous_src: u32,
@@ -69,8 +69,8 @@ pub(crate) struct CopyRange {
     pub contiguous_dest: u32,
 }
 
-impl CopyRange {
-    /// Create an empty copy range.
+impl MoveRange {
+    /// Create an empty move range.
     pub(crate) const fn empty() -> Self {
         Self {
             start: 0,
@@ -83,7 +83,7 @@ impl CopyRange {
 
     /// Slice pairs from the pool for this range.
     #[inline(always)]
-    pub(crate) fn slice<'a>(&self, pool: &'a [CopyPair]) -> &'a [CopyPair] {
+    pub(crate) fn slice<'a>(&self, pool: &'a [MovePair]) -> &'a [MovePair] {
         // compute range bounds
         let start = self.start as usize;
         let len = self.len as usize;
@@ -91,20 +91,20 @@ impl CopyRange {
         // validate bounds in debug builds
         debug_assert!(
             start + len <= pool.len(),
-            "copy pool out of bounds for range"
+            "move pool out of bounds for range"
         );
 
-        // return copy slice
+        // return move slice
         &pool[start..start + len]
     }
 }
 
-/// Pack an optional SSA value into the lowered module encoding.
+/// Pack an optional SSA value into the lowered program encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
     value.unwrap_or(mir::Value(INVALID_VALUE_ID))
 }
 
-/// Return whether one lowered SSA slot carries the packed absent-value marker.
+/// Return whether one lowered SSA value carries the packed absent-value marker.
 pub(crate) fn is_invalid_value(value: mir::Value) -> bool {
     value.0 == INVALID_VALUE_ID
 }

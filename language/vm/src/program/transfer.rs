@@ -1,19 +1,21 @@
 use {destack_engine as engine, destack_mir as mir};
 
-use crate::Value;
+use crate::Word;
 use crate::diagnostic::Error;
 
-use super::{ArgumentRange, CallTarget, CopyRange};
+use super::{ArgumentRange, CallTarget, MoveRange};
 
 /// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
 pub(crate) enum Transfer {
+    /// Continue to the next instruction in the current block.
+    Continue,
     /// Jump to another block.
     Jump {
         /// Target block index.
         block: u32,
-        /// Copy plan for block parameters.
-        copies: CopyRange,
+        /// Move plan for block parameters.
+        moves: MoveRange,
     },
     /// Call another function.
     Call {
@@ -26,9 +28,9 @@ pub(crate) enum Transfer {
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
-        env: Option<Value>,
-        /// Copy plan for callee parameters.
-        copies: Option<CopyRange>,
+        env: Option<Word>,
+        /// Move plan for callee parameters.
+        moves: Option<MoveRange>,
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
@@ -41,7 +43,7 @@ pub(crate) enum Transfer {
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
-        env: Option<Value>,
+        env: Option<Word>,
         /// The normal continuation resume point.
         normal_resume_point: engine::ResumePointId,
         /// The unwind continuation resume point.
@@ -56,23 +58,23 @@ pub(crate) enum Transfer {
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
-        env: Option<Value>,
-        /// Copy plan for callee parameters.
-        copies: Option<CopyRange>,
+        env: Option<Word>,
+        /// Move plan for callee parameters.
+        moves: Option<MoveRange>,
     },
     /// Yield from the current function.
     Yield {
         /// The value yielded to the caller.
-        value: Value,
+        value: Word,
         /// The MIR value that produced the yielded value.
         source: mir::Value,
         /// The resume point captured in the continuation.
         resume_point: engine::ResumePointId,
     },
     /// Throw one managed exception value.
-    Throw(Value),
+    Throw(Word),
     /// Return from current function.
-    Return(Value),
+    Return(Word),
     /// Runtime error.
     Error(Error),
 }

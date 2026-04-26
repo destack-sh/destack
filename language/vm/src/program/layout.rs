@@ -32,7 +32,7 @@ pub(crate) struct ElementLayout {
 pub(crate) enum LayoutShape {
     /// One scalar or pointer value with no structural decomposition.
     Scalar,
-    /// One field-addressable aggregate with a fixed field list.
+    /// One field-addressable payload with a fixed field list.
     Fields(Vec<FieldLayout>),
     /// One element-addressable array with a fixed element stride.
     Array {
@@ -166,7 +166,7 @@ pub(crate) fn build_layouts(
 
     // build one layout entry for every MIR type
     for (type_id, _) in tree.iter_nodes::<mir::Type>() {
-        let _ = build_layout(tree, &mut layouts, type_id)?;
+        build_layout(tree, &mut layouts, type_id)?;
     }
 
     Ok(layouts)
@@ -360,7 +360,7 @@ fn build_record_layout(
 ) -> Result<Layout> {
     // ensure all child layouts exist before choosing the representation
     for field_type in field_types.clone() {
-        let _ = build_layout(tree, layouts, field_type)?;
+        build_layout(tree, layouts, field_type)?;
     }
 
     // switch to the runtime field layout when raw MIR layout cannot represent callables
@@ -947,7 +947,7 @@ mod tests {
     use destack_mir::{NodeTree, Storage, Type, TypeAlias};
     use destack_source::FileId;
 
-    /// Parse one MIR module with the given storage metadata.
+    /// Parse one MIR program with the given storage metadata.
     fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (NodeTree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
@@ -1051,7 +1051,7 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
         assert_eq!(element.stride, 8);
         assert_eq!(layout.byte_len, 16);
 
-        // reference tracing should include both lanes
+        // reference tracing should include both elements
         assert_eq!(
             layout.reference_map,
             ReferenceMap::Reference {

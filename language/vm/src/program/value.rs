@@ -22,9 +22,9 @@ pub(crate) enum PointerClass {
     Unknown,
 }
 
-/// Scalar and aggregate kinds used for typed dispatch selection.
+/// Runtime value representation used for dispatch selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ValueKind {
+pub(crate) enum ValueRepr {
     /// Void value.
     Void,
     /// Boolean value.
@@ -45,8 +45,8 @@ pub(crate) enum ValueKind {
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
     /// Opaque callable value.
     Callable { ty: mir::LocalNodeId<mir::Type> },
-    /// Aggregate value with concrete type.
-    Aggregate { ty: mir::LocalNodeId<mir::Type> },
+    /// Frame byte value with concrete type.
+    FrameBytes { ty: mir::LocalNodeId<mir::Type> },
     /// Fixed-size array value with element type.
     Array {
         element: mir::LocalNodeId<mir::Type>,
@@ -56,28 +56,31 @@ pub(crate) enum ValueKind {
     Unknown,
 }
 
-/// Get the kind for a MIR type.
-pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> ValueKind {
-    // map mir type to value kind
+/// Get the runtime representation for a MIR type.
+pub(crate) fn value_repr_from_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> ValueRepr {
+    // map mir type to value representation
     match tree.get(ty) {
-        mir::Type::Void => ValueKind::Void,
-        mir::Type::Boolean => ValueKind::Bool,
-        mir::Type::Int { width, is_signed } => ValueKind::Int {
+        mir::Type::Void => ValueRepr::Void,
+        mir::Type::Boolean => ValueRepr::Bool,
+        mir::Type::Int { width, is_signed } => ValueRepr::Int {
             width: *width as u8,
             signed: *is_signed,
         },
-        mir::Type::Isize => ValueKind::Int {
+        mir::Type::Isize => ValueRepr::Int {
             width: usize::BITS as u8,
             signed: true,
         },
-        mir::Type::Usize => ValueKind::Int {
+        mir::Type::Usize => ValueRepr::Int {
             width: usize::BITS as u8,
             signed: false,
         },
-        mir::Type::Float { width } => ValueKind::Float {
+        mir::Type::Float { width } => ValueRepr::Float {
             width: *width as u8,
         },
-        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueKind::Int {
+        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueRepr::Int {
             width: usize::BITS as u8,
             signed: false,
         },
@@ -88,7 +91,7 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             pointee,
             is_nullable,
         } => match pointee.ty() {
-            Some(pointee) => ValueKind::Pointer {
+            Some(pointee) => ValueRepr::Pointer {
                 pointee,
                 pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
                 reference: ReferenceMeta::new(
@@ -98,43 +101,43 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
                     *is_nullable,
                 ),
             },
-            None => ValueKind::Unknown,
+            None => ValueRepr::Unknown,
         },
         mir::Type::FunctionSignature { result, .. } => match result.ty() {
-            Some(result) => ValueKind::FunctionPointer { result },
-            None => ValueKind::Unknown,
+            Some(result) => ValueRepr::FunctionPointer { result },
+            None => ValueRepr::Unknown,
         },
         mir::Type::FunctionPointer { signature } => match signature.ty() {
             Some(signature) => match tree.get(signature) {
                 mir::Type::FunctionSignature { result, .. } => match result.ty() {
-                    Some(result) => ValueKind::FunctionPointer { result },
-                    None => ValueKind::Unknown,
+                    Some(result) => ValueRepr::FunctionPointer { result },
+                    None => ValueRepr::Unknown,
                 },
-                _ => ValueKind::Unknown,
+                _ => ValueRepr::Unknown,
             },
-            None => ValueKind::Unknown,
+            None => ValueRepr::Unknown,
         },
         mir::Type::Array {
             element,
             length,
             copy: _,
         } => match element.ty() {
-            Some(element) => ValueKind::Array {
+            Some(element) => ValueRepr::Array {
                 element,
                 length: *length,
             },
-            None => ValueKind::Unknown,
+            None => ValueRepr::Unknown,
         },
-        mir::Type::Slice { .. } => ValueKind::Aggregate { ty },
+        mir::Type::Slice { .. } => ValueRepr::FrameBytes { ty },
         mir::Type::Newtype { inner, .. } => match inner.ty() {
-            Some(inner) => kind_from_type(tree, inner),
-            None => ValueKind::Unknown,
+            Some(inner) => value_repr_from_type(tree, inner),
+            None => ValueRepr::Unknown,
         },
-        mir::Type::Callable { .. } => ValueKind::Callable { ty },
+        mir::Type::Callable { .. } => ValueRepr::Callable { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
+        | mir::Type::Tensor { .. } => ValueRepr::FrameBytes { ty },
         mir::Type::TensorView {
             kind,
             address_space,
@@ -143,7 +146,7 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
             is_nullable,
             ..
         } => match element.ty() {
-            Some(element) => ValueKind::Pointer {
+            Some(element) => ValueRepr::Pointer {
                 pointee: element,
                 pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
                 reference: ReferenceMeta::new(
@@ -153,7 +156,7 @@ pub(crate) fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
                     *is_nullable,
                 ),
             },
-            None => ValueKind::Unknown,
+            None => ValueRepr::Unknown,
         },
     }
 }

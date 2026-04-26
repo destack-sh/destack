@@ -7,14 +7,30 @@ use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, build_layouts};
 use super::{CallTarget, Function, FunctionTable};
-use crate::lower::{ValueSlot, analyze_value_slots, lower_function};
-use crate::{Error, Result};
+use crate::lower::{ValueType, analyze_value_types, lower_function};
+use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
 
-/// Lowered MIR module and execution metadata shared across isolates.
-pub struct Module {
-    /// The MIR tree executed by this module.
+/// Align one byte offset up to the requested byte alignment.
+fn align_offset(offset: usize, alignment: usize) -> Result<usize> {
+    if alignment <= 1 {
+        return Ok(offset);
+    }
+
+    let remainder = offset % alignment;
+    if remainder == 0 {
+        return Ok(offset);
+    }
+
+    offset
+        .checked_add(alignment - remainder)
+        .ok_or(Error::InvalidInstruction)
+}
+
+/// Lowered MIR program and execution metadata shared across isolates.
+pub struct Program {
+    /// The MIR tree executed by this program.
     pub(crate) tree: mir::NodeTree,
-    /// The immutable string pool for this module.
+    /// The immutable string pool for this program.
     pub(crate) strings: ImmutableStringPool,
     /// Lowered function bodies for the current interpreter backend.
     pub(crate) functions: FunctionTable,
@@ -26,8 +42,8 @@ pub struct Module {
     pub(crate) type_layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     /// Layout ids keyed by MIR type id.
     pub(crate) layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
-    /// Lookup table for vtables keyed by vtable globals.
-    pub(crate) vtable_id_by_global: HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId>,
+    /// Immutable program static data.
+    pub(crate) statics: engine::StaticSpace,
 
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
@@ -57,10 +73,53 @@ pub struct Module {
     pub(crate) materialization_maps: Vec<engine::MaterializationMap>,
 }
 
-impl Module {
-    /// Build one module from one MIR tree and immutable string pool.
+impl Program {
+    /// Build one program from one MIR tree and immutable string pool.
     pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Result<Self> {
-        ModuleBuilder::new(tree, strings).build()
+        ProgramBuilder::new(tree, strings).build()
+    }
+
+    /// Convert one program function id into one MIR function id.
+    #[inline]
+    pub(crate) fn function_for_id(
+        &self,
+        function: engine::FunctionId,
+    ) -> mir::LocalNodeId<mir::Function> {
+        let _ = self;
+
+        mir::LocalNodeId::new(function.0)
+    }
+
+    /// Convert one program block id into one MIR block id.
+    #[inline]
+    pub(crate) fn block_for_id(&self, block: engine::BlockId) -> mir::LocalNodeId<mir::Block> {
+        let _ = self;
+
+        mir::LocalNodeId::new(block.0)
+    }
+
+    /// Convert one MIR type id into one program type id.
+    #[inline]
+    pub(crate) fn type_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::TypeId {
+        let _ = self;
+
+        engine::TypeId(ty.id)
+    }
+
+    /// Convert one program type id into one MIR type id.
+    #[inline]
+    pub(crate) fn type_for_id(&self, ty: engine::TypeId) -> mir::LocalNodeId<mir::Type> {
+        let _ = self;
+
+        mir::LocalNodeId::new(ty.0)
+    }
+
+    /// Convert one MIR global id into one worker static id.
+    #[inline]
+    pub(crate) fn static_id(&self, global: mir::LocalNodeId<mir::Global>) -> engine::StaticId {
+        let _ = self;
+
+        engine::StaticId(global.id)
     }
 
     /// Return the frame layout for one function when present.
@@ -142,7 +201,12 @@ impl Module {
         self.type_layouts.get(&ty)
     }
 
-    /// Return the MIR layouts for this module.
+    /// Return the compiled layout for one program type id.
+    pub(crate) fn layout_for_id(&self, ty: engine::TypeId) -> Option<&Layout> {
+        self.layout(self.type_for_id(ty))
+    }
+
+    /// Return the MIR layouts for this program.
     pub(crate) fn layouts(&self) -> &LayoutTable {
         &self.layouts
     }
@@ -167,6 +231,29 @@ impl Module {
     /// Return the layout id for one MIR type.
     pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
         self.layout_id_by_type.get(&ty).copied()
+    }
+
+    /// Return the program static address for one global.
+    pub(crate) fn static_pointer(
+        &self,
+        global: mir::LocalNodeId<mir::Global>,
+    ) -> Option<StaticPointer> {
+        self.statics.ptr(self.static_id(global))
+    }
+
+    /// Borrow program static bytes for one global.
+    pub(crate) fn static_bytes(&self, global: mir::LocalNodeId<mir::Global>) -> Option<&[u8]> {
+        self.statics.bytes(self.static_id(global))
+    }
+
+    /// Return whether one global is stored in program static space.
+    pub(crate) fn contains_static(&self, global: mir::LocalNodeId<mir::Global>) -> bool {
+        self.statics.region(self.static_id(global)).is_some()
+    }
+
+    /// Return whether one static byte range belongs to program static space.
+    pub(crate) fn owns_static_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
+        self.statics.owns_pointer_range(pointer, byte_len)
     }
 
     /// Return one MIR type by display name.
@@ -205,13 +292,13 @@ impl Module {
         };
 
         // a resume at the start of a block has no preceding call
-        if resume_point.mir_instruction_offset == 0 {
+        if resume_point.source_instruction_offset == 0 {
             return Ok(None);
         }
 
         // resolve the preceding MIR instruction in the resumed block
-        let block = self.tree.get(resume_point.block);
-        let instruction_index = resume_point.mir_instruction_offset as usize - 1;
+        let block = self.tree.get(self.block_for_id(resume_point.block));
+        let instruction_index = resume_point.source_instruction_offset as usize - 1;
         let Some(instruction_id) = block.instructions.get(instruction_index).copied() else {
             return Ok(None);
         };
@@ -249,9 +336,9 @@ impl Module {
     }
 }
 
-impl fmt::Debug for Module {
+impl fmt::Debug for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Module")
+        f.debug_struct("Program")
             .field(
                 "functions",
                 &format!("<{} functions>", self.function_id_by_name.len()),
@@ -261,12 +348,24 @@ impl fmt::Debug for Module {
             .field("resume_transfers", &self.resume_transfers.len())
             .field("safepoints", &self.safepoints.len())
             .field("materialization_maps", &self.materialization_maps.len())
+            .field("statics", &self.statics.len())
             .finish_non_exhaustive()
     }
 }
 
-/// Build one module from one MIR tree and immutable string pool.
-struct ModuleBuilder {
+/// One initialized byte range inside a global payload.
+#[derive(Clone, Copy, Debug)]
+struct StaticInitializerEntry {
+    /// The value type for this range.
+    ty: mir::LocalNodeId<mir::Type>,
+    /// The byte offset inside the payload.
+    offset: usize,
+    /// The byte width of this range.
+    byte_len: usize,
+}
+
+/// Build one program from one MIR tree and immutable string pool.
+struct ProgramBuilder {
     tree: mir::NodeTree,
     strings: ImmutableStringPool,
     frame_layouts: Vec<engine::FrameLayout>,
@@ -286,8 +385,8 @@ struct ModuleBuilder {
     >,
 }
 
-impl ModuleBuilder {
-    /// Create one module builder.
+impl ProgramBuilder {
+    /// Create one program builder.
     fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Self {
         Self {
             tree,
@@ -303,22 +402,27 @@ impl ModuleBuilder {
         }
     }
 
-    /// Build the module.
-    fn build(mut self) -> Result<Module> {
+    /// Build the program.
+    fn build(mut self) -> Result<Program> {
         let function_id_by_name = self.build_function_id_by_name();
-        let vtable_id_by_global = self.build_vtable_id_by_global();
         let (function_ids, target_by_id) = self.build_function_targets();
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
-        let functions = self.build_functions(&function_ids, &target_by_id, &type_layouts)?;
+        let statics = self.build_statics(&type_layouts)?;
+        let functions = self.build_functions(
+            &function_ids,
+            &target_by_id,
+            &type_layouts,
+            &layout_id_by_type,
+        )?;
         let functions = FunctionTable::new(functions, target_by_id);
 
-        Ok(Module {
+        Ok(Program {
             tree: self.tree,
             strings: self.strings,
             function_id_by_name,
-            vtable_id_by_global,
+            statics,
             layouts,
             layout_id_by_type,
             frame_layouts: self.frame_layouts,
@@ -346,16 +450,271 @@ impl ModuleBuilder {
         map
     }
 
-    /// Build a lookup table from vtable globals to vtable ids.
-    fn build_vtable_id_by_global(&self) -> HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId> {
-        let mut map = HashMap::new();
+    /// Build immutable program static space.
+    fn build_statics(
+        &self,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ) -> Result<engine::StaticSpace> {
+        let mut data = engine::StaticSpace::allocator();
 
-        for (table_id, table) in self.tree.metadata.dispatch.iter_vtables() {
+        // dispatch tables are immutable program statics
+        for (_table_id, table) in self.tree.metadata.dispatch.iter_vtables() {
             let mir::VtableStorage::Global(global) = table.storage;
-            map.insert(global, table_id);
+            let words = table
+                .entries
+                .iter()
+                .map(|entry| match entry {
+                    mir::VtableEntry::Method { function }
+                    | mir::VtableEntry::Destructor {
+                        function: Some(function),
+                    } => Word::function_pointer(FunctionPointer::from_bits(function.id as usize)),
+                    mir::VtableEntry::TypeDescriptor
+                    | mir::VtableEntry::Destructor { function: None } => Word::VOID,
+                })
+                .collect::<Vec<_>>();
+            let Some(ty) = self.tree.get(global).ty.ty() else {
+                return Err(Error::ConcreteMirRequired {
+                    context: "dispatch table global type".to_string(),
+                });
+            };
+            self.define_static_words(&mut data, global, ty, &words)?;
         }
 
-        map
+        // immutable globals without heap edges can share program storage
+        for (global_id, global) in self.tree.iter_nodes::<mir::Global>() {
+            if data.contains(engine::StaticId(global_id.id))
+                || global.is_import()
+                || global.is_mutable()
+            {
+                continue;
+            }
+
+            let Some(ty) = global.ty.ty() else {
+                return Err(Error::ConcreteMirRequired {
+                    context: "global type".to_string(),
+                });
+            };
+            let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+                expected: "compiled global layout".to_string(),
+                actual: format!("{ty:?}"),
+            })?;
+            if layout.reference_map.has_reference() {
+                continue;
+            }
+
+            let bytes = match global.initializer.as_ref() {
+                Some(initializer) => self.static_initializer_bytes(initializer, ty, layouts)?,
+                None => vec![0; layout.byte_len],
+            };
+            self.define_static_bytes(&mut data, global_id, ty, layout.alignment(), false, &bytes)?;
+        }
+
+        Ok(data.finish())
+    }
+
+    /// Define one byte region in program static memory.
+    fn define_static_bytes(
+        &self,
+        data: &mut engine::StaticAllocator,
+        global: mir::LocalNodeId<mir::Global>,
+        ty: mir::LocalNodeId<mir::Type>,
+        alignment: usize,
+        is_mutable: bool,
+        bytes: &[u8],
+    ) -> Result<()> {
+        data.define(
+            engine::StaticId(global.id),
+            engine::TypeId(ty.id),
+            alignment,
+            is_mutable,
+            bytes,
+        )
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("duplicate program static global {global:?}"),
+        })
+    }
+
+    /// Define one word region in program static memory.
+    fn define_static_words(
+        &self,
+        data: &mut engine::StaticAllocator,
+        global: mir::LocalNodeId<mir::Global>,
+        ty: mir::LocalNodeId<mir::Type>,
+        words: &[Word],
+    ) -> Result<()> {
+        let mut bytes = Vec::with_capacity(words.len() * Word::BYTE_LEN);
+        for word in words {
+            bytes.extend_from_slice(&word.to_byte_array());
+        }
+
+        self.define_static_bytes(data, global, ty, Word::BYTE_LEN, false, &bytes)
+    }
+
+    /// Encode one static initializer into bytes.
+    fn static_initializer_bytes(
+        &self,
+        initializer: &mir::GlobalInitializer,
+        ty: mir::LocalNodeId<mir::Type>,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ) -> Result<Vec<u8>> {
+        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+            expected: "compiled initializer layout".to_string(),
+            actual: format!("{ty:?}"),
+        })?;
+
+        if layout.is_scalar() {
+            return self.static_scalar_initializer_bytes(initializer, ty, layout.byte_len);
+        }
+
+        match initializer {
+            mir::GlobalInitializer::Zero => Ok(vec![0; layout.byte_len]),
+            mir::GlobalInitializer::Bytes(bytes) => {
+                if bytes.len() != layout.byte_len {
+                    return Err(Error::TypeMismatch {
+                        expected: format!("{} initializer bytes", layout.byte_len),
+                        actual: format!("{} initializer bytes", bytes.len()),
+                    });
+                }
+
+                Ok(bytes.clone())
+            }
+            mir::GlobalInitializer::Aggregate(elements) => {
+                self.static_payload_initializer_bytes(elements, ty, layouts)
+            }
+            mir::GlobalInitializer::Scalar(_) => Err(Error::TypeMismatch {
+                expected: "payload initializer".to_string(),
+                actual: "scalar initializer".to_string(),
+            }),
+        }
+    }
+
+    /// Encode one scalar static initializer into bytes.
+    fn static_scalar_initializer_bytes(
+        &self,
+        initializer: &mir::GlobalInitializer,
+        ty: mir::LocalNodeId<mir::Type>,
+        byte_len: usize,
+    ) -> Result<Vec<u8>> {
+        match initializer {
+            mir::GlobalInitializer::Zero => Ok(vec![0; byte_len]),
+            mir::GlobalInitializer::Bytes(bytes) => {
+                if bytes.len() != byte_len {
+                    return Err(Error::TypeMismatch {
+                        expected: format!("{byte_len} initializer bytes"),
+                        actual: format!("{} initializer bytes", bytes.len()),
+                    });
+                }
+
+                Ok(bytes.clone())
+            }
+            mir::GlobalInitializer::Scalar(constant) => {
+                if byte_len > Word::BYTE_LEN {
+                    return Err(Error::TypeMismatch {
+                        expected: format!("at most {} scalar bytes", Word::BYTE_LEN),
+                        actual: format!("{byte_len} scalar bytes"),
+                    });
+                }
+
+                let value = Word::from(constant);
+                let bytes = value.to_byte_array();
+
+                Ok(bytes[..byte_len].to_vec())
+            }
+            mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
+                expected: "scalar initializer".to_string(),
+                actual: format!("{ty:?}"),
+            }),
+        }
+    }
+
+    /// Encode one payload initializer into bytes.
+    fn static_payload_initializer_bytes(
+        &self,
+        elements: &[mir::GlobalInitializer],
+        ty: mir::LocalNodeId<mir::Type>,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ) -> Result<Vec<u8>> {
+        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+            expected: "compiled payload layout".to_string(),
+            actual: format!("{ty:?}"),
+        })?;
+        let entries = self.static_initializer_entries(ty, layouts)?;
+        if elements.len() != entries.len() {
+            return Err(Error::TypeMismatch {
+                expected: format!("{} initializer elements", entries.len()),
+                actual: format!("{} initializer elements", elements.len()),
+            });
+        }
+
+        let mut bytes = vec![0u8; layout.byte_len];
+        for (element, entry) in elements.iter().zip(entries.into_iter()) {
+            let value_bytes = self.static_initializer_bytes(element, entry.ty, layouts)?;
+            if value_bytes.len() != entry.byte_len {
+                return Err(Error::TypeMismatch {
+                    expected: format!("{} initializer bytes", entry.byte_len),
+                    actual: format!("{} initializer bytes", value_bytes.len()),
+                });
+            }
+
+            let end = entry
+                .offset
+                .checked_add(entry.byte_len)
+                .ok_or(Error::InvalidInstruction)?;
+            let target = bytes
+                .get_mut(entry.offset..end)
+                .ok_or(Error::InvalidInstruction)?;
+            target.copy_from_slice(&value_bytes);
+        }
+
+        Ok(bytes)
+    }
+
+    /// Return initializer byte ranges for one payload type.
+    fn static_initializer_entries(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ) -> Result<Vec<StaticInitializerEntry>> {
+        let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+            expected: "compiled payload layout".to_string(),
+            actual: format!("{ty:?}"),
+        })?;
+
+        if let Some(field_count) = layout.field_count() {
+            let mut entries = Vec::with_capacity(field_count);
+            for index in 0..field_count {
+                let field = layout
+                    .field(index as u32)
+                    .ok_or(Error::InvalidInstruction)?;
+                entries.push(StaticInitializerEntry {
+                    ty: field.ty,
+                    offset: field.offset,
+                    byte_len: field.byte_len,
+                });
+            }
+
+            return Ok(entries);
+        }
+
+        let element = layout.element().ok_or_else(|| Error::TypeMismatch {
+            expected: "indexed initializer layout".to_string(),
+            actual: format!("{ty:?}"),
+        })?;
+        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        let mut entries = Vec::with_capacity(element_count);
+        for index in 0..element_count {
+            let offset = element
+                .stride
+                .checked_mul(index)
+                .ok_or(Error::InvalidInstruction)?;
+            entries.push(StaticInitializerEntry {
+                ty: element.ty,
+                offset,
+                byte_len: element.byte_len,
+            });
+        }
+
+        Ok(entries)
     }
 
     /// Build the layout id map for all compiled MIR types.
@@ -381,7 +740,7 @@ impl ModuleBuilder {
                     next_layout_id
                         .checked_add(1)
                         .ok_or_else(|| Error::InvariantViolation {
-                            context: "module layout id space exhausted".to_string(),
+                            context: "program layout id space exhausted".to_string(),
                         })?;
 
                 layout_id
@@ -393,7 +752,7 @@ impl ModuleBuilder {
         Ok(layout_id_by_type)
     }
 
-    /// Build the MIR layout table from the module type layouts.
+    /// Build the MIR layout table from the program type layouts.
     fn build_layout_table(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -413,12 +772,12 @@ impl ModuleBuilder {
             fields: Vec::new(),
         });
 
-        // module types
+        // program types
         for (type_id, layout_id) in layout_id_by_type {
             let layout = layouts
                 .get(type_id)
                 .ok_or_else(|| Error::InvariantViolation {
-                    context: format!("missing module layout for heap type {type_id:?}"),
+                    context: format!("missing program layout for heap type {type_id:?}"),
                 })?;
             let module_layout = match self.tree.get(*type_id) {
                 mir::Type::Callable { .. } => self.build_callable_layout(),
@@ -500,6 +859,7 @@ impl ModuleBuilder {
         function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
 
@@ -507,7 +867,8 @@ impl ModuleBuilder {
 
         // build one lowered function at a time
         for function_id in function_ids {
-            let function = self.build_function(*function_id, &call_targets, layouts)?;
+            let function =
+                self.build_function(*function_id, &call_targets, layouts, layout_id_by_type)?;
             functions.push(function);
         }
 
@@ -520,12 +881,13 @@ impl ModuleBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
-        let value_slots = analyze_value_slots(function);
+        let value_types = analyze_value_types(function);
 
         // derive the logical frame shape before lowering
-        let frame_layout = self.build_frame_layout(function_id, function, &value_slots)?;
+        let frame_layout = self.build_frame_layout(function_id, function, &value_types, layouts)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
         let (yield_resume_points, exceptional_call_resume_points) =
             self.build_resume_points(function_id, &frame_layout, &liveness)?;
@@ -539,10 +901,11 @@ impl ModuleBuilder {
             &exceptional_call_resume_points,
             call_targets,
             layouts,
-            &value_slots,
+            layout_id_by_type,
+            &value_types,
         )?
         .ok_or_else(|| Error::ConcreteMirRequired {
-            context: format!("module function {function_id:?}"),
+            context: format!("program function {function_id:?}"),
         })?;
 
         // append the frame shape and yield resume transfers first
@@ -552,17 +915,17 @@ impl ModuleBuilder {
 
         // append the generic lowered pc resume points
         for block in &function.blocks {
-            for (instruction_offset, mir_instruction_offset) in
+            for (instruction_offset, source_instruction_offset) in
                 block.mir_instruction_offsets.iter().copied().enumerate()
             {
                 let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
                 let resume_point = engine::ResumePoint {
                     id: resume_point_id,
-                    function: function_id,
+                    function: engine::FunctionId(function_id.id),
                     frame_layout: frame_layout.id,
-                    block: block.mir_block,
+                    block: engine::BlockId(block.mir_block.id),
                     instruction_offset: instruction_offset as u32,
-                    mir_instruction_offset,
+                    source_instruction_offset,
                     transfer: None,
                 };
 
@@ -577,41 +940,46 @@ impl ModuleBuilder {
         Ok(function)
     }
 
-    /// Build one logical frame layout for one function.
+    /// Build one byte frame layout for one function.
     fn build_frame_layout(
         &self,
         function_id: mir::LocalNodeId<mir::Function>,
         function: &mir::Function,
-        value_slots: &[ValueSlot],
+        value_types: &[ValueType],
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ) -> Result<engine::FrameLayout> {
-        let mut slots = Vec::new();
+        let mut byte_len = 0usize;
+        let mut region_id = 0u32;
 
-        // value slots
-        let value_start = slots.len() as u32;
-        for slot in value_slots {
-            slots.push(engine::FrameSlot {
-                source: slot.source,
-                ty: slot.ty,
-            });
+        let mut values = Vec::with_capacity(value_types.len());
+        for value_type in value_types {
+            let region = self.frame_region(
+                engine::FrameRegionId(region_id),
+                layouts,
+                value_type.ty,
+                &mut byte_len,
+            )?;
+            region_id = region_id.saturating_add(1);
+            values.push(region);
         }
-        let value_slots = value_start..slots.len() as u32;
 
-        // local slots
-        let local_start = slots.len() as u32;
+        let mut locals = Vec::with_capacity(function.locals.len());
         for local_id in &function.locals {
             let local = self.tree.get(*local_id);
             let local_type = (local.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
                 context: "frame local type".to_string(),
             })?;
-            slots.push(engine::FrameSlot {
-                source: engine::FrameSlotSource::Local(*local_id),
-                ty: local_type,
-            });
+            let region = self.frame_region(
+                engine::FrameRegionId(region_id),
+                layouts,
+                local_type,
+                &mut byte_len,
+            )?;
+            region_id = region_id.saturating_add(1);
+            locals.push(region);
         }
-        let local_slots = local_start..slots.len() as u32;
 
-        // callable environment slot
-        let environment_slot = (function.environment)
+        let environment = (function.environment)
             .map(|ty| {
                 ty.ty().ok_or_else(|| Error::ConcreteMirRequired {
                     context: "environment".to_string(),
@@ -619,21 +987,60 @@ impl ModuleBuilder {
             })
             .transpose()?
             .map(|environment| {
-                let slot = slots.len() as u32;
-                slots.push(engine::FrameSlot {
-                    source: engine::FrameSlotSource::Environment,
-                    ty: environment,
-                });
-                slot
-            });
+                self.frame_region(
+                    engine::FrameRegionId(region_id),
+                    layouts,
+                    environment,
+                    &mut byte_len,
+                )
+            })
+            .transpose()?;
 
         Ok(engine::FrameLayout {
             id: engine::FrameLayoutId(self.frame_layouts.len() as u32),
-            function: function_id,
-            slots,
-            value_slots,
-            local_slots,
-            environment_slot,
+            function: engine::FunctionId(function_id.id),
+            values,
+            locals,
+            environment,
+            byte_len: u32::try_from(byte_len).map_err(|_| Error::InvalidInstruction)?,
+        })
+    }
+
+    /// Allocate one typed region inside a frame layout.
+    fn frame_region(
+        &self,
+        id: engine::FrameRegionId,
+        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        ty: mir::LocalNodeId<mir::Type>,
+        byte_len: &mut usize,
+    ) -> Result<engine::FrameRegion> {
+        let layout = layouts.get(&ty).ok_or_else(|| Error::ConcreteMirRequired {
+            context: "frame region layout".to_string(),
+        })?;
+        let region_alignment = if layout.is_scalar() {
+            layout.alignment().max(Word::BYTE_LEN)
+        } else {
+            layout.alignment()
+        };
+        let region_len = if layout.is_scalar() {
+            layout.byte_len.max(Word::BYTE_LEN)
+        } else {
+            layout.byte_len
+        };
+
+        let offset = align_offset(*byte_len, region_alignment)?;
+        let end = offset
+            .checked_add(region_len)
+            .ok_or(Error::InvalidInstruction)?;
+        *byte_len = end;
+
+        Ok(engine::FrameRegion {
+            id,
+            offset: u32::try_from(offset).map_err(|_| Error::InvalidInstruction)?,
+            byte_len: u32::try_from(region_len).map_err(|_| Error::InvalidInstruction)?,
+            alignment: u16::try_from(region_alignment).map_err(|_| Error::InvalidInstruction)?,
+            is_word: layout.is_scalar(),
+            ty: engine::TypeId(ty.id),
         })
     }
 
@@ -846,9 +1253,16 @@ impl ModuleBuilder {
                             context: "resume parameter".to_string(),
                         })?;
 
+                let source = frame_layout
+                    .value_region_id(engine::ValueId(argument.0))
+                    .ok_or(Error::InvalidInstruction)?;
+                let destination = frame_layout
+                    .value_region_id(engine::ValueId(destination.0))
+                    .ok_or(Error::InvalidInstruction)?;
+
                 Ok(engine::ResumeCopy {
-                    source: argument.0,
-                    destination: destination.0,
+                    source,
+                    destination,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -857,17 +1271,23 @@ impl ModuleBuilder {
         self.resume_transfers.push(engine::ResumeTransfer {
             id: transfer_id,
             copies,
-            resume_value: resume_value.map(|value| value.0),
+            resume_value: resume_value
+                .map(|value| {
+                    frame_layout
+                        .value_region_id(engine::ValueId(value.0))
+                        .ok_or(Error::InvalidInstruction)
+                })
+                .transpose()?,
         });
 
         let resume_point_id = engine::ResumePointId(self.resume_points.len() as u32);
         let resume_point = engine::ResumePoint {
             id: resume_point_id,
-            function: function_id,
+            function: engine::FunctionId(function_id.id),
             frame_layout: frame_layout.id,
-            block,
+            block: engine::BlockId(block.id),
             instruction_offset: 0,
-            mir_instruction_offset: 0,
+            source_instruction_offset: 0,
             transfer: Some(transfer_id),
         };
 
@@ -886,23 +1306,21 @@ impl ModuleBuilder {
         let safepoint_id = engine::SafepointId(self.safepoints.len() as u32);
         let materialization_map_id =
             engine::MaterializationMapId(self.materialization_maps.len() as u32);
-        let materialized_values = self.materialized_values(liveness, resume_point)?;
+        let materialized_values = self.materialized_values(frame_layout, liveness, resume_point)?;
         let materialized_locals = self.materialized_locals(liveness, resume_point);
-        let slots = frame_layout
-            .slots
-            .iter()
-            .enumerate()
-            .map(|(slot_index, _slot)| {
-                if self.is_materialized_slot(
+        let regions = frame_layout
+            .region_ids()
+            .map(|region| {
+                if self.is_materialized_region(
                     frame_layout,
-                    slot_index as u32,
+                    region,
                     &materialized_values,
                     &materialized_locals,
                 ) {
-                    engine::MaterializationValue::FrameSlot(slot_index as u32)
-                } else {
-                    engine::MaterializationValue::Undefined
+                    return engine::MaterializationValue::FrameRegion(region);
                 }
+
+                engine::MaterializationValue::Undefined
             })
             .collect();
 
@@ -912,7 +1330,7 @@ impl ModuleBuilder {
             frames: vec![engine::MaterializationFrame {
                 frame_layout: frame_layout.id,
                 resume_point: resume_point.id,
-                slots,
+                regions,
             }],
         });
 
@@ -934,6 +1352,7 @@ impl ModuleBuilder {
     /// Return the values materialized at one resume point.
     fn materialized_values(
         &self,
+        frame_layout: &engine::FrameLayout,
         liveness: &mir::FunctionLiveness,
         resume_point: &engine::ResumePoint,
     ) -> Result<HashSet<mir::Value>> {
@@ -941,16 +1360,19 @@ impl ModuleBuilder {
             .transfer
             .and_then(|resume_transfer| self.resume_transfers.get(resume_transfer.0 as usize))
         else {
+            let block = mir::LocalNodeId::new(resume_point.block.0);
+
             return Ok(liveness.value_live_before_instruction(
                 &self.tree,
-                resume_point.block,
-                resume_point.mir_instruction_offset as usize,
+                block,
+                resume_point.source_instruction_offset as usize,
             ));
         };
 
         // materialize live in values that survive the resume edge
-        let live_in = liveness.value_live_in(resume_point.block);
-        let resume_block = self.tree.get(resume_point.block);
+        let block = mir::LocalNodeId::new(resume_point.block.0);
+        let live_in = liveness.value_live_in(block);
+        let resume_block = self.tree.get(block);
         let parameter_values: HashSet<mir::Value> = resume_block
             .parameters
             .iter()
@@ -966,8 +1388,14 @@ impl ModuleBuilder {
             live_in.difference(&parameter_values).copied().collect();
 
         for copy in &resume_transfer.copies {
-            let destination = mir::Value::new(copy.destination);
-            let source = mir::Value::new(copy.source);
+            let destination = frame_layout
+                .value_for_region(copy.destination)
+                .ok_or(Error::InvalidInstruction)?;
+            let source = frame_layout
+                .value_for_region(copy.source)
+                .ok_or(Error::InvalidInstruction)?;
+            let destination = mir::Value::new(destination.0);
+            let source = mir::Value::new(source.0);
 
             if live_in.contains(&destination) {
                 values.insert(source);
@@ -983,36 +1411,27 @@ impl ModuleBuilder {
         liveness: &mir::FunctionLiveness,
         resume_point: &engine::ResumePoint,
     ) -> HashSet<mir::LocalNodeId<mir::Local>> {
-        liveness.local_live_in(resume_point.block).clone()
+        let block = mir::LocalNodeId::new(resume_point.block.0);
+
+        liveness.local_live_in(block).clone()
     }
 
-    /// Return whether one frame slot is materialized at this resume point.
-    fn is_materialized_slot(
+    /// Return whether one frame region is materialized at this resume point.
+    fn is_materialized_region(
         &self,
         layout: &engine::FrameLayout,
-        slot: u32,
+        region: engine::FrameRegionId,
         materialized_values: &HashSet<mir::Value>,
         materialized_locals: &HashSet<mir::LocalNodeId<mir::Local>>,
     ) -> bool {
-        // value slots
-        if layout.value_slots.contains(&slot) {
-            let Some(value_slot) = layout.slot(slot) else {
-                return false;
-            };
-
-            return match value_slot.source {
-                engine::FrameSlotSource::Value(value) => materialized_values.contains(&value),
-                _ => false,
-            };
+        if let Some(value) = layout.value_for_region(region) {
+            return materialized_values.contains(&mir::Value::new(value.0));
         }
 
-        // local slots
-        if layout.local_slots.contains(&slot) {
-            let local = mir::LocalNodeId::new(slot - layout.local_slots.start);
-            return materialized_locals.contains(&local);
+        if let Some(local) = layout.local_for_region(region) {
+            return materialized_locals.contains(&mir::LocalNodeId::new(local.0));
         }
 
-        // callable environment slot
-        layout.environment_slot == Some(slot)
+        layout.is_environment_region(region)
     }
 }
