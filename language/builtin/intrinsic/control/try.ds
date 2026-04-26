@@ -10,7 +10,7 @@
 ///
 /// `x?` extracts the success value or returns early with the error:
 /// ```
-/// match x.branch() {
+/// match (x.branch()) {
 ///     { kind: "ok", value } => value
 ///     { kind: "err", error } => return fromError(error)
 /// }
@@ -20,7 +20,7 @@
 ///
 /// `x ?? default` extracts the success value or uses the default:
 /// ```
-/// match x.branch() {
+/// match (x.branch()) {
 ///     { kind: "ok", value } => value
 ///     { kind: "err", error: _ } => default
 /// }

@@ -19,7 +19,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the element at the index with bounds checks.
     index(i: number): T {
-        if i < 0 || i >= this.length as number {
+        if (i < 0 || i >= this.length as number) {
             undefined!
         }
         // #Incomplete
@@ -40,7 +40,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the first element.
     first(): T | undefined {
-        if this.length == 0 {
+        if (this.length == 0) {
             return undefined;
         }
         this.index(0)
@@ -48,7 +48,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the last element.
     last(): T | undefined {
-        if this.length == 0 {
+        if (this.length == 0) {
             return undefined;
         }
         this.index(this.length as number - 1)
@@ -68,7 +68,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Set the element at the index with bounds checks.
     indexSet(this: &Slice<T>, i: number, value: T): void {
-        if i < 0 || i >= this.length as number {
+        if (i < 0 || i >= this.length as number) {
             undefined!
         }
         // #Incomplete

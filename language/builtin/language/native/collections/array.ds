@@ -53,7 +53,7 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Pop an element from the end.
     pop(): T | undefined {
-        if this.length == 0 {
+        if (this.length == 0) {
             return undefined;
         }
         // #Incomplete
@@ -62,7 +62,7 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the first element.
     first(): T | undefined {
-        if this.length == 0 {
+        if (this.length == 0) {
             return undefined;
         }
         this.index(0)
@@ -70,7 +70,7 @@ extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get the last element.
     last(): T | undefined {
-        if this.length == 0 {
+        if (this.length == 0) {
             return undefined;
         }
         this.index(this.length as number - 1)

@@ -28,12 +28,12 @@ extension of RawBuffer {
 
     /// Grow the buffer to at least the given capacity.
     grow(minCapacity: uint64): void {
-        if minCapacity <= this.capacity {
+        if (minCapacity <= this.capacity) {
             return;
         }
         // double capacity or use minCapacity, whichever is larger
         let newCapacity = this.capacity * 2;
-        if newCapacity < minCapacity {
+        if (newCapacity < minCapacity) {
             newCapacity = minCapacity;
         }
         this.data = rawRealloc(this.data as *unknown, newCapacity, 8) as *uint8;
@@ -42,7 +42,7 @@ extension of RawBuffer {
 
     /// Free the buffer.
     free(): void {
-        if this.data != null as *uint8 {
+        if (this.data != null as *uint8) {
             rawFree(this.data as *unknown);
             this.data = null as *uint8;
             this.size = 0;
