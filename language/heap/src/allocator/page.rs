@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapResult};
 
-/// One stable page identifier in one allocator arena.
+/// One stable allocator page identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct PageId(u32);
@@ -122,13 +122,24 @@ impl PageRun {
             return None;
         }
 
-        let prefix = Self::from_raw_parts(self.first_page, page_count as u32);
-        let suffix = Self::from_raw_parts(
-            PageId::from_raw(self.first_page.raw() + page_count as u32),
-            self.page_count - page_count as u32,
-        );
+        Some(self.split_prefix_unchecked(page_count))
+    }
 
-        Some((prefix, suffix))
+    /// Split one trusted prefix run from this run.
+    pub(crate) fn split_prefix_unchecked(self, page_count: usize) -> (Self, Self) {
+        debug_assert!(page_count <= self.len());
+
+        let page_count = page_count as u32;
+        let suffix_len = self.page_count - page_count;
+        let prefix = Self::from_raw_parts(self.first_page, page_count);
+        let suffix_first_page = if suffix_len == 0 {
+            PageId::from_raw(0)
+        } else {
+            PageId::from_raw(self.first_page.raw() + page_count)
+        };
+        let suffix = Self::from_raw_parts(suffix_first_page, suffix_len);
+
+        (prefix, suffix)
     }
 
     /// Return one page id by run-local index.

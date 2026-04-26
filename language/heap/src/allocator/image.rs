@@ -46,8 +46,8 @@ impl Allocator {
             page_count = page_count.max(next_page_count);
         }
 
-        // admit enough arena capacity first
-        allocator.ensure_page_capacity(page_count)?;
+        // grow enough arena capacity first
+        allocator.grow_to_page_count(page_count)?;
 
         // materialize every serialized page into the allocator
         for page in &image.pages {
@@ -77,7 +77,7 @@ impl Allocator {
             *arena_high_watermark = (*arena_high_watermark).max(next_unused_page);
         }
 
-        // restore the per-arena fresh-allocation cursors
+        // restore the per-arena allocation cursors
         for (arena_index, high_watermark) in arena_high_watermarks {
             if !allocator.has_arena(arena_index) {
                 let first_page_index = arena_index

@@ -4,34 +4,27 @@ use std::sync::atomic::Ordering;
 use parking_lot::Mutex;
 
 use super::arena::{
-    Arena, ArenaAddressMap, ArenaDirectory, ArenaLocation, allocate_arena_bytes, arena_frame_index,
-    free_arena_bytes, max_arena_count, max_arena_frame_count,
+    Arena, ArenaIndex, ArenaLocation, ArenaReservation, max_arena_count, max_arena_frame_count,
 };
-use super::{PageId, PageRun, PageRunSet, PageView};
+use super::{
+    DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_PAGE_BYTES, PageId, PageRun, PageRunSet, PageView,
+};
 use crate::{HeapError, HeapOptions, HeapResult};
 
-/// The standard allocator page size.
-pub(crate) const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
-
-/// The standard allocator arena size.
-pub(crate) const DEFAULT_ALLOCATOR_ARENA_BYTES: usize = if cfg!(target_pointer_width = "64") {
-    64 * 1024 * 1024
-} else {
-    4 * 1024 * 1024
-};
-
-/// The admitted arena frontier, current fresh arena, free runs, and arena ownership.
+/// The arena frontier, current arena, free runs, and arena ownership.
 #[derive(Debug)]
 #[allow(clippy::vec_box)]
 struct AllocatorState {
-    /// The number of arenas already admitted into allocation state.
-    admitted_arena_count: usize,
-    /// The current fresh arena used for monotonic single-arena allocation.
-    fresh_arena_index: Option<usize>,
+    /// The number of arenas available to the page allocator.
+    arena_count: usize,
+    /// The current arena used for monotonic single-arena allocation.
+    current_arena_index: Option<usize>,
     /// The free physical runs.
     free_runs: PageRunSet,
     /// The owned arena records, boxed so address-map pointers stay stable.
     owned_arenas: Vec<Box<Arena>>,
+    /// The owned virtual memory ranges backing arenas.
+    arena_reservations: Vec<ArenaReservation>,
 }
 
 /// One branchable allocator of fixed-size pages.
@@ -45,11 +38,9 @@ pub struct Allocator {
     pages_per_arena: u32,
     /// The maximum addressable arena count.
     max_arena_count: u32,
-    /// The sparse arena directory keyed by logical arena index.
-    arena_directory: ArenaDirectory,
-    /// The sparse arena map keyed by mapped arena address.
-    arena_map: ArenaAddressMap,
-    /// The admitted arena frontier, fresh arena, and free-run index.
+    /// The arenas keyed by logical index and address frame.
+    arena_index: ArenaIndex,
+    /// The arena frontier, current arena, and free-run index.
     state: Mutex<AllocatorState>,
 }
 
@@ -61,12 +52,10 @@ unsafe impl Sync for Allocator {}
 
 impl Drop for Allocator {
     fn drop(&mut self) {
-        let arena_bytes = self.arena_bytes();
         let state = self.state.get_mut();
 
-        for arena in state.owned_arenas.drain(..) {
-            free_arena_bytes(arena.base().as_ptr(), arena_bytes);
-        }
+        state.owned_arenas.clear();
+        state.arena_reservations.clear();
     }
 }
 
@@ -89,13 +78,13 @@ impl Allocator {
             arena_bytes: arena_bytes as u32,
             pages_per_arena: pages_per_arena as u32,
             max_arena_count: max_arena_count as u32,
-            arena_directory: ArenaDirectory::new(max_arena_count),
-            arena_map: ArenaAddressMap::new(max_arena_frames),
+            arena_index: ArenaIndex::new(max_arena_count, max_arena_frames),
             state: Mutex::new(AllocatorState {
-                admitted_arena_count: 0,
-                fresh_arena_index: None,
+                arena_count: 0,
+                current_arena_index: None,
                 free_runs: PageRunSet::new(pages_per_arena),
                 owned_arenas: Vec::new(),
+                arena_reservations: Vec::new(),
             }),
         })
     }
@@ -211,22 +200,22 @@ impl Allocator {
         }
 
         // reuse an existing run when possible
-        if let Some(run) = self.take_page_run(page_count) {
+        if let Some(run) = self.allocate_free_run(page_count) {
             self.zero_run(run)?;
             self.initialize_run_refcount(run)?;
 
             return Ok(run);
         }
 
-        // otherwise carve a fresh run from the current arena when it fits
+        // otherwise carve from the current arena when it fits
         let run = if page_count <= self.pages_per_arena()
-            && let Some(run) = self.take_fresh_run(page_count)?
+            && let Some(run) = self.allocate_run_from_current_arena(page_count)?
         {
             run
         }
-        // fall back to one spanning fresh run
+        // fall back to one run that crosses arenas
         else {
-            self.allocate_spanning_run(page_count)?
+            self.allocate_multi_arena_run(page_count)?
         };
 
         self.initialize_run_refcount(run)?;
@@ -245,9 +234,8 @@ impl Allocator {
         loop {
             let current_refcount = refcount.load(Ordering::Acquire);
             let Some(next_refcount) = current_refcount.checked_add(1) else {
-                return Err(HeapError::InvalidRunRefcount {
-                    first_page: run.first_page,
-                    refcount: current_refcount,
+                return Err(HeapError::InvariantViolation {
+                    context: "allocator run refcount overflow",
                 });
             };
 
@@ -276,9 +264,8 @@ impl Allocator {
         loop {
             let current_refcount = refcount.load(Ordering::Acquire);
             if current_refcount == 0 {
-                return Err(HeapError::InvalidRunRefcount {
-                    first_page: run.first_page,
-                    refcount: current_refcount,
+                return Err(HeapError::InvariantViolation {
+                    context: "allocator released free run",
                 });
             }
 
@@ -315,8 +302,8 @@ impl Allocator {
         Ok(refcount.load(Ordering::Acquire) == 1)
     }
 
-    /// Ensure this allocator can address the given number of pages.
-    pub(super) fn ensure_page_capacity(&self, page_count: usize) -> HeapResult<()> {
+    /// Grow this allocator until it can address the given page count.
+    pub(super) fn grow_to_page_count(&self, page_count: usize) -> HeapResult<()> {
         let required_arena_count = page_count.div_ceil(self.pages_per_arena());
         let max_arena_count = self.max_arena_count();
         if required_arena_count > max_arena_count {
@@ -326,15 +313,13 @@ impl Allocator {
             });
         }
 
-        // admit the required arena range into allocation state
         let mut state = self.state.lock();
-        let first_new_arena = state.admitted_arena_count;
-        state.admitted_arena_count = state.admitted_arena_count.max(required_arena_count);
-        let admitted_arena_count = state.admitted_arena_count;
-        drop(state);
+        let first_new_arena = state.arena_count;
+        let end_arena_index = state.arena_count.max(required_arena_count);
 
-        // initialize newly admitted arena metadata
-        self.initialize_arena_range(first_new_arena, admitted_arena_count)?;
+        // publish arenas before moving the frontier
+        self.allocate_arena_range(&mut state, first_new_arena, end_arena_index)?;
+        state.arena_count = end_arena_index;
 
         Ok(())
     }
@@ -352,39 +337,38 @@ impl Allocator {
         Ok(())
     }
 
-    /// Return one free run large enough for the requested size.
-    fn take_page_run(&self, page_count: usize) -> Option<PageRun> {
+    /// Allocate one free run large enough for the requested size.
+    fn allocate_free_run(&self, page_count: usize) -> Option<PageRun> {
         let mut state = self.state.lock();
-
-        state.free_runs.take(page_count)
+        state.free_runs.allocate(page_count)
     }
 
-    /// Return one fresh run that fits inside one existing or new arena.
-    fn take_fresh_run(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
+    /// Allocate one run from the current arena.
+    fn allocate_run_from_current_arena(&self, page_count: usize) -> HeapResult<Option<PageRun>> {
         loop {
-            // fast path: claim from the current fresh arena directly
-            let fresh_arena_index = self.state.lock().fresh_arena_index;
-            if let Some(arena_index) = fresh_arena_index
-                && let Some(run) = self.allocate_arena_run(arena_index, page_count)?
+            // claim from the current arena
+            let current_arena_index = self.state.lock().current_arena_index;
+            if let Some(arena_index) = current_arena_index
+                && let Some(run) = self.allocate_run_from_arena(arena_index, page_count)?
             {
                 return Ok(Some(run));
             }
 
-            // slow path: pick or admit the next fresh arena
-            let arena_index = self.ensure_fresh_arena(page_count)?;
-            if let Some(run) = self.allocate_arena_run(arena_index, page_count)? {
+            // grow into the next arena
+            let arena_index = self.current_arena_for(page_count)?;
+            if let Some(run) = self.allocate_run_from_arena(arena_index, page_count)? {
                 return Ok(Some(run));
             }
         }
     }
 
-    /// Allocate one fresh run that spans newly admitted arenas.
-    fn allocate_spanning_run(&self, page_count: usize) -> HeapResult<PageRun> {
+    /// Allocate one run that crosses newly grown arenas.
+    fn allocate_multi_arena_run(&self, page_count: usize) -> HeapResult<PageRun> {
         let required_arena_count = page_count.div_ceil(self.pages_per_arena());
-        let first_arena_index = self.admit_arena_range(required_arena_count)?;
+        let first_arena_index = self.grow_arena_range(required_arena_count)?;
         let last_arena_len = page_count % self.pages_per_arena();
 
-        // mark each newly admitted arena run as consumed
+        // mark each newly grown arena run as consumed
         for arena_offset in 0..required_arena_count {
             let arena_index = first_arena_index.checked_add(arena_offset).ok_or(
                 HeapError::InvariantOverflow {
@@ -407,9 +391,9 @@ impl Allocator {
             arena.raise_watermark(used_pages);
         }
 
-        let fresh_arena_index =
+        let current_arena_index =
             (last_arena_len != 0).then_some(first_arena_index + required_arena_count - 1);
-        self.state.lock().fresh_arena_index = fresh_arena_index;
+        self.state.lock().current_arena_index = current_arena_index;
 
         let first_page_index = first_arena_index
             .checked_mul(self.pages_per_arena())
@@ -421,15 +405,15 @@ impl Allocator {
         PageRun::new(first_page, page_count)
     }
 
-    /// Return one newly admitted arena range start.
-    fn admit_arena_range(&self, arena_count: usize) -> HeapResult<usize> {
+    /// Grow the allocator by one contiguous arena range.
+    fn grow_arena_range(&self, arena_count: usize) -> HeapResult<usize> {
         let mut state = self.state.lock();
-        let first_arena_index = state.admitted_arena_count;
+        let first_arena_index = state.arena_count;
         let end_arena_index =
             first_arena_index
                 .checked_add(arena_count)
                 .ok_or(HeapError::InvariantOverflow {
-                    context: "allocator admitted arena count",
+                    context: "allocator arena count",
                 })?;
 
         let max_arena_count = self.max_arena_count();
@@ -440,37 +424,35 @@ impl Allocator {
             });
         }
 
-        state.admitted_arena_count = end_arena_index;
-        drop(state);
-
-        // initialize the admitted arena metadata
-        self.initialize_arena_range(first_arena_index, end_arena_index)?;
+        // publish arenas before moving the frontier
+        self.allocate_arena_range(&mut state, first_arena_index, end_arena_index)?;
+        state.arena_count = end_arena_index;
 
         Ok(first_arena_index)
     }
 
-    /// Return one usable fresh arena, admitting one when necessary.
-    fn ensure_fresh_arena(&self, page_count: usize) -> HeapResult<usize> {
+    /// Return one usable current arena, growing one when necessary.
+    fn current_arena_for(&self, page_count: usize) -> HeapResult<usize> {
         let state = self.state.lock();
-        let fresh_arena_index = state.fresh_arena_index;
-        let admitted_arena_count = state.admitted_arena_count;
+        let current_arena_index = state.current_arena_index;
+        let arena_count = state.arena_count;
         drop(state);
 
-        if let Some(arena_index) = fresh_arena_index
-            && arena_index < admitted_arena_count
+        if let Some(arena_index) = current_arena_index
+            && arena_index < arena_count
             && self.arena_has_capacity(arena_index, page_count)?
         {
             return Ok(arena_index);
         }
 
-        let arena_index = self.admit_arena_range(1)?;
-        self.state.lock().fresh_arena_index = Some(arena_index);
+        let arena_index = self.grow_arena_range(1)?;
+        self.state.lock().current_arena_index = Some(arena_index);
 
         Ok(arena_index)
     }
 
-    /// Allocate one fresh run from one specific arena.
-    fn allocate_arena_run(
+    /// Allocate one run from one specific arena.
+    fn allocate_run_from_arena(
         &self,
         arena_index: usize,
         page_count: usize,
@@ -482,7 +464,7 @@ impl Allocator {
         arena.allocate_run(arena_index, page_count, self.pages_per_arena())
     }
 
-    /// Report whether one arena still has capacity for one fresh run.
+    /// Report whether one arena still has capacity for one run.
     fn arena_has_capacity(&self, arena_index: usize, page_count: usize) -> HeapResult<bool> {
         let Some(arena) = self.arena(arena_index) else {
             return Ok(false);
@@ -495,26 +477,18 @@ impl Allocator {
     fn run_refcount(&self, run: PageRun) -> HeapResult<&std::sync::atomic::AtomicU32> {
         let (arena_index, arena_page_index) = self.page_position(run.first_page);
         let Some(arena) = self.arena(arena_index) else {
-            return Err(HeapError::MissingRunRefcount {
-                first_page: run.first_page,
+            return Err(HeapError::MissingPage {
+                page_id: run.first_page,
             });
         };
 
-        let Some(refcount) = arena.run_refcount(arena_page_index) else {
-            return Err(HeapError::MissingRunRefcount {
-                first_page: run.first_page,
-            });
-        };
-
-        Ok(refcount)
+        Ok(arena.run_refcount(arena_page_index))
     }
 
-    /// Initialize one fresh run refcount before exposing it.
+    /// Initialize one run refcount before exposing it.
     fn initialize_run_refcount(&self, run: PageRun) -> HeapResult<()> {
         let refcount = self.run_refcount(run)?;
-
         refcount.store(1, Ordering::Release);
-
         Ok(())
     }
 
@@ -572,9 +546,10 @@ impl Allocator {
             return None;
         }
 
-        let arena_frame_index = arena_frame_index(address, self.arena_bytes())?;
-        let arena = self.arena_map.get(arena_frame_index)?;
-        let arena_base = arena.base().as_ptr() as usize;
+        let arena = self
+            .arena_index
+            .arena_for_address(address, self.arena_bytes())?;
+        let arena_base = arena.base() as usize;
         let arena_offset = address.checked_sub(arena_base)?;
         if arena_offset >= self.arena_bytes() {
             return None;
@@ -594,8 +569,7 @@ impl Allocator {
     /// Free one dead run into the allocator free-run index.
     fn free_run(&self, run: PageRun) {
         let mut state = self.state.lock();
-
-        state.free_runs.insert(run);
+        state.free_runs.free(run);
     }
 
     /// Free one cache-owned run back into the allocator free-run index.
@@ -605,12 +579,10 @@ impl Allocator {
         }
 
         let refcount = self.run_refcount(run)?;
-
         let current_refcount = refcount.swap(0, Ordering::AcqRel);
         if current_refcount != 1 {
-            return Err(HeapError::InvalidRunRefcount {
-                first_page: run.first_page,
-                refcount: current_refcount,
+            return Err(HeapError::InvariantViolation {
+                context: "allocator cached run refcount",
             });
         }
 
@@ -619,7 +591,7 @@ impl Allocator {
         Ok(())
     }
 
-    /// Raise one arena fresh-allocation watermark to the given page index.
+    /// Raise one arena allocation watermark to the given page index.
     pub(super) fn raise_arena_high_watermark(
         &self,
         arena_index: usize,
@@ -641,24 +613,24 @@ impl Allocator {
         arena.raise_watermark(high_watermark);
 
         let mut state = self.state.lock();
-        state.admitted_arena_count = state.admitted_arena_count.max(arena_index + 1);
+        state.arena_count = state.arena_count.max(arena_index + 1);
 
-        if high_watermark < self.pages_per_arena() && arena_index + 1 == state.admitted_arena_count
-        {
-            state.fresh_arena_index = Some(arena_index);
+        if high_watermark < self.pages_per_arena() && arena_index + 1 == state.arena_count {
+            state.current_arena_index = Some(arena_index);
         }
 
         Ok(())
     }
 
-    /// Return one existing arena through the logical arena directory.
+    /// Return one existing arena by logical arena index.
     fn arena(&self, arena_index: usize) -> Option<&Arena> {
-        self.arena_directory.get(arena_index)
+        self.arena_index.arena(arena_index)
     }
 
-    /// Initialize one admitted arena range.
-    fn initialize_arena_range(
+    /// Allocate and publish one arena range.
+    fn allocate_arena_range(
         &self,
+        state: &mut AllocatorState,
         first_arena_index: usize,
         end_arena_index: usize,
     ) -> HeapResult<()> {
@@ -667,14 +639,20 @@ impl Allocator {
                 continue;
             }
 
-            self.allocate_arena(arena_index)?;
+            let required_arena_count = end_arena_index - arena_index;
+            self.allocate_arena(state, arena_index, required_arena_count)?;
         }
 
         Ok(())
     }
 
-    /// Allocate and register one newly admitted arena.
-    fn allocate_arena(&self, arena_index: usize) -> HeapResult<()> {
+    /// Allocate and publish one arena.
+    fn allocate_arena(
+        &self,
+        state: &mut AllocatorState,
+        arena_index: usize,
+        required_arena_count: usize,
+    ) -> HeapResult<()> {
         if arena_index >= self.max_arena_count() {
             return Err(HeapError::AllocatorArenaLimitExceeded {
                 required_arenas: arena_index + 1,
@@ -682,21 +660,45 @@ impl Allocator {
             });
         }
 
-        // allocate actual bytes
-        let base = allocate_arena_bytes(self.arena_bytes())?;
-        let base_address = base.as_ptr() as usize;
+        // already have arena
+        if self.arena(arena_index).is_some() {
+            return Ok(());
+        }
+
+        // commit arena bytes
+        let base = self.commit_arena_base(state, required_arena_count)?;
+        let base_address = base as usize;
         let mut arena = Box::new(Arena::new(arena_index, base, self.pages_per_arena()));
         let arena_ptr = arena.as_mut() as *mut Arena;
 
-        let arena_frame_index = arena_frame_index(base_address, self.arena_bytes()).ok_or(
-            HeapError::AllocatorAddressUnsupported {
-                address: base_address,
-            },
-        )?;
-        self.arena_map.insert(arena_frame_index, arena_ptr)?;
-        self.arena_directory.insert(arena_index, arena_ptr)?;
-        self.state.lock().owned_arenas.push(arena);
+        self.arena_index
+            .insert(arena_index, base_address, self.arena_bytes(), arena_ptr)?;
+        state.owned_arenas.push(arena);
 
         Ok(())
+    }
+
+    /// Commit one arena inside the current reservation.
+    fn commit_arena_base(
+        &self,
+        state: &mut AllocatorState,
+        required_arena_count: usize,
+    ) -> HeapResult<*mut u8> {
+        if let Some(reservation) = state.arena_reservations.last_mut()
+            && reservation.remaining_arena_count(self.arena_bytes()) >= required_arena_count
+            && let Some(base) = reservation.allocate_arena(self.arena_bytes())?
+        {
+            return Ok(base);
+        }
+
+        let mut reservation = ArenaReservation::reserve(self.arena_bytes(), required_arena_count)?;
+        let Some(base) = reservation.allocate_arena(self.arena_bytes())? else {
+            return Err(HeapError::InvariantViolation {
+                context: "allocator empty arena reservation",
+            });
+        };
+        state.arena_reservations.push(reservation);
+
+        Ok(base)
     }
 }
