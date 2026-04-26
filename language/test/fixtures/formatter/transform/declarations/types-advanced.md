@@ -54,6 +54,47 @@ type Requirements = [...PlatformCapability[]]
 type Requirements = [...PlatformCapability[]];
 ```
 
+### bracket tuple labeled rest payload
+
+Labeled tuple rest payloads keep the spread marker on the payload type.
+
+```ts:main.ts
+type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
+```
+
+```ts expected
+type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"];
+```
+
+### bracket tuple optional label
+
+Optional labeled tuple elements keep `?` on the label.
+
+```ts:main.ts
+type UpgradeOptions<WebSocketData> = [options?: {data?: undefined}, options: {data: WebSocketData}]
+```
+
+```ts expected
+type UpgradeOptions<WebSocketData> = [
+    options?: { data?: undefined },
+    options: { data: WebSocketData },
+];
+```
+
+### conditional bracket tuple optional label
+
+Conditional tuple branches keep optional labels parseable after formatting.
+
+```ts:main.ts
+type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined] ? [options?: {data?: undefined}] : [options: {data: WebSocketData}]
+```
+
+```ts expected
+type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined]
+    ? [options?: { data?: undefined }]
+    : [options: { data: WebSocketData }];
+```
+
 ### indexed access type
 
 Indexed access types keep brackets tight.
@@ -76,6 +117,20 @@ type Result = typeof someValue
 
 ```ds expected
 type Result = typeof someValue;
+```
+
+### type import expression
+
+Type import expressions keep the module target separate from additional arguments.
+
+```ts:main.ts
+type BlobRef = import("buffer").Blob
+type JsonRef = import("vite", {with: {"resolution-mode": "import"}}).Plugin
+```
+
+```ts expected
+type BlobRef = import("buffer").Blob;
+type JsonRef = import("vite", { with: { "resolution-mode": "import" } }).Plugin;
 ```
 
 ## Conditional Types
