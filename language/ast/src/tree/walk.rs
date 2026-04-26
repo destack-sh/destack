@@ -259,7 +259,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::ScalarLiteral { .. } => {}
         TypeExpression::Literal { .. } => {}
         TypeExpression::Intrinsic => {}
-        TypeExpression::Tuple { elements } => {
+        TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 visitor.visit_tuple_element(tree, *element_id, element);
