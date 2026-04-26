@@ -4,17 +4,17 @@ use serde::{Deserialize, Serialize};
 /// Address space class for reference metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReferenceAddressSpace {
-    /// Local runtime storage.
+    /// Worker-local heap.
     Local,
-    /// Shared runtime storage.
+    /// World-shared heap.
     Shared,
-    /// Stack or function-local memory.
+    /// Stack allocation.
     Stack,
-    /// Frame-slot storage inside one activation.
+    /// Frame bytes.
     Frame,
     /// Static image memory.
     Static,
-    /// Named backend-specific storage space.
+    /// Named backend space.
     Named,
 }
 
@@ -104,11 +104,6 @@ const REF_ADDRESS_SPACE_MASK: u8 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
 impl ReferenceMeta {
     /// Empty reference metadata.
     pub const NONE: Self = Self { bits: 0 };
-
-    /// Create reference metadata from raw bits.
-    pub(crate) const fn from_bits(bits: u8) -> Self {
-        Self { bits }
-    }
 
     /// Create reference metadata.
     pub fn new(
