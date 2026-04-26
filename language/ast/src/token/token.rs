@@ -4,17 +4,19 @@ use serde::{Deserialize, Serialize};
 
 pub use destack_unicode::UNICODE_VERSION;
 
-/// A parsed Token.
+/// A parsed token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Token {
-    /// The Token tag.
+    /// The token tag.
     pub ty: TokenType,
     /// The length of the token in bytes.
     pub len: u32,
     /// The literal body of the token.
     pub literal: Option<LiteralType>,
+    /// Whether the token is preceded by a line terminator.
+    pub is_on_new_line: bool,
 }
 
 impl Display for Token {
@@ -24,16 +26,31 @@ impl Display for Token {
 }
 
 impl Token {
+    /// Create a token.
     pub const fn new(ty: TokenType, len: u32, literal: Option<LiteralType>) -> Token {
-        Token { ty, len, literal }
+        Token {
+            ty,
+            len,
+            literal,
+            is_on_new_line: false,
+        }
     }
 
+    /// Create an end token.
     pub const fn end() -> Token {
         Token {
             ty: TokenType::End,
             len: 0,
             literal: None,
+            is_on_new_line: false,
         }
+    }
+
+    /// Return this token with line boundary information attached.
+    #[must_use]
+    pub const fn with_on_new_line(mut self, is_on_new_line: bool) -> Token {
+        self.is_on_new_line = is_on_new_line;
+        self
     }
 }
 
