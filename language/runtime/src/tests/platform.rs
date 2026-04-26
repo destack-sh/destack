@@ -216,8 +216,8 @@ pub(crate) fn vm_test_byte_slice(
 /// Allocate one VM heap value buffer from fully encoded values.
 pub(crate) fn vm_test_values(
     context: &mut vm::ExternalCallContext<'_>,
-    values: Vec<vm::Value>,
-) -> vm::Value {
+    values: Vec<vm::Word>,
+) -> vm::Word {
     let data = context
         .allocate_heap_value_slots(values.len())
         .expect("vm test heap values should allocate");
@@ -227,7 +227,7 @@ pub(crate) fn vm_test_values(
             .expect("vm test heap value should write");
     }
 
-    vm::Value::heap_reference(data)
+    vm::Word::heap_reference(data)
 }
 
 /// Return whether one platform code represents a permission denial.

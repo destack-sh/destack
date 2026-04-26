@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
-use destack_engine::{Continuation, MaterializedValue};
+use destack_engine::{StaticSpace, Value};
+use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode};
-use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEventKind, HostLifecycleState, Session};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
+use crate::runtime::engine::engine::ErasedNativeEngine;
 use crate::runtime::engine::{
-    Engine, EngineImage, Entry, LiveContinuation, NativeContinuationHandle, RunOutcome, RunOutput,
+    Context, Continuation, Engine, Entry, NativeContinuation, NativeImage, Outcome, Output,
 };
 use crate::runtime::memory::RootVisitor;
 use crate::runtime::poller::{
@@ -21,11 +22,10 @@ use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{Nanos, WorldInstant, host as host_time};
-use crate::runtime::{BindingCallContext, DropReason, TickOutcome, Worker, World};
+use crate::runtime::{DropReason, TickOutcome, Worker, World};
 
 use super::tests::{
     ScriptedHostClockSource, TestEngine, TestMultiAgentRuntime, TestPoller, TestRuntime,
-    continuation_from_image, native_continuation_image, validate_native_capture_mode,
 };
 
 /// Build runtime options with one explicit time mode.
@@ -45,74 +45,46 @@ struct CompleteEngine {
     resumed_native_ids: Vec<usize>,
 }
 
-impl Engine for CompleteEngine {
+impl ErasedNativeEngine for CompleteEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _heap: &mut heap::Heap,
-        _shared: &heap::SharedHeap,
+        _context: Context<'_>,
         _entry: &Entry,
-        _args: &[vm::Value],
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
-        Ok(RunOutcome::Completed {
-            output: RunOutput {
-                value: MaterializedValue::Void,
-                stats: Default::default(),
-                heap_allocation_count: 0,
-                raw_allocation_count: 0,
-            },
+        _args: &[Value],
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        Ok(Outcome::Completed {
+            output: Output { value: Value::Void },
         })
     }
 
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _heap: &mut heap::Heap,
-        _shared: &heap::SharedHeap,
-        continuation: LiveContinuation,
-        _value: MaterializedValue,
-    ) -> RuntimeResult<RunOutcome<LiveContinuation>> {
-        // record native continuation ids for ordering assertions
-        if let LiveContinuation::Native(continuation) = continuation {
-            self.resumed_native_ids.push(continuation.get());
-        }
+        _context: Context<'_>,
+        continuation: NativeContinuation,
+        _value: Value,
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        self.resumed_native_ids.push(continuation.get());
 
         self.resume_calls = self.resume_calls.saturating_add(1);
-        Ok(RunOutcome::Completed {
-            output: RunOutput {
-                value: MaterializedValue::Void,
-                stats: Default::default(),
-                heap_allocation_count: 0,
-                raw_allocation_count: 0,
-            },
+        Ok(Outcome::Completed {
+            output: Output { value: Value::Void },
         })
     }
 
     /// Scheduler test engines retain no heap roots.
-    fn visit_roots(&mut self, _roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
+    fn visit_roots(
+        &mut self,
+        _worker_static: &StaticSpace,
+        _roots: &mut RootVisitor<'_>,
+    ) -> RuntimeResult<()> {
         Ok(())
     }
 
     /// Scheduler test continuations retain no heap roots.
-    fn visit_live_continuation_roots(
-        &mut self,
-        _continuation: &LiveContinuation,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Scheduler test continuation images retain no heap roots.
-    fn visit_continuation_image_roots(
-        &mut self,
-        _continuation: &Continuation,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
     /// Capture one immutable engine image for scheduler tests.
-    fn image(&mut self) -> RuntimeResult<EngineImage> {
+    fn image(&mut self) -> RuntimeResult<NativeImage> {
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "scheduler test engine images are not implemented".to_string(),
         }
@@ -120,64 +92,16 @@ impl Engine for CompleteEngine {
     }
 
     /// Fork one live scheduler test engine.
-    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn Engine>> {
+    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn ErasedNativeEngine>> {
         Ok(Box::new(self.clone()))
     }
 
     /// Restore one immutable engine image for scheduler tests.
-    fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
+    fn restore(&mut self, _heap: &mut heap::Heap, image: &NativeImage) -> RuntimeResult<()> {
         let _ = image;
 
         Err(crate::diagnostic::RuntimeError::Internal {
             message: "scheduler test engine image restore is not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Capture one continuation image for scheduler tests.
-    fn continuation_image(
-        &mut self,
-        continuation: &LiveContinuation,
-        mode: CaptureMode,
-    ) -> RuntimeResult<Continuation> {
-        validate_native_capture_mode(continuation, mode)?;
-
-        match continuation {
-            LiveContinuation::Native(continuation) => Ok(native_continuation_image(*continuation)),
-            LiveContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
-                message: "scheduler test engine vm continuation images are not implemented"
-                    .to_string(),
-            }
-            .boxed()),
-        }
-    }
-
-    /// Restore one continuation image for scheduler tests.
-    fn restore_continuation_image(
-        &mut self,
-        image: &Continuation,
-    ) -> RuntimeResult<LiveContinuation> {
-        Ok(LiveContinuation::Native(continuation_from_image(image)))
-    }
-
-    /// Capture one serialized engine image for scheduler tests.
-    fn snapshot(&mut self) -> RuntimeResult<EngineImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "scheduler test engine snapshots are not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Restore one serialized engine image for scheduler tests.
-    fn restore_snapshot(
-        &mut self,
-        _heap: &mut heap::Heap,
-        snapshot: &EngineImage,
-    ) -> RuntimeResult<()> {
-        let _ = snapshot;
-
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "scheduler test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())
     }
@@ -476,15 +400,15 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
-        runnable: LiveContinuation::Native(NativeContinuationHandle::new(601)),
-        resume_value: MaterializedValue::Void,
+        runnable: Continuation::Native(NativeContinuation::new(601)),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
-        continuation: LiveContinuation::Native(NativeContinuationHandle::new(602)),
-        resume_value: MaterializedValue::Void,
+        continuation: Continuation::Native(NativeContinuation::new(602)),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
     });
 
@@ -507,15 +431,15 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
-        runnable: LiveContinuation::Native(NativeContinuationHandle::new(603)),
-        resume_value: MaterializedValue::Void,
+        runnable: Continuation::Native(NativeContinuation::new(603)),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
-        runnable: LiveContinuation::Native(NativeContinuationHandle::new(604)),
-        resume_value: MaterializedValue::Void,
+        runnable: Continuation::Native(NativeContinuation::new(604)),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
         priority: 200,
     });
@@ -537,14 +461,14 @@ fn test_event_loop_suspend_rejects_native_continuations() {
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
-        runnable: LiveContinuation::Native(NativeContinuationHandle::new(701)),
-        resume_value: MaterializedValue::Void,
+        runnable: Continuation::Native(NativeContinuation::new(701)),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
 
     // suspend capture should fail loudly
-    let mut engine = CompleteEngine::default();
+    let mut engine = Engine::from(CompleteEngine::default());
     let result = event_loop.capture_image(CaptureMode::Suspend, &mut engine);
 
     assert!(result.is_err(), "native suspend capture should fail loudly");
@@ -578,7 +502,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
         .expect("enqueue ready timers");
 
     // capture and restore one suspend image
-    let mut engine = CompleteEngine::default();
+    let mut engine = Engine::from(CompleteEngine::default());
     let image = event_loop
         .capture_image(CaptureMode::Suspend, &mut engine)
         .expect("capture suspend image");
@@ -717,10 +641,7 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     let output = runtime
         .run_loop_until_task_complete(0)
         .expect("host mode should wait for the timer and complete the task");
-    assert!(matches!(
-        output.value,
-        destack_engine::MaterializedValue::Void
-    ));
+    assert!(matches!(output.value, Value::Void));
     runtime.with_engine::<CompleteEngine, _>(|engine| {
         assert_eq!(
             engine.resume_calls, 1,
@@ -875,8 +796,8 @@ fn test_world_tick_drives_runtime() {
         .expect("primary worker");
     worker.event_loop.enqueue_task(Task {
         id: TaskId::new(1),
-        runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(211))),
-        resume_value: MaterializedValue::Void,
+        runnable: Continuation::Native(NativeContinuation::new(continuation_handle(211))),
+        resume_value: Value::Void,
         status: TaskStatus::Ready,
         priority: 0,
     });
@@ -885,7 +806,7 @@ fn test_world_tick_drives_runtime() {
     assert_eq!(world.tick().expect("world tick"), TickOutcome::Progressed);
     let runtime = world.runtime(runtime_id).expect("runtime should exist");
     let worker = runtime.worker(primary_worker_id).expect("primary worker");
-    let engine = worker.engine.as_ref() as &dyn std::any::Any;
+    let engine = worker.engine.as_any();
     let engine = engine
         .downcast_ref::<CompleteEngine>()
         .expect("runtime engine should exist");
@@ -966,15 +887,18 @@ fn test_virtual_sleep_binding_fails_loudly() {
     let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut world = World::from_options(&options).expect("world");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should build");
     let host = Session::from_runtime_options(&options, worker.runtime_id);
-    let binding = BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let binding = super::tests::binding_call_context(&worker, &host, &world_ref);
     let wall_before = binding.wall_nanos();
 
     // synchronous sleep must fail instead of advancing virtual time inline
@@ -996,10 +920,10 @@ fn register_timer_watch(worker: &mut Worker, handle: u64, continuation_id: u64, 
     worker
         .watch_timer(
             ResourceId(handle),
-            LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(
+            Continuation::Native(NativeContinuation::new(continuation_handle(
                 continuation_id,
             ))),
-            MaterializedValue::Void,
+            Value::Void,
             priority,
         )
         .expect("timer watch should register");

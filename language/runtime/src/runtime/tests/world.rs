@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use destack_engine::MaterializedValue;
+use destack_engine::Value;
 use destack_heap as heap;
 use destack_mir::ReferenceMap;
 use destack_workspace::{
@@ -14,7 +14,7 @@ use super::tests::{AllocatingEngine, TestEngine, TestRuntime, TestWorld};
 use crate::host::{HostEventKind, Session};
 use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
-use crate::runtime::engine::{LiveContinuation, NativeContinuationHandle};
+use crate::runtime::engine::{Continuation, NativeContinuation};
 use crate::runtime::memory::{RootSet, RootVisitor};
 use crate::runtime::observe::{Observation, ObservationCategory, ObservationOptions};
 use crate::runtime::policy::{
@@ -28,8 +28,8 @@ use crate::runtime::scheduler::{Runnable, Task, TaskId, TaskStatus};
 use crate::runtime::time::WorldInstant;
 use crate::runtime::trace::{Trace, TraceRecord, TraceSequence};
 use crate::runtime::{
-    BindingCallContext, BranchId, Command, Worker, WorkerId, World, WorldEdge,
-    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition, WorldResourceId,
+    BranchId, Command, Worker, WorkerId, World, WorldEdge, WorldEdgeKindDefinition, WorldEntity,
+    WorldEntityKindDefinition, WorldResourceId,
 };
 
 /// Return one byte payload layout for runtime tests.
@@ -191,7 +191,7 @@ fn test_runtime_collect_roots_preserves_task_resume_heap_reference() {
         let root = worker
             .heap
             .pin_heap(root)
-            .expect("runtime owned task roots should stabilize before enqueue");
+            .expect("pinning should keep the expected root address fixed");
         let garbage = worker
             .heap
             .allocate(layout, heap::Payload::Bytes(&[0xB2]))
@@ -199,8 +199,8 @@ fn test_runtime_collect_roots_preserves_task_resume_heap_reference() {
 
         worker.event_loop.enqueue_task(Task {
             id: TaskId::new(1),
-            runnable: LiveContinuation::Native(NativeContinuationHandle::new(7)),
-            resume_value: MaterializedValue::HeapReference(root),
+            runnable: Continuation::Native(NativeContinuation::new(7)),
+            resume_value: Value::HeapReference(root),
             status: TaskStatus::Ready,
             priority: 0,
         });
@@ -244,6 +244,88 @@ fn test_runtime_collect_roots_preserves_task_resume_heap_reference() {
     }
 }
 
+/// Ensures heap handles keep host-retained local references alive.
+#[test]
+fn test_runtime_heap_handle_roots_local_reference() {
+    let options = RuntimeOptions::default();
+    let mut test = TestWorld::new();
+    let runtime_id = test.spawn_runtime(&options, TestEngine::default());
+    let reference_map = ReferenceMap::empty();
+    let layout = byte_layout(1, &reference_map);
+
+    // retain one local reference through the worker handle table
+    let (handle, garbage) = {
+        let runtime = test
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+        let root = worker
+            .heap
+            .allocate(layout, heap::Payload::Bytes(&[0xE5]))
+            .expect("heap allocation should succeed");
+        let garbage = worker
+            .heap
+            .allocate(layout, heap::Payload::Bytes(&[0xF6]))
+            .expect("heap allocation should succeed");
+        let handle = worker.retain_heap_reference(root);
+
+        (handle, garbage)
+    };
+
+    // collect through the handle root slots so moving GC can rewrite the handle
+    let retained = {
+        let runtime = test
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+        let handles = &mut worker.handles;
+        let heap = &mut worker.heap;
+        let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
+            handles.visit_root_slots(visit)
+        };
+
+        heap.collect_full(&mut roots)
+            .expect("local collection should succeed");
+        let retained = handles
+            .reference(handle)
+            .expect("handle should still resolve");
+
+        assert!(heap.is_heap_live(retained));
+        assert!(!heap.is_heap_live(garbage));
+
+        retained
+    };
+
+    // releasing the handle removes the final root
+    {
+        let runtime = test
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+        worker
+            .release_heap_handle(handle)
+            .expect("handle release should succeed");
+        worker
+            .heap
+            .collect_full(&mut ())
+            .expect("local collection should succeed");
+
+        assert!(!worker.heap.is_heap_live(retained));
+    }
+}
+
 /// Ensures runtime root collection keeps task-held shared references alive.
 #[test]
 fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
@@ -252,17 +334,30 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
     let runtime_id = test.spawn_runtime(&options, TestEngine::default());
     let reference_map = ReferenceMap::empty();
     let layout = byte_layout(1, &reference_map);
+    let mut allocator = test
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist")
+        .shared
+        .shared()
+        .allocator();
 
     // install one shared root only through queued scheduler state
     let root = test
-        .world_mut()
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist")
         .shared
-        .allocate(layout, heap::Payload::Bytes(&[0xC3]))
+        .shared()
+        .allocate(&mut allocator, layout, heap::Payload::Bytes(&[0xC3]))
         .expect("shared heap allocation should succeed");
     let garbage = test
-        .world_mut()
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist")
         .shared
-        .allocate(layout, heap::Payload::Bytes(&[0xD4]))
+        .shared()
+        .allocate(&mut allocator, layout, heap::Payload::Bytes(&[0xD4]))
         .expect("shared heap allocation should succeed");
 
     {
@@ -277,8 +372,8 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
 
         worker.event_loop.enqueue_task(Task {
             id: TaskId::new(2),
-            runnable: LiveContinuation::Native(NativeContinuationHandle::new(8)),
-            resume_value: MaterializedValue::SharedHeapReference(root),
+            runnable: Continuation::Native(NativeContinuation::new(8)),
+            resume_value: Value::SharedHeapReference(root),
             status: TaskStatus::Ready,
             priority: 0,
         });
@@ -299,13 +394,20 @@ fn test_runtime_collect_roots_preserves_task_resume_shared_reference() {
         roots
     };
 
-    test.world_mut()
+    test.world()
+        .runtime(runtime_id)
+        .expect("runtime should exist")
         .shared
+        .shared()
         .collect_full(roots.iter().copied())
         .expect("shared collection should succeed");
 
-    assert!(test.world().shared.is_heap_live(root));
-    assert!(!test.world().shared.is_heap_live(garbage));
+    let runtime = test
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist");
+    assert!(runtime.shared.shared().is_heap_live(root));
+    assert!(!runtime.shared.shared().is_heap_live(garbage));
 }
 
 /// Ensures workers spawned during shared marking join the active root-scan pass.
@@ -316,13 +418,23 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
     let runtime_id = test.spawn_runtime(&options, TestEngine::default());
     let reference_map = ReferenceMap::empty();
     let layout = byte_layout(1, &reference_map);
+    let mut allocator = test
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist")
+        .shared
+        .shared()
+        .allocator();
 
     // install shared roots for the active mark phase
     for index in 0..128 {
         let shared = test
-            .world_mut()
+            .world()
+            .runtime(runtime_id)
+            .expect("runtime should exist")
             .shared
-            .allocate(layout, heap::Payload::Bytes(&[index as u8]))
+            .shared()
+            .allocate(&mut allocator, layout, heap::Payload::Bytes(&[index as u8]))
             .expect("shared heap allocation should succeed");
         let runtime = test
             .world_mut()
@@ -336,23 +448,31 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
         worker
             .watch_host_event(
                 HostEventKind::Lifecycle,
-                LiveContinuation::Native(NativeContinuationHandle::new(100 + index)),
-                MaterializedValue::SharedHeapReference(shared),
+                Continuation::Native(NativeContinuation::new(100 + index)),
+                Value::SharedHeapReference(shared),
                 0,
             )
             .expect("host-event watch should register");
     }
 
     let existing_worker_id = test.primary_worker_id(runtime_id);
-    test.world_mut().shared.request_gc();
-    test.world_mut()
+    let runtime = test
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist");
+    runtime.shared.shared().request_gc();
+    runtime
         .shared
+        .shared()
         .start_gc()
         .expect("shared gc start should succeed");
-    test.world().mark_roots.queue_root_scan(existing_worker_id);
-    test.world().mark_roots.join_edge_scan(existing_worker_id);
+    runtime.shared.queue_shared_root_scan(existing_worker_id);
+    runtime.shared.join_shared_edge_scan(existing_worker_id);
 
-    assert_eq!(test.world().shared.gc_phase(), heap::SharedGcPhase::Mark);
+    assert_eq!(
+        runtime.shared.shared().gc_phase(),
+        heap::SharedGcPhase::Mark
+    );
 
     let worker_id = test
         .world_mut()
@@ -360,7 +480,11 @@ fn test_spawned_worker_joins_active_shared_root_scan_pass() {
         .expect("worker should spawn during shared marking");
 
     // the new worker must join the active pass immediately
-    assert!(test.world().mark_roots.is_root_scan_pending(worker_id));
+    let runtime = test
+        .world()
+        .runtime(runtime_id)
+        .expect("runtime should exist");
+    assert!(runtime.shared.mark_roots().is_root_scan_pending(worker_id));
 
     let runtime = test
         .world()
@@ -883,13 +1007,16 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
         .expect("rewind should restore the checkpoint");
 
     let restored_heap = test.runtime_heap_image(runtime_id);
-    let stored_heap = &image
-        .worker(worker_id)
-        .expect("worker image should exist")
-        .heap_image;
+    let stored_heap = heap::HeapImage::from_snapshot(
+        &image
+            .worker(worker_id)
+            .expect("worker image should exist")
+            .heap,
+    )
+    .expect("stored worker heap snapshot should restore");
 
     // managed heap storage still comes back from the checkpoint leaves
-    assert!(restored_heap.shares_heap_allocation_with(stored_heap, managed));
+    assert!(restored_heap.shares_heap_allocation_with(&stored_heap, managed));
 
     // the pre-rewind raw pointer is stale after restore
     assert_eq!(
@@ -1623,18 +1750,23 @@ fn test_world_shared_commands_affect_detached_workers() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let _ = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let _ = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
 
@@ -1679,19 +1811,21 @@ fn test_worker_world_control_update_refreshes_policy() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let host = Session::from_runtime_options(&options, worker.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
     // baseline policy should allow the call
-    let baseline_call_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let baseline_call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let baseline_result = baseline_call_context.on_before_binding(descriptor);
     assert!(baseline_result.is_ok());
 
@@ -1714,8 +1848,7 @@ fn test_worker_world_control_update_refreshes_policy() {
         .expect("policy update should succeed");
 
     // updated policy should deny the same call without worker refresh
-    let refreshed_call_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let refreshed_call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let refreshed_result = refreshed_call_context.on_before_binding(descriptor);
     assert!(refreshed_result.is_err());
 }
@@ -1728,11 +1861,14 @@ fn test_worker_world_control_update_refreshes_hooks() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let host = Session::from_runtime_options(&options, worker.runtime_id);
@@ -1770,8 +1906,7 @@ fn test_worker_world_control_update_refreshes_hooks() {
         .expect("policy update should succeed");
 
     // firing the matching hook should enqueue one unapplied policy decision
-    let call_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let hook_result = call_context.on_before_binding(descriptor);
     assert!(hook_result.is_ok());
     assert_eq!(worker.hooks.unapplied_policy_decision_count(), 1);
@@ -1788,18 +1923,23 @@ fn test_worker_world_control_worker_selector() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options_a);
     let mut worker_a = Worker::new_in_world(
         Vec::new(),
         &options_a,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let mut worker_b = Worker::new_in_world(
         Vec::new(),
         &options_b,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let host_a = Session::from_runtime_options(&options_a, worker_a.runtime_id);
@@ -1844,10 +1984,20 @@ fn test_worker_world_control_worker_selector() {
 
     // apply control updates on both workers
     let _ = worker_a
-        .tick(&world_ref, &host_a)
+        .tick(
+            &world_ref,
+            &shared,
+            &destack_engine::StaticSpace::empty(),
+            &host_a,
+        )
         .expect("tick should refresh policy state");
     let _ = worker_b
-        .tick(&world_ref, &host_b)
+        .tick(
+            &world_ref,
+            &shared,
+            &destack_engine::StaticSpace::empty(),
+            &host_b,
+        )
         .expect("tick should refresh policy state");
 
     // fire the same hook on both workers
@@ -1867,11 +2017,14 @@ fn test_world_apply_policy_command_updates_rules() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let host = Session::from_runtime_options(&options, worker.runtime_id);
@@ -1894,8 +2047,7 @@ fn test_world_apply_policy_command_updates_rules() {
         .expect("policy mutation should apply");
 
     // the installed rule should deny matching calls
-    let call_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_err());
 }
@@ -1994,11 +2146,14 @@ fn test_world_resource_lifecycle_updates_topology() {
     let mut world =
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let resource_id = worker.resources.insert(
@@ -2041,11 +2196,14 @@ fn test_world_remove_worker_cleans_topology() {
         World::from_options(&RuntimeOptions::default()).expect("world test should build");
     let options = RuntimeOptions::default();
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct in world");
     let worker_id = worker.id;
@@ -2053,8 +2211,7 @@ fn test_world_remove_worker_cleans_topology() {
     let descriptor = BindingDescriptor::pure("destack.test.removed.worker", "()");
 
     // binding checks should work before removal
-    let before_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let before_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let before_result = before_context.on_before_binding(descriptor);
     assert!(before_result.is_ok());
 
@@ -2066,8 +2223,7 @@ fn test_world_remove_worker_cleans_topology() {
     let entities = world.entities();
     assert!(!entities.contains_key(&worker_id.entity_id()));
 
-    let after_context =
-        BindingCallContext::new(&worker, worker.event_loop.as_ref(), &host, &world_ref);
+    let after_context = super::tests::binding_call_context(&worker, &host, &world_ref);
     let after_result = after_context.on_before_binding(descriptor);
     assert!(after_result.is_err());
 }
@@ -2115,8 +2271,8 @@ fn test_runtime_spawn_worker_aligns_world_scoped_options() {
     // request one conflicting option set for spawn
     let mut spawn_options = RuntimeOptions::default();
     spawn_options.set_execution_mode(ExecutionMode::Replay);
-    spawn_options.policy.access = RuntimeAccess::Deny;
-    spawn_options.policy.world = RuntimeWorld::Simulation;
+    spawn_options.effect.access = RuntimeAccess::Deny;
+    spawn_options.effect.backend = RuntimeWorld::Simulation;
     spawn_options.set_random_mode(RandomMode::Host);
     spawn_options.set_time_mode(TimeMode::Host);
 
@@ -2127,13 +2283,13 @@ fn test_runtime_spawn_worker_aligns_world_scoped_options() {
         .runtime_mut(runtime_id)
         .expect("runtime should exist");
     let spawned_worker_id = runtime
-        .spawn_worker_with_options(&world_ref, &spawn_options, Box::new(TestWorld::vm_engine()))
+        .spawn_worker_with_options(&world_ref, &spawn_options, TestWorld::vm_engine())
         .expect("spawn should succeed");
     let spawned_worker = runtime
         .worker(spawned_worker_id)
         .expect("spawned worker should exist");
-    assert_eq!(spawned_worker.options.execution, options.execution);
-    assert_eq!(spawned_worker.options.policy, options.policy);
+    assert_eq!(spawned_worker.options.scheduler, options.scheduler);
+    assert_eq!(spawned_worker.options.effect, options.effect);
     assert_eq!(spawned_worker.options.simulation, options.simulation);
     assert_eq!(spawned_worker.options.trace, options.trace);
 }
@@ -2160,11 +2316,14 @@ fn test_worker_capability_profile_configures_binding_policy() {
 
     let mut world = World::from_options(&options).expect("world should construct");
     let world_ref = world.world_ref();
+    let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
         &world_ref,
-        Box::new(TestEngine::default()),
+        &shared,
+        &destack_engine::StaticSpace::empty(),
+        TestEngine::default(),
     )
     .expect("worker should construct");
     let policy = worker.bindings.policy().read();

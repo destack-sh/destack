@@ -1,4 +1,5 @@
 use destack_core::{ImmutableStringPool, LocalStringPool};
+use destack_engine::StaticSpace;
 use destack_mir::NodeTree;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
@@ -18,7 +19,7 @@ use crate::platform::random::{
 };
 use crate::runtime::bindings::BindingEngine;
 use crate::runtime::{
-    BindingCallContext, Worker, World, WorldRef, enter_binding_call_context,
+    BindingCallContext, RuntimeSharedHeap, Worker, World, WorldRef, enter_binding_call_context,
     enter_current_worker_context,
 };
 
@@ -31,6 +32,8 @@ pub(crate) struct TestRuntime {
     world: World,
     /// Worker under test.
     pub worker: Box<Worker>,
+    /// Runtime-owned shared heap state retained for the worker lifetime.
+    _shared: RuntimeSharedHeap,
     /// Host under test.
     host: Session,
     /// VM isolate backing VM bindings in tests.
@@ -114,9 +117,20 @@ impl TestRuntime {
             .expect("worker engine should build");
 
         let world_ref = world.world_ref();
-        let mut worker =
-            Worker::new_in_world(Vec::new(), &options, &world_ref, Box::new(agent_engine))
-                .expect("runtime test worker should build");
+        let lineage = world.lineage.read();
+        let shared = RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), &options)
+            .expect("runtime shared heap should build");
+        drop(lineage);
+        let runtime_static = StaticSpace::empty();
+        let mut worker = Worker::new_in_world(
+            Vec::new(),
+            &options,
+            &world_ref,
+            &shared,
+            &runtime_static,
+            agent_engine,
+        )
+        .expect("runtime test worker should build");
         let host = if is_native_ingress_enabled {
             Session::from_runtime_options(&options, worker.runtime_id)
         } else {
@@ -159,6 +173,7 @@ impl TestRuntime {
         Self {
             world,
             worker: Box::new(worker),
+            _shared: shared,
             host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
             vm_heap: std::cell::RefCell::new(vm_heap),
@@ -239,17 +254,19 @@ impl TestRuntime {
         let mut isolate = self.vm_isolate.borrow_mut();
         let mut heap = self.vm_heap.borrow_mut();
         let mut shared = self.vm_shared.borrow_mut();
-        isolate.with_runtime_context(&mut heap, &mut shared, Default::default(), |context| {
-            let call_context = BindingCallContext::from_raw(
-                self.worker.as_ref() as *const Worker,
-                self.worker.event_loop.as_ref() as *const _,
-                &self.host as *const Session,
-                &world as *const WorldRef,
-                BindingEngine::Vm,
-            );
-            let _guard = enter_binding_call_context(&call_context);
-            run(&call_context, context)
-        })
+        isolate
+            .with_runtime_context(&mut heap, &mut shared, Default::default(), |context| {
+                let call_context = BindingCallContext::from_raw(
+                    self.worker.as_ref() as *const Worker,
+                    self.worker.event_loop.as_ref() as *const _,
+                    &self.host as *const Session,
+                    &world as *const WorldRef,
+                    BindingEngine::Vm,
+                );
+                let _guard = enter_binding_call_context(&call_context);
+                Ok(run(&call_context, context))
+            })
+            .expect("runtime context should release pins")
     }
 
     /// Borrow one execution view from the owned test world.
@@ -345,7 +362,7 @@ mod tests {
                 VmSlice::<u32>::from_values(&mut context.write(), &[]).expect("slice should build");
 
             assert_eq!(slice.len, 0);
-            assert_eq!(slice.data.as_heap_reference(), Some(HeapReference::NULL));
+            assert_eq!(slice.data.as_heap_reference(), HeapReference::NULL);
 
             let values = slice
                 .read_values(&context.read())
