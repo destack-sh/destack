@@ -1,11 +1,11 @@
 //! Tests for intrinsic execution.
 
+use crate::Word;
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_materialized_plain, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
+    assert_runtime_error_matches, assert_value_word, run_mir, run_mir_expect, run_mir_ok,
     run_mir_with, run_mir_with_ok,
 };
-use crate::{Value, ValueTag};
 use destack_heap::Payload;
 use destack_mir as mir;
 
@@ -20,7 +20,7 @@ b0(v0: uint32):
     v1: uint32 = intrinsic.leadingZeroCount(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::uint32(0x00800000)], Value::uint32(8));
+    run_mir_expect(mir, "test", &[Word::uint32(0x00800000)], Word::uint32(8));
 }
 
 #[test]
@@ -32,7 +32,7 @@ b0(v0: uint32):
     v1: uint32 = intrinsic.trailingZeroCount(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::uint32(0x80)], Value::uint32(7));
+    run_mir_expect(mir, "test", &[Word::uint32(0x80)], Word::uint32(7));
 }
 
 #[test]
@@ -44,7 +44,7 @@ b0(v0: uint32):
     v1: uint32 = intrinsic.populationCount(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::uint32(0xFF)], Value::uint32(8));
+    run_mir_expect(mir, "test", &[Word::uint32(0xFF)], Word::uint32(8));
 }
 
 #[test]
@@ -59,8 +59,8 @@ b0(v0: uint32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::uint32(0x12345678)],
-        Value::uint32(0x78563412),
+        &[Word::uint32(0x12345678)],
+        Word::uint32(0x78563412),
     );
 }
 
@@ -76,8 +76,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::uint32(0x80000001), Value::uint32(1)],
-        Value::uint32(0x00000003),
+        &[Word::uint32(0x80000001), Word::uint32(1)],
+        Word::uint32(0x00000003),
     );
 }
 
@@ -93,8 +93,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::uint32(0x00000003), Value::uint32(1)],
-        Value::uint32(0x80000001),
+        &[Word::uint32(0x00000003), Word::uint32(1)],
+        Word::uint32(0x80000001),
     );
 }
 
@@ -110,8 +110,8 @@ b0(v0: int32, v1: int32):
     v3: int32 = field.get v2, 0
     return v3
 }"#;
-    let output = run_mir_ok(mir, "testResult", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(30));
+    let output = run_mir_ok(mir, "testResult", &[Word::int32(10), Word::int32(20)]);
+    assert_eq!(assert_value_word(&output.value), Word::int32(30));
 
     // test no overflow flag
     let mir = r#"
@@ -121,8 +121,8 @@ b0(v0: int32, v1: int32):
     v3: boolean = field.get v2, 1
     return v3
 }"#;
-    let output = run_mir_ok(mir, "testFlag", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(assert_materialized_plain(&output.value), Value::bool(false));
+    let output = run_mir_ok(mir, "testFlag", &[Word::int32(10), Word::int32(20)]);
+    assert_eq!(assert_value_word(&output.value), Word::bool(false));
 }
 
 #[test]
@@ -135,10 +135,10 @@ b0(v0: int32, v1: int32):
     v3: boolean = field.get v2, 1
     return v3
 }"#;
-    let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
+    let output = run_mir_ok(mir, "test", &[Word::int32(i32::MAX), Word::int32(1)]);
     assert_eq!(
-        assert_materialized_plain(&output.value),
-        Value::bool(true),
+        assert_value_word(&output.value),
+        Word::bool(true),
         "expected overflow flag to be true"
     );
 }
@@ -153,10 +153,10 @@ b0(v0: uint32, v1: uint32):
     v3: boolean = field.get v2, 1
     return v3
 }"#;
-    let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
+    let output = run_mir_ok(mir, "test", &[Word::uint32(0), Word::uint32(1)]);
     assert_eq!(
-        assert_materialized_plain(&output.value),
-        Value::bool(true),
+        assert_value_word(&output.value),
+        Word::bool(true),
         "expected overflow flag to be true"
     );
 }
@@ -175,8 +175,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::int32(i32::MAX), Value::int32(10)],
-        Value::int32(i32::MAX),
+        &[Word::int32(i32::MAX), Word::int32(10)],
+        Word::int32(i32::MAX),
     );
 }
 
@@ -192,8 +192,8 @@ b0(v0: uint32, v1: uint32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::uint32(0), Value::uint32(10)],
-        Value::uint32(0),
+        &[Word::uint32(0), Word::uint32(10)],
+        Word::uint32(0),
     );
 }
 
@@ -213,7 +213,7 @@ b0:
     v5: boolean = field.get v4, 1
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::bool(true));
+    run_mir_expect(mir, "test", &[], Word::bool(true));
 }
 
 #[test]
@@ -230,7 +230,7 @@ b0:
     v5: int32 = field.get v4, 0
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::int32(10));
+    run_mir_expect(mir, "test", &[], Word::int32(10));
 }
 
 #[test]
@@ -247,7 +247,7 @@ b0:
     v5: boolean = field.get v4, 1
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::bool(false));
+    run_mir_expect(mir, "test", &[], Word::bool(false));
 }
 
 #[test]
@@ -264,7 +264,7 @@ b0:
     v5: boolean = field.get v4, 1
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::bool(true));
+    run_mir_expect(mir, "test", &[], Word::bool(true));
 }
 
 #[test]
@@ -281,7 +281,7 @@ b0:
     v5: uint32 = int.add v3, v4
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::uint32(50));
+    run_mir_expect(mir, "test", &[], Word::uint32(50));
 }
 
 #[test]
@@ -298,7 +298,7 @@ b0:
     v5: uint32 = int.add v3, v4
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::uint32(32));
+    run_mir_expect(mir, "test", &[], Word::uint32(32));
 }
 
 #[test]
@@ -315,7 +315,7 @@ b0:
     v5: float64 = float.add v3, v4
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::float64(5.25));
+    run_mir_expect(mir, "test", &[], Word::float64(5.25));
 }
 
 #[test]
@@ -332,7 +332,7 @@ b0:
     v5: float64 = float.add v3, v4
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::float64(4.75));
+    run_mir_expect(mir, "test", &[], Word::float64(4.75));
 }
 
 #[test]
@@ -349,7 +349,7 @@ b0:
     v5: float64 = float.add v3, v4
     return v5
 }"#;
-    run_mir_expect(mir, "test", &[], Value::float64(10.75));
+    run_mir_expect(mir, "test", &[], Word::float64(10.75));
 }
 
 // unchecked arithmetic
@@ -365,8 +365,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::int32(100), Value::int32(200)],
-        Value::int32(300),
+        &[Word::int32(100), Word::int32(200)],
+        Word::int32(300),
     );
 }
 
@@ -381,8 +381,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::int32(100), Value::int32(10)],
-        Value::int32(10),
+        &[Word::int32(100), Word::int32(10)],
+        Word::int32(10),
     );
 }
 
@@ -394,7 +394,7 @@ b0(v0: int32, v1: int32):
     v2: int32 = intrinsic.div.unchecked(v0, v1)
     return v2
 }"#;
-    let result = run_mir(mir, "test", &[Value::int32(100), Value::int32(0)]);
+    let result = run_mir(mir, "test", &[Word::int32(100), Word::int32(0)]);
     assert!(result.is_err(), "expected division by zero error");
 }
 
@@ -408,7 +408,7 @@ b0(v0: float64):
     v1: float64 = intrinsic.sqrt(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::float64(16.0)], Value::float64(4.0));
+    run_mir_expect(mir, "test", &[Word::float64(16.0)], Word::float64(4.0));
 }
 
 #[test]
@@ -419,7 +419,7 @@ b0(v0: float64):
     v1: float64 = intrinsic.abs(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::float64(-42.5)], Value::float64(42.5));
+    run_mir_expect(mir, "test", &[Word::float64(-42.5)], Word::float64(42.5));
 }
 
 #[test]
@@ -430,7 +430,7 @@ b0(v0: float64):
     v1: float64 = intrinsic.floor(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::float64(3.7)], Value::float64(3.0));
+    run_mir_expect(mir, "test", &[Word::float64(3.7)], Word::float64(3.0));
 }
 
 #[test]
@@ -441,7 +441,7 @@ b0(v0: float64):
     v1: float64 = intrinsic.ceil(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::float64(3.2)], Value::float64(4.0));
+    run_mir_expect(mir, "test", &[Word::float64(3.2)], Word::float64(4.0));
 }
 
 #[test]
@@ -452,7 +452,7 @@ b0(v0: float64):
     v1: float64 = intrinsic.round(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::float64(3.5)], Value::float64(4.0));
+    run_mir_expect(mir, "test", &[Word::float64(3.5)], Word::float64(4.0));
 }
 
 #[test]
@@ -466,8 +466,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "test",
-        &[Value::float64(10.0), Value::float64(5.0)],
-        Value::float64(5.0),
+        &[Word::float64(10.0), Word::float64(5.0)],
+        Word::float64(5.0),
     );
 }
 
@@ -482,8 +482,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "test",
-        &[Value::float64(10.0), Value::float64(5.0)],
-        Value::float64(10.0),
+        &[Word::float64(10.0), Word::float64(5.0)],
+        Word::float64(10.0),
     );
 }
 
@@ -498,8 +498,8 @@ b0(v0: float64, v1: float64):
     run_mir_expect(
         mir,
         "test",
-        &[Value::float64(2.0), Value::float64(10.0)],
-        Value::float64(1024.0),
+        &[Word::float64(2.0), Word::float64(10.0)],
+        Word::float64(1024.0),
     );
 }
 
@@ -515,12 +515,8 @@ b0(v0: float64, v1: float64, v2: float64):
     run_mir_expect(
         mir,
         "test",
-        &[
-            Value::float64(2.0),
-            Value::float64(3.0),
-            Value::float64(4.0),
-        ],
-        Value::float64(10.0),
+        &[Word::float64(2.0), Word::float64(3.0), Word::float64(4.0)],
+        Word::float64(10.0),
     );
 }
 
@@ -537,7 +533,7 @@ b0(v0: float64):
     return v3
 }"#;
     // sin(0) = 0, cos(0) = 1, so result = 1
-    run_mir_expect(mir, "test", &[Value::float64(0.0)], Value::float64(1.0));
+    run_mir_expect(mir, "test", &[Word::float64(0.0)], Word::float64(1.0));
 }
 
 // branch hints (passthrough)
@@ -551,7 +547,7 @@ b0(v0: boolean):
     v2: boolean = intrinsic.expect(v0, v1)
     return v2
 }"#;
-    run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
+    run_mir_expect(mir, "test", &[Word::bool(true)], Word::bool(true));
 }
 
 #[test]
@@ -563,7 +559,7 @@ b0(v0: boolean):
     v2: boolean = intrinsic.expect(v0, v1)
     return v2
 }"#;
-    run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
+    run_mir_expect(mir, "test", &[Word::bool(false)], Word::bool(false));
 }
 
 #[test]
@@ -574,7 +570,7 @@ b0(v0: int32):
     v1: int32 = intrinsic.blackBox(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
+    run_mir_expect(mir, "test", &[Word::int32(42)], Word::int32(42));
 }
 
 #[test]
@@ -608,9 +604,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .expect("heap allocation should succeed");
 
         vec![
-            Value::heap_reference(handle),
-            Value::uint64(0),
-            Value::uint64(4),
+            Word::heap_reference(handle),
+            Word::uint64(0),
+            Word::uint64(4),
         ]
     })
     .expect("write barrier should succeed");
@@ -641,21 +637,21 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .isolate
             .allocation_layout(layout_id)
             .expect("shared managed pointee layout should resolve");
+        let mut allocator = isolate.shared.allocator();
         let handle = isolate
             .shared
-            .allocate(layout, Payload::Zeroed)
+            .allocate(&mut allocator, layout, Payload::Zeroed)
             .expect("shared heap allocation should succeed");
 
         vec![
-            Value::shared_heap_reference(handle),
-            Value::uint64(0),
-            Value::uint64(4),
+            Word::shared_heap_reference(handle),
+            Word::uint64(0),
+            Word::uint64(4),
         ]
     });
 
-    let value = assert_materialized_plain(&output.value);
-    assert_eq!(value.tag(), ValueTag::Bool);
-    assert_eq!(value, Value::bool(true));
+    let value = assert_value_word(&output.value);
+    assert_eq!(value, Word::bool(true));
 }
 
 #[test]
@@ -688,9 +684,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .expect("heap allocation should succeed");
 
         vec![
-            Value::heap_reference(handle),
-            Value::uint64(4),
-            Value::uint64(1),
+            Word::heap_reference(handle),
+            Word::uint64(4),
+            Word::uint64(1),
         ]
     });
 
@@ -713,8 +709,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::int32(42), Value::int32(42)],
-        Value::bool(true),
+        &[Word::int32(42), Word::int32(42)],
+        Word::bool(true),
     );
 }
 
@@ -729,8 +725,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "test",
-        &[Value::int32(42), Value::int32(43)],
-        Value::bool(false),
+        &[Word::int32(42), Word::int32(43)],
+        Word::bool(false),
     );
 }
 
@@ -745,7 +741,7 @@ b0(v0: int32):
     intrinsic.breakpoint()
     return v0
 }"#;
-    run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
+    run_mir_expect(mir, "test", &[Word::int32(42)], Word::int32(42));
 }
 
 #[test]
@@ -755,7 +751,7 @@ function test(v0: int32): int32 {
 b0(v0: int32):
     unreachable
 }"#;
-    let result = run_mir(mir, "test", &[Value::int32(42)]);
+    let result = run_mir(mir, "test", &[Word::int32(42)]);
     assert!(result.is_err(), "expected unreachable error");
 }
 
@@ -766,7 +762,7 @@ function test(v0: int32): int32 {
 b0(v0: int32):
     trap.abort
 }"#;
-    let result = run_mir(mir, "test", &[Value::int32(42)]);
+    let result = run_mir(mir, "test", &[Word::int32(42)]);
     assert!(result.is_err(), "expected abort error");
 }
 
@@ -794,7 +790,7 @@ b0(v0: int32):
     v1: int32 = intrinsic.transmute(v0)
     return v1
 }"#;
-    run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
+    run_mir_expect(mir, "test", &[Word::int32(42)], Word::int32(42));
 }
 
 // runtime introspection
@@ -815,10 +811,7 @@ b0:
 }"#;
     // should return non-zero since there's a caller
     let output = run_mir_ok(mir, "test", &[]);
-    let (value, width) = assert_materialized_plain(&output.value)
-        .as_uint_with_width()
-        .expect("expected UInt");
-    assert_eq!(width, 64);
+    let value = assert_value_word(&output.value).as_uint();
     assert!(value != 0, "expected non-zero return address");
 }
 
@@ -831,7 +824,7 @@ b0:
     v0: uint64 = intrinsic.returnAddress()
     return v0
 }"#;
-    run_mir_expect(mir, "test", &[], Value::uint64(0));
+    run_mir_expect(mir, "test", &[], Word::uint64(0));
 }
 
 #[test]
@@ -849,10 +842,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "test", &[]);
-    let (value, width) = assert_materialized_plain(&output.value)
-        .as_uint_with_width()
-        .expect("expected UInt");
-    assert_eq!(width, 64);
+    let value = assert_value_word(&output.value).as_uint();
     // should have high bits set (0x7FFF_0000_0000_0000) plus frame index
     assert!(
         value > 0x7FFF_0000_0000_0000u64,
@@ -875,15 +865,15 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::int32(1),
-                Value::int32(2),
-                Value::int32(3),
-                Value::int32(4),
+                Word::int32(1),
+                Word::int32(2),
+                Word::int32(3),
+                Word::int32(4),
             ],
         );
         vec![input]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
+    assert_eq!(assert_value_word(&output.value), Word::int32(10));
 }
 
 #[test]
@@ -899,15 +889,15 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::int32(2),
-                Value::int32(3),
-                Value::int32(4),
-                Value::int32(5),
+                Word::int32(2),
+                Word::int32(3),
+                Word::int32(4),
+                Word::int32(5),
             ],
         );
         vec![input]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(120));
+    assert_eq!(assert_value_word(&output.value), Word::int32(120));
 }
 
 #[test]
@@ -923,15 +913,15 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::int32(5),
-                Value::int32(2),
-                Value::int32(8),
-                Value::int32(1),
+                Word::int32(5),
+                Word::int32(2),
+                Word::int32(8),
+                Word::int32(1),
             ],
         );
         vec![input]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(1));
+    assert_eq!(assert_value_word(&output.value), Word::int32(1));
 }
 
 #[test]
@@ -947,15 +937,15 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::int32(5),
-                Value::int32(2),
-                Value::int32(8),
-                Value::int32(1),
+                Word::int32(5),
+                Word::int32(2),
+                Word::int32(8),
+                Word::int32(1),
             ],
         );
         vec![input]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(8));
+    assert_eq!(assert_value_word(&output.value), Word::int32(8));
 }
 
 #[test]
@@ -971,18 +961,15 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::uint32(0b1111),
-                Value::uint32(0b1110),
-                Value::uint32(0b1100),
-                Value::uint32(0b1000),
+                Word::uint32(0b1111),
+                Word::uint32(0b1110),
+                Word::uint32(0b1100),
+                Word::uint32(0b1000),
             ],
         );
         vec![input]
     });
-    assert_eq!(
-        assert_materialized_plain(&output.value),
-        Value::uint32(0b1000)
-    );
+    assert_eq!(assert_value_word(&output.value), Word::uint32(0b1000));
 }
 
 #[test]
@@ -998,18 +985,15 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::uint32(0b0001),
-                Value::uint32(0b0010),
-                Value::uint32(0b0100),
-                Value::uint32(0b1000),
+                Word::uint32(0b0001),
+                Word::uint32(0b0010),
+                Word::uint32(0b0100),
+                Word::uint32(0b1000),
             ],
         );
         vec![input]
     });
-    assert_eq!(
-        assert_materialized_plain(&output.value),
-        Value::uint32(0b1111)
-    );
+    assert_eq!(assert_value_word(&output.value), Word::uint32(0b1111));
 }
 
 #[test]
@@ -1026,13 +1010,13 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Value::uint32(1),
-                Value::uint32(2),
-                Value::uint32(3),
-                Value::uint32(4),
+                Word::uint32(1),
+                Word::uint32(2),
+                Word::uint32(3),
+                Word::uint32(4),
             ],
         );
         vec![input]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::uint32(4));
+    assert_eq!(assert_value_word(&output.value), Word::uint32(4));
 }

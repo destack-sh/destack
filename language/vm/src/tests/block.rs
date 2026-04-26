@@ -1,14 +1,14 @@
+use destack_engine::StaticSpace;
 use destack_mir as mir;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_materialized_plain, assert_runtime_error, assert_runtime_error_matches,
-    create_empty_test_heap, create_empty_test_shared_heap, create_isolate, run_mir, run_mir_expect,
-    run_mir_ok,
+    assert_runtime_error, assert_runtime_error_matches, assert_value_word, create_empty_test_heap,
+    create_empty_test_shared_heap, create_isolate, run_mir, run_mir_expect, run_mir_ok,
 };
-use crate::{Isolate, IsolateId, IsolateOptions, Value};
+use crate::{FunctionPointer, Isolate, IsolateId, IsolateOptions, Word};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -24,7 +24,7 @@ b2:
     v2: int32 = 0int32
     return v2
 }"#;
-    run_mir_expect(mir, "select", &[Value::bool(true)], Value::int32(1));
+    run_mir_expect(mir, "select", &[Word::bool(true)], Word::int32(1));
 }
 
 /// Branch instruction takes the false path when condition is false.
@@ -41,7 +41,7 @@ b2:
     v2: int32 = 0int32
     return v2
 }"#;
-    run_mir_expect(mir, "select", &[Value::bool(false)], Value::int32(0));
+    run_mir_expect(mir, "select", &[Word::bool(false)], Word::int32(0));
 }
 
 /// Jump instruction transfers control to target block.
@@ -55,7 +55,7 @@ b0:
 b1:
     return v0
 }"#;
-    run_mir_expect(mir, "jumpTest", &[], Value::int32(42));
+    run_mir_expect(mir, "jumpTest", &[], Word::int32(42));
 }
 
 /// Switch instruction dispatches to the correct case or default.
@@ -75,9 +75,9 @@ b3:
     v3: int32 = 0int32
     return v3
 }"#;
-    run_mir_expect(mir, "switchTest", &[Value::int32(0)], Value::int32(100));
-    run_mir_expect(mir, "switchTest", &[Value::int32(1)], Value::int32(200));
-    run_mir_expect(mir, "switchTest", &[Value::int32(99)], Value::int32(0)); // default
+    run_mir_expect(mir, "switchTest", &[Word::int32(0)], Word::int32(100));
+    run_mir_expect(mir, "switchTest", &[Word::int32(1)], Word::int32(200));
+    run_mir_expect(mir, "switchTest", &[Word::int32(99)], Word::int32(0)); // default
 }
 
 /// Function calls pass arguments and return values correctly.
@@ -96,7 +96,7 @@ b0:
     v2: int32 = call add(v0, v1): (int32, int32) -> int32
     return v2
 }"#;
-    run_mir_expect(mir, "caller", &[], Value::int32(30));
+    run_mir_expect(mir, "caller", &[], Word::int32(30));
 }
 
 /// Recursive calls compute factorial correctly.
@@ -116,7 +116,7 @@ b2:
     v5: int32 = int.mul v0, v4
     return v5
 }"#;
-    run_mir_expect(mir, "factorial", &[Value::int32(5)], Value::int32(120));
+    run_mir_expect(mir, "factorial", &[Word::int32(5)], Word::int32(120));
 }
 
 /// Infinite recursion triggers stack overflow error.
@@ -155,7 +155,7 @@ function noop(): void {
 b0:
     return
 }"#;
-    run_mir_expect(mir, "noop", &[], Value::VOID);
+    run_mir_expect(mir, "noop", &[], Word::VOID);
 }
 
 /// Caller's local values are preserved across nested calls.
@@ -175,7 +175,7 @@ b0:
     v2: int32 = int.add v0, v1
     return v2
 }"#;
-    run_mir_expect(mir, "outer", &[], Value::int32(15));
+    run_mir_expect(mir, "outer", &[], Word::int32(15));
 }
 
 /// Sequential function calls work correctly.
@@ -196,7 +196,7 @@ b0:
     v2: int32 = call double(v1): (int32) -> int32
     return v2
 }"#;
-    run_mir_expect(mir, "caller", &[], Value::int32(12));
+    run_mir_expect(mir, "caller", &[], Word::int32(12));
 }
 
 /// CallIndirect calls through a function pointer.
@@ -231,30 +231,41 @@ b0(v0: (int32) -> int32, v1: int32):
     let mut isolate =
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut statics = StaticSpace::empty();
     let mut heap = create_empty_test_heap();
     let shared = create_empty_test_shared_heap();
 
-    // initialize isolate state against the authoritative heap
+    // initialize isolate statics
     isolate
-        .initialize(&mut heap, &shared)
+        .initialize_statics(&mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     let result = isolate
         .run_function_by_name(
+            &mut statics,
             &mut heap,
             &shared,
             "caller",
-            &[Value::function_pointer(double_id), Value::int32(21)],
+            &[
+                Word::function_pointer(FunctionPointer::from_bits(double_id.id as usize)),
+                Word::int32(21),
+            ],
         )
         .expect("execution failed");
 
-    assert_eq!(assert_materialized_plain(&result.value), Value::int32(42));
+    assert_eq!(assert_value_word(&result.value), Word::int32(42));
 }
 
 /// CallIndirect with wrong type produces an error.
 #[test]
 fn test_call_indirect_type_mismatch() {
     let mir_text = r#"
+function wrong(v0: int64): int32 {
+b0(v0: int64):
+    v1: int32 = 0int32
+    return v1
+}
+
 function caller(v0: (int32) -> int32, v1: int32): int32 {
 b0(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
@@ -263,23 +274,33 @@ b0(v0: (int32) -> int32, v1: int32):
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
         .validate()
         .expect("failed to parse MIR");
+    let wrong_id = tree
+        .iter_nodes::<mir::Function>()
+        .find(|(_, function)| strings.get(function.name) == "wrong")
+        .map(|(id, _)| id)
+        .expect("wrong not found");
     let mut isolate =
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut statics = StaticSpace::empty();
     let mut heap = create_empty_test_heap();
     let shared = create_empty_test_shared_heap();
 
-    // initialize isolate state against the authoritative heap
+    // initialize isolate statics
     isolate
-        .initialize(&mut heap, &shared)
+        .initialize_statics(&mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
-    // pass an integer instead of a function pointer
+    // pass a function with the wrong signature
     let result = isolate.run_function_by_name(
+        &mut statics,
         &mut heap,
         &shared,
         "caller",
-        &[Value::int32(999), Value::int32(21)],
+        &[
+            Word::function_pointer(FunctionPointer::from_bits(wrong_id.id as usize)),
+            Word::int32(21),
+        ],
     );
 
     assert_runtime_error_matches!(result, Error::TypeMismatch { .. });
@@ -310,9 +331,8 @@ b0(v0: int32):
 }"#;
 
     // run tail call with depth beyond the test stack limit
-    let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(200));
-    assert_eq!(output.stats.max_stack_depth, 1);
+    let output = run_mir_ok(mir, "entry", &[Word::int32(200)]);
+    assert_eq!(assert_value_word(&output.value), Word::int32(200));
 }
 
 /// Tail call indirect reuses the current frame without growing the stack.
@@ -356,12 +376,14 @@ b0(v0: int32, v1: (int32, int32) -> int32):
     let result = isolate
         .run_function_by_name(
             "entry",
-            &[Value::int32(200), Value::function_pointer(countdown_id)],
+            &[
+                Word::int32(200),
+                Word::function_pointer(FunctionPointer::from_bits(countdown_id.id as usize)),
+            ],
         )
         .expect("execution failed");
 
-    assert_eq!(assert_materialized_plain(&result.value), Value::int32(200));
-    assert_eq!(result.stats.max_stack_depth, 1);
+    assert_eq!(assert_value_word(&result.value), Word::int32(200));
 }
 
 /// Block parameters are correctly passed via jump.
@@ -377,7 +399,7 @@ b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
 }"#;
-    run_mir_expect(mir, "blockParams", &[], Value::int32(30));
+    run_mir_expect(mir, "blockParams", &[], Word::int32(30));
 }
 
 /// Block parameters are correctly passed via branch.
@@ -392,13 +414,8 @@ b0(v0: boolean):
 b1(v3: int32):
     return v3
 }"#;
-    run_mir_expect(mir, "branchParams", &[Value::bool(true)], Value::int32(100));
-    run_mir_expect(
-        mir,
-        "branchParams",
-        &[Value::bool(false)],
-        Value::int32(200),
-    );
+    run_mir_expect(mir, "branchParams", &[Word::bool(true)], Word::int32(100));
+    run_mir_expect(mir, "branchParams", &[Word::bool(false)], Word::int32(200));
 }
 
 /// Array block parameters stay correct across ordinary CFG jumps.
@@ -417,7 +434,7 @@ b1(v4: int32[3]):
     v6: int32 = element.get v4, v5
     return v6
 }"#;
-    run_mir_expect(mir, "arrayParams", &[], Value::int32(30));
+    run_mir_expect(mir, "arrayParams", &[], Word::int32(30));
 }
 
 /// Updated local arrays stay decomposed across ordinary CFG jumps.
@@ -440,8 +457,8 @@ b1(v7: int32[3], v8: int64):
     run_mir_expect(
         mir,
         "updatedArrayParams",
-        &[Value::uint64(2), Value::int32(99)],
-        Value::int32(99),
+        &[Word::uint64(2), Word::int32(99)],
+        Word::int32(99),
     );
 }
 

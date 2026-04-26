@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::Word;
 use crate::tests::run_mir_expect;
 
 /// Vector splat and extract return the selected lane value.
@@ -12,7 +12,7 @@ b0(v0: int32):
     v3: int32 = vector.extract v1, v2
     return v3
 }"#;
-    run_mir_expect(mir, "splatExtract", &[Value::int32(7)], Value::int32(7));
+    run_mir_expect(mir, "splatExtract", &[Word::int32(7)], Word::int32(7));
 }
 
 /// Vector insert replaces the specified lane.
@@ -30,8 +30,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "insertLane",
-        &[Value::int32(1), Value::int32(9)],
-        Value::int32(9),
+        &[Word::int32(1), Word::int32(9)],
+        Word::int32(9),
     );
 }
 
@@ -50,8 +50,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "shuffleReduce",
-        &[Value::int32(1), Value::int32(2)],
-        Value::int32(6),
+        &[Word::int32(1), Word::int32(2)],
+        Word::int32(6),
     );
 }
 
@@ -72,8 +72,8 @@ b0(v0: int32, v1: int32):
     run_mir_expect(
         mir,
         "compareLanes",
-        &[Value::int32(7), Value::int32(7)],
-        Value::bool(true),
+        &[Word::int32(7), Word::int32(7)],
+        Word::bool(true),
     );
 }
 
@@ -90,5 +90,5 @@ b0(v0: float64):
     return v4
 }"#;
     // verify the rounded conversion result
-    run_mir_expect(mir, "convertLanes", &[Value::float64(3.9)], Value::int32(3));
+    run_mir_expect(mir, "convertLanes", &[Word::float64(3.9)], Word::int32(3));
 }

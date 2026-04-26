@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_engine::MaterializedValue;
+use destack_engine::{StaticSpace, Value};
 use destack_heap::{Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedHeapLimits};
 
 use crate::SharedHeap;
@@ -9,12 +9,14 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{Continuation, Isolate, IsolateId, IsolateOptions, RunOutcome, RunOutput, Value};
+use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Output, Word};
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
     /// The VM isolate under test.
     pub isolate: Isolate,
+    /// The worker static space used by the isolate.
+    pub statics: StaticSpace,
     /// The authoritative heap for the isolate.
     pub heap: Heap,
     /// The world-shared heap for the isolate.
@@ -70,16 +72,18 @@ impl TestIsolate {
         let mut isolate =
             Isolate::build_with_options(isolate_id, tree, strings, IsolateOptions::test())
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-        let mut heap = create_test_heap();
+        let mut statics = StaticSpace::empty();
+        let heap = create_test_heap();
         let shared = create_test_shared_heap();
 
-        // initialize isolate state against the authoritative heap
+        // initialize isolate statics
         isolate
-            .initialize(&mut heap, &shared)
+            .initialize_statics(&mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         Self {
             isolate,
+            statics,
             heap,
             shared,
         }
@@ -109,16 +113,13 @@ impl TestIsolate {
     pub(crate) fn materialize_value_for_type(
         &mut self,
         ty: destack_mir::LocalNodeId<destack_mir::Type>,
-        values: Vec<Value>,
-    ) -> Value {
+        values: Vec<Word>,
+    ) -> Word {
         self.with_heaps(|vm, heap, shared| {
             vm.with_runtime_context(heap, shared, Default::default(), |context| {
-                context
-                    .materialize_heap_value(ty, values)
-                    .unwrap_or_else(|error| {
-                        panic!("failed to materialize typed aggregate: {error}")
-                    })
+                context.materialize_heap_value(ty, values)
             })
+            .unwrap_or_else(|error| panic!("failed to materialize typed payload: {error}"))
         })
     }
 
@@ -134,19 +135,25 @@ impl TestIsolate {
     pub(crate) fn run_function_by_name(
         &mut self,
         function: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<RunOutput> {
-        self.isolate
-            .run_function_by_name(&mut self.heap, &self.shared, function, arguments)
+        arguments: &[Word],
+    ) -> RuntimeResult<Output> {
+        self.isolate.run_function_by_name(
+            &mut self.statics,
+            &mut self.heap,
+            &self.shared,
+            function,
+            arguments,
+        )
     }
 
     /// Run one MIR function by name with yield support.
     pub(crate) fn run_function_by_name_yielding(
         &mut self,
         function: &str,
-        arguments: &[Value],
-    ) -> RuntimeResult<crate::RunOutcome> {
+        arguments: &[Word],
+    ) -> RuntimeResult<crate::Outcome> {
         self.isolate.run_function_by_name_yielding(
+            &mut self.statics,
             &mut self.heap,
             &self.shared,
             function,
@@ -158,31 +165,44 @@ impl TestIsolate {
     pub(crate) fn resume(
         &mut self,
         continuation: Continuation,
-        resume_value: Value,
-    ) -> RuntimeResult<crate::RunOutcome> {
-        let resume_value = resume_value
-            .try_into()
-            .expect("test resume value should materialize");
+        resume_value: Word,
+    ) -> RuntimeResult<crate::Outcome> {
+        let resume_value = Value::Int {
+            value: resume_value.as_int(),
+            width: 32,
+        };
 
-        self.isolate
-            .resume(&mut self.heap, &self.shared, continuation, resume_value)
+        self.isolate.resume(
+            &mut self.statics,
+            &mut self.heap,
+            &self.shared,
+            continuation,
+            resume_value,
+        )
     }
 
     /// Collect garbage and return one GC summary.
     pub(crate) fn collect_garbage(&mut self) -> GcStats {
-        self.collect_garbage_with_continuations(&[])
+        self.collect_garbage_with_continuations(&mut [])
     }
 
     /// Collect garbage with continuation roots and return one GC summary.
     pub(crate) fn collect_garbage_with_continuations(
         &mut self,
-        continuations: &[Continuation],
+        continuations: &mut [Continuation],
     ) -> GcStats {
         let roots = self
             .isolate
-            .root_set(continuations)
+            .root_set(&self.statics, continuations)
             .expect("failed to collect root set");
-        let mut heap_roots = roots.heap;
+        let mut heap_roots =
+            |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
+                self.isolate
+                    .visit_root_slots(&mut self.statics, continuations, visit)
+                    .expect("failed to collect mutable root slots");
+
+                Ok::<(), destack_heap::HeapError>(())
+            };
         let mut stats = self
             .heap
             .collect_full(&mut heap_roots)
@@ -230,32 +250,34 @@ pub(crate) fn create_isolate_with_storage(mir_text: &str, storage: Storage) -> T
     let mut isolate =
         Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = create_test_heap();
+    let mut statics = StaticSpace::empty();
+    let heap = create_test_heap();
     let shared = create_test_shared_heap();
 
-    // initialize isolate state against the authoritative heap
+    // initialize isolate statics
     isolate
-        .initialize(&mut heap, &shared)
+        .initialize_statics(&mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     TestIsolate {
         isolate,
+        statics,
         heap,
         shared,
     }
 }
 
 /// Run one MIR function by name with the given arguments.
-pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<RunOutput> {
+pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Word]) -> RuntimeResult<Output> {
     let mut isolate = create_isolate(mir);
 
     isolate.run_function_by_name(function, arguments)
 }
 
 /// Run MIR with access to one heap-owning isolate before execution.
-pub(crate) fn run_mir_with<F>(mir_text: &str, function: &str, setup: F) -> RuntimeResult<RunOutput>
+pub(crate) fn run_mir_with<F>(mir_text: &str, function: &str, setup: F) -> RuntimeResult<Output>
 where
-    F: FnOnce(&mut TestIsolate) -> Vec<Value>,
+    F: FnOnce(&mut TestIsolate) -> Vec<Word>,
 {
     let mut isolate = create_isolate(mir_text);
     let args = setup(&mut isolate);
@@ -264,32 +286,27 @@ where
 }
 
 /// Run MIR with setup, expecting success.
-pub(crate) fn run_mir_with_ok<F>(mir_text: &str, function: &str, setup: F) -> RunOutput
+pub(crate) fn run_mir_with_ok<F>(mir_text: &str, function: &str, setup: F) -> Output
 where
-    F: FnOnce(&mut TestIsolate) -> Vec<Value>,
+    F: FnOnce(&mut TestIsolate) -> Vec<Word>,
 {
     run_mir_with(mir_text, function, setup).expect("execution failed")
 }
 
 /// Run MIR and expect success, returning the output.
-pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> RunOutput {
+pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Word]) -> Output {
     run_mir(mir_text, function, args).expect("execution failed")
 }
 
 /// Run MIR and expect one specific return value.
-pub(crate) fn run_mir_expect(mir_text: &str, function: &str, args: &[Value], expected: Value) {
+pub(crate) fn run_mir_expect(mir_text: &str, function: &str, args: &[Word], expected: Word) {
     let output = run_mir_ok(mir_text, function, args);
 
-    assert_materialized_plain_eq(&output.value, expected);
+    assert_value_word_eq(&output.value, expected);
 }
 
 /// Run MIR and expect one specific runtime error.
-pub(crate) fn run_mir_expect_error(
-    mir_text: &str,
-    function: &str,
-    args: &[Value],
-    expected: Error,
-) {
+pub(crate) fn run_mir_expect_error(mir_text: &str, function: &str, args: &[Word], expected: Error) {
     let error = run_mir(mir_text, function, args).expect_err("expected execution error");
 
     assert_eq!(error.error, expected, "unexpected execution error");
@@ -325,60 +342,49 @@ macro_rules! assert_runtime_error_matches {
 pub(crate) use assert_runtime_error_matches;
 
 /// Assert that one execution result yielded.
-pub(crate) fn assert_execution_yielded(
-    result: RuntimeResult<RunOutcome>,
-) -> (Continuation, MaterializedValue) {
+pub(crate) fn assert_execution_yielded(result: RuntimeResult<Outcome>) -> (Continuation, Value) {
     let outcome = result.expect("execution failed");
 
     match outcome {
-        RunOutcome::Yielded {
+        Outcome::Yielded {
             continuation,
             value,
         } => (continuation, value),
-        RunOutcome::Completed { .. } => panic!("expected yield"),
+        Outcome::Completed { .. } => panic!("expected yield"),
     }
 }
 
-/// Return one plain runtime value from one materialized boundary value.
-pub(crate) fn assert_materialized_plain(value: &MaterializedValue) -> Value {
+/// Return one plain runtime value from one value.
+pub(crate) fn assert_value_word(value: &Value) -> Word {
     match value {
-        MaterializedValue::Void => Value::VOID,
-        MaterializedValue::Bool(value) => Value::bool(*value),
-        MaterializedValue::Int { value, width } => Value::int(*value, *width),
-        MaterializedValue::UInt { value, width } => Value::uint(*value, *width),
-        MaterializedValue::Float32 { bits } => Value::float32(f32::from_bits(*bits)),
-        MaterializedValue::Float64 { bits } => Value::float64(f64::from_bits(*bits)),
-        MaterializedValue::Char(value) => Value::char(*value),
-        MaterializedValue::HeapReference(reference) => Value::heap_reference(*reference),
-        MaterializedValue::SharedHeapReference(reference) => {
-            Value::shared_heap_reference(*reference)
-        }
-        MaterializedValue::RawPointer(pointer) => Value::raw_pointer(*pointer),
-        MaterializedValue::SharedRawPointer(pointer) => Value::shared_raw_pointer(*pointer),
-
-        MaterializedValue::Undefined
-        | MaterializedValue::FrameAddress(_)
-        | MaterializedValue::StaticAddress(_)
-        | MaterializedValue::Function(_) => {
-            panic!("expected plain materialized value, got {value:?}")
-        }
+        Value::Void => Word::VOID,
+        Value::Bool(value) => Word::bool(*value),
+        Value::Int { value, width } => Word::int(*value, *width),
+        Value::UInt { value, width } => Word::uint(*value, *width),
+        Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
+        Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
+        Value::Char(value) => Word::char(*value),
+        Value::HeapReference(reference) => Word::heap_reference(*reference),
+        Value::SharedHeapReference(reference) => Word::shared_heap_reference(*reference),
+        Value::RawPointer(pointer) => Word::raw_pointer(*pointer),
+        Value::SharedRawPointer(pointer) => Word::shared_raw_pointer(*pointer),
     }
 }
 
-/// Assert one materialized boundary value equals one plain runtime value.
-pub(crate) fn assert_materialized_plain_eq(value: &MaterializedValue, expected: Value) {
-    let value = assert_materialized_plain(value);
+/// Assert one value equals one plain runtime value.
+pub(crate) fn assert_value_word_eq(value: &Value, expected: Word) {
+    let value = assert_value_word(value);
 
-    assert_eq!(value, expected, "unexpected materialized value");
+    assert_eq!(value, expected, "unexpected value");
 }
 
 /// Assert that one execution result completed.
-pub(crate) fn assert_execution_completed(result: RuntimeResult<RunOutcome>) -> RunOutput {
+pub(crate) fn assert_execution_completed(result: RuntimeResult<Outcome>) -> Output {
     let outcome = result.expect("execution failed");
 
     match outcome {
-        RunOutcome::Completed { output } => output,
-        RunOutcome::Yielded { .. } => panic!("expected completion"),
+        Outcome::Completed { output } => output,
+        Outcome::Yielded { .. } => panic!("expected completion"),
     }
 }
 
@@ -402,9 +408,9 @@ b0(v0: int32):
     return v6
 }"#;
 
-    let output = run_mir_ok(mir_text, "sumBox", &[Value::int32(9)]);
+    let output = run_mir_ok(mir_text, "sumBox", &[Word::int32(9)]);
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
+    assert_eq!(assert_value_word(&output.value), Word::int32(10));
 }
 
 /// Direct calls preserve managed receiver storage for callee loads.
@@ -431,9 +437,9 @@ b0(v0: ref<Box, managed, readonly>):
     return v2
 }"#;
 
-    let output = run_mir_ok(mir_text, "readValueClass", &[Value::int32(9)]);
+    let output = run_mir_ok(mir_text, "readValueClass", &[Word::int32(9)]);
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(9));
+    assert_eq!(assert_value_word(&output.value), Word::int32(9));
 }
 
 /// Stored function values preserve their function pointer payload through nominal storage.
@@ -465,7 +471,7 @@ b0:
 
     let output = run_mir_ok(mir_text, "run", &[]);
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(7));
+    assert_eq!(assert_value_word(&output.value), Word::int32(7));
 }
 
 /// Interface dispatch forwards the concrete object receiver to the selected method.
@@ -533,5 +539,5 @@ b0(v0: ref<GreeterImpl, managed, readonly>):
 
     let output = run_mir_ok(mir_text, "runInterface", &[]);
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(42));
+    assert_eq!(assert_value_word(&output.value), Word::int32(42));
 }

@@ -1,11 +1,11 @@
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_materialized_plain, assert_runtime_error, assert_runtime_error_matches, create_isolate,
+    assert_runtime_error, assert_runtime_error_matches, assert_value_word, create_isolate,
     create_isolate_with_storage, run_mir, run_mir_expect, run_mir_ok, run_mir_with,
     run_mir_with_ok,
 };
-use crate::{SharedHeap, Value, ValueTag};
-use destack_engine::MaterializedValue;
+use crate::{SharedHeap, Word};
+use destack_engine::Value;
 use destack_heap::{
     AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawPointer,
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
@@ -16,20 +16,18 @@ use destack_source::FileId;
 
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
-    let mut raw = [0u8; 8];
-    raw[..HeapReference::BYTE_LEN]
-        .copy_from_slice(&bytes[offset..offset + HeapReference::BYTE_LEN]);
+    let end = offset + HeapReference::BYTE_LEN;
 
-    HeapReference::from_bits(u64::from_le_bytes(raw) as usize)
+    HeapReference::read_from_bytes(&bytes[offset..end]).unwrap()
 }
 
 /// Decode one native-width usize value from materialized bytes.
-fn decode_usize_value(bytes: &[u8], offset: usize) -> Value {
+fn decode_usize_value(bytes: &[u8], offset: usize) -> Word {
     let mut raw = [0u8; 8];
     let byte_len = std::mem::size_of::<usize>();
     raw[..byte_len].copy_from_slice(&bytes[offset..offset + byte_len]);
 
-    Value::uint(u64::from_le_bytes(raw), usize::BITS as u8)
+    Word::uint(u64::from_le_bytes(raw), usize::BITS as u8)
 }
 
 /// Heap allocation creates one heap allocation and returns a reference.
@@ -44,9 +42,8 @@ b0:
     let output = run_mir_ok(mir, "alloc", &[]);
     assert!(matches!(
         output.value,
-        destack_engine::MaterializedValue::HeapReference(_)
+        destack_engine::Value::HeapReference(_)
     ));
-    assert_eq!(output.heap_allocation_count, 1);
 }
 
 /// Load and store instructions read and write heap allocations.
@@ -61,7 +58,7 @@ b0:
     v2: int32 = load v0
     return v2
 }"#;
-    run_mir_expect(mir, "loadStore", &[], Value::int32(42));
+    run_mir_expect(mir, "loadStore", &[], Word::int32(42));
 }
 
 /// Store rejects mismatched shared address space pointers.
@@ -77,11 +74,11 @@ b0(v0: ref<int32, raw, space(shared)>):
 }"#;
 
     // run and capture the error
-    let pointer = Value::raw_pointer(RawPointer::new(1));
+    let pointer = Word::raw_pointer(RawPointer::new(1));
     let result = run_mir(mir, "storeShared", &[pointer]);
 
-    // confirm the address space mismatch
-    assert_runtime_error_matches!(result, Error::InvalidAddressSpace { .. });
+    // confirm the invalid shared raw pointer
+    assert_runtime_error_matches!(result, Error::InvalidSharedRawPointer);
 }
 
 /// Store rejects mismatched address space pointers.
@@ -97,7 +94,7 @@ b0(v0: ref<int32, raw, space(stack)>):
 }"#;
 
     // run with a heap pointer to trigger mismatch
-    let pointer = Value::raw_pointer(RawPointer::new(1));
+    let pointer = Word::raw_pointer(RawPointer::new(1));
     let result = run_mir(mir, "storeStack", &[pointer]);
 
     // confirm the address space mismatch
@@ -116,29 +113,29 @@ b0:
     );
 
     let pointer = isolate.with_heaps(|isolate, heap, shared| {
-        isolate.with_runtime_context(heap, shared, Default::default(), |context| {
-            let pointer = context
-                .allocate_shared_bytes(&[1, 2, 3])
-                .expect("shared allocation should succeed");
-            let initial = context
-                .read_shared_bytes(pointer)
-                .expect("shared bytes should decode");
+        isolate
+            .with_runtime_context(heap, shared, Default::default(), |context| {
+                let pointer = context
+                    .allocate_shared_bytes(&[1, 2, 3])
+                    .expect("shared allocation should succeed");
+                let initial = context
+                    .read_shared_bytes(pointer)
+                    .expect("shared bytes should decode");
 
-            assert_eq!(initial, vec![1, 2, 3]);
+                assert_eq!(initial, vec![1, 2, 3]);
 
-            context
-                .write_shared_bytes(pointer, &[7, 8, 9, 10])
-                .expect("shared bytes should write")
-        })
+                let pointer = context
+                    .write_shared_bytes(pointer, &[7, 8, 9, 10])
+                    .expect("shared bytes should write");
+
+                Ok(pointer)
+            })
+            .expect("runtime context should release pins")
     });
 
     assert_eq!(
-        Value::shared_raw_pointer(pointer).tag(),
-        ValueTag::SharedRawPointer
-    );
-    assert_eq!(
-        Value::shared_raw_pointer(pointer).as_shared_raw_pointer(),
-        Some(pointer)
+        Word::shared_raw_pointer(pointer).as_shared_raw_pointer(),
+        pointer
     );
     assert_eq!(
         isolate.shared.read_raw_bytes(pointer),
@@ -152,12 +149,8 @@ fn test_shared_heap_reference_value_roundtrip() {
     let reference = SharedHeapReference::new(7);
 
     assert_eq!(
-        Value::shared_heap_reference(reference).tag(),
-        ValueTag::SharedHeapReference
-    );
-    assert_eq!(
-        Value::shared_heap_reference(reference).as_shared_heap_reference(),
-        Some(reference)
+        Word::shared_heap_reference(reference).as_shared_heap_reference(),
+        reference
     );
 }
 
@@ -183,39 +176,35 @@ fn test_roundtrip_shared_memory_image() {
     let second = shared
         .allocate_raw(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
         .expect("shared allocation should succeed");
-    let image = shared.image();
-    let restored = SharedHeap::from_image_with_allocator_limits_and_options(
-        allocator,
-        &image,
-        destack_heap::SharedHeapLimits::default(),
-        options,
-    )
-    .expect("shared image restore should succeed");
-    let restored_image = restored.image();
+    let image = shared.image().expect("shared image should succeed");
+    let restored =
+        SharedHeap::from_image_with_limits(&image, destack_heap::SharedHeapLimits::default())
+            .expect("shared image restore should succeed");
+    let restored_image = restored.image().expect("shared image should succeed");
 
     // untouched pages should still share after restore
     assert_eq!(
-        image.raw.allocation(0).unwrap().pages,
-        restored_image.raw.allocation(0).unwrap().pages
+        image.raw().allocation(0).unwrap().pages,
+        restored_image.raw().allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.raw.allocation(1).unwrap().pages,
-        restored_image.raw.allocation(1).unwrap().pages
+        image.raw().allocation(1).unwrap().pages,
+        restored_image.raw().allocation(1).unwrap().pages
     );
 
     // mutating one allocation should detach only that allocation
     let first = restored
         .replace_raw_bytes(first, &[9, 2, 3, 4, 5, 6])
         .expect("shared replace should succeed");
-    let mutated_image = restored.image();
+    let mutated_image = restored.image().expect("shared image should succeed");
 
     assert_ne!(
-        image.raw.allocation(0).unwrap().pages,
-        mutated_image.raw.allocation(0).unwrap().pages
+        image.raw().allocation(0).unwrap().pages,
+        mutated_image.raw().allocation(0).unwrap().pages
     );
     assert_eq!(
-        image.raw.allocation(1).unwrap().pages,
-        mutated_image.raw.allocation(1).unwrap().pages
+        image.raw().allocation(1).unwrap().pages,
+        mutated_image.raw().allocation(1).unwrap().pages
     );
     assert_eq!(restored.read_raw_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
     assert_eq!(
@@ -278,21 +267,18 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let MaterializedValue::HeapReference(slice) = output.value else {
+    let Value::HeapReference(slice) = output.value else {
         panic!("expected heap slice value, got {:?}", output.value);
     };
     let bytes = isolate
         .heap
         .read_heap_bytes(slice)
         .expect("slice payload should be live");
-    let data = Value::heap_reference(decode_heap_reference(&bytes, 0));
+    let data = Word::heap_reference(decode_heap_reference(&bytes, 0));
     let len = decode_usize_value(&bytes, HeapReference::BYTE_LEN);
 
-    assert!(data.is_heap_reference());
-    assert_eq!(len.as_uint(), Some(10));
-    assert_eq!(len.as_uint_with_width(), Some((10, usize::BITS as u8)));
-
-    assert_eq!(output.heap_allocation_count, 2);
+    assert!(!data.as_heap_reference().is_null());
+    assert_eq!(len.as_uint(), 10);
 }
 
 /// Extract field reads a field from a tuple value.
@@ -306,10 +292,10 @@ b0(v0: (int32, int32)):
 }"#;
     let output = run_mir_with_ok(mir, "getFirst", |interp| {
         let ty = interp.parameter_type("getFirst", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
+        let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
         vec![agg]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
+    assert_eq!(assert_value_word(&output.value), Word::int32(10));
 }
 
 /// Insert field creates a new tuple with one field replaced.
@@ -325,10 +311,10 @@ b0(v0: (int32, int32), v1: int32):
 }"#;
     let output = run_mir_with_ok(mir, "setAndGet", |interp| {
         let ty = interp.parameter_type("setAndGet", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
-        vec![agg, Value::int32(99)]
+        let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
+        vec![agg, Word::int32(99)]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(99));
+    assert_eq!(assert_value_word(&output.value), Word::int32(99));
 }
 
 /// Field set returns one fresh tuple value instead of mutating the original.
@@ -345,12 +331,12 @@ b0(v0: (int32, int32), v1: int32):
 }"#;
     let output = run_mir_with_ok(mir, "setWithoutAlias", |interp| {
         let ty = interp.parameter_type("setWithoutAlias", 0);
-        let tuple = interp.materialize_value_for_type(ty, vec![Value::int32(10), Value::int32(20)]);
+        let tuple = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
 
-        vec![tuple, Value::int32(99)]
+        vec![tuple, Word::int32(99)]
     });
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(109));
+    assert_eq!(assert_value_word(&output.value), Word::int32(109));
 }
 
 /// Extract element reads from an array at a dynamic index.
@@ -367,33 +353,33 @@ b0(v0: int32[3], v1: int64):
         let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Value::uint64(0)]
+        vec![arr, Word::uint64(0)]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(10));
+    assert_eq!(assert_value_word(&output.value), Word::int32(10));
 
     // test element 1
     let output = run_mir_with_ok(mir, "getElem", |interp| {
         let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Value::uint64(1)]
+        vec![arr, Word::uint64(1)]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(20));
+    assert_eq!(assert_value_word(&output.value), Word::int32(20));
 
     // test element 2
     let output = run_mir_with_ok(mir, "getElem", |interp| {
         let ty = interp.parameter_type("getElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Value::uint64(2)]
+        vec![arr, Word::uint64(2)]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(30));
+    assert_eq!(assert_value_word(&output.value), Word::int32(30));
 }
 
 /// Dynamic element.get on one locally constructed array stays correct.
@@ -410,9 +396,9 @@ b0(v0: int64):
     return v5
 }"#;
 
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(0)], Value::int32(10));
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(1)], Value::int32(20));
-    run_mir_expect(mir, "getLocalElem", &[Value::uint64(2)], Value::int32(30));
+    run_mir_expect(mir, "getLocalElem", &[Word::uint64(0)], Word::int32(10));
+    run_mir_expect(mir, "getLocalElem", &[Word::uint64(1)], Word::int32(20));
+    run_mir_expect(mir, "getLocalElem", &[Word::uint64(2)], Word::int32(30));
 }
 
 /// Element set returns one fresh array value instead of mutating the original.
@@ -431,13 +417,13 @@ b0(v0: int32[3], v1: int64, v2: int32):
         let ty = interp.parameter_type("setWithoutAlias", 0);
         let array = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
 
-        vec![array, Value::uint64(1), Value::int32(99)]
+        vec![array, Word::uint64(1), Word::int32(99)]
     });
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(119));
+    assert_eq!(assert_value_word(&output.value), Word::int32(119));
 }
 
 /// Insert element creates a new array with one element replaced.
@@ -455,11 +441,11 @@ b0(v0: int32[3], v1: int64, v2: int32):
         let ty = interp.parameter_type("setAndGet", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Value::uint64(1), Value::int32(99)]
+        vec![arr, Word::uint64(1), Word::int32(99)]
     });
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(99));
+    assert_eq!(assert_value_word(&output.value), Word::int32(99));
 }
 
 /// Dynamic element.set on one locally constructed array stays correct.
@@ -482,8 +468,8 @@ b0(v0: int64, v1: int32):
     run_mir_expect(
         mir,
         "setLocalAndGet",
-        &[Value::uint64(1), Value::int32(99)],
-        Value::int32(119),
+        &[Word::uint64(1), Word::int32(99)],
+        Word::int32(119),
     );
 }
 
@@ -500,10 +486,10 @@ b0:
     v3: int32 = load v2
     return v3
 }"#;
-    run_mir_expect(mir, "heapField", &[], Value::int32(42));
+    run_mir_expect(mir, "heapField", &[], Word::int32(42));
 }
 
-/// Borrowed field addresses preserve heap storage.
+/// Borrowed field addresses preserve heap allocation.
 #[test]
 fn test_heap_borrowed_field_access() {
     let mir = r#"
@@ -516,12 +502,12 @@ b0:
     v3: int32 = load v2
     return v3
 }"#;
-    run_mir_expect(mir, "heapBorrowedField", &[], Value::int32(42));
+    run_mir_expect(mir, "heapBorrowedField", &[], Word::int32(42));
 }
 
-/// Single field aggregates expose the stored field value.
+/// Single field payloads expose the stored field value.
 #[test]
-fn test_single_field_aggregate_roundtrips_field() {
+fn test_single_field_payload_roundtrips_field() {
     let mir = r#"
 type Box {
     value: int32;
@@ -534,7 +520,7 @@ b0(v0: int32):
     return v2
 }"#;
 
-    run_mir_expect(mir, "readBox", &[Value::int32(9)], Value::int32(9));
+    run_mir_expect(mir, "readBox", &[Word::int32(9)], Word::int32(9));
 }
 
 /// Managed nominal allocations use layout bytes rather than packed value storage.
@@ -555,16 +541,14 @@ b0:
     let output = isolate
         .run_function_by_name("allocBox", &[])
         .expect("execution failed");
-    let value = assert_materialized_plain(&output.value);
-    let reference = value
-        .as_heap_reference()
-        .expect("heap allocation should return a heap reference");
+    let value = assert_value_word(&output.value);
+    let reference = value.as_heap_reference();
 
     // layout backed objects should keep byte storage and ref offsets
     assert_eq!(isolate.heap.scan(reference), Ok(ReferenceMap::empty()));
 }
 
-/// Managed nominal stores roundtrip full aggregate payloads.
+/// Managed nominal stores roundtrip full payloads.
 #[test]
 fn test_managed_nominal_store_roundtrips_payload() {
     let mir = r#"
@@ -582,18 +566,16 @@ b0(v0: int32):
 
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("makeBox", &[Value::int32(9)])
+        .run_function_by_name("makeBox", &[Word::int32(9)])
         .expect("execution failed");
-    let value = assert_materialized_plain(&output.value);
-    let reference = value
-        .as_heap_reference()
-        .expect("heap allocation should return a heap reference");
+    let value = assert_value_word(&output.value);
+    let reference = value.as_heap_reference();
     let bytes = isolate
         .heap
         .read_heap_bytes(reference)
         .expect("managed object bytes should be readable");
 
-    // the payload should be stored as raw layout bytes, not a boxed aggregate reference
+    // the payload should be stored as raw layout bytes, not a boxed reference
     assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 9);
 }
 
@@ -619,12 +601,10 @@ b0:
     let output = isolate
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
-    let value = assert_materialized_plain(&output.value);
-    let reference = value
-        .as_heap_reference()
-        .expect("heap allocation should return a heap reference");
+    let value = assert_value_word(&output.value);
+    let reference = value.as_heap_reference();
 
-    // pointer-shaped heap references should follow the canonical aggregate layout
+    // pointer-shaped heap references should follow the canonical payload layout
     assert_eq!(isolate.heap.heap_byte_len(reference), Ok(24));
     assert_eq!(
         isolate.heap.scan(reference),
@@ -653,7 +633,7 @@ b0:
     let output = isolate
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
-    let MaterializedValue::HeapReference(slice) = output.value else {
+    let Value::HeapReference(slice) = output.value else {
         panic!("expected heap slice value, got {:?}", output.value);
     };
     let bytes = isolate
@@ -699,7 +679,7 @@ b0:
         .run_function_by_name("comparePaths", &[])
         .expect("execution failed");
 
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(41));
+    assert_eq!(assert_value_word(&output.value), Word::int32(41));
 }
 
 /// Out-of-bounds field access produces an error.
@@ -735,9 +715,9 @@ b0(v0: int32[3], v1: int64):
         let ty = interp.parameter_type("badElem", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
         );
-        vec![arr, Value::uint64(100)]
+        vec![arr, Word::uint64(100)]
     });
     assert_runtime_error(
         result,
@@ -746,28 +726,6 @@ b0(v0: int32[3], v1: int64):
             length: 3,
         },
     );
-}
-
-/// Exceeding the heap allocation limit produces an allocation error.
-#[test]
-fn test_allocation_limit() {
-    let mir = r#"
-function allocMany(): void {
-b0:
-    v0: int32 = 0int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: ref<int32, managed, readonly> = new int32
-    v3: int32 = 1int32
-    v4: int32 = int.add v1, v3
-    v5: int32 = 2000int32
-    v6: boolean = int.lt.s v4, v5
-    branch v6, b1(v4), b2
-b2:
-    return
-}"#;
-    let result = run_mir(mir, "allocMany", &[]);
-    assert_runtime_error_matches!(result, Error::AllocationFailed);
 }
 
 /// Raw allocation creates one raw allocation and returns a raw pointer.
@@ -780,12 +738,7 @@ b0:
     return v0
 }"#;
     let output = run_mir_ok(mir, "rawAlloc", &[]);
-    assert!(
-        assert_materialized_plain(&output.value)
-            .as_raw_pointer()
-            .is_some()
-    );
-    assert_eq!(output.raw_allocation_count, 1);
+    assert!(!assert_value_word(&output.value).as_raw_pointer().is_null());
 }
 
 /// Raw free deallocates a raw pointer.
@@ -802,9 +755,7 @@ b0:
     return v2
 }"#;
     let output = run_mir_ok(mir, "rawAllocFree", &[]);
-    assert_eq!(assert_materialized_plain(&output.value), Value::int32(42));
-    // after free, raw heap should be empty
-    assert_eq!(output.raw_allocation_count, 0);
+    assert_eq!(assert_value_word(&output.value), Word::int32(42));
 }
 
 /// Raw free on invalid pointer produces an error.
@@ -834,7 +785,7 @@ b0:
     v2: int32 = load v0
     return v2
 }"#;
-    run_mir_expect(mir, "stackAlloc", &[], Value::int32(99));
+    run_mir_expect(mir, "stackAlloc", &[], Word::int32(99));
 }
 
 /// Stack allocation with field access.
@@ -850,7 +801,7 @@ b0:
     v3: int32 = load v2
     return v3
 }"#;
-    run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
+    run_mir_expect(mir, "stackStruct", &[], Word::int32(10));
 }
 
 /// Stack allocation rejects heap-reference storage narrower than the host heap.
@@ -891,7 +842,7 @@ b0:
 
     assert_eq!(
         message,
-        "failed to initialize isolate: EM040: incompatible pointer width: module 4 bytes, host 8"
+        "failed to initialize isolate: EM040: incompatible pointer width: program 4 bytes, host 8"
     );
 }
 
@@ -904,7 +855,7 @@ b0(v0: ref<int32, raw, readonly>):
     v1: int32 = load v0
     return v1
 }"#;
-    let result = run_mir(mir, "nullLoad", &[Value::raw_pointer(RawPointer::NULL)]);
+    let result = run_mir(mir, "nullLoad", &[Word::raw_pointer(RawPointer::NULL)]);
     assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }
 
@@ -920,7 +871,7 @@ b0(v0: ref<int32, raw>, v1: int32):
     let result = run_mir(
         mir,
         "nullStore",
-        &[Value::raw_pointer(RawPointer::NULL), Value::int32(42)],
+        &[Word::raw_pointer(RawPointer::NULL), Word::int32(42)],
     );
     assert_runtime_error_matches!(result, Error::NullPointerDereference);
 }

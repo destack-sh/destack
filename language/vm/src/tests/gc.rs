@@ -1,16 +1,7 @@
-use crate::Value;
+use crate::Word;
 use crate::tests::create_empty_test_heap;
 use destack_heap::{AllocationLayout, Heap, HeapError, HeapReference, Payload};
 use destack_mir::ReferenceMap;
-
-/// Allocate one zero-byte managed cell for tests.
-fn allocate_empty(heap: &mut Heap) -> HeapReference {
-    let reference_map = ReferenceMap::empty();
-    let layout = AllocationLayout::new(0, &reference_map);
-
-    heap.allocate(layout, Payload::Zeroed)
-        .expect("heap allocation should succeed")
-}
 
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {
@@ -22,14 +13,14 @@ fn allocate(heap: &mut Heap) -> HeapReference {
 }
 
 /// Allocate one managed cell with values for tests.
-fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> HeapReference {
-    let mut bytes = Vec::with_capacity(values.len() * Value::BYTE_LEN);
+fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
+    let mut bytes = Vec::with_capacity(values.len() * Word::BYTE_LEN);
     let mut offsets = Vec::new();
 
     // encode one explicit value-backed payload
     for (index, value) in values.into_iter().enumerate() {
-        if value.as_heap_reference().is_some() {
-            offsets.push((index * Value::BYTE_LEN) as u32);
+        if heap.is_heap_live(value.as_heap_reference()) {
+            offsets.push((index * Word::BYTE_LEN) as u32);
         }
 
         bytes.extend_from_slice(&value.to_byte_array());
@@ -79,18 +70,16 @@ fn assert_payload_prefix(heap: &Heap, reference: HeapReference, expected: &[u8])
     assert!(bytes.starts_with(expected));
 }
 
-/// Zero-byte heap allocations still use distinct references.
+/// Zero-byte heap allocations are rejected.
 #[test]
-fn test_zero_byte_heap_allocations_use_distinct_references() {
+fn test_reject_zero_byte_heap_allocation() {
     let mut heap = create_empty_test_heap();
+    let reference_map = ReferenceMap::empty();
+    let layout = AllocationLayout::new(0, &reference_map);
 
-    let first = allocate_empty(&mut heap);
-    let second = allocate_empty(&mut heap);
-    let third = allocate_empty(&mut heap);
+    let result = heap.allocate(layout, Payload::Zeroed);
 
-    assert_ne!(first, second);
-    assert_ne!(first, third);
-    assert_ne!(second, third);
+    assert_eq!(result, Err(HeapError::ZeroSizeAllocation));
 }
 
 /// Garbage collection removes cells not reachable from roots.
@@ -136,8 +125,8 @@ fn test_gc_follows_references() {
     let mut heap = create_empty_test_heap();
 
     let child2 = allocate(&mut heap);
-    let child1 = allocate_with_values(&mut heap, vec![Value::heap_reference(child2)]);
-    let root = allocate_with_values(&mut heap, vec![Value::heap_reference(child1)]);
+    let child1 = allocate_with_values(&mut heap, vec![Word::heap_reference(child2)]);
+    let root = allocate_with_values(&mut heap, vec![Word::heap_reference(child1)]);
     let _unreachable = allocate(&mut heap);
     let mut roots = [root];
 
@@ -179,7 +168,7 @@ fn test_gc_handles_cycles() {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let layout = AllocationLayout::new(Value::BYTE_LEN, &reference_map);
+    let layout = AllocationLayout::new(Word::BYTE_LEN, &reference_map);
     let a = heap
         .allocate(layout, Payload::Zeroed)
         .expect("heap allocation should succeed");
@@ -187,9 +176,9 @@ fn test_gc_handles_cycles() {
         .allocate(layout, Payload::Zeroed)
         .expect("heap allocation should succeed");
 
-    heap.write_heap_bytes(a, 0, &Value::heap_reference(b).to_byte_array())
+    heap.write_heap_bytes(a, 0, &Word::heap_reference(b).to_byte_array())
         .expect("managed byte write should succeed");
-    heap.write_heap_bytes(b, 0, &Value::heap_reference(a).to_byte_array())
+    heap.write_heap_bytes(b, 0, &Word::heap_reference(a).to_byte_array())
         .expect("managed byte write should succeed");
 
     let _unreachable1 = allocate(&mut heap);
@@ -247,8 +236,8 @@ fn test_gc_multiple_references_to_same_cell() {
     let mut heap = create_empty_test_heap();
 
     let shared = allocate(&mut heap);
-    let holder1 = allocate_with_values(&mut heap, vec![Value::heap_reference(shared)]);
-    let holder2 = allocate_with_values(&mut heap, vec![Value::heap_reference(shared)]);
+    let holder1 = allocate_with_values(&mut heap, vec![Word::heap_reference(shared)]);
+    let holder2 = allocate_with_values(&mut heap, vec![Word::heap_reference(shared)]);
     let mut roots = [holder1, holder2];
 
     assert_eq!(allocation_count(&heap), 3);
@@ -277,17 +266,17 @@ fn test_gc_multiple_references_to_same_cell() {
     assert_payload_prefix(&heap, rewritten_child1, &[0]);
 }
 
-/// Garbage collection traces references nested inside aggregate values.
+/// Garbage collection traces references nested inside payload values.
 #[test]
-fn test_gc_handles_aggregates() {
+fn test_gc_handles_payloads() {
     let mut heap = create_empty_test_heap();
 
     let child = allocate(&mut heap);
     let inner_agg = allocate_with_values(
         &mut heap,
-        vec![Value::int32(42), Value::heap_reference(child)],
+        vec![Word::int32(42), Word::heap_reference(child)],
     );
-    let parent = allocate_with_values(&mut heap, vec![Value::heap_reference(inner_agg)]);
+    let parent = allocate_with_values(&mut heap, vec![Word::heap_reference(inner_agg)]);
 
     let _unreachable = allocate(&mut heap);
     let mut roots = [parent];
@@ -297,7 +286,7 @@ fn test_gc_handles_aggregates() {
     heap.collect_full(&mut roots)
         .expect("heap collection should succeed");
 
-    // rewritten aggregate links should still decode the nested child
+    // rewritten payload links should still decode the nested child
     let rewritten_parent = roots[0];
     let rewritten_inner = decode_first_heap_reference(
         &heap
@@ -306,8 +295,8 @@ fn test_gc_handles_aggregates() {
     );
     let inner_bytes = heap
         .read_heap_bytes(rewritten_inner)
-        .expect("rewritten aggregate payload should read");
-    let rewritten_child = decode_first_heap_reference(&inner_bytes[Value::BYTE_LEN..]);
+        .expect("rewritten payload should read");
+    let rewritten_child = decode_first_heap_reference(&inner_bytes[Word::BYTE_LEN..]);
 
     assert_eq!(allocation_count(&heap), 3);
     assert_ne!(rewritten_parent, parent);
@@ -318,8 +307,8 @@ fn test_gc_handles_aggregates() {
     assert!(!contains(&heap, child));
     assert!(contains(&heap, rewritten_parent));
     assert_eq!(
-        Value::from_byte_slice(&inner_bytes[..Value::BYTE_LEN]),
-        Some(Value::int32(42))
+        Word::from_byte_slice(&inner_bytes[..Word::BYTE_LEN]),
+        Some(Word::int32(42))
     );
     assert_payload_prefix(&heap, rewritten_child, &[0]);
 }

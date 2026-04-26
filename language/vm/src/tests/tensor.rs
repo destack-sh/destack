@@ -1,40 +1,40 @@
-use crate::Value;
-use crate::tests::{TestIsolate, assert_materialized_plain, run_mir_expect, run_mir_with_ok};
+use crate::Word;
+use crate::tests::{TestIsolate, assert_value_word, run_mir_expect, run_mir_with_ok};
 
-/// Create a tensor aggregate value from the provided elements.
+/// Create a tensor payload from the provided elements.
 fn tensor_from_values(
     isolate: &mut TestIsolate,
     function: &str,
     index: usize,
     values: &[i32],
-) -> Value {
+) -> Word {
     let ty = isolate.parameter_type(function, index);
-    let elements = values.iter().copied().map(Value::int32).collect();
+    let elements = values.iter().copied().map(Word::int32).collect();
 
     isolate.materialize_value_for_type(ty, elements)
 }
 
-/// Create a tensor aggregate value from the provided float elements.
+/// Create a tensor payload from the provided float elements.
 fn tensor_from_f64_values(
     isolate: &mut TestIsolate,
     function: &str,
     index: usize,
     values: &[f64],
-) -> Value {
+) -> Word {
     let ty = isolate.parameter_type(function, index);
-    let elements = values.iter().copied().map(Value::float64).collect();
+    let elements = values.iter().copied().map(Word::float64).collect();
 
     isolate.materialize_value_for_type(ty, elements)
 }
 
 /// Run one tensor MIR function and assert its scalar result.
-fn run_tensor_expect<F>(mir_text: &str, function: &str, setup: F, expected: Value)
+fn run_tensor_expect<F>(mir_text: &str, function: &str, setup: F, expected: Word)
 where
-    F: FnOnce(&mut TestIsolate) -> Vec<Value>,
+    F: FnOnce(&mut TestIsolate) -> Vec<Word>,
 {
     let output = run_mir_with_ok(mir_text, function, setup);
 
-    assert_eq!(assert_materialized_plain(&output.value), expected);
+    assert_eq!(assert_value_word(&output.value), expected);
 }
 
 /// Tensor splat broadcasts a scalar to every element.
@@ -50,7 +50,7 @@ b0:
     v4: int32 = tensor.extract v1, [v2, v3]
     return v4
 }"#;
-    run_mir_expect(mir, "tensorSplat", &[], Value::int32(7));
+    run_mir_expect(mir, "tensorSplat", &[], Word::int32(7));
 }
 
 /// Tensor load and store operate on tensor references.
@@ -68,7 +68,7 @@ b0:
     v5: int32 = tensor.load v1, [v3, v4]
     return v5
 }"#;
-    run_mir_expect(mir, "tensorLoadStore", &[], Value::int32(42));
+    run_mir_expect(mir, "tensorLoadStore", &[], Word::int32(42));
 }
 
 /// Tensor fill and copy write through tensor references.
@@ -89,7 +89,7 @@ b0:
     v7: int32 = tensor.load v3, [v5, v6]
     return v7
 }"#;
-    run_mir_expect(mir, "tensorFillCopy", &[], Value::int32(5));
+    run_mir_expect(mir, "tensorFillCopy", &[], Word::int32(5));
 }
 
 /// Tensor reshape preserves element order.
@@ -117,7 +117,7 @@ b0(v0: tensor<int32, (2, 2)>):
                 &[1, 2, 3, 4],
             )]
         },
-        Value::int32(4),
+        Word::int32(4),
     );
 }
 
@@ -143,7 +143,7 @@ b0(v0: tensor<int32, (2, 2)>):
                 &[1, 2, 3, 4],
             )]
         },
-        Value::int32(4),
+        Word::int32(4),
     );
 }
 
@@ -170,7 +170,7 @@ b0(v0: tensor<int32, (2, 2)>):
                 &[1, 2, 3, 4],
             )]
         },
-        Value::int32(3),
+        Word::int32(3),
     );
 }
 
@@ -193,7 +193,7 @@ b0(v0: tensor<int32, (2, 2)>):
         mir,
         "tensorSlice",
         |interp| vec![tensor_from_values(interp, "tensorSlice", 0, &[1, 2, 3, 4])],
-        Value::int32(4),
+        Word::int32(4),
     );
 }
 
@@ -214,7 +214,7 @@ b0(v0: tensor<int32, (1, 1)>):
         mir,
         "tensorPad",
         |interp| vec![tensor_from_values(interp, "tensorPad", 0, &[9])],
-        Value::int32(9),
+        Word::int32(9),
     );
 }
 
@@ -238,7 +238,7 @@ b0(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
                 tensor_from_values(interp, "tensorConcat", 1, &[3, 4]),
             ]
         },
-        Value::int32(4),
+        Word::int32(4),
     );
 }
 
@@ -258,7 +258,7 @@ b0(v0: tensor<int32, (2, 2)>):
         mir,
         "tensorReduce",
         |interp| vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])],
-        Value::int32(7),
+        Word::int32(7),
     );
 }
 
@@ -283,7 +283,7 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
                 tensor_from_values(interp, "tensorDot", 1, &[5, 6, 7, 8]),
             ]
         },
-        Value::int32(43),
+        Word::int32(43),
     );
 }
 
@@ -307,7 +307,7 @@ b0(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
                 tensor_from_values(interp, "tensorConvolution", 1, &[3]),
             ]
         },
-        Value::int32(6),
+        Word::int32(6),
     );
 }
 
@@ -331,7 +331,7 @@ b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>):
                 tensor_from_values(interp, "tensorGather", 1, &[0]),
             ]
         },
-        Value::int32(7),
+        Word::int32(7),
     );
 }
 
@@ -356,7 +356,7 @@ b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>, v2: tensor<int32, (1, 1
                 tensor_from_values(interp, "tensorScatter", 2, &[9]),
             ]
         },
-        Value::int32(9),
+        Word::int32(9),
     );
 }
 
@@ -383,7 +383,7 @@ b0(v0: tensor<int32, (2, 2)>):
                 &[1, 2, 3, 4],
             )]
         },
-        Value::int32(3),
+        Word::int32(3),
     );
 }
 
@@ -408,7 +408,7 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
                 tensor_from_values(interp, "tensorCompare", 1, &[1, 9, 3, 4]),
             ]
         },
-        Value::bool(false),
+        Word::bool(false),
     );
 }
 
@@ -435,7 +435,7 @@ b0(v0: tensor<float64, (2, 2)>):
                 &[1.2, 2.9, 3.1, 4.0],
             )]
         },
-        Value::int32(2),
+        Word::int32(2),
     );
 }
 
@@ -454,7 +454,7 @@ b0(v0: tensor<int32, (2, 2)>):
         mir,
         "tensorCast",
         |interp| vec![tensor_from_values(interp, "tensorCast", 0, &[1, 2, 3, 4])],
-        Value::int32(4),
+        Word::int32(4),
     );
 }
 
@@ -479,5 +479,5 @@ b0:
     return v7
 }"#;
     // verify the view offset result
-    run_mir_expect(mir, "tensorViewValue", &[], Value::int32(2));
+    run_mir_expect(mir, "tensorViewValue", &[], Word::int32(2));
 }
