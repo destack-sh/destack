@@ -31,6 +31,7 @@ destack_ast = { workspace = true }
 destack_builtin = { path = "../builtin", default-features = false }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
+destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 

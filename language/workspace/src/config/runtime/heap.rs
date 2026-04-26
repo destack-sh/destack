@@ -1,34 +1,9 @@
-use serde::{Deserialize, Serialize};
-
-/// The default proportional heap growth target after one cycle.
-const DEFAULT_HEAP_GROWTH_PERCENT: u32 = 100;
-/// The default heap trigger as a percentage of the current goal.
-const DEFAULT_HEAP_TRIGGER_PERCENT: u32 = 75;
-/// The default heap pacing floor.
-const DEFAULT_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
-/// The default small young-space width for worker-local heaps.
-const DEFAULT_HEAP_YOUNG_BYTES: usize = 64 * 1024;
-/// The default nursery bypass threshold for larger payloads.
-const DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES: usize = 32 * 1024;
-/// The default heap small-span width for size-classed allocation.
-const DEFAULT_HEAP_SPAN_BYTES: usize = 32 * 1024;
-/// The default raw small-span width for size-classed allocation.
-const DEFAULT_RAW_SPAN_BYTES: usize = 32 * 1024;
-/// The default allocator page width.
-const DEFAULT_PAGE_BYTES: usize = 8 * 1024;
-/// The default allocator arena width that amortizes mapping and metadata work.
-const DEFAULT_ARENA_BYTES: usize = if cfg!(target_arch = "wasm32") {
-    512 * 1024
-} else if cfg!(target_pointer_width = "64")
-    && !cfg!(target_os = "windows")
-    && !(cfg!(target_os = "ios") && cfg!(target_arch = "aarch64"))
-{
-    64 * 1024 * 1024
-} else {
-    4 * 1024 * 1024
+use destack_heap::{
+    DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES,
+    DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES,
 };
-/// The default alignment for small size classes.
-const DEFAULT_SMALL_ALIGNMENT_BYTES: usize = 8;
+use serde::{Deserialize, Serialize};
 
 /// Runtime heap size-class configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
@@ -67,10 +42,10 @@ pub struct LocalGcOptions {
 impl Default for LocalGcOptions {
     fn default() -> Self {
         Self {
-            growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
+            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             memory_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
         }
     }
 }
@@ -91,10 +66,10 @@ pub struct SharedGcOptions {
 impl Default for SharedGcOptions {
     fn default() -> Self {
         Self {
-            growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
-            trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
+            growth_percent: DEFAULT_GC_GROWTH_PERCENT,
+            trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             memory_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
         }
     }
 }
@@ -155,13 +130,13 @@ impl Default for HeapLayoutOptions {
     fn default() -> Self {
         Self {
             size_classes: HeapSizeClasses::Default,
-            heap_young_bytes: DEFAULT_HEAP_YOUNG_BYTES,
-            max_heap_young_allocation_bytes: DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES,
-            heap_span_bytes: DEFAULT_HEAP_SPAN_BYTES,
-            raw_span_bytes: DEFAULT_RAW_SPAN_BYTES,
+            heap_young_bytes: DEFAULT_YOUNG_BYTES,
+            max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
+            heap_span_bytes: DEFAULT_SMALL_BYTES,
+            raw_span_bytes: DEFAULT_SMALL_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_bytes: DEFAULT_ARENA_BYTES,
-            small_alignment_bytes: DEFAULT_SMALL_ALIGNMENT_BYTES,
+            arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            small_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
 }
