@@ -1971,7 +1971,7 @@ impl Parser {
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(
-            TypeExpression::Tuple { elements },
+            TypeExpression::ArrayTuple { elements },
             self.get_span_from(start),
         ))
     }

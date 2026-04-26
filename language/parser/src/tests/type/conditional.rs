@@ -509,7 +509,7 @@ fn test_parse_array_tuple_type() {
     // type T = [string, number]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert!(label.is_none());

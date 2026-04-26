@@ -340,7 +340,7 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             let return_type = signature.return_type.expect("expected return type");
-            assert_node!(parser.tree, return_type, TypeExpression::Tuple { elements } => {
+            assert_node!(parser.tree, return_type, TypeExpression::ArrayTuple { elements } => {
                 assert_eq!(elements.len(), 2);
 
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
@@ -594,7 +594,7 @@ fn test_parse_function_parameter_readonly_tuple_target_type() {
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                 assert_string!(parser, *name, "pair");
                 assert_node!(parser.tree, *declared_type, TypeExpression::Readonly { target_type } => {
-                    assert_node!(parser.tree, *target_type, TypeExpression::Tuple { elements } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::ArrayTuple { elements } => {
                         assert_eq!(elements.len(), 2);
                     });
                 });
