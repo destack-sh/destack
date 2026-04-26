@@ -115,7 +115,7 @@ fn is_complex_generic_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<bool> {
-    // multiple arguments always count as complex in the assignment-like heuristic
+    // multiple arguments always count as complex in the assignment-like layout
     if generic_arguments.len() > 1 {
         return Ok(true);
     }
@@ -563,11 +563,10 @@ fn buffer_assignment_expression_layout_left<'ast>(
 
     let nodes = buffer.into_vec();
 
-    // assignment-expression layout is driven by the rhs
-    let is_short = false;
     let may_break = nodes.may_directly_break();
 
-    Ok((nodes, is_short, may_break))
+    // assignment-expression layout is driven by the rhs
+    Ok((nodes, false, may_break))
 }
 
 /// Buffer one declarator left-hand side for layout selection.
@@ -576,8 +575,6 @@ fn buffer_declarator_layout_left<'ast>(
     pattern_id: LocalNodeId<Pattern>,
     type_id: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
-    const MIN_OVERLAP_FOR_BREAK: u32 = 3;
-
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
 
@@ -591,12 +588,11 @@ fn buffer_declarator_layout_left<'ast>(
     }
 
     let nodes = buffer.into_vec();
-    let is_short = nodes.single_line_width().is_some_and(|width| {
-        width < (u32::from(f.context().options.indent_width) + MIN_OVERLAP_FOR_BREAK)
-    });
+
     let may_break = nodes.may_directly_break();
 
-    Ok((nodes, is_short, may_break))
+    // declarator layout is driven by the rhs
+    Ok((nodes, false, may_break))
 }
 
 /// Return whether one declarator pattern subtree contains one default assignment.

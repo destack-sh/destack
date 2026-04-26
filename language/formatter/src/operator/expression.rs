@@ -312,12 +312,8 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // instantiation
-        Expression::Instantiation { left, .. } => {
-            if postfix_expression_should_route_to_chain(f.context(), *left) {
-                format_expression_chain(f, node_id)?;
-            } else {
-                format_instantiation_expression(f, node_id)?;
-            }
+        Expression::Instantiation { .. } => {
+            format_instantiation_expression(f, node_id)?;
         }
 
         // new

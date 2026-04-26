@@ -29,13 +29,13 @@ fn test_format_binary_expression_drops_redundant_grouping_parentheses() {
     );
 }
 
-/// Mixed bitwise precedence should not gain redundant grouping parentheses.
+/// Mixed bitwise precedence should add grouping parentheses for the lower precedence parent.
 #[test]
-fn test_format_binary_expression_keeps_mixed_bitwise_precedence_without_extra_grouping() {
+fn test_format_binary_expression_keeps_mixed_bitwise_precedence_explicit() {
     assert_format_program!(
         r#"flags & mask | other
 "#,
-        r#"flags & mask | other;
+        r#"(flags & mask) | other;
 "#,
         destack_source::FileType::Destack,
     );
