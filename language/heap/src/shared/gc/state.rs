@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
@@ -39,8 +38,8 @@ pub struct SharedGcWorker {
 pub(crate) struct SharedTraceQueue {
     /// Work published without a worker context.
     global: Injector<SharedTraceWork>,
-    /// Work owned by active collector workers.
-    workers: RwLock<BTreeMap<usize, SharedGcWorker>>,
+    /// Work owned by registered collector workers.
+    workers: RwLock<Vec<Option<SharedGcWorker>>>,
 }
 
 impl SharedTraceQueue {
@@ -48,9 +47,17 @@ impl SharedTraceQueue {
     pub(crate) fn worker(&self, worker_index: usize) -> SharedGcWorker {
         {
             let workers = self.workers.read();
-            if let Some(worker) = workers.get(&worker_index) {
+            if let Some(worker) = workers.get(worker_index).and_then(Option::as_ref) {
                 return worker.clone();
             }
+        }
+
+        let mut workers = self.workers.write();
+        if let Some(worker) = workers.get(worker_index).and_then(Option::as_ref) {
+            return worker.clone();
+        }
+        if worker_index >= workers.len() {
+            workers.resize_with(worker_index + 1, || None);
         }
 
         let local = Worker::new_fifo();
@@ -61,11 +68,9 @@ impl SharedTraceQueue {
             stealer,
         };
 
-        self.workers
-            .write()
-            .entry(worker_index)
-            .or_insert_with(|| worker.clone())
-            .clone()
+        workers[worker_index] = Some(worker.clone());
+
+        worker
     }
 
     /// Push one pending trace work item.
@@ -112,7 +117,7 @@ impl SharedTraceQueue {
             return false;
         }
 
-        for worker in self.workers.read().values() {
+        for worker in self.workers.read().iter().filter_map(Option::as_ref) {
             if !worker.stealer.is_empty() {
                 return false;
             }
@@ -125,7 +130,7 @@ impl SharedTraceQueue {
     pub(crate) fn clear(&self) {
         self.drain_global();
 
-        for worker in self.workers.read().values() {
+        for worker in self.workers.read().iter().filter_map(Option::as_ref) {
             self.drain_stealer(&worker.stealer);
         }
     }
@@ -213,8 +218,12 @@ impl SharedTraceQueue {
         batch: &mut Vec<SharedTraceWork>,
     ) {
         let workers = self.workers.read();
-        for (worker_index, worker) in workers.iter() {
-            if local_worker.is_some_and(|worker| worker.index == *worker_index) {
+        for (worker_index, worker) in workers.iter().enumerate() {
+            let Some(worker) = worker else {
+                continue;
+            };
+
+            if local_worker.is_some_and(|worker| worker.index == worker_index) {
                 continue;
             }
 

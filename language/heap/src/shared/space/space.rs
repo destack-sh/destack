@@ -1,18 +1,19 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use destack_mir::ReferenceMap;
 use parking_lot::RwLock;
 
 use super::{
-    SharedHeapLocation, SharedHeapPageOwner, SharedHeapPlace, SharedLargeAllocation,
-    SharedLargeAllocationId, SharedSmallSpan,
+    SharedHeapLocation, SharedHeapPageMapEntry, SharedHeapPlace, SharedLargeAllocation,
+    SharedLargeAllocationId, SharedSmallSpan, SpanList,
 };
 use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable, SpanSlot};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
-    AccountingRegion, AllocationLayout, AllocationUsage, GcState, HeapError, HeapOptions,
-    HeapResult, Payload, SharedHeapReference, SharedHeapSpaceUsage, SmallSpanClass,
-    clear_slot_reference_bits, slot_reference_map, write_slot_reference_bits,
+    AllocationLayout, GcState, HeapError, HeapOptions, HeapResult, Payload, SharedHeapReference,
+    SharedHeapSpaceUsage, SmallSpanClass, clear_slot_reference_bits, slot_reference_map,
+    write_slot_reference_bits,
 };
 
 /// The first allocated shared heap large-allocation id.
@@ -54,11 +55,40 @@ pub(crate) struct SharedHeapState {
     /// The shared heap large space.
     pub(crate) large: SharedLargeSpace,
     /// The owning shared heap metadata for each visible allocator page.
-    pub(crate) page_owners: Vec<Option<SharedHeapPageOwner>>,
-    /// The exact live shared heap-space usage.
-    pub(crate) usage: AllocationUsage,
+    pub(crate) page_map: Vec<Option<SharedHeapPageMapEntry>>,
     /// The live shared heap collector state.
     pub(crate) gc: GcState,
+}
+
+/// One shared heap allocation front end.
+#[derive(Debug)]
+pub struct SharedAllocator {
+    /// The immutable size-class table for this allocator front end.
+    size_classes: SizeClassTable,
+    /// The immutable shared span byte width.
+    span_bytes: usize,
+    /// The immutable allocator page byte width.
+    page_bytes: usize,
+    /// The current cached span per small-span bucket.
+    cached_spans: Vec<Option<CachedSmallSpan>>,
+}
+
+/// One cached shared small span.
+#[derive(Debug)]
+struct CachedSmallSpan {
+    /// The shared span table index.
+    span_index: usize,
+    /// The shared span itself.
+    span: Arc<RwLock<SharedSmallSpan>>,
+}
+
+/// Atomic shared heap-space usage.
+#[derive(Debug)]
+pub(crate) struct SharedUsage {
+    /// The number of live allocations.
+    allocation_count: AtomicUsize,
+    /// The number of live allocated bytes.
+    allocated_bytes: AtomicU64,
 }
 
 /// One shared heap space store over a shared allocator.
@@ -68,8 +98,90 @@ pub struct SharedHeapSpace {
     pub(crate) allocator: Arc<Allocator>,
     /// The shared heap allocator state.
     pub(crate) state: RwLock<SharedHeapState>,
+    /// The exact live shared heap-space usage.
+    pub(crate) usage: SharedUsage,
     /// The active shared collection state.
     pub(crate) gc: SharedGcState,
+}
+
+impl SharedAllocator {
+    /// Create one empty shared allocator front end.
+    fn new(size_classes: SizeClassTable, span_bytes: usize, page_bytes: usize) -> Self {
+        let bucket_count = SmallSpanClass::bucket_count(&size_classes);
+        let mut cached_spans = Vec::with_capacity(bucket_count);
+        cached_spans.resize_with(bucket_count, || None);
+
+        Self {
+            size_classes,
+            span_bytes,
+            page_bytes,
+            cached_spans,
+        }
+    }
+
+    /// Return one small-span class for the given payload when it fits.
+    fn small_span_class(
+        &self,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+    ) -> Option<SmallSpanClass> {
+        let class_index = self.size_classes.class_index_for(byte_len)?;
+        let size_class = self.size_classes.classes[class_index];
+
+        Some(SmallSpanClass {
+            size_class: size_class.bytes,
+            span_bytes: size_class.span_bytes(self.page_bytes, self.span_bytes),
+            is_noscan: !reference_map.has_reference(),
+        })
+    }
+
+    /// Return the bucket index for one small-span class.
+    fn bucket_index(&self, class: &SmallSpanClass) -> HeapResult<usize> {
+        class.bucket_index(&self.size_classes)
+    }
+}
+
+impl SharedUsage {
+    /// Create atomic shared usage from exact counters.
+    pub(crate) fn new(allocation_count: usize, allocated_bytes: u64) -> Self {
+        Self {
+            allocation_count: AtomicUsize::new(allocation_count),
+            allocated_bytes: AtomicU64::new(allocated_bytes),
+        }
+    }
+
+    /// Return the number of live allocations.
+    pub(crate) fn allocation_count(&self) -> usize {
+        self.allocation_count.load(Ordering::Acquire)
+    }
+
+    /// Return the number of live allocated bytes.
+    pub(crate) fn allocated_bytes(&self) -> u64 {
+        self.allocated_bytes.load(Ordering::Acquire)
+    }
+
+    /// Charge one allocation.
+    pub(crate) fn allocate(&self, byte_len: usize) {
+        let added_bytes = byte_len as u64;
+        let previous_count = self.allocation_count.fetch_add(1, Ordering::AcqRel);
+        let previous_bytes = self
+            .allocated_bytes
+            .fetch_add(added_bytes, Ordering::AcqRel);
+
+        debug_assert!(previous_count < usize::MAX);
+        debug_assert!(u64::MAX - previous_bytes >= added_bytes);
+    }
+
+    /// Release one allocation.
+    pub(crate) fn free(&self, freed_bytes: u64) {
+        let previous_bytes = self
+            .allocated_bytes
+            .fetch_sub(freed_bytes, Ordering::AcqRel);
+        let previous_count = self.allocation_count.fetch_sub(1, Ordering::AcqRel);
+
+        debug_assert!(previous_bytes >= freed_bytes);
+        debug_assert!(previous_count > 0);
+    }
 }
 
 impl SharedHeapSpace {
@@ -106,14 +218,14 @@ impl SharedHeapSpace {
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: FIRST_SHARED_MANAGED_LARGE_ALLOCATION_ID,
             },
-            page_owners: Vec::new(),
-            usage: AllocationUsage::default(),
+            page_map: Vec::new(),
             gc: GcState::default(),
         };
 
         Ok(Self {
             allocator,
             state: RwLock::new(store),
+            usage: SharedUsage::new(0, 0),
             gc: SharedGcState::default(),
         })
     }
@@ -138,23 +250,21 @@ impl SharedHeapSpace {
     /// Return the exact borrowed shared image bytes.
     pub fn borrowed_bytes(&self) -> u64 {
         let store = self.state.read();
-        let pages = self.live_pages(&store);
+        let pages = self.live_page_views(&store);
 
         self.allocator.borrowed_bytes_for_page_views(pages.iter())
     }
 
     /// Return the exact usage for this live shared heap-space store.
     pub fn usage(&self) -> SharedHeapSpaceUsage {
-        // allocator summary
         let store = self.state.read();
-        let allocation_count = store.usage.allocation_count();
-        let allocated_bytes = store.usage.allocated_bytes();
         let mapped_bytes = self.live_mapped_bytes(&store);
         let active_bytes = mapped_bytes;
 
         drop(store);
 
-        // borrowed bytes
+        let allocation_count = self.usage.allocation_count();
+        let allocated_bytes = self.usage.allocated_bytes();
         let borrowed_bytes = self.borrowed_bytes();
 
         SharedHeapSpaceUsage {
@@ -168,16 +278,12 @@ impl SharedHeapSpace {
 
     /// Return the number of live shared heap allocations.
     pub fn allocation_count(&self) -> usize {
-        let store = self.state.read();
-
-        store.usage.allocation_count()
+        self.usage.allocation_count()
     }
 
     /// Return the number of live shared heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        let store = self.state.read();
-
-        store.usage.allocated_bytes()
+        self.usage.allocated_bytes()
     }
 
     /// Return the current shared heap collector state.
@@ -197,13 +303,29 @@ impl SharedHeapSpace {
         self.resolve_location(reference).is_some()
     }
 
+    /// Create one shared heap allocator front end.
+    pub fn allocator(&self) -> SharedAllocator {
+        let store = self.state.read();
+
+        SharedAllocator::new(
+            store.small.size_classes.clone(),
+            store.small.span_bytes,
+            self.allocator.page_bytes(),
+        )
+    }
+
     /// Allocate one shared managed heap allocation.
     pub fn allocate(
         &self,
+        allocator: &mut SharedAllocator,
         layout: AllocationLayout<'_>,
-        allocation: Payload<'_>,
+        payload: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        if let Some(actual) = allocation.byte_len()
+        if layout.byte_len == 0 {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        if let Some(actual) = payload.byte_len()
             && actual != layout.byte_len
         {
             return Err(HeapError::InvalidAllocationBytes {
@@ -212,34 +334,49 @@ impl SharedHeapSpace {
             });
         }
 
-        let mut store = self.state.write();
+        let (place, charged_bytes) = self.allocate_place(allocator, layout, payload)?;
+        let reference = self.base_reference_for_place(place)?;
 
-        // allocate the backing place before publishing the live reference
-        let (place, charged_bytes) = self.allocate_place(&mut store, layout, allocation)?;
-        let reference = self.base_reference(&store, place)?;
-
-        store
-            .usage
-            .allocate(charged_bytes, AccountingRegion::SharedHeap)?;
-        drop(store);
+        self.usage.allocate(charged_bytes);
 
         let has_shared_reference =
-            allocation.byte_len().is_some() && layout.reference_map.has_shared_reference();
+            payload.byte_len().is_some() && layout.reference_map.has_shared_reference();
         self.publish_shared_allocation(reference, has_shared_reference)?;
 
         Ok(reference)
     }
 
     /// Return the projected mapped-byte delta for one typed shared heap allocation.
-    pub(crate) fn mapped_byte_delta(&self, layout: AllocationLayout<'_>) -> HeapResult<i64> {
-        let store = self.state.read();
+    pub(crate) fn mapped_byte_delta(
+        &self,
+        allocator: &SharedAllocator,
+        layout: AllocationLayout<'_>,
+    ) -> HeapResult<i64> {
+        if layout.byte_len == 0 {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
 
-        if let Some(class) = self.small_span_class(&store, layout.byte_len, layout.reference_map) {
+        if let Some(class) = allocator.small_span_class(layout.byte_len, layout.reference_map) {
+            let bucket_index = allocator.bucket_index(&class)?;
+            if allocator
+                .cached_spans
+                .get(bucket_index)
+                .and_then(Option::as_ref)
+                .is_some_and(|cached| {
+                    let span = cached.span.read();
+
+                    span.list == SpanList::Cached && span.occupied_count < span.slot_count
+                })
+            {
+                return Ok(0);
+            }
+
+            let store = self.state.read();
             if self.has_available_small_slot(&store, &class)? {
                 return Ok(0);
             }
 
-            return Ok(store.small.span_bytes as i64);
+            return Ok(class.span_bytes as i64);
         }
 
         Ok(self.round_up_allocation_bytes(layout.byte_len) as i64)
@@ -342,44 +479,59 @@ impl SharedHeapSpace {
     /// Allocate one shared heap place for the given payload.
     fn allocate_place(
         &self,
-        store: &mut SharedHeapState,
+        allocator: &mut SharedAllocator,
         layout: AllocationLayout<'_>,
-        allocation: Payload<'_>,
+        payload: Payload<'_>,
     ) -> HeapResult<(SharedHeapPlace, usize)> {
-        // allocate from one size-class span when the payload still fits
-        if let Some(class) = self.small_span_class(store, layout.byte_len, layout.reference_map) {
-            let slot = self.allocate_small(store, &class, layout.reference_map, allocation)?;
+        if let Some(class) = allocator.small_span_class(layout.byte_len, layout.reference_map) {
+            let slot = self.allocate_small(allocator, &class, layout.reference_map, payload)?;
 
-            Ok((SharedHeapPlace::Small(slot), class.size_class))
+            return Ok((SharedHeapPlace::Small(slot), class.size_class));
         }
-        // otherwise allocate one dedicated large allocation
-        else {
-            let mut pages = match allocation {
-                Payload::Bytes(bytes) => store
-                    .page_run_cache
-                    .allocate_bytes(&self.allocator, bytes)?,
-                Payload::Zeroed | Payload::PageView { .. } => store
-                    .page_run_cache
-                    .allocate_zeroed(&self.allocator, layout.byte_len)?,
-            };
-            if matches!(allocation, Payload::PageView { .. })
-                && let Err(error) = allocation.initialize(&self.allocator, &mut pages, 0)
-            {
-                store
-                    .page_run_cache
-                    .release_page_view(&self.allocator, pages)?;
 
-                return Err(error);
-            }
-            let allocation_id = self.store_large_allocation(
-                store,
-                layout.byte_len,
-                pages,
-                layout.reference_map.clone(),
-            )?;
+        let pages = self.allocate_large_pages(layout.byte_len, payload)?;
 
-            Ok((SharedHeapPlace::Large(allocation_id), layout.byte_len))
+        let mut store = self.state.write();
+        let allocation_id = self.insert_large_allocation(
+            &mut store,
+            layout.byte_len,
+            pages,
+            layout.reference_map.clone(),
+        )?;
+
+        Ok((SharedHeapPlace::Large(allocation_id), layout.byte_len))
+    }
+
+    /// Allocate large pages and initialize payload bytes outside the shared state lock.
+    fn allocate_large_pages(&self, byte_len: usize, payload: Payload<'_>) -> HeapResult<PageView> {
+        let mut pages = {
+            let mut store = self.state.write();
+
+            store
+                .page_run_cache
+                .allocate_zeroed(&self.allocator, byte_len)?
+        };
+
+        if matches!(payload, Payload::Zeroed) {
+            return Ok(pages);
         }
+
+        if let Err(error) = self.allocator.write_payload(&mut pages, 0, payload) {
+            self.release_large_pages(pages)?;
+
+            return Err(error);
+        }
+
+        Ok(pages)
+    }
+
+    /// Return unpublished large pages to the shared page-run cache.
+    fn release_large_pages(&self, pages: PageView) -> HeapResult<()> {
+        let mut store = self.state.write();
+
+        store
+            .page_run_cache
+            .release_page_view(&self.allocator, pages)
     }
 
     /// Return whether one size class still has one live reusable slot.
@@ -397,21 +549,6 @@ impl SharedHeapSpace {
             .is_some_and(|spans| !spans.is_empty()))
     }
 
-    /// Return one small-span size and scan class for the given payload when it fits.
-    fn small_span_class(
-        &self,
-        store: &SharedHeapState,
-        byte_len: usize,
-        reference_map: &ReferenceMap,
-    ) -> Option<SmallSpanClass> {
-        let class_index = store.small.size_classes.class_index_for(byte_len)?;
-
-        Some(SmallSpanClass {
-            size_class: store.small.size_classes.classes[class_index].bytes,
-            is_noscan: !reference_map.has_reference(),
-        })
-    }
-
     /// Allocate or reuse one non-full shared heap span for the given size class.
     fn allocate_small_span(
         &self,
@@ -427,12 +564,16 @@ impl SharedHeapSpace {
             let mut span = span.write();
 
             if span.occupied_count < span.slot_count {
+                if span.list != SpanList::Central {
+                    continue;
+                }
+
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let pages = store
                         .page_run_cache
-                        .allocate_zeroed(&self.allocator, store.small.span_bytes)?;
+                        .allocate_zeroed(&self.allocator, class.span_bytes)?;
                     if let Err(error) = self.map_page_view(store, &pages, |logical_page_index| {
-                        SharedHeapPageOwner::Small {
+                        SharedHeapPageMapEntry::Small {
                             span_index,
                             logical_page_index,
                         }
@@ -447,15 +588,17 @@ impl SharedHeapSpace {
                     span.pages = pages.clone();
                 }
 
+                span.list = SpanList::Cached;
+
                 return Ok(span_index);
             }
         }
 
-        let slot_count = (store.small.span_bytes / class.size_class).max(1);
+        let slot_count = (class.span_bytes / class.size_class).max(1);
         let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
         let pages = store
             .page_run_cache
-            .allocate_zeroed(&self.allocator, store.small.span_bytes)?;
+            .allocate_zeroed(&self.allocator, class.span_bytes)?;
         let span = SharedSmallSpan {
             class: class.clone(),
             slot_count,
@@ -467,11 +610,12 @@ impl SharedHeapSpace {
             marked: crate::Bitmap::with_capacity(slot_count),
             scanned: crate::Bitmap::with_capacity(slot_count),
             is_queued_for_scan: false,
+            list: SpanList::Cached,
             pages: pages.clone(),
         };
         let span_index = store.small.spans.len();
         if let Err(error) = self.map_page_view(store, &pages, |logical_page_index| {
-            SharedHeapPageOwner::Small {
+            SharedHeapPageMapEntry::Small {
                 span_index,
                 logical_page_index,
             }
@@ -491,59 +635,141 @@ impl SharedHeapSpace {
     /// Allocate one shared heap small slot from one explicit initialization source.
     fn allocate_small(
         &self,
-        store: &mut SharedHeapState,
+        allocator: &mut SharedAllocator,
         class: &SmallSpanClass,
         reference_map: &ReferenceMap,
-        allocation: Payload<'_>,
+        payload: Payload<'_>,
     ) -> HeapResult<SpanSlot> {
-        let span_index = self.allocate_small_span(store, class)?;
-        let Some(span) = store.small.spans.get(span_index).cloned() else {
-            return Err(HeapError::MissingSpan { span_index });
-        };
-        let mut span = span.write();
-        let slot_index = span.free_cursor;
+        let bucket_index = allocator.bucket_index(class)?;
+        let span_bytes = class.span_bytes;
 
-        // payload initialization
-        let slot = SpanSlot::new(span_index, slot_index)?;
-        let slot_offset = checked_slot_offset(span.class.size_class, slot_index)?;
-
-        let write_offset = checked_place_offset(slot_offset, 0, store.small.span_bytes)?;
-        allocation.initialize(&self.allocator, &mut span.pages, write_offset)?;
-
-        // slot metadata
-        span.occupied.set(slot_index);
-        span.marked.clear(slot_index);
-        span.scanned.clear(slot_index);
-        {
-            let super::SharedSmallSpan {
+        if let Some(cached) = allocator.cached_spans[bucket_index].as_ref() {
+            if let Some((slot, keep_cached)) = self.try_allocate_cached_small_slot(
+                cached,
                 class,
-                local_reference_bits,
-                shared_reference_bits,
-                ..
-            } = &mut *span;
-            let size_class = class.size_class;
-
-            write_slot_reference_bits(
+                span_bytes,
                 reference_map,
-                local_reference_bits,
-                shared_reference_bits,
-                slot_index,
-                size_class,
-            )?;
-        }
-        span.occupied_count += 1;
-        span.free_cursor = find_free_cursor(&span.occupied, slot_index + 1, span.slot_count);
+                payload,
+            )? {
+                if !keep_cached {
+                    allocator.cached_spans[bucket_index] = None;
+                }
 
-        if span.occupied_count < span.slot_count {
-            let bucket_index = class.bucket_index(&store.small.size_classes)?;
-            store.small.partial_spans[bucket_index].push(span_index);
+                return Ok(slot);
+            }
+
+            allocator.cached_spans[bucket_index] = None;
+        }
+
+        let cached = {
+            let mut store = self.state.write();
+            let span_index = self.allocate_small_span(&mut store, class)?;
+            let Some(span) = store.small.spans.get(span_index).cloned() else {
+                return Err(HeapError::MissingSpan { span_index });
+            };
+
+            CachedSmallSpan { span_index, span }
+        };
+        let Some((slot, keep_cached)) = self.try_allocate_cached_small_slot(
+            &cached,
+            class,
+            span_bytes,
+            reference_map,
+            payload,
+        )?
+        else {
+            return Err(HeapError::MissingSpan {
+                span_index: cached.span_index,
+            });
+        };
+        if keep_cached {
+            allocator.cached_spans[bucket_index] = Some(cached);
+        } else {
+            allocator.cached_spans[bucket_index] = None;
         }
 
         Ok(slot)
     }
 
-    /// Store one large allocation in shared heap large space and return its allocation id.
-    fn store_large_allocation(
+    /// Try to allocate one slot from one allocator-cached shared small span.
+    fn try_allocate_cached_small_slot(
+        &self,
+        cached: &CachedSmallSpan,
+        class: &SmallSpanClass,
+        span_bytes: usize,
+        reference_map: &ReferenceMap,
+        payload: Payload<'_>,
+    ) -> HeapResult<Option<(SpanSlot, bool)>> {
+        let previous_pages;
+        let next_pages;
+        let slot;
+        let keep_cached;
+
+        {
+            let mut span = cached.span.write();
+            if span.list != SpanList::Cached
+                || span.class != *class
+                || span.occupied_count >= span.slot_count
+                || span.pages.is_empty()
+            {
+                return Ok(None);
+            }
+
+            let slot_index = span.free_cursor;
+            slot = SpanSlot::new(cached.span_index, slot_index)?;
+            let slot_offset = checked_slot_offset(span.class.size_class, slot_index)?;
+            let write_offset = checked_place_offset(slot_offset, 0, span_bytes)?;
+            previous_pages = span.pages.clone();
+
+            self.allocator
+                .write_payload(&mut span.pages, write_offset, payload)?;
+
+            span.occupied.set(slot_index);
+            span.marked.clear(slot_index);
+            span.scanned.clear(slot_index);
+            {
+                let super::SharedSmallSpan {
+                    class,
+                    local_reference_bits,
+                    shared_reference_bits,
+                    ..
+                } = &mut *span;
+                let size_class = class.size_class;
+
+                write_slot_reference_bits(
+                    reference_map,
+                    local_reference_bits,
+                    shared_reference_bits,
+                    slot_index,
+                    size_class,
+                )?;
+            }
+            span.occupied_count += 1;
+            span.free_cursor = find_free_cursor(&span.occupied, slot_index + 1, span.slot_count);
+
+            keep_cached = span.occupied_count < span.slot_count;
+            if !keep_cached {
+                span.list = SpanList::Full;
+            }
+            next_pages = span.pages.clone();
+        }
+
+        if next_pages != previous_pages {
+            let mut store = self.state.write();
+            self.unmap_page_view(&mut store, &previous_pages)?;
+            self.map_page_view(&mut store, &next_pages, |logical_page_index| {
+                SharedHeapPageMapEntry::Small {
+                    span_index: cached.span_index,
+                    logical_page_index,
+                }
+            })?;
+        }
+
+        Ok(Some((slot, keep_cached)))
+    }
+
+    /// Insert one shared large allocation record.
+    fn insert_large_allocation(
         &self,
         store: &mut SharedHeapState,
         len: usize,
@@ -601,7 +827,7 @@ impl SharedHeapSpace {
         }
 
         if let Err(error) = self.map_page_view(store, &pages, |logical_page_index| {
-            SharedHeapPageOwner::Large {
+            SharedHeapPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
             }
@@ -686,6 +912,7 @@ impl SharedHeapSpace {
 
             if span.occupied_count == 0 {
                 span.free_cursor = 0;
+                span.list = SpanList::Released;
 
                 let pages = span.pages.clone();
                 span.pages = PageView::empty();
@@ -696,6 +923,7 @@ impl SharedHeapSpace {
 
                 if should_requeue {
                     let bucket_index = span.class.bucket_index(&store.small.size_classes)?;
+                    span.list = SpanList::Central;
                     store.small.partial_spans[bucket_index].push(slot.span_index());
                 }
 
@@ -757,8 +985,8 @@ impl SharedHeapSpace {
                 let span = span.read();
 
                 let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
-                let read_offset =
-                    checked_place_offset(slot_offset, byte_offset, store.small.span_bytes)?;
+                let span_bytes = span.pages.len() * self.allocator.page_bytes();
+                let read_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
                 self.allocator
                     .bytes_to_vec_from(&span.pages, read_offset, byte_len)
@@ -801,8 +1029,8 @@ impl SharedHeapSpace {
                 let span = span.read();
 
                 let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
-                let read_offset =
-                    checked_place_offset(slot_offset, byte_offset, store.small.span_bytes)?;
+                let span_bytes = span.pages.len() * self.allocator.page_bytes();
+                let read_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
                 self.allocator
                     .fill_bytes_from(&span.pages, read_offset, target)
@@ -842,7 +1070,6 @@ impl SharedHeapSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                let span_bytes = store.small.span_bytes;
                 drop(store);
 
                 let (previous_pages, next_pages) = {
@@ -850,6 +1077,7 @@ impl SharedHeapSpace {
                     let previous_pages = span.pages.clone();
                     let slot_offset =
                         checked_slot_offset(span.class.size_class, slot.slot_index())?;
+                    let span_bytes = span.pages.len() * self.allocator.page_bytes();
                     let write_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
                     self.allocator
@@ -863,7 +1091,7 @@ impl SharedHeapSpace {
 
                     self.unmap_page_view(&mut store, &previous_pages)?;
                     self.map_page_view(&mut store, &next_pages, |logical_page_index| {
-                        SharedHeapPageOwner::Small {
+                        SharedHeapPageMapEntry::Small {
                             span_index: slot.span_index(),
                             logical_page_index,
                         }
@@ -899,7 +1127,7 @@ impl SharedHeapSpace {
 
                     self.unmap_page_view(&mut store, &previous_pages)?;
                     self.map_page_view(&mut store, &next_pages, |logical_page_index| {
-                        SharedHeapPageOwner::Large {
+                        SharedHeapPageMapEntry::Large {
                             allocation_id,
                             logical_page_index,
                         }
@@ -914,7 +1142,7 @@ impl SharedHeapSpace {
     }
 
     /// Return the current live heap page views.
-    fn live_pages(&self, store: &SharedHeapState) -> Vec<PageView> {
+    fn live_page_views(&self, store: &SharedHeapState) -> Vec<PageView> {
         let mut pages = Vec::with_capacity(store.small.spans.len() + store.large.allocations.len());
 
         for span in &store.small.spans {
@@ -942,7 +1170,7 @@ impl SharedHeapSpace {
 
     /// Return the mapped live bytes for the current shared heap state.
     pub(crate) fn live_mapped_bytes(&self, store: &SharedHeapState) -> u64 {
-        let pages = self.live_pages(store);
+        let pages = self.live_page_views(store);
         let cached_bytes = store
             .page_run_cache
             .cached_bytes(self.allocator.page_bytes());
@@ -950,6 +1178,20 @@ impl SharedHeapSpace {
         self.allocator
             .mapped_bytes_for_page_views(pages.iter())
             .saturating_add(cached_bytes)
+    }
+
+    /// Release allocator roots owned by this shared heap space.
+    fn close(&mut self) -> HeapResult<()> {
+        let mut store = self.state.write();
+        let page_views = self.live_page_views(&store);
+
+        for page_view in page_views {
+            store
+                .page_run_cache
+                .release_page_view(&self.allocator, page_view)?;
+        }
+
+        store.page_run_cache.flush(&self.allocator)
     }
 
     /// Return the page-rounded mapped bytes for one shared heap-space allocation.
@@ -960,17 +1202,21 @@ impl SharedHeapSpace {
         byte_len.div_ceil(page_bytes) * page_bytes
     }
 
-    /// Return the visible owner for one physical page.
-    fn page_owner(&self, store: &SharedHeapState, page_id: PageId) -> Option<SharedHeapPageOwner> {
-        store.page_owners.get(page_id.index()).copied().flatten()
+    /// Return the page map entry for one physical page.
+    fn page_entry(
+        &self,
+        store: &SharedHeapState,
+        page_id: PageId,
+    ) -> Option<SharedHeapPageMapEntry> {
+        store.page_map.get(page_id.index()).copied().flatten()
     }
 
-    /// Record one visible owner for every page in one logical page view.
+    /// Record one page map entry for every page in one logical page view.
     fn map_page_view(
         &self,
         store: &mut SharedHeapState,
         page_view: &PageView,
-        mut owner: impl FnMut(usize) -> SharedHeapPageOwner,
+        mut entry: impl FnMut(usize) -> SharedHeapPageMapEntry,
     ) -> HeapResult<()> {
         for logical_page_index in 0..page_view.len() {
             let Some(page_id) = page_view.page(logical_page_index) else {
@@ -980,17 +1226,17 @@ impl SharedHeapSpace {
             };
             let page_index = page_id.index();
 
-            if store.page_owners.len() <= page_index {
-                store.page_owners.resize(page_index + 1, None);
+            if store.page_map.len() <= page_index {
+                store.page_map.resize(page_index + 1, None);
             }
 
-            store.page_owners[page_index] = Some(owner(logical_page_index));
+            store.page_map[page_index] = Some(entry(logical_page_index));
         }
 
         Ok(())
     }
 
-    /// Clear every visible owner for one logical page view.
+    /// Clear every page map entry for one logical page view.
     pub(crate) fn unmap_page_view(
         &self,
         store: &mut SharedHeapState,
@@ -1003,8 +1249,8 @@ impl SharedHeapSpace {
                 });
             };
 
-            if let Some(owner) = store.page_owners.get_mut(page_id.index()) {
-                *owner = None;
+            if let Some(entry) = store.page_map.get_mut(page_id.index()) {
+                *entry = None;
             }
         }
 
@@ -1018,10 +1264,10 @@ impl SharedHeapSpace {
     ) -> Option<SharedHeapLocation> {
         let (page_id, page_offset) = self.allocator.address_page_position(reference.address())?;
         let store = self.state.read();
-        let owner = self.page_owner(&store, page_id)?;
+        let entry = self.page_entry(&store, page_id)?;
 
-        match owner {
-            SharedHeapPageOwner::Small {
+        match entry {
+            SharedHeapPageMapEntry::Small {
                 span_index,
                 logical_page_index,
             } => {
@@ -1055,7 +1301,7 @@ impl SharedHeapSpace {
                     byte_len,
                 })
             }
-            SharedHeapPageOwner::Large {
+            SharedHeapPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
             } => {
@@ -1161,6 +1407,13 @@ impl SharedHeapSpace {
     }
 
     /// Return the base reference for one shared heap place.
+    fn base_reference_for_place(&self, place: SharedHeapPlace) -> HeapResult<SharedHeapReference> {
+        let store = self.state.read();
+
+        self.base_reference(&store, place)
+    }
+
+    /// Return the base reference for one shared heap place in the current state.
     fn base_reference(
         &self,
         store: &SharedHeapState,
@@ -1297,11 +1550,6 @@ pub(crate) fn find_free_cursor(occupied: &crate::Bitmap, start: usize, slot_coun
 
 impl Drop for SharedHeapSpace {
     fn drop(&mut self) {
-        let mut store = self.state.write();
-
-        store
-            .page_run_cache
-            .flush(&self.allocator)
-            .unwrap_or_else(|error| panic!("shared heap page-run cache flush failed: {error}"));
+        let _ = self.close();
     }
 }

@@ -10,10 +10,10 @@ pub use large::SharedHeapLargeAllocationImage;
 pub(crate) use large::*;
 pub(crate) use location::*;
 pub use reference::SharedHeapReference;
-pub use space::SharedHeapSpace;
+pub use space::{SharedAllocator, SharedHeapSpace};
 pub(crate) use space::{
-    SharedHeapState, SharedLargeSpace, SharedSmallSpace, checked_place_offset, checked_slot_offset,
-    find_free_cursor,
+    SharedHeapState, SharedLargeSpace, SharedSmallSpace, SharedUsage, checked_place_offset,
+    checked_slot_offset, find_free_cursor,
 };
 pub use span::SharedHeapSmallSpanImage;
 pub(crate) use span::*;

@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::SharedRawPointer;
 
-/// One physical page owner in shared raw space.
+/// One page map entry in shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct SharedRawPageOwner {
+pub(crate) struct SharedRawPageMapEntry {
     /// The owning allocation index.
     pub(crate) allocation_index: usize,
     /// The logical page index inside the allocation.

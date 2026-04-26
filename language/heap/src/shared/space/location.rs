@@ -12,9 +12,9 @@ pub(crate) enum SharedHeapPlace {
     Large(SharedLargeAllocationId),
 }
 
-/// One physical page owner in shared heap space.
+/// One page map entry in shared heap space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum SharedHeapPageOwner {
+pub(crate) enum SharedHeapPageMapEntry {
     /// One small-span page and its logical page index.
     Small {
         /// The owning span index.
@@ -34,7 +34,7 @@ pub(crate) enum SharedHeapPageOwner {
 /// One resolved shared heap location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SharedHeapLocation {
-    /// The owning shared heap place.
+    /// The shared heap allocation place.
     pub(crate) place: SharedHeapPlace,
     /// The base reference for the owning allocation.
     pub(crate) base: crate::SharedHeapReference,
