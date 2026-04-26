@@ -601,12 +601,90 @@ fn test_parse_type_literal_readonly_property_name() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], TypeMember::Field { is_optional, is_readonly, key, declared_type } => {
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_optional, is_readonly, key, declared_type, .. } => {
                     assert!(*is_optional);
                     assert!(!*is_readonly);
                     match key {
                         Key::Name(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "readonly");
+                        }
+                        _ => panic!("expected Key::Name, got {key:?}"),
+                    }
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Boolean);
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_type_literal_static_members() {
+    let mut test = TestParser::new(
+        r#"type T = {
+    static value: string
+    static call(): number
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = { static value: string; static call(): number }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                assert_eq!(properties.len(), 2);
+
+                // static value: string
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_static, key, declared_type, .. } => {
+                    assert!(*is_static);
+                    match key {
+                        Key::Name(Name::Identifier(name)) => {
+                            assert_string!(parser, *name, "value");
+                        }
+                        _ => panic!("expected Key::Name, got {key:?}"),
+                    }
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::String);
+                    });
+                });
+
+                // static call(): number
+                assert_node!(parser.tree, properties[1], TypeMember::Method { is_static, key, signature, .. } => {
+                    assert!(*is_static);
+                    match key {
+                        Key::Name(Name::Identifier(name)) => {
+                            assert_string!(parser, *name, "call");
+                        }
+                        _ => panic!("expected Key::Name, got {key:?}"),
+                    }
+                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Number);
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_type_literal_static_property_name() {
+    let mut test = TestParser::new("type T = { static?: boolean }");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = { static?: boolean }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], TypeMember::Field { is_static, is_optional, key, declared_type, .. } => {
+                    assert!(!*is_static);
+                    assert!(*is_optional);
+                    match key {
+                        Key::Name(Name::Identifier(name)) => {
+                            assert_string!(parser, *name, "static");
                         }
                         _ => panic!("expected Key::Name, got {key:?}"),
                     }

@@ -294,6 +294,20 @@ impl Parser {
         )
     }
 
+    /// Return true when `static` starts a type property modifier.
+    #[inline]
+    fn type_member_static_modifier_maybe(&mut self) -> bool {
+        if !self.is_keyword(Keyword::Static) {
+            return false;
+        }
+
+        let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
+        matches!(
+            self.token_type_at(next_index),
+            TokenType::Identifier | TokenType::Literal | TokenType::Hash | TokenType::OpenBracket
+        )
+    }
+
     /// Return true when `abstract` starts a type property modifier.
     #[inline]
     fn type_member_abstract_modifier_maybe(&mut self) -> bool {
@@ -1077,6 +1091,15 @@ impl Parser {
     pub fn eat_type_member(&mut self) -> ParseResult<LocalNodeId<TypeMember>> {
         let start = self.mark_span();
 
+        // static
+        let is_static = if self.type_member_static_modifier_maybe() {
+            self.bump(); // eat static
+            self.eat_newlines_maybe()?;
+            true
+        } else {
+            false
+        };
+
         // readonly
         let is_readonly = if self.type_member_readonly_modifier_maybe() {
             self.bump(); // eat readonly
@@ -1231,6 +1254,7 @@ impl Parser {
 
             let member = match (key, mode) {
                 (Some(key), _) => TypeMember::Method {
+                    is_static,
                     is_optional,
                     key,
                     signature,
@@ -1314,6 +1338,7 @@ impl Parser {
             None
         };
         let member = TypeMember::Field {
+            is_static,
             is_optional,
             is_readonly,
             key,
