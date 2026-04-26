@@ -375,7 +375,7 @@ fn test_parse_tuple_generic_argument() {
                 assert_path!(parser, *path, "And");
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+                    assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
                         assert_eq!(elements.len(), 2);
                         assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "Left");
@@ -470,7 +470,7 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { generic_arguments, .. } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+                    assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
                         assert_eq!(elements.len(), 2);
                     });
                 });
@@ -495,7 +495,7 @@ fn test_parse_tuple_generic_argument_in_type_conditional() {
                 assert_node!(parser.tree, *left, TypeExpression::Reference { generic_arguments, .. } => {
                     assert_eq!(generic_arguments.len(), 1);
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
+                        assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
                             assert_eq!(elements.len(), 2);
                         });
                     });
