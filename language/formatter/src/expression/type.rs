@@ -30,7 +30,7 @@ use destack_ast::{
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::TrailingComma;
 
 /// Return the innermost type that can own one postfix type operator.
@@ -1902,6 +1902,34 @@ pub(crate) fn format_type_member_list<'ast>(
     )
 }
 
+/// Return the optional trailing separator style for tuple types.
+fn optional_tuple_trailing_separator(f: &DestackFormatter<'_, '_>) -> TrailingSeparator {
+    match f.context().options.trailing_comma {
+        TrailingComma::None => TrailingSeparator::Omit,
+        TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
+    }
+}
+
+/// Write one tuple type with explicit delimiters.
+fn write_tuple_type<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    elements: &[LocalNodeId<TupleElement>],
+    open_token: &'static str,
+    close_token: &'static str,
+    trailing_separator: TrailingSeparator,
+) -> FormatResult<()> {
+    let body = separated_entries(",", elements, trailing_separator, None);
+
+    write!(
+        f,
+        [group(&format_args![
+            token(open_token),
+            soft_block_indent(&body),
+            token(close_token)
+        ])]
+    )
+}
+
 /// Write one type body without prefix annotations.
 pub(crate) fn write_type_expression_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1923,26 +1951,18 @@ pub(crate) fn write_type_expression_body<'ast>(
             write!(f, [token("intrinsic")])?;
         }
         TypeExpression::Tuple { elements } => {
-            let trailing_separator = match f.context().options.trailing_comma {
-                TrailingComma::None => TrailingSeparator::Omit,
-                TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
+            let trailing_separator = if elements.len() == 1 {
+                TrailingSeparator::Mandatory
+            } else {
+                optional_tuple_trailing_separator(f)
             };
-            let body = separated_entries(",", elements, trailing_separator, None);
-            let (open_token, close_token) =
-                if f.context().options.language_type == LanguageType::Destack {
-                    ("(", ")")
-                } else {
-                    ("[", "]")
-                };
 
-            write!(
-                f,
-                [group(&format_args![
-                    token(open_token),
-                    soft_block_indent(&body),
-                    token(close_token)
-                ])]
-            )?;
+            write_tuple_type(f, elements, "(", ")", trailing_separator)?;
+        }
+        TypeExpression::ArrayTuple { elements } => {
+            let trailing_separator = optional_tuple_trailing_separator(f);
+
+            write_tuple_type(f, elements, "[", "]", trailing_separator)?;
         }
         TypeExpression::Array { element } => {
             write_postfix_type_operand(f, *element)?;
@@ -2314,12 +2334,17 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
         // body
         match self {
             TypeMember::Field {
+                is_static,
                 is_optional,
                 is_readonly,
                 key,
                 declared_type,
                 ..
             } => {
+                if *is_static {
+                    write!(f, [Keyword::Static, space()])?;
+                }
+
                 if *is_readonly {
                     write!(f, [Keyword::Readonly, space()])?;
                 }
@@ -2344,12 +2369,17 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 }
             }
             TypeMember::Method {
+                is_static,
                 is_optional,
                 key,
                 signature,
                 body: _,
                 ..
             } => {
+                if *is_static {
+                    write!(f, [Keyword::Static, space()])?;
+                }
+
                 write_type_signature(f, node_id, signature, *key, *is_optional)?;
             }
             TypeMember::CallSignature { signature } => {
