@@ -2169,6 +2169,7 @@ pub fn type_expression_has_side_effects(
 
         // mostly pure type forms
         ast::TypeExpression::Tuple { .. }
+        | ast::TypeExpression::ArrayTuple { .. }
         | ast::TypeExpression::Array { .. }
         | ast::TypeExpression::Object { .. }
         | ast::TypeExpression::Declaration { .. }
