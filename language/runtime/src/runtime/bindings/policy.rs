@@ -43,8 +43,8 @@ impl BindingPolicy {
     pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
         self.apply_image_defaults(
             options.execution_mode(),
-            options.policy.access,
-            options.policy.world,
+            options.effect.access,
+            options.effect.backend,
             options.trace.payload,
         );
     }

@@ -13,17 +13,18 @@ use crate::platform::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
-use crate::runtime::engine::{Engine, EngineImage, LiveContinuation};
-use crate::runtime::memory::{RootProvider, RootSet, RootVisitor, resolve_local_heap_options};
+use crate::runtime::engine::{Continuation, Engine, Image};
+use crate::runtime::memory::{
+    HeapHandle, HeapHandleTable, RootSet, RootVisitor, resolve_local_heap_options,
+};
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
 use crate::runtime::world::{RuntimeId, WorldRef};
 use crate::runtime::{
     DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
-    RuntimeFinalizers, RuntimeFinalizersImage,
+    RuntimeFinalizers, RuntimeFinalizersImage, RuntimeSharedHeap,
 };
-use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
 /// Stable identifier for one world-managed worker.
@@ -59,15 +60,17 @@ pub struct Worker {
     pub(crate) drop_counts: DropCounts,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
+    /// Runtime-owned handles for host-retained local heap references.
+    pub(crate) handles: HeapHandleTable,
 
-    /// Root visitors contributing GC roots.
-    pub(crate) root_visitors: Vec<Box<dyn RootProvider>>,
     /// Shared GC worker queue handle.
     pub(crate) shared_gc_worker: heap::SharedGcWorker,
     /// Authoritative worker heap.
     pub(crate) heap: heap::Heap,
+    /// Worker-owned static byte space.
+    pub(crate) statics: engine::StaticSpace,
     /// Worker-owned execution engine.
-    pub(crate) engine: Box<dyn Engine>,
+    pub(crate) engine: Engine,
     /// Event loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
 }
@@ -89,10 +92,12 @@ pub struct WorkerImage {
     pub platform_state: PlatformStateImage,
     /// Captured event-loop state.
     pub event_loop: EventLoopSnapshot,
-    /// Captured authoritative heap image.
-    pub heap_image: heap::HeapImage,
+    /// Captured authoritative heap snapshot.
+    pub heap: heap::HeapSnapshot,
+    /// Captured worker-owned static bytes.
+    pub statics: engine::StaticSpace,
     /// Captured worker-owned execution image.
-    pub engine_image: EngineImage,
+    pub engine_image: Image,
 }
 
 /// Captured worker options with one shared-runtime fast path.
@@ -120,16 +125,16 @@ impl PartialEq for WorkerImage {
             && self.finalizers == other.finalizers
             && self.platform_state == other.platform_state
             && self.event_loop == other.event_loop
-            && worker_heap_image_bytes(&self.heap_image)
-                == worker_heap_image_bytes(&other.heap_image)
+            && worker_heap_snapshot_bytes(&self.heap) == worker_heap_snapshot_bytes(&other.heap)
+            && self.statics == other.statics
             && self.engine_image == other.engine_image
     }
 }
 
-/// Serialize one captured worker heap image for exact equality checks.
-fn worker_heap_image_bytes(image: &heap::HeapImage) -> Vec<u8> {
-    postcard::to_allocvec(image)
-        .unwrap_or_else(|error| panic!("worker heap image should serialize: {error}"))
+/// Serialize one captured worker heap snapshot for exact equality checks.
+fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Vec<u8> {
+    postcard::to_allocvec(snapshot)
+        .unwrap_or_else(|error| panic!("worker heap snapshot should serialize: {error}"))
 }
 
 impl WorkerOptionsImage {
@@ -187,7 +192,7 @@ impl std::fmt::Debug for Worker {
             .field("platform_state", &self.platform_state)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
-            .field("root_visitors", &self.root_visitors.len())
+            .field("handles", &self.handles.len())
             .field("heap", &self.heap)
             .field("engine", &"<worker execution engine>")
             .field("event_loop", &self.event_loop)
@@ -210,14 +215,10 @@ impl Worker {
 
     /// Return the shared GC worker handle for one worker.
     fn shared_gc_worker(
-        world: &WorldRef,
+        shared: &RuntimeSharedHeap,
         worker_id: WorkerId,
     ) -> RuntimeResult<heap::SharedGcWorker> {
-        let worker_index = usize::try_from(worker_id.0).map_err(|_| RuntimeError::Internal {
-            message: format!("worker id {} cannot index shared gc work", worker_id.0),
-        })?;
-
-        Ok(world.shared().gc_worker(worker_index))
+        shared.worker(worker_id)
     }
 
     /// Create one worker with explicit runtime options in one shared world.
@@ -225,7 +226,9 @@ impl Worker {
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &WorldRef,
-        engine: impl Engine + 'static,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
         let (runtime_id, worker_id, _runtime_name, worker_name) =
@@ -235,6 +238,8 @@ impl Worker {
             platform_args,
             options,
             world,
+            shared,
+            runtime_static,
             runtime_id,
             worker_id,
             worker_name,
@@ -247,8 +252,10 @@ impl Worker {
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &WorldRef,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
-        engine: impl Engine + 'static,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
         let (worker_id, worker_name) = Self::register_worker(world, options, runtime_id)?;
@@ -257,6 +264,8 @@ impl Worker {
             platform_args,
             options,
             world,
+            shared,
+            runtime_static,
             runtime_id,
             worker_id,
             worker_name,
@@ -269,11 +278,15 @@ impl Worker {
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
         world: &WorldRef,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         worker_name: String,
-        engine: impl Engine + 'static,
+        engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
+        let mut engine = engine.into();
+
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
         let resources = ResourceTable::default();
@@ -301,13 +314,22 @@ impl Worker {
             heap_options.options,
         )
         .map_err(Box::<RuntimeError>::from)?;
+        let mut heap = heap;
+        let mut statics = engine::StaticSpace::empty();
+        let context = crate::runtime::engine::Context {
+            heap: &mut heap,
+            shared: shared.shared(),
+            worker_static: &mut statics,
+            runtime_static,
+        };
+        engine.initialize(context)?;
 
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler_options().clone())?;
 
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);
         event_loop.initialize_execution_context(execution_context_id);
-        let shared_gc_worker = Self::shared_gc_worker(world, worker_id)?;
+        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
 
         // worker state
         Ok(Self {
@@ -324,10 +346,11 @@ impl Worker {
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             drop_counts: DropCounts::default(),
             bindings,
-            root_visitors: Vec::new(),
+            handles: HeapHandleTable::default(),
             shared_gc_worker,
             heap,
-            engine: Box::new(engine),
+            statics,
+            engine,
             event_loop,
         })
     }
@@ -450,19 +473,12 @@ impl Worker {
     pub fn watch_timer(
         &mut self,
         handle: ResourceId,
-        mut runnable: LiveContinuation,
-        mut resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        self.stabilize_boundary_payload(Some(&mut runnable), &mut resume_value)?;
-
-        self.event_loop.watch_timer(
-            handle,
-            runnable,
-            resume_value,
-            priority,
-            self.engine.as_mut(),
-        )
+        self.event_loop
+            .watch_timer(handle, runnable, resume_value, priority, &mut self.engine)
     }
 
     /// Remove the timer watch registered for one timer handle.
@@ -535,19 +551,12 @@ impl Worker {
     pub fn watch_event(
         &mut self,
         token: PollerToken,
-        mut runnable: LiveContinuation,
-        mut resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        self.stabilize_boundary_payload(Some(&mut runnable), &mut resume_value)?;
-
-        self.event_loop.watch_event(
-            token,
-            runnable,
-            resume_value,
-            priority,
-            self.engine.as_mut(),
-        )
+        self.event_loop
+            .watch_event(token, runnable, resume_value, priority, &mut self.engine)
     }
 
     /// Remove the event watch registered for one poller token.
@@ -564,19 +573,12 @@ impl Worker {
     pub fn watch_host_event(
         &mut self,
         kind: HostEventKind,
-        mut runnable: LiveContinuation,
-        mut resume_value: engine::MaterializedValue,
+        runnable: Continuation,
+        resume_value: engine::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        self.stabilize_boundary_payload(Some(&mut runnable), &mut resume_value)?;
-
-        self.event_loop.watch_host_event(
-            kind,
-            runnable,
-            resume_value,
-            priority,
-            self.engine.as_mut(),
-        )
+        self.event_loop
+            .watch_host_event(kind, runnable, resume_value, priority, &mut self.engine)
     }
 
     /// Remove the host event watch registered for one host event kind.
@@ -587,6 +589,26 @@ impl Worker {
     /// Return whether one host semantic watch is registered for the given kind.
     pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
         self.event_loop.watches_host_event(kind)
+    }
+
+    /// Retain one local heap reference for host-owned state.
+    pub fn retain_heap_reference(&mut self, reference: heap::HeapReference) -> HeapHandle {
+        self.handles.retain(reference)
+    }
+
+    /// Retain one existing heap handle owner.
+    pub fn retain_heap_handle(&mut self, handle: HeapHandle) -> RuntimeResult<HeapHandle> {
+        self.handles.retain_handle(handle)
+    }
+
+    /// Release one heap handle owner.
+    pub fn release_heap_handle(&mut self, handle: HeapHandle) -> RuntimeResult<()> {
+        self.handles.release(handle)
+    }
+
+    /// Return the current local heap reference retained by one handle.
+    pub fn heap_reference(&self, handle: HeapHandle) -> RuntimeResult<heap::HeapReference> {
+        self.handles.reference(handle)
     }
 
     /// Return drop accounting observed by this worker event loop.
@@ -614,40 +636,16 @@ impl Worker {
         self.drop_counts.record(reason, count);
     }
 
-    /// Stabilize one runtime boundary payload before storing it outside the engine.
-    pub(crate) fn stabilize_boundary_payload(
-        &mut self,
-        runnable: Option<&mut LiveContinuation>,
-        resume_value: &mut engine::MaterializedValue,
-    ) -> RuntimeResult<()> {
-        if let Some(runnable) = runnable {
-            self.engine
-                .stabilize_live_continuation(&mut self.heap, runnable)?;
-        }
-
-        self.engine
-            .stabilize_materialized_value(&mut self.heap, resume_value)?;
-
-        Ok(())
-    }
-
-    /// Register a root visitor for GC coordination.
-    pub fn register_root_visitor(&mut self, visitor: Box<dyn RootProvider>) {
-        self.root_visitors.push(visitor);
-    }
-
     /// Visit roots from engine, scheduler, and registered providers.
     pub fn visit_roots(&mut self, roots: &mut RootVisitor<'_>) -> RuntimeResult<()> {
         // engine state
-        self.engine.visit_roots(roots)?;
+        self.engine.visit_roots(&self.statics, roots)?;
 
         // scheduled work
-        self.event_loop.visit_roots(self.engine.as_mut(), roots)?;
+        self.event_loop.visit_roots(&mut self.engine, roots)?;
 
-        // external visitors
-        for visitor in &self.root_visitors {
-            visitor.visit_roots(roots);
-        }
+        // host-retained local references
+        self.handles.visit_roots(roots);
 
         Ok(())
     }
@@ -663,14 +661,19 @@ impl Worker {
     }
 
     /// Run one pacing-driven garbage-collection step using the current root set.
-    pub fn gc_step(&mut self) -> RuntimeResult<Option<heap::GcStats>> {
-        let mut roots = Vec::new();
+    pub fn gc_step(&mut self) -> RuntimeResult<heap::GcProgress> {
+        let engine = &mut self.engine;
+        let event_loop = &mut self.event_loop;
+        let handles = &mut self.handles;
+        let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
+            engine.visit_root_slots(&mut self.statics, visit)?;
+            event_loop.visit_root_slots(engine, visit)?;
+            handles.visit_root_slots(visit)?;
 
-        self.visit_roots(&mut RootVisitor::Heap(&mut roots))?;
+            Ok::<(), Box<RuntimeError>>(())
+        };
 
-        self.heap
-            .gc_step(&mut roots)
-            .map_err(Box::<RuntimeError>::from)
+        self.heap.gc_step(&mut roots)
     }
 
     /// Collect roots from engine, scheduler, and registered providers.
@@ -729,8 +732,18 @@ impl Worker {
             return Err(self.runtime_callbacks.capture_barrier_error(mode));
         }
 
+        // host-retained local handles cannot be materialized without the owning host state
+        if !self.handles.is_empty() {
+            return Err(RuntimeError::CaptureBarrier {
+                component: "runtime.heap_handles".to_string(),
+                mode: format!("{mode:?}"),
+                detail: "host-retained local heap handles are live".to_string(),
+            }
+            .boxed());
+        }
+
         // local scheduler and external state
-        let event_loop = self.event_loop.capture_image(mode, self.engine.as_mut())?;
+        let event_loop = self.event_loop.capture_image(mode, &mut self.engine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
         let hooks = self.hooks.snapshot()?;
@@ -748,14 +761,19 @@ impl Worker {
             finalizers,
             platform_state,
             event_loop,
-            heap_image: self.heap.image().map_err(|error| {
-                RuntimeError::CaptureBarrier {
-                    component: "runtime.heap".to_string(),
-                    mode: format!("{mode:?}"),
-                    detail: error.to_string(),
-                }
-                .boxed()
-            })?,
+            heap: self
+                .heap
+                .image()
+                .and_then(|image| image.snapshot())
+                .map_err(|error| {
+                    RuntimeError::CaptureBarrier {
+                        component: "runtime.heap".to_string(),
+                        mode: format!("{mode:?}"),
+                        detail: error.to_string(),
+                    }
+                    .boxed()
+                })?,
+            statics: self.statics.clone(),
             engine_image: self.engine.image()?,
         })
     }
@@ -767,6 +785,11 @@ impl Worker {
     ) -> RuntimeResult<Option<Self>> {
         // runtime callbacks
         if self.runtime_callbacks.has_active_callbacks() {
+            return Ok(None);
+        }
+
+        // host-retained handles need their owning host resource to fork them
+        if !self.handles.is_empty() {
             return Ok(None);
         }
 
@@ -799,11 +822,9 @@ impl Worker {
 
         let mut heap = self.heap.fork()?;
         let mut engine = self.engine.fork(&mut heap)?;
+        let statics = self.statics.clone();
         let shared_gc_worker = self.shared_gc_worker.clone();
-        let event_loop = Box::new(
-            self.event_loop
-                .fork(self.engine.as_mut(), engine.as_mut())?,
-        );
+        let event_loop = Box::new(self.event_loop.fork(&mut self.engine, &mut engine)?);
 
         // platform state
         let platform_state = self.platform_state.fork()?;
@@ -822,9 +843,10 @@ impl Worker {
             diagnostics,
             drop_counts: self.drop_counts,
             bindings,
-            root_visitors: Vec::new(),
+            handles: HeapHandleTable::default(),
             shared_gc_worker,
             heap,
+            statics,
             engine,
             event_loop,
         }))
@@ -833,6 +855,8 @@ impl Worker {
     /// Restore one worker from one materialized image.
     pub(crate) fn from_image(
         world: &WorldRef,
+        shared: &RuntimeSharedHeap,
+        runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         worker_name: String,
@@ -863,28 +887,30 @@ impl Worker {
 
         // heap and engine
         let heap_options = resolve_local_heap_options(&options.heap)?;
-        let mut heap = heap::Heap::from_image_with_limits(&image.heap_image, heap_options.limits)
+        let mut heap = heap::Heap::from_snapshot_with_limits(&image.heap, heap_options.limits)
             .map_err(Box::<RuntimeError>::from)?;
+        let mut statics = image.statics.clone();
         // rebuild the engine from the materialized worker image
-        let mut engine: Box<dyn Engine> = match &image.engine_image {
-            EngineImage::Vm(image) => {
-                let isolate = vm::Isolate::new(image.clone()).map_err(Box::<RuntimeError>::from)?;
-
-                Box::new(isolate)
-            }
-        };
+        let mut engine = Engine::from_image(&image.engine_image)?;
 
         // restore backend execution state over the restored heap
-        engine.restore_image(&mut heap, &image.engine_image)?;
+        let context = crate::runtime::engine::Context {
+            heap: &mut heap,
+            shared: shared.shared(),
+            worker_static: &mut statics,
+            runtime_static,
+        };
+        engine.initialize(context)?;
+        engine.restore(&mut heap, &image.engine_image)?;
 
         // restore local state on fresh containers
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);
         event_loop.initialize_execution_context(execution_context_id);
-        event_loop.restore_snapshot(&image.event_loop, engine.as_mut())?;
+        event_loop.restore_snapshot(&image.event_loop, &mut engine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
         hooks.restore_snapshot(&image.hooks)?;
         resources.restore_snapshot(&image.resources, rebind_context)?;
-        let shared_gc_worker = Self::shared_gc_worker(world, worker_id)?;
+        let shared_gc_worker = Self::shared_gc_worker(shared, worker_id)?;
 
         Ok(Self {
             id: worker_id,
@@ -908,9 +934,10 @@ impl Worker {
             diagnostics,
             drop_counts: DropCounts::default(),
             bindings,
-            root_visitors: Vec::new(),
+            handles: HeapHandleTable::default(),
             shared_gc_worker,
             heap,
+            statics,
             engine,
             event_loop,
         })

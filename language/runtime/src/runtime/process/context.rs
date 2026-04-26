@@ -27,9 +27,9 @@ thread_local! {
         const { Cell::new(ptr::null()) };
     /// TLS storage for native ABI references returned by bindings.
     static CURRENT_BINDING_CALL_ARENA: BindingCallArena = const { BindingCallArena::new() };
-    /// TLS slot for the current event loop scope.
-    static CURRENT_EVENT_LOOP_SCOPE: Cell<EventLoopScope> =
-        const { Cell::new(EventLoopScope::empty()) };
+    /// TLS slot for the currently running task or microtask.
+    static CURRENT_RUNNABLE_SCOPE: Cell<RunnableScope> =
+        const { Cell::new(RunnableScope::empty()) };
 }
 
 /// Stable identifier for one execution context.
@@ -115,9 +115,9 @@ impl Drop for CurrentWorkerContextGuard {
     }
 }
 
-/// Event loop scope for runtime execution.
+/// Currently running task or microtask.
 #[derive(Debug, Clone, Copy)]
-pub struct EventLoopScope {
+pub struct RunnableScope {
     /// Current task identifier, if any.
     task_id: Option<TaskId>,
     /// Current microtask identifier, if any.
@@ -126,8 +126,8 @@ pub struct EventLoopScope {
     microtask_depth: usize,
 }
 
-impl EventLoopScope {
-    /// Create an empty event loop scope.
+impl RunnableScope {
+    /// Create an empty runnable scope.
     pub const fn empty() -> Self {
         Self {
             task_id: None,
@@ -136,7 +136,7 @@ impl EventLoopScope {
         }
     }
 
-    /// Create a task event loop scope.
+    /// Create a task runnable scope.
     pub const fn for_task(task_id: TaskId) -> Self {
         Self {
             task_id: Some(task_id),
@@ -145,7 +145,7 @@ impl EventLoopScope {
         }
     }
 
-    /// Create a microtask event loop scope.
+    /// Create a microtask runnable scope.
     pub const fn for_microtask(microtask_id: MicrotaskId, depth: usize) -> Self {
         Self {
             task_id: None,
@@ -170,17 +170,17 @@ impl EventLoopScope {
     }
 }
 
-/// Guard that restores the previous event loop scope.
+/// Guard that restores the previous runnable scope.
 #[derive(Debug)]
-pub struct EventLoopScopeGuard {
-    /// Previous event loop scope.
-    previous: EventLoopScope,
+pub struct RunnableScopeGuard {
+    /// Previous runnable scope.
+    previous: RunnableScope,
 }
 
-impl Drop for EventLoopScopeGuard {
-    /// Restore the previous event loop scope.
+impl Drop for RunnableScopeGuard {
+    /// Restore the previous runnable scope.
     fn drop(&mut self) {
-        CURRENT_EVENT_LOOP_SCOPE.with(|slot| slot.set(self.previous));
+        CURRENT_RUNNABLE_SCOPE.with(|slot| slot.set(self.previous));
     }
 }
 
@@ -778,22 +778,22 @@ pub(crate) fn current_worker_context() -> Option<CurrentWorkerContext> {
     })
 }
 
-/// Enter an event loop scope for runtime execution.
+/// Enter the scope for the currently running task or microtask.
 #[inline]
-pub(crate) fn enter_event_loop_scope(scope: EventLoopScope) -> EventLoopScopeGuard {
-    let previous = CURRENT_EVENT_LOOP_SCOPE.with(|slot| {
+pub(crate) fn enter_runnable_scope(scope: RunnableScope) -> RunnableScopeGuard {
+    let previous = CURRENT_RUNNABLE_SCOPE.with(|slot| {
         let previous = slot.get();
         slot.set(scope);
         previous
     });
 
-    EventLoopScopeGuard { previous }
+    RunnableScopeGuard { previous }
 }
 
-/// Return the current event loop scope.
+/// Return the currently running task or microtask.
 #[inline]
-pub(crate) fn current_event_loop_scope() -> EventLoopScope {
-    CURRENT_EVENT_LOOP_SCOPE.with(|slot| slot.get())
+pub(crate) fn current_runnable_scope() -> RunnableScope {
+    CURRENT_RUNNABLE_SCOPE.with(|slot| slot.get())
 }
 
 /// Enter a binding call context for native bindings.

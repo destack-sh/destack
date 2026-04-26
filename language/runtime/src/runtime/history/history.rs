@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::Collection;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::memory::MarkRootSet;
 use crate::runtime::observe::Observations;
 use crate::runtime::random::Random;
 use crate::runtime::time::WorldInstant;
@@ -552,11 +550,6 @@ impl World {
         // parent clock and randomness policy
         let clock = self.clock.clone();
         let random = Random::new(self.random.root_seed());
-        let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
-        let mark_roots = Arc::new(MarkRootSet::default());
-        let collection = Collection::new(shared.clone(), mark_roots.clone());
-        let collector = self.lineage.read().collector();
-
         // fresh child shell: restore_image will install policy, topology, resources, simulation, ids, and runtimes
         Ok(World {
             branch_id,
@@ -574,10 +567,6 @@ impl World {
             trace: Trace::new(trace_mode, trace_header),
             observations: Observations::default(),
             lineage: self.lineage.clone(),
-            shared,
-            mark_roots,
-            collector,
-            collection,
         })
     }
 
@@ -594,21 +583,18 @@ impl World {
         let result = (|| {
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.trace.mode();
+            let collector = self.lineage.read().collector();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
-                let Some(runtime) = runtime.try_fork(execution_mode)? else {
+                let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
                     return Ok(None);
                 };
                 runtimes.insert(*runtime_id, Box::new(runtime));
             }
 
-            // fork branch-local time, random, and shared-heap roots
+            // fork branch-local time and random state
             let clock = self.clock.clone();
             let random = self.random.fork()?;
-            let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
-            let mark_roots = Arc::new(MarkRootSet::default());
-            let collection = Collection::new(shared.clone(), mark_roots.clone());
-            let collector = self.lineage.read().collector();
 
             // rebuild one live child trace over the retained head image
             let trace = Trace::new(execution_mode, trace_header);
@@ -631,10 +617,6 @@ impl World {
                 trace,
                 observations: Observations::default(),
                 lineage: self.lineage.clone(),
-                shared,
-                mark_roots,
-                collector,
-                collection,
             }))
         })();
 

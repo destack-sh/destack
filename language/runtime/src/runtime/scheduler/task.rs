@@ -1,7 +1,7 @@
 use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::engine::LiveContinuation;
+use crate::runtime::engine::Continuation;
 
 /// Opaque task identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -36,9 +36,9 @@ pub struct Task {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation for this task.
-    pub runnable: LiveContinuation,
+    pub runnable: Continuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: engine::MaterializedValue,
+    pub resume_value: engine::Value,
     /// Current scheduling status.
     pub status: TaskStatus,
     /// Priority value for event loop ordering, higher values run first.

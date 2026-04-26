@@ -1,4 +1,4 @@
-use destack_vm as vm;
+use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::engine::Entry;
@@ -28,7 +28,7 @@ pub enum Command {
         /// Replayable entrypoint reference.
         entry: Entry,
         /// Invocation arguments.
-        args: Vec<vm::Value>,
+        args: Vec<engine::Value>,
     },
     /// Remove one worker from the world.
     RemoveWorker {

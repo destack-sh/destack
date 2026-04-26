@@ -8,13 +8,90 @@ use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::runtime::WorkerId;
 
-/// Collection of GC roots for a safepoint.
+/// Heap roots copied out for runtime coordination.
 #[derive(Debug, Default)]
 pub struct RootSet {
-    /// Local heap roots for this collection.
+    /// Worker heap roots.
     heap: Vec<HeapReference>,
-    /// Shared heap roots for this collection.
+    /// Runtime heap roots.
     shared: Vec<SharedHeapReference>,
+}
+
+impl RootSet {
+    /// Create an empty root set.
+    pub fn new() -> Self {
+        Self {
+            heap: Vec::new(),
+            shared: Vec::new(),
+        }
+    }
+
+    /// Record one worker heap root.
+    pub fn push_heap(&mut self, reference: HeapReference) {
+        if reference.is_null() {
+            return;
+        }
+
+        self.heap.push(reference);
+    }
+
+    /// Record one runtime heap root.
+    pub fn push_shared(&mut self, reference: SharedHeapReference) {
+        if reference.is_null() {
+            return;
+        }
+
+        self.shared.push(reference);
+    }
+
+    /// Return worker heap roots.
+    pub fn heap(&self) -> &[HeapReference] {
+        self.heap.as_slice()
+    }
+
+    /// Return runtime heap roots.
+    pub fn shared(&self) -> &[SharedHeapReference] {
+        self.shared.as_slice()
+    }
+}
+
+/// Root sink for copied runtime roots.
+#[derive(Debug)]
+pub enum RootVisitor<'a> {
+    /// Record both worker and runtime heap roots.
+    All(&'a mut RootSet),
+    /// Record only worker heap roots.
+    Heap(&'a mut Vec<HeapReference>),
+    /// Record only runtime heap roots.
+    SharedHeap(&'a mut Vec<SharedHeapReference>),
+}
+
+impl RootVisitor<'_> {
+    /// Record one worker heap root.
+    pub fn push_heap(&mut self, reference: HeapReference) {
+        if reference.is_null() {
+            return;
+        }
+
+        match self {
+            Self::All(roots) => roots.push_heap(reference),
+            Self::Heap(roots) => roots.push(reference),
+            Self::SharedHeap(_) => {}
+        }
+    }
+
+    /// Record one runtime heap root.
+    pub fn push_shared(&mut self, reference: SharedHeapReference) {
+        if reference.is_null() {
+            return;
+        }
+
+        match self {
+            Self::All(roots) => roots.push_shared(reference),
+            Self::Heap(_) => {}
+            Self::SharedHeap(roots) => roots.push(reference),
+        }
+    }
 }
 
 /// Shared root publication state for one mark cycle.
@@ -188,82 +265,5 @@ impl SharedMarkRoots {
         state.is_dirty = false;
 
         state.roots.clone()
-    }
-}
-
-impl RootSet {
-    /// Create an empty root set.
-    pub fn new() -> Self {
-        Self {
-            heap: Vec::new(),
-            shared: Vec::new(),
-        }
-    }
-
-    /// Push one local heap root reference.
-    pub fn push_heap(&mut self, reference: HeapReference) {
-        self.heap.push(reference);
-    }
-
-    /// Push one shared heap root reference.
-    pub fn push_shared(&mut self, reference: SharedHeapReference) {
-        self.shared.push(reference);
-    }
-
-    /// Extend this root set with local heap references.
-    pub fn extend_heap(&mut self, references: impl IntoIterator<Item = HeapReference>) {
-        self.heap.extend(references);
-    }
-
-    /// Extend this root set with shared heap references.
-    pub fn extend_shared(&mut self, references: impl IntoIterator<Item = SharedHeapReference>) {
-        self.shared.extend(references);
-    }
-
-    /// Extend this root set with another root set.
-    pub fn extend(&mut self, roots: Self) {
-        self.heap.extend(roots.heap);
-        self.shared.extend(roots.shared);
-    }
-
-    /// Return the local heap roots for this collection.
-    pub fn heap(&self) -> &[HeapReference] {
-        self.heap.as_slice()
-    }
-
-    /// Return the shared heap roots for this collection.
-    pub fn shared(&self) -> &[SharedHeapReference] {
-        self.shared.as_slice()
-    }
-}
-
-/// Root destination for one scan.
-#[derive(Debug)]
-pub enum RootVisitor<'a> {
-    /// Record both local and shared roots.
-    All(&'a mut RootSet),
-    /// Record only local heap roots.
-    Heap(&'a mut Vec<HeapReference>),
-    /// Record only shared heap roots.
-    SharedHeap(&'a mut Vec<SharedHeapReference>),
-}
-
-impl RootVisitor<'_> {
-    /// Record one local heap root.
-    pub fn push_heap(&mut self, reference: HeapReference) {
-        match self {
-            Self::All(roots) => roots.push_heap(reference),
-            Self::Heap(roots) => roots.push(reference),
-            Self::SharedHeap(_) => {}
-        }
-    }
-
-    /// Record one shared heap root.
-    pub fn push_shared(&mut self, reference: SharedHeapReference) {
-        match self {
-            Self::All(roots) => roots.push_shared(reference),
-            Self::Heap(_) => {}
-            Self::SharedHeap(roots) => roots.push(reference),
-        }
     }
 }
