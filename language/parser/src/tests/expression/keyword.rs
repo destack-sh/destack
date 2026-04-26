@@ -7,7 +7,7 @@ use destack_source::LanguageType;
 #[test]
 fn test_parse_if_extends_type_reference() {
     let mut test = TestParser::new(
-        r#"if x extends Foo {
+        r#"if (x extends Foo) {
     body
 }"#,
     );
@@ -84,7 +84,7 @@ fn test_parse_if_instanceof_type_reference() {
 fn test_parse_if_is_type_guard() {
     let mut test = TestParser::new(
         r"
-if value is string {
+if (value is string) {
   value
 }
 ",
