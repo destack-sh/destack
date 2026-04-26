@@ -4,22 +4,29 @@ use serde::{Deserialize, Serialize};
 const DEFAULT_HEAP_GROWTH_PERCENT: u32 = 100;
 /// The default heap trigger as a percentage of the current goal.
 const DEFAULT_HEAP_TRIGGER_PERCENT: u32 = 75;
-/// The default local-heap pacing floor for small worker heaps.
-const DEFAULT_LOCAL_MINIMUM_HEAP_BYTES: u64 = 128 * 1024;
-/// The default shared-heap pacing floor for heavier shared state.
-const DEFAULT_SHARED_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
+/// The default heap pacing floor.
+const DEFAULT_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
 /// The default small young-space width for worker-local heaps.
 const DEFAULT_HEAP_YOUNG_BYTES: usize = 64 * 1024;
 /// The default nursery bypass threshold for larger payloads.
-const DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES: usize = 4 * 1024;
+const DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_BYTES: usize = 32 * 1024;
 /// The default heap small-span width for size-classed allocation.
-const DEFAULT_HEAP_SPAN_BYTES: usize = 16 * 1024;
+const DEFAULT_HEAP_SPAN_BYTES: usize = 32 * 1024;
 /// The default raw small-span width for size-classed allocation.
-const DEFAULT_RAW_SPAN_BYTES: usize = 16 * 1024;
-/// The default heap page width aligned to common OS pages.
-const DEFAULT_PAGE_BYTES: usize = 4 * 1024;
+const DEFAULT_RAW_SPAN_BYTES: usize = 32 * 1024;
+/// The default allocator page width.
+const DEFAULT_PAGE_BYTES: usize = 8 * 1024;
 /// The default allocator arena width that amortizes mapping and metadata work.
-const DEFAULT_ARENA_BYTES: usize = 1024 * 1024;
+const DEFAULT_ARENA_BYTES: usize = if cfg!(target_arch = "wasm32") {
+    512 * 1024
+} else if cfg!(target_pointer_width = "64")
+    && !cfg!(target_os = "windows")
+    && !(cfg!(target_os = "ios") && cfg!(target_arch = "aarch64"))
+{
+    64 * 1024 * 1024
+} else {
+    4 * 1024 * 1024
+};
 /// The default alignment for small size classes.
 const DEFAULT_SMALL_ALIGNMENT_BYTES: usize = 8;
 
@@ -63,7 +70,7 @@ impl Default for LocalGcOptions {
             growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
             trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
             memory_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_LOCAL_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
         }
     }
 }
@@ -87,7 +94,7 @@ impl Default for SharedGcOptions {
             growth_percent: DEFAULT_HEAP_GROWTH_PERCENT,
             trigger_percent: DEFAULT_HEAP_TRIGGER_PERCENT,
             memory_limit_bytes: None,
-            minimum_heap_bytes: Some(DEFAULT_SHARED_MINIMUM_HEAP_BYTES),
+            minimum_heap_bytes: Some(DEFAULT_MINIMUM_HEAP_BYTES),
         }
     }
 }
