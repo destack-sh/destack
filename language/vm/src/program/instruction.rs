@@ -3,94 +3,106 @@ use std::fmt;
 use destack_mir::LayoutId;
 use {destack_engine as engine, destack_mir as mir};
 
-use crate::{ReferenceMeta, Value};
+use crate::{ReferenceMeta, Word};
 
-use super::{ArgumentRange, CallTarget, CopyRange, Opcode, SwitchCase};
+use super::{ArgumentRange, CallTarget, MoveRange, Opcode, PointerClass, SwitchCase};
 
-/// One decoded module instruction.
+/// One decoded program instruction.
 #[derive(Clone)]
 pub(crate) struct Instruction {
     /// The instruction opcode.
     pub opcode: Opcode,
-    /// The encoded immediate for this opcode.
-    pub immediate: Immediate,
+    /// The encoded operands for this opcode.
+    pub operands: Operands,
 }
 
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instruction")
-            .field("immediate", &self.immediate)
+            .field("operands", &self.operands)
             .finish()
     }
 }
 
-/// Constant payload stored in lowered instructions.
+/// Constant word stored in lowered instructions.
 #[derive(Clone, Debug)]
 pub(crate) enum ConstValue {
     /// Pre-decoded constant value.
-    Value(Value),
+    Word(Word),
 }
 
 /// One compiled field access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FieldAccess {
+    /// The runtime pointer class.
+    pub pointer_class: PointerClass,
     /// The field value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
-    /// The byte offset of the field payload.
+    /// The byte offset of the field value.
     pub byte_offset: usize,
-    /// The byte width of the field payload.
+    /// The byte width of the field value.
     pub byte_len: usize,
-    /// Whether the field payload decodes as one scalar.
+    /// Whether the field value decodes as one scalar.
     pub is_scalar: bool,
 }
 
 /// One compiled element access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementAccess {
+    /// The runtime pointer class.
+    pub pointer_class: PointerClass,
     /// The element value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
     /// The byte stride between adjacent elements.
     pub byte_stride: usize,
-    /// The byte width of the element payload.
+    /// The byte width of the element value.
     pub byte_len: usize,
-    /// Whether the element payload decodes as one scalar.
+    /// Whether the element value decodes as one scalar.
     pub is_scalar: bool,
 }
 
-/// One compiled pointee access.
+/// One compiled pointer pointee access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct TypedAccess {
+pub(crate) struct PointeeAccess {
+    /// The runtime pointer class.
+    pub pointer_class: PointerClass,
     /// The pointee value type.
     pub value_type: mir::LocalNodeId<mir::Type>,
-    /// The byte width of the pointee payload.
+    /// The byte offset from the pointer base.
+    pub byte_offset: usize,
+    /// The byte width of the pointee value.
     pub byte_len: usize,
-    /// Whether the pointee payload decodes as one scalar.
+    /// Whether the pointee value decodes as one scalar.
     pub is_scalar: bool,
 }
 
-impl From<FieldAccess> for TypedAccess {
+impl From<FieldAccess> for PointeeAccess {
     fn from(field: FieldAccess) -> Self {
         Self {
+            pointer_class: field.pointer_class,
             value_type: field.value_type,
+            byte_offset: field.byte_offset,
             byte_len: field.byte_len,
             is_scalar: field.is_scalar,
         }
     }
 }
 
-impl From<ElementAccess> for TypedAccess {
+impl From<ElementAccess> for PointeeAccess {
     fn from(element: ElementAccess) -> Self {
         Self {
+            pointer_class: element.pointer_class,
             value_type: element.value_type,
+            byte_offset: 0,
             byte_len: element.byte_len,
             is_scalar: element.is_scalar,
         }
     }
 }
 
-/// Instruction immediate.
+/// Instruction operands.
 #[derive(Clone, Debug)]
-pub(crate) enum Immediate {
+pub(crate) enum Operands {
     /// Load constant.
     Const { dest: mir::Value, value: ConstValue },
 
@@ -116,21 +128,15 @@ pub(crate) enum Immediate {
         dest: mir::Value,
         left: mir::Value,
         right: mir::Value,
-    },
-
-    /// Binary opcode with constant right operand.
-    BinaryConstRight {
-        dest: mir::Value,
-        op: mir::BinaryOperator,
-        left: mir::Value,
-        right_const: Value,
+        width: u8,
     },
 
     /// Specialized binary with constant right.
     BinaryConstRightSpecialized {
         dest: mir::Value,
         left: mir::Value,
-        right_const: Value,
+        right_const: Word,
+        width: u8,
     },
 
     /// Unary opcode.
@@ -170,7 +176,7 @@ pub(crate) enum Immediate {
         function: u32,
         target: CallTarget,
         arguments: ArgumentRange,
-        copies: CopyRange,
+        moves: MoveRange,
     },
 
     /// Function call terminator with explicit normal and unwind continuations.
@@ -186,16 +192,16 @@ pub(crate) enum Immediate {
     CallVirtual {
         dest: mir::Value,
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
     },
 
     /// Virtual method call terminator with explicit normal and unwind continuations.
     CallVirtualBranch {
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
@@ -205,16 +211,16 @@ pub(crate) enum Immediate {
     CallInterface {
         dest: mir::Value,
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
     },
 
     /// Interface method call terminator with explicit normal and unwind continuations.
     CallInterfaceBranch {
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
@@ -282,7 +288,7 @@ pub(crate) enum Immediate {
     Load {
         dest: mir::Value,
         pointer: mir::Value,
-        access: Option<TypedAccess>,
+        access: PointeeAccess,
     },
 
     /// Store to pointer.
@@ -290,13 +296,13 @@ pub(crate) enum Immediate {
         pointer: mir::Value,
         value: mir::Value,
         reference: ReferenceMeta,
-        access: Option<TypedAccess>,
+        access: PointeeAccess,
     },
 
     /// Get struct or tuple field.
     FieldGet {
         dest: mir::Value,
-        aggregate: mir::Value,
+        base: mir::Value,
         index: u32,
         field_count: Option<u32>,
         field: Option<FieldAccess>,
@@ -305,7 +311,7 @@ pub(crate) enum Immediate {
     /// Get struct or tuple field address.
     FieldAddr {
         dest: mir::Value,
-        aggregate: mir::Value,
+        base: mir::Value,
         index: u32,
         reference: ReferenceMeta,
         field_count: Option<u32>,
@@ -315,25 +321,15 @@ pub(crate) enum Immediate {
     /// Load a field through field address plus load.
     FieldLoad {
         dest: mir::Value,
-        aggregate: mir::Value,
+        base: mir::Value,
         index: u32,
-        field_count: Option<u32>,
-        field: Option<FieldAccess>,
-    },
-
-    /// Set struct or tuple field.
-    FieldSet {
-        dest: mir::Value,
-        aggregate: mir::Value,
-        index: u32,
-        value: mir::Value,
         field_count: Option<u32>,
         field: Option<FieldAccess>,
     },
 
     /// Store a field through field address plus store.
     FieldStore {
-        aggregate: mir::Value,
+        base: mir::Value,
         index: u32,
         value: mir::Value,
         reference: ReferenceMeta,
@@ -369,33 +365,17 @@ pub(crate) enum Immediate {
         element: Option<ElementAccess>,
     },
 
-    /// Set array element.
-    ElementSet {
-        dest: mir::Value,
-        array: mir::Value,
-        index: mir::Value,
-        value: mir::Value,
-        array_length: Option<u64>,
-        element: Option<ElementAccess>,
-    },
-
-    /// Construct an aggregate from element values.
-    Aggregate {
-        dest: mir::Value,
-        elements: ArgumentRange,
-    },
-
-    /// Broadcast a scalar to all vector lanes.
+    /// Broadcast a scalar to all vector elements.
     VectorSplat { dest: mir::Value, value: mir::Value },
 
-    /// Extract a lane from a vector.
+    /// Extract an element from a vector.
     VectorExtract {
         dest: mir::Value,
         vector: mir::Value,
         index: mir::Value,
     },
 
-    /// Insert a lane into a vector.
+    /// Insert an element into a vector.
     VectorInsert {
         dest: mir::Value,
         vector: mir::Value,
@@ -403,7 +383,7 @@ pub(crate) enum Immediate {
         value: mir::Value,
     },
 
-    /// Shuffle vector lanes using a constant mask.
+    /// Shuffle vector elements using a constant mask.
     VectorShuffle {
         dest: mir::Value,
         left: mir::Value,
@@ -411,7 +391,7 @@ pub(crate) enum Immediate {
         mask: Vec<u32>,
     },
 
-    /// Select vector lanes based on a boolean mask.
+    /// Select vector elements based on a boolean mask.
     VectorSelect {
         dest: mir::Value,
         mask: mir::Value,
@@ -674,19 +654,19 @@ pub(crate) enum Immediate {
         element: Option<ElementAccess>,
     },
 
-    /// Allocate heap storage.
+    /// Allocate a managed heap value.
     New {
         dest: mir::Value,
         reference: ReferenceMeta,
-        storage_type: mir::LocalNodeId<mir::Type>,
-        layout_id: Option<LayoutId>,
+        layout_id: LayoutId,
     },
 
     /// Allocate a heap array.
     NewSlice {
         dest: mir::Value,
         length: mir::Value,
-        slice_type: mir::LocalNodeId<mir::Type>,
+        element_layout_id: LayoutId,
+        element_alignment: usize,
     },
 
     /// Allocate raw memory.
@@ -700,10 +680,10 @@ pub(crate) enum Immediate {
     RawFree { pointer: mir::Value },
 
     /// Run explicit synchronous cleanup.
-    Dispose { value: mir::Value },
+    Dispose,
 
     /// Run explicit asynchronous cleanup.
-    AsyncDispose { value: mir::Value },
+    AsyncDispose,
 
     /// Pin one local heap reference.
     Pin { value: mir::Value },
@@ -714,11 +694,11 @@ pub(crate) enum Immediate {
     /// End ownership synchronously.
     Drop { value: mir::Value },
 
-    /// Allocate stack memory.
+    /// Allocate stack bytes.
     StackAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
-        storage_type: mir::LocalNodeId<mir::Type>,
+        allocation_type: mir::LocalNodeId<mir::Type>,
     },
 
     /// Assume a condition is true.
@@ -780,24 +760,24 @@ pub(crate) enum Immediate {
     },
 
     /// Unconditional jump.
-    Jump { target: u32, copies: CopyRange },
+    Jump { target: u32, moves: MoveRange },
 
     /// Conditional branch.
     Branch {
         condition: mir::Value,
         then_target: u32,
-        then_copies: CopyRange,
+        then_moves: MoveRange,
         else_target: u32,
-        else_copies: CopyRange,
+        else_moves: MoveRange,
     },
 
     /// Semantic check with explicit success and failure edges.
     Check {
         constraint: mir::CheckConstraint,
         then_target: u32,
-        then_copies: CopyRange,
+        then_moves: MoveRange,
         else_target: u32,
-        else_copies: CopyRange,
+        else_moves: MoveRange,
     },
 
     /// Fused compare and branch.
@@ -806,20 +786,20 @@ pub(crate) enum Immediate {
         right: mir::Value,
         operator: mir::BinaryOperator,
         then_target: u32,
-        then_copies: CopyRange,
+        then_moves: MoveRange,
         else_target: u32,
-        else_copies: CopyRange,
+        else_moves: MoveRange,
     },
 
     /// Fused compare and branch with constant right operand.
     CompareAndBranchConst {
         left: mir::Value,
-        right_const: Value,
+        right_const: Word,
         operator: mir::BinaryOperator,
         then_target: u32,
-        then_copies: CopyRange,
+        then_moves: MoveRange,
         else_target: u32,
-        else_copies: CopyRange,
+        else_moves: MoveRange,
     },
 
     /// Switch on integer.
@@ -827,7 +807,7 @@ pub(crate) enum Immediate {
         value: mir::Value,
         cases: Box<[SwitchCase]>,
         default_target: u32,
-        default_copies: CopyRange,
+        default_moves: MoveRange,
     },
 
     /// Switch via dense jump table.
@@ -836,7 +816,7 @@ pub(crate) enum Immediate {
         min: i64,
         table: Box<[SwitchCase]>,
         default_target: u32,
-        default_copies: CopyRange,
+        default_moves: MoveRange,
     },
 
     /// Unrecoverable runtime termination.
@@ -855,7 +835,7 @@ pub(crate) enum Immediate {
     TailCall {
         function: u32,
         target: CallTarget,
-        copies: CopyRange,
+        moves: MoveRange,
     },
 
     /// Tail call to the current function.
@@ -867,16 +847,16 @@ pub(crate) enum Immediate {
     /// Virtual tail call.
     TailCallVirtual {
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
     },
 
     /// Interface tail call.
     TailCallInterface {
         receiver: mir::Value,
-        heap_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        slot_id: u32,
+        table_field: Option<FieldAccess>,
+        method_index: u32,
         arguments: ArgumentRange,
     },
 

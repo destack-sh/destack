@@ -292,7 +292,7 @@ impl Error {
                 format!("vm invariant violated: {context}")
             }
             Self::IncompatiblePointerWidth { bytes, host_bytes } => {
-                format!("incompatible pointer width: module {bytes} bytes, host {host_bytes}")
+                format!("incompatible pointer width: program {bytes} bytes, host {host_bytes}")
             }
             Self::InvalidRawPointer => "invalid raw pointer".to_string(),
             Self::InvalidSharedRawPointer => "invalid shared raw pointer".to_string(),

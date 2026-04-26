@@ -1,4 +1,4 @@
-/// Operation code for one decoded module instruction.
+/// Operation code for one decoded program instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Opcode {
     /// The `add_const_int` opcode.
@@ -9,8 +9,6 @@ pub(crate) enum Opcode {
     AddInt,
     /// The `add_uint` opcode.
     AddUint,
-    /// The `aggregate` opcode.
-    Aggregate,
     /// The `and_int` opcode.
     AndInt,
     /// The `and_uint` opcode.
@@ -33,8 +31,6 @@ pub(crate) enum Opcode {
     Binary,
     /// The `binary_bool` opcode.
     BinaryBool,
-    /// The `binary_const_right` opcode.
-    BinaryConstRight,
     /// The `binary_elementwise` opcode.
     BinaryElementwise,
     /// The `binary_float32` opcode.
@@ -109,8 +105,6 @@ pub(crate) enum Opcode {
     ElementLoadRaw,
     /// The `element_load_stack` opcode.
     ElementLoadStack,
-    /// The `element_set` opcode.
-    ElementSet,
     /// The `element_store` opcode.
     ElementStore,
     /// The `element_store_static` opcode.
@@ -147,8 +141,6 @@ pub(crate) enum Opcode {
     FieldLoadRaw,
     /// The `field_load_stack` opcode.
     FieldLoadStack,
-    /// The `field_set` opcode.
-    FieldSet,
     /// The `field_store` opcode.
     FieldStore,
     /// The `field_store_static` opcode.
@@ -199,18 +191,20 @@ pub(crate) enum Opcode {
     LeInt,
     /// The `le_uint` opcode.
     LeUint,
-    /// The `load` opcode.
-    Load,
     /// The `load_static` opcode.
     LoadStatic,
-    /// The `load_frame` opcode.
-    LoadFrame,
     /// The `load_heap` opcode.
     LoadHeap,
+    /// The `load_shared_heap` opcode.
+    LoadSharedHeap,
     /// The `load_raw` opcode.
     LoadRaw,
+    /// The `load_shared_raw` opcode.
+    LoadSharedRaw,
     /// The `load_stack` opcode.
     LoadStack,
+    /// The `load_frame` opcode.
+    LoadFrame,
     /// The `local_addr` opcode.
     LocalAddr,
     /// The `local_get` opcode.
@@ -225,10 +219,6 @@ pub(crate) enum Opcode {
     LtInt,
     /// The `lt_uint` opcode.
     LtUint,
-    /// The `new` opcode.
-    New,
-    /// The `new.slice` opcode.
-    NewSlice,
     /// The `mul_const_int` opcode.
     MulConstInt,
     /// The `mul_const_uint` opcode.
@@ -241,6 +231,10 @@ pub(crate) enum Opcode {
     NeConstInt,
     /// The `ne_int` opcode.
     NeInt,
+    /// The `new` opcode.
+    New,
+    /// The `new.slice` opcode.
+    NewSlice,
     /// The `or_int` opcode.
     OrInt,
     /// The `or_uint` opcode.
@@ -273,18 +267,20 @@ pub(crate) enum Opcode {
     ShrUint,
     /// The `stack_alloc` opcode.
     StackAlloc,
-    /// The `store` opcode.
-    Store,
     /// The `store_static` opcode.
     StoreStatic,
-    /// The `store_frame` opcode.
-    StoreFrame,
     /// The `store_heap` opcode.
     StoreHeap,
+    /// The `store_shared_heap` opcode.
+    StoreSharedHeap,
     /// The `store_raw` opcode.
     StoreRaw,
+    /// The `store_shared_raw` opcode.
+    StoreSharedRaw,
     /// The `store_stack` opcode.
     StoreStack,
+    /// The `store_frame` opcode.
+    StoreFrame,
     /// The `sub_const_int` opcode.
     SubConstInt,
     /// The `sub_const_uint` opcode.
@@ -397,116 +393,4 @@ pub(crate) enum Opcode {
     XorUint,
     /// The `yield` opcode.
     Yield,
-}
-
-impl Opcode {
-    /// Return a short opcode label for instruction profiling.
-    #[cfg(feature = "stats")]
-    pub(crate) fn name(&self) -> &'static str {
-        match self {
-            Opcode::Const => "const",
-            Opcode::Binary => "binary",
-            Opcode::BinaryElementwise => "binary_elementwise",
-            Opcode::BinaryConstRight => "binary_const_right",
-            Opcode::Unary => "unary",
-            Opcode::UnaryElementwise => "unary_elementwise",
-            Opcode::Cast => "cast",
-            Opcode::Select => "select",
-            Opcode::Call => "call",
-            Opcode::CallBranch => "call_branch",
-            Opcode::CallVirtual => "call_virtual",
-            Opcode::CallVirtualBranch => "call_virtual_branch",
-            Opcode::CallInterface => "call_interface",
-            Opcode::CallInterfaceBranch => "call_interface_branch",
-            Opcode::CallIndirect => "call_indirect",
-            Opcode::CallIndirectBranch => "call_indirect_branch",
-            Opcode::LocalGet => "local_get",
-            Opcode::LocalAddr => "local_addr",
-            Opcode::LocalSet => "local_set",
-            Opcode::StaticAddr => "static_addr",
-            Opcode::FunctionAddr => "function_addr",
-            Opcode::CallableBind => "callable_bind",
-            Opcode::CallableEnvironment => "callable_environment",
-            Opcode::StaticLoad => "static_load",
-            Opcode::StaticStore => "static_store",
-            Opcode::Load => "load",
-            Opcode::Store => "store",
-            Opcode::FieldGet => "field_get",
-            Opcode::FieldAddr => "field_addr",
-            Opcode::FieldLoad => "field_load",
-            Opcode::FieldSet => "field_set",
-            Opcode::FieldStore => "field_store",
-            Opcode::ElementGet => "element_get",
-            Opcode::ElementAddr => "element_addr",
-            Opcode::ElementLoad => "element_load",
-            Opcode::ElementSet => "element_set",
-            Opcode::ElementStore => "element_store",
-            Opcode::Aggregate => "aggregate",
-            Opcode::VectorSplat => "vector_splat",
-            Opcode::VectorExtract => "vector_extract",
-            Opcode::VectorInsert => "vector_insert",
-            Opcode::VectorShuffle => "vector_shuffle",
-            Opcode::VectorSelect => "vector_select",
-            Opcode::VectorReduce => "vector_reduce",
-            Opcode::VectorCompare => "vector_compare",
-            Opcode::VectorConvert => "vector_convert",
-            Opcode::TensorLoad => "tensor_load",
-            Opcode::TensorSplat => "tensor_splat",
-            Opcode::TensorExtract => "tensor_extract",
-            Opcode::TensorStore => "tensor_store",
-            Opcode::TensorFill => "tensor_fill",
-            Opcode::TensorCopy => "tensor_copy",
-            Opcode::TensorReshape => "tensor_reshape",
-            Opcode::TensorBroadcast => "tensor_broadcast",
-            Opcode::TensorTranspose => "tensor_transpose",
-            Opcode::TensorCast => "tensor_cast",
-            Opcode::TensorView => "tensor_view",
-            Opcode::TensorSlice => "tensor_slice",
-            Opcode::TensorPad => "tensor_pad",
-            Opcode::TensorConcat => "tensor_concat",
-            Opcode::TensorReduce => "tensor_reduce",
-            Opcode::TensorDot => "tensor_dot",
-            Opcode::TensorConvolution => "tensor_convolution",
-            Opcode::TensorGather => "tensor_gather",
-            Opcode::TensorScatter => "tensor_scatter",
-            Opcode::TensorCompare => "tensor_compare",
-            Opcode::TensorSelect => "tensor_select",
-            Opcode::TensorConvert => "tensor_convert",
-            Opcode::New => "new",
-            Opcode::NewSlice => "new_slice",
-            Opcode::RawAlloc => "raw_alloc",
-            Opcode::RawFree => "raw_free",
-            Opcode::Dispose => "dispose",
-            Opcode::AsyncDispose => "dispose_async",
-            Opcode::Pin => "pin",
-            Opcode::Unpin => "unpin",
-            Opcode::Drop => "drop",
-            Opcode::StackAlloc => "stack_alloc",
-            Opcode::Assume => "assume",
-            Opcode::Intrinsic => "intrinsic",
-            Opcode::AtomicLoad => "atomic_load",
-            Opcode::AtomicStore => "atomic_store",
-            Opcode::AtomicCompareExchange => "atomic_compare_exchange",
-            Opcode::AtomicRmw => "atomic_rmw",
-            Opcode::AtomicFence => "atomic_fence",
-            Opcode::Barrier => "barrier",
-            Opcode::Return => "return",
-            Opcode::Yield => "yield",
-            Opcode::Jump => "jump",
-            Opcode::Branch => "branch",
-            Opcode::Check => "check",
-            Opcode::CompareAndBranch => "compare_and_branch",
-            Opcode::CompareAndBranchConst => "compare_and_branch_const",
-            Opcode::Switch => "switch",
-            Opcode::SwitchTable => "switch_table",
-            Opcode::Throw => "throw",
-            Opcode::Trap => "trap",
-            Opcode::Unreachable => "unreachable",
-            Opcode::TailCall => "tail_call",
-            Opcode::TailCallSelf => "tail_call_self",
-            Opcode::TailCallVirtual => "tail_call_virtual",
-            Opcode::TailCallInterface => "tail_call_interface",
-            Opcode::TailCallIndirect => "tail_call_indirect",
-        }
-    }
 }

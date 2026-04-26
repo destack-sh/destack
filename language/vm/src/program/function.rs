@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{ArgumentRange, CopyPair, CopyRange, Instruction};
+use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 
 /// Switch case.
 #[derive(Clone, Debug)]
@@ -12,8 +12,8 @@ pub(crate) struct SwitchCase {
     pub value: i64,
     /// Target block.
     pub target: u32,
-    /// Block parameter copies.
-    pub copies: CopyRange,
+    /// Block parameter moves.
+    pub moves: MoveRange,
 }
 
 /// Lowered basic block.
@@ -25,8 +25,6 @@ pub(crate) struct Block {
     pub instructions: Vec<Instruction>,
     /// MIR instruction boundary for each lowered PC in this block.
     pub mir_instruction_offsets: Vec<u32>,
-    /// Original MIR instruction count.
-    pub mir_instruction_count: u32,
 }
 
 /// Lowered function with predecoded dispatch metadata.
@@ -42,15 +40,11 @@ pub(crate) struct Function {
     pub blocks: Vec<Block>,
     /// Pool of argument values referenced by ranges.
     pub argument_pool: Vec<mir::Value>,
-    /// Pool of value copy pairs referenced by ranges.
-    pub copy_pool: Vec<CopyPair>,
-    /// Count of SSA values used by the function.
-    pub value_count: usize,
-    /// Count of local variables used by the function.
-    pub local_count: usize,
+    /// Pool of value move pairs referenced by ranges.
+    pub move_pool: Vec<MovePair>,
 }
 
-/// Lowered function registry owned by one module.
+/// Lowered function registry owned by one program.
 #[derive(Debug)]
 pub(crate) struct FunctionTable {
     /// Lowered functions by dense index.
@@ -59,7 +53,7 @@ pub(crate) struct FunctionTable {
     target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
 }
 
-/// Module call target resolved for one function id.
+/// Program call target resolved for one function id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallTarget {
     /// The function id names one imported callable.
