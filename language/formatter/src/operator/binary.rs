@@ -513,7 +513,7 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
                 parent,
                 inside_condition,
             } => {
-                // source facts
+                // source shape
                 let (
                     right,
                     operator,

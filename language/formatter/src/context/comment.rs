@@ -113,7 +113,7 @@ impl<'a> Comments<'a> {
     #[inline]
     pub fn comments_after(&self, pos: u32) -> &'a [Comment] {
         let comments = self.unprinted_comments();
-        let start_index = comments.partition_point(|comment| comment.span.end < pos);
+        let start_index = comments.partition_point(|comment| comment.span.end <= pos);
         &comments[start_index..]
     }
 

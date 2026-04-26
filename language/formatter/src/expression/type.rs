@@ -2519,13 +2519,16 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
                 }
 
                 if let Some(label) = label {
-                    write!(f, [*label, token(":"), space()])?;
-                }
-
-                write!(f, [value])?;
-
-                if *is_optional {
-                    write!(f, [token("?")])?;
+                    write!(f, [*label])?;
+                    if *is_optional {
+                        write!(f, [token("?")])?;
+                    }
+                    write!(f, [token(":"), space(), value])?;
+                } else {
+                    write!(f, [value])?;
+                    if *is_optional {
+                        write!(f, [token("?")])?;
+                    }
                 }
             }
             TupleElement::Spread { label, value } => {
