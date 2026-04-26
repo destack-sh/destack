@@ -201,8 +201,13 @@ pub enum TypeExpression {
     /// Bare `intrinsic` marker syntax in type space.
     Intrinsic,
 
-    /// Tuple type syntax.
+    /// Parenthesized tuple type syntax.
     Tuple {
+        elements: Vec<LocalNodeId<TupleElement>>,
+    },
+
+    /// Bracket tuple type syntax.
+    ArrayTuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
