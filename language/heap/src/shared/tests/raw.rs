@@ -36,6 +36,19 @@ fn test_free_shared_reclaims_live_allocation() {
     assert!(shared.is_live(next_pointer));
 }
 
+/// Keep zero-byte shared raw allocations addressable.
+#[test]
+fn test_allocate_shared_zero_byte_raw_is_live() {
+    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
+    let shared = SharedRawSpace::with_allocator(allocator);
+    let pointer = shared
+        .allocate(0, Payload::Bytes(&[]))
+        .expect("zero-byte allocation should succeed");
+
+    assert!(shared.is_live(pointer));
+    assert_eq!(shared.byte_len(pointer), Ok(0));
+}
+
 /// Reject one out of bounds shared pointer offset loudly.
 #[test]
 fn test_shared_reads_reject_invalid_pointer_offset() {

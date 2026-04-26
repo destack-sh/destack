@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{HeapOptions, Payload, SharedHeapSpace, SharedRawSpace, test_allocator, test_layouts};
+use crate::{
+    HeapOptions, Payload, SharedHeapSpace, SharedRawSpace, SizeClassTable, test_allocator,
+    test_layouts,
+};
 use destack_mir::ReferenceMap;
 
 /// Share unchanged shared allocations across image and fork boundaries.
@@ -8,6 +11,8 @@ use destack_mir::ReferenceMap;
 fn test_roundtrip_shared_memory_image_and_fork() {
     let options = HeapOptions {
         page_bytes: 4,
+        heap_small_bytes: 16,
+        size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::shared()
     };
     let allocator = test_allocator(&options);
@@ -68,6 +73,8 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 fn test_roundtrip_shared_heap_space_image() {
     let options = HeapOptions {
         page_bytes: 4,
+        heap_small_bytes: 16,
+        size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::shared()
     };
     let allocator = test_allocator(&options);
@@ -80,11 +87,20 @@ fn test_roundtrip_shared_heap_space_image() {
     // capture two allocations in one shared small span
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
+    let mut shared_allocator = heap.allocator();
     let first = heap
-        .allocate(first_layout.allocation(), Payload::Bytes(&first_bytes))
+        .allocate(
+            &mut shared_allocator,
+            first_layout.allocation(),
+            Payload::Bytes(&first_bytes),
+        )
         .expect("shared heap allocation should succeed");
     let _second = heap
-        .allocate(second_layout.allocation(), Payload::Bytes(&second_bytes))
+        .allocate(
+            &mut shared_allocator,
+            second_layout.allocation(),
+            Payload::Bytes(&second_bytes),
+        )
         .expect("shared heap allocation should succeed");
     let image = heap.image();
     let restored = SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image)

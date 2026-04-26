@@ -1,8 +1,24 @@
 use crate::local::space::HeapPlace;
 use crate::{
-    HeapError, HeapOptions, HeapReference, HeapSpace, Payload, test_allocator, test_layout,
+    HeapError, HeapOptions, HeapReference, HeapSpace, Payload, SizeClassTable, test_allocator,
+    test_layout,
 };
 use destack_mir::ReferenceMap;
+
+/// Reject one zero-size managed heap allocation.
+#[test]
+fn test_allocate_heap_rejects_zero_size_layout() {
+    let options = HeapOptions::local();
+    let layout = test_layout(0, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
+        .expect("heap space should build");
+
+    let error = heap
+        .allocate(layout.allocation(), Payload::Bytes(&[]))
+        .expect_err("heap allocation should reject zero-size layouts");
+
+    assert_eq!(error, HeapError::ZeroSizeAllocation);
+}
 
 /// Reclaim one freed heap allocation and allow another allocation.
 #[test]
@@ -32,9 +48,14 @@ fn test_free_heap_reclaims_large_allocation() {
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let large_byte_len = options.size_classes.max_small_allocation_bytes() + 1;
+    let large_byte_len = options
+        .size_classes
+        .max_small_allocation_bytes()
+        .expect("size class table should not be empty")
+        + 1;
     let layout = test_layout(large_byte_len, ReferenceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");

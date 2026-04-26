@@ -20,9 +20,10 @@ fn shared_heap_active_bytes_after_allocate(bytes: &[u8]) -> u64 {
         options,
     )
     .expect("shared heap should build");
+    let mut allocator = shared.allocator();
 
     shared
-        .allocate(layout.allocation(), Payload::Bytes(bytes))
+        .allocate(&mut allocator, layout.allocation(), Payload::Bytes(bytes))
         .expect("shared heap allocation should succeed");
 
     shared.usage().heap.active_bytes
@@ -43,9 +44,10 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
         crate::HeapOptions::shared(),
     )
     .expect("shared heap should build");
+    let mut allocator = shared.allocator();
 
     let error = shared
-        .allocate(layout.allocation(), Payload::Bytes(&[1]))
+        .allocate(&mut allocator, layout.allocation(), Payload::Bytes(&[1]))
         .expect_err("shared heap allocation should be rejected");
 
     assert_eq!(
@@ -74,9 +76,8 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
         .allocate_raw(4097, Payload::Bytes(&vec![0xAA; 4097]))
         .expect("shared raw allocation should succeed");
     let baseline = shared.usage().raw.active_bytes;
-    let image = shared.image();
-    let shared = SharedHeap::from_image_with_allocator_limits_and_options(
-        allocator,
+    let image = shared.image().expect("shared image should capture");
+    let shared = SharedHeap::from_image_with_limits(
         &image,
         SharedHeapLimits {
             max_bytes: None,
@@ -85,7 +86,6 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
                 max_bytes: Some(baseline),
             },
         },
-        options,
     )
     .expect("shared image restore should fit the baseline raw limit");
     let mapped_byte_delta = shared
@@ -123,21 +123,20 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         options.clone(),
     )
     .expect("shared heap should build");
+    let mut allocator = shared.allocator();
     shared
-        .allocate(layout.allocation(), Payload::Bytes(&[1]))
+        .allocate(&mut allocator, layout.allocation(), Payload::Bytes(&[1]))
         .expect("shared heap allocation should succeed");
     let used_bytes = shared.usage().heap.active_bytes;
-    let image = shared.image();
+    let image = shared.image().expect("shared image should capture");
 
-    let error = SharedHeap::from_image_with_allocator_limits_and_options(
-        allocator,
+    let error = SharedHeap::from_image_with_limits(
         &image,
         SharedHeapLimits {
             max_bytes: None,
             heap: SharedHeapSpaceLimits { max_bytes: Some(0) },
             raw: SharedRawLimits { max_bytes: None },
         },
-        options,
     )
     .expect_err("shared image restore should reject an over-budget baseline");
 

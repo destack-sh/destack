@@ -6,7 +6,7 @@ use destack_mir::ReferenceMap;
 
 use super::TestHeap;
 
-/// Return the active local heap bytes for one allocation in the given heap options.
+/// Return the active heap bytes for one allocation in the given heap options.
 fn heap_active_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
     let layout = test_layout(bytes.len(), ReferenceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);

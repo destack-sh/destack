@@ -76,13 +76,13 @@ fn read_small_slot_bytes(
     read_page_view_bytes(allocator, page_view, start, byte_len)
 }
 
-/// Return the bytes for one young-space allocation.
-fn read_young_allocation_bytes(
+/// Return the bytes for one young-space range.
+fn read_young_range_bytes(
     allocator: &Allocator,
     young: &YoungImage,
-    allocation_index: usize,
+    range_index: usize,
 ) -> Vec<u8> {
-    let allocation = &young.allocations()[allocation_index];
+    let allocation = &young.ranges()[range_index];
     let start = allocation.first_offset;
 
     read_page_view_bytes(allocator, young.pages(), start, allocation.byte_len)
@@ -91,9 +91,9 @@ fn read_young_allocation_bytes(
 /// Return the first live heap allocation bytes from one captured image.
 fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) -> Vec<u8> {
     // young allocations first
-    for allocation_index in 0..image.young().allocations().len() {
-        if image.young().live().contains(allocation_index) {
-            return read_young_allocation_bytes(allocator, image.young(), allocation_index);
+    for range_index in 0..image.young().ranges().len() {
+        if image.young().live().contains(range_index) {
+            return read_young_range_bytes(allocator, image.young(), range_index);
         }
     }
 
@@ -177,6 +177,7 @@ fn test_roundtrip_heap_space_image() {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
         page_bytes: 4,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -234,6 +235,8 @@ fn test_roundtrip_heap_space_image() {
 fn test_roundtrip_raw_space_image() {
     let options = HeapOptions {
         page_bytes: 4,
+        raw_small_bytes: 32,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -326,12 +329,36 @@ fn test_roundtrip_heap_image_and_fork() {
     );
 }
 
+/// Restore a heap from one serialized snapshot.
+#[test]
+fn test_roundtrip_heap_snapshot() {
+    let heap_bytes = 11i64.to_le_bytes();
+    let (mut test_heap, layout_ids) =
+        test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
+    let layout = &layout_ids[0];
+    let heap = &mut test_heap.heap;
+    heap.allocate(layout.allocation(), Payload::Bytes(&heap_bytes))
+        .expect("heap allocation should succeed");
+
+    let image = heap.image().expect("heap image should capture");
+    let snapshot = image.snapshot().expect("heap snapshot should capture");
+    let mut restored = crate::Heap::from_snapshot(&snapshot).expect("heap snapshot should restore");
+    let restored_image = restored.image().expect("heap image should capture");
+
+    assert_eq!(
+        read_first_heap_image_bytes(restored.allocator(), restored_image.heap()),
+        heap_bytes.to_vec()
+    );
+}
+
 /// Detach one heap allocation after restoring a shared heap image.
 #[test]
 fn test_heap_heap_write_detaches_only_touched_allocation() {
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
+        page_bytes: 4096,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let first_bytes = vec![0xAA; 5000];
@@ -389,6 +416,8 @@ fn test_heap_heap_write_detaches_only_touched_page() {
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
+        page_bytes: 4096,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 9000];
@@ -420,6 +449,7 @@ fn test_heap_heap_write_keeps_sparse_page_sharing() {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
         page_bytes: 4096,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 5 * 4096];
@@ -453,6 +483,7 @@ fn test_heap_heap_write_keeps_sparse_page_sharing_across_many_patches() {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
         page_bytes: 4096,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 5 * 4096];
@@ -524,7 +555,7 @@ fn test_roundtrip_heap_small_space_image() {
     );
 }
 
-/// Preserve allocator sharing for heap young-space allocations across image roundtrips.
+/// Preserve allocator sharing for heap young-space ranges across image roundtrips.
 #[test]
 fn test_roundtrip_heap_young_space_image() {
     let options = HeapOptions {
@@ -557,7 +588,7 @@ fn test_roundtrip_heap_young_space_image() {
 
     assert_ne!(image.young().pages(), mutated_image.young().pages());
     assert_eq!(
-        read_young_allocation_bytes(restored.allocator(), mutated_image.young(), 0),
+        read_young_range_bytes(restored.allocator(), mutated_image.young(), 0),
         vec![1, 0xFE, 3]
     );
 }
@@ -646,7 +677,7 @@ fn test_restore_full_heap_image_releases_retained_pages_on_failure() {
 
     let image = heap.image().expect("heap image should capture");
     let image =
-        image.with_size_classes(SizeClassTable::new([8]).expect("size classes should validate"));
+        image.with_size_classes(SizeClassTable::new([16]).expect("size classes should validate"));
 
     // failed restore should not leave shared retains behind
     assert_eq!(heap.borrowed_bytes(), 0);
@@ -654,7 +685,7 @@ fn test_restore_full_heap_image_releases_retained_pages_on_failure() {
     let error =
         HeapSpace::from_image(allocator, &image).expect_err("heap restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
     assert_eq!(heap.borrowed_bytes(), 0);
 }
 
@@ -669,14 +700,14 @@ fn test_fork_heap_space_releases_retained_pages_on_failure() {
     let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
     heap.allocate(layout_ids[0].allocation(), Payload::Bytes(&[1, 2, 3]))
         .expect("heap allocation should succeed");
-    heap.small.size_classes = SizeClassTable::new([8]).expect("size classes should validate");
+    heap.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
     // failed fork should not leave shared retains behind
     assert_eq!(heap.borrowed_bytes(), 0);
 
     let error = heap.fork().expect_err("heap fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
     assert_eq!(heap.borrowed_bytes(), 0);
 }
 
@@ -692,7 +723,7 @@ fn test_restore_raw_image_releases_retained_pages_on_failure() {
 
     let image = raw.image().expect("raw image should capture");
     let image =
-        image.with_size_classes(SizeClassTable::new([8]).expect("size classes should validate"));
+        image.with_size_classes(SizeClassTable::new([16]).expect("size classes should validate"));
 
     // failed restore should not leave shared retains behind
     assert_eq!(raw.borrowed_bytes(), 0);
@@ -700,7 +731,7 @@ fn test_restore_raw_image_releases_retained_pages_on_failure() {
     let error =
         RawSpace::from_image(allocator, &image).expect_err("raw restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
     assert_eq!(raw.borrowed_bytes(), 0);
 }
 
@@ -713,14 +744,15 @@ fn test_fork_raw_space_releases_retained_pages_on_failure() {
         .expect("explicit raw options should build");
     raw.allocate(3, Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
-    raw.small.size_classes = crate::SizeClassTable::new([8]).expect("size classes should validate");
+    raw.small.size_classes =
+        crate::SizeClassTable::new([16]).expect("size classes should validate");
 
     // failed fork should not leave shared retains behind
     assert_eq!(raw.borrowed_bytes(), 0);
 
     let error = raw.fork().expect_err("raw fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
     assert_eq!(raw.borrowed_bytes(), 0);
 }
 
@@ -738,23 +770,29 @@ fn test_restore_heap_image_releases_retained_pages_on_failure() {
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
 
-    let image = heap.image().expect("heap image should capture");
+    let original_image = heap.image().expect("heap image should capture");
     let image = HeapImage::new(
-        image.allocator().clone(),
-        image.options().clone(),
-        image.heap().clone(),
-        image
+        original_image.allocator().clone(),
+        original_image.options().clone(),
+        original_image.heap().clone(),
+        original_image
             .raw()
             .clone()
-            .with_size_classes(SizeClassTable::new([8]).expect("size classes should validate")),
-    );
+            .with_size_classes(SizeClassTable::new([16]).expect("size classes should validate")),
+    )
+    .expect("heap image should retain pages");
+    drop(original_image);
 
-    // failed restore should not leave shared retains behind
-    assert_eq!(heap.usage().borrowed_bytes(), 0);
+    // failed restore should not leave extra shared retains behind
+    let borrowed_bytes = heap.usage().borrowed_bytes();
+    assert_ne!(borrowed_bytes, 0);
 
     let error = crate::Heap::from_image(&image).expect_err("heap restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(heap.usage().borrowed_bytes(), borrowed_bytes);
+
+    drop(image);
     assert_eq!(heap.usage().borrowed_bytes(), 0);
 }
 
@@ -771,13 +809,13 @@ fn test_fork_heap_releases_retained_pages_on_failure() {
         .expect("heap allocation should succeed");
     heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
-    heap.raw.small.size_classes = SizeClassTable::new([8]).expect("size classes should validate");
+    heap.raw.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
     // failed fork should not leave shared retains behind
     assert_eq!(heap.usage().borrowed_bytes(), 0);
 
     let error = heap.fork().expect_err("heap fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 16 });
+    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
     assert_eq!(heap.usage().borrowed_bytes(), 0);
 }
