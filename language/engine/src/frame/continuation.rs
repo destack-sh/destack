@@ -1,18 +1,18 @@
-use crate::{FrameImage, ResumePointId, RunStats};
+use crate::{FrameImage, ResumePointId};
 
-/// Unique identity for one VM isolate.
+/// Unique identity for one live engine instance.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
-pub struct IsolateId(pub u64);
+pub struct EngineId(pub u64);
 
-impl IsolateId {
-    /// Create one isolate identity.
+impl EngineId {
+    /// Create one engine identity.
     pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
-    /// Return the raw isolate identity.
+    /// Return the raw engine identity.
     pub const fn get(self) -> u64 {
         self.0
     }
@@ -37,13 +37,11 @@ pub enum ControlTransfer {
     Call(CallTransfer),
 }
 
-/// One durable suspended execution image.
+/// One durable continuation image.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Continuation {
-    /// The isolate identity used to validate resumption.
-    pub isolate_id: IsolateId,
+pub struct ContinuationImage {
+    /// The engine identity used to validate resumption.
+    pub engine_id: EngineId,
     /// The captured frames from outermost to innermost.
     pub frames: Vec<FrameImage>,
-    /// The run statistics captured at suspension.
-    pub stats: RunStats,
 }
