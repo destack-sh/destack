@@ -4,6 +4,7 @@ use destack_ast::{
     Block, BlockContext, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId,
     NodeType, TokenType,
 };
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Return parser contexts for `if` conditions.
@@ -92,7 +93,9 @@ impl Parser {
     }
 
     /// Eat an optional else expression for an if expression.
-    fn eat_if_else_expression_maybe(&mut self) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    fn eat_if_else_expression_maybe(
+        &mut self,
+    ) -> ParseResult<Option<(LocalNodeId<Expression>, Span)>> {
         // save state so missing else can rewind cleanly
         let else_mark = self.mark();
         let else_tree_mark = self.tree.next_id();
@@ -115,6 +118,7 @@ impl Parser {
         }
 
         // else keyword
+        let else_span = self.peek()?.span;
         self.eat_keyword(Keyword::Else)?;
         self.eat_newlines_maybe()?;
 
@@ -127,7 +131,7 @@ impl Parser {
             |parser| parser.eat_expression_as_block(),
         )?;
 
-        Ok(Some(else_expression_id))
+        Ok(Some((else_expression_id, else_span)))
     }
 
     /// Parse an if / else expression.
@@ -224,7 +228,8 @@ impl Parser {
         }
 
         // optional else branch
-        let else_expression_id = self.eat_if_else_expression_maybe()?;
+        let else_expression = self.eat_if_else_expression_maybe()?;
+        let else_expression_id = else_expression.map(|(else_expression_id, _)| else_expression_id);
 
         // if ...
         let if_node = Expression::If {
@@ -235,6 +240,14 @@ impl Parser {
         };
 
         let if_id = self.insert_node(if_node, self.get_span_from(&start));
+        if let Some((_, else_span)) = else_expression {
+            self.tree.set_side_span(
+                if_id,
+                NodeSpanType::Region(NodeSpanRegion::Clause),
+                else_span,
+            );
+        }
+
         Ok(if_id)
     }
 }
@@ -246,7 +259,7 @@ mod tests {
         FunctionDeclaration, FunctionKind, IfCondition, LetKind, Mutability, Pattern, PatternField,
         ScalarLiteral,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::{
         TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
@@ -305,6 +318,31 @@ mod tests {
                 });
             });
         });
+    }
+
+    #[test]
+    fn test_parse_if_else_records_else_clause_span() {
+        let mut test = TestParser::new(
+            r#"
+if (ready) {
+    run()
+}
+// boundary
+else {
+    stop()
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let if_id = parser.eat_if().unwrap();
+        let else_span = parser
+            .tree
+            .get_side_span(if_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+            .expect("expected else clause span");
+
+        assert_eq!(parser.get_span_str(else_span), "else");
     }
 
     #[test]
