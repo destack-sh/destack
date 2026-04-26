@@ -1,6 +1,4 @@
-use destack_mir as mir;
-
-use crate::{FrameLayoutId, MaterializationMapId, ResumePointId, StackMapId};
+use crate::{FrameLayoutId, FunctionId, MaterializationMapId, ResumePointId, StackMapId};
 
 /// The identifier for one safepoint table entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -11,11 +9,11 @@ pub struct SafepointId(pub u32);
 pub struct Safepoint {
     /// The safepoint identifier.
     pub id: SafepointId,
-    /// The owning MIR function.
-    pub function: mir::LocalNodeId<mir::Function>,
+    /// The owning function.
+    pub function: FunctionId,
     /// The owning frame layout.
     pub frame_layout: FrameLayoutId,
-    /// The semantic resume point reached at this safepoint.
+    /// The resume point reached at this safepoint.
     pub resume_point: ResumePointId,
     /// The physical root-location table when present.
     pub stack_map: Option<StackMapId>,
