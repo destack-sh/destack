@@ -1229,6 +1229,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             TypeExpression::Tuple { elements: _ } => {
                 self.node("TypeExpression::Tuple", id.id).end();
             }
+            TypeExpression::ArrayTuple { elements: _ } => {
+                self.node("TypeExpression::ArrayTuple", id.id).end();
+            }
             TypeExpression::Array { element: _ } => {
                 self.node("TypeExpression::Array", id.id).end();
             }
