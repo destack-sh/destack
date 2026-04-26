@@ -1237,8 +1237,10 @@ impl Parser {
         let starts_named_tuple_element = self.language.is_destack()
             && self.peek_is(TokenType::Identifier)
             && self.peek_next_is(TokenType::Colon);
+        let starts_spread_tuple_element =
+            self.language.is_destack() && self.peek_is(TokenType::Spread);
 
-        starts_named_tuple_element || group.has_top_level_comma
+        starts_named_tuple_element || starts_spread_tuple_element || group.has_top_level_comma
     }
 
     /// Return whether the current parenthesized group starts a function type.
@@ -1392,7 +1394,15 @@ impl Parser {
     fn try_eat_parenthesized_function_type(
         &mut self,
         start: &ParserMark,
+        group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        if !matches!(
+            group.follow_token_type,
+            Some(TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon)
+        ) {
+            return Ok(None);
+        }
+
         if !self.can_start_parenthesized_function_type() {
             return Ok(None);
         }
@@ -1572,7 +1582,7 @@ impl Parser {
         let group = self.parenthesized_group_shape()?;
 
         // parse function types before consuming the grouped body
-        if let Some(type_expression_id) = self.try_eat_parenthesized_function_type(start)? {
+        if let Some(type_expression_id) = self.try_eat_parenthesized_function_type(start, group)? {
             return Ok(type_expression_id);
         }
 
