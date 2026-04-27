@@ -13,8 +13,8 @@ pub(crate) struct BinaryOutputError {
     pub file_type: FileType,
 }
 
-/// Emit one generated binary artifact to output files.
-pub(crate) fn emit_binary_artifact_files(
+/// Link one generated binary artifact into output files.
+pub(crate) fn link_binary_artifact_files(
     module: &Module,
     artifact: &BinaryArtifact,
     target: &Target,

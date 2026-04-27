@@ -81,17 +81,17 @@ impl<'a> ScriptLinker<'a> {
         self.validate_script_print_format()?;
 
         if plan.output_graph().bundle_mode() == BundleMode::PreserveModules {
-            return self.emit_module_outputs(plan);
+            return self.link_module_outputs(plan);
         }
 
-        self.emit_output_graph(plan)
+        self.link_output_graph(plan)
     }
 
-    /// Emit preserve-modules outputs for this target.
-    fn emit_module_outputs(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
+    /// Link preserve-modules outputs for this target.
+    fn link_module_outputs(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
         let mut output_files = Vec::new();
 
-        // preserve-modules keeps one artifact-level emit per module
+        // preserve-modules keeps one artifact-level output per module
         for module_id in plan.module_set().modules() {
             let output_id = plan
                 .output_graph()
@@ -105,7 +105,7 @@ impl<'a> ScriptLinker<'a> {
 
             let files = self
                 .compiler
-                .emit_script_artifact_output(
+                .link_script_artifact_files(
                     module.as_ref(),
                     &script,
                     self.target_id,
@@ -116,7 +116,7 @@ impl<'a> ScriptLinker<'a> {
                 )
                 .map_err(|message| LinkError::Internal {
                     package: self.package_id,
-                    message: format!("failed to emit script artifact: {message}"),
+                    message: format!("failed to link script artifact: {message}"),
                 })?;
 
             output_files.extend(files);
@@ -160,8 +160,8 @@ impl<'a> ScriptLinker<'a> {
         Ok(script)
     }
 
-    /// Emit graph-based outputs for this target.
-    fn emit_output_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
+    /// Link graph-based outputs for this target.
+    fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
         let file_type = self.script_output_file_type()?;
         let target_layout = TargetLocation::new(self.package_dir, self.target);
         let mut output_files = Vec::new();
@@ -204,7 +204,7 @@ impl<'a> ScriptLinker<'a> {
             );
             let files = self
                 .compiler
-                .emit_script_text_output(
+                .link_script_text_files(
                     self.target,
                     file_type,
                     output_location.path(),

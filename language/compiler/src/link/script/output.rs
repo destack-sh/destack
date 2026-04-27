@@ -14,8 +14,6 @@ use destack_codegen_js::{
 use destack_source::{FileType, ModuleId, TargetId, Uri};
 use destack_workspace::{Module, SourceMapMode, Target};
 
-use super::EmitError;
-
 /// One final script text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
 struct ScriptTextOutputPolicy<'a> {
@@ -29,12 +27,8 @@ impl<'a> ScriptTextOutputPolicy<'a> {
         Self { target }
     }
 
-    /// Emit one final JavaScript or TypeScript content payload.
-    fn emit_script_content(
-        self,
-        file_type: FileType,
-        code: String,
-    ) -> Result<OutputContent, String> {
+    /// Build one final JavaScript or TypeScript content payload.
+    fn script_content(self, file_type: FileType, code: String) -> Result<OutputContent, String> {
         match file_type {
             FileType::JavaScript => Ok(OutputContent::javascript(code)),
             FileType::TypeScript => Ok(OutputContent::typescript(code)),
@@ -232,14 +226,14 @@ impl Compiler {
         Ok(dir)
     }
 
-    /// Build one source map builder for one emitted script module.
-    fn emitted_script_source_map(
+    /// Build one source map builder for one linked script module.
+    fn script_module_source_map(
         &self,
         package_dir: &Path,
         module: &Module,
         printed: &PrintedScriptModule,
         context: &CompilerContext<'_>,
-    ) -> Result<SourceMapBuilder, EmitError> {
+    ) -> SourceMapBuilder {
         let source_path = self.package_relative_uri_path(package_dir, &module.uri);
         let source_file = context.file(module.file_id);
         let markers = printed
@@ -249,11 +243,11 @@ impl Compiler {
             .filter_map(|marker| SourceMapMarker::from_file_marker(0, source_file.as_ref(), marker))
             .collect();
 
-        Ok(SourceMapBuilder::new(vec![source_path], markers))
+        SourceMapBuilder::new(vec![source_path], markers)
     }
 
-    /// Emit one printed JavaScript or TypeScript module output.
-    fn emit_printed_script_text_output(
+    /// Link one printed JavaScript or TypeScript module into output files.
+    fn link_printed_script_text_files(
         &self,
         target: &Target,
         package_dir: &Path,
@@ -265,11 +259,9 @@ impl Compiler {
         context: &CompilerContext<'_>,
     ) -> Result<Vec<OutputFile>, String> {
         // source map
-        let source_map = self
-            .emitted_script_source_map(package_dir, module, &printed, context)
-            .map_err(|error| error.to_string())?;
+        let source_map = self.script_module_source_map(package_dir, module, &printed, context);
 
-        self.emit_script_text_output(
+        self.link_script_text_files(
             target,
             file_type,
             output_path,
@@ -279,8 +271,8 @@ impl Compiler {
         )
     }
 
-    /// Emit one printed script module for one concrete output file type.
-    fn emit_printed_script_output(
+    /// Link one printed script module for one concrete output file type.
+    fn link_printed_script_files(
         &self,
         module: &Module,
         artifact: &ScriptArtifact,
@@ -304,7 +296,7 @@ impl Compiler {
 
         // script text
         if matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
-            return self.emit_printed_script_text_output(
+            return self.link_printed_script_text_files(
                 target,
                 package_dir,
                 module,
@@ -323,8 +315,8 @@ impl Compiler {
         Err(format!("unsupported file type: {file_type:?}"))
     }
 
-    /// Emit one declaration output file when the target requests one.
-    fn emit_script_declaration_output(
+    /// Link one declaration output file when the target requests one.
+    fn link_script_declaration_file(
         &self,
         module: &Module,
         declaration_text: &str,
@@ -347,8 +339,8 @@ impl Compiler {
         })
     }
 
-    /// Emit one script artifact to output.
-    pub(crate) fn emit_script_artifact_output(
+    /// Link one script artifact into output files.
+    pub(crate) fn link_script_artifact_files(
         &self,
         module: &Module,
         artifact: &ScriptArtifact,
@@ -359,7 +351,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
     ) -> Result<Vec<OutputFile>, String> {
         let mut entries = Vec::new();
-        let file_types = planned_script_file_types(target)?;
+        let file_types = linked_script_file_types(target)?;
         let source_map_path = file_types
             .contains(&FileType::SourceMap)
             .then(|| {
@@ -390,7 +382,7 @@ impl Compiler {
                 continue;
             }
 
-            let files = self.emit_printed_script_output(
+            let files = self.link_printed_script_files(
                 module,
                 artifact,
                 target_id,
@@ -409,7 +401,7 @@ impl Compiler {
         if let Some(declaration) = &artifact.declaration
             && file_types.contains(&FileType::TypeScriptDeclaration)
         {
-            let declaration = self.emit_script_declaration_output(
+            let declaration = self.link_script_declaration_file(
                 module,
                 &declaration.text,
                 target,
@@ -423,8 +415,8 @@ impl Compiler {
         Ok(entries)
     }
 
-    /// Emit one final script text output and any related sidecars.
-    pub(crate) fn emit_script_text_output(
+    /// Link one final script text output and any related sidecars.
+    pub(crate) fn link_script_text_files(
         &self,
         target: &Target,
         file_type: FileType,
@@ -459,7 +451,7 @@ impl Compiler {
             source_map.as_ref(),
             source_map_reference,
         )?;
-        let content = output_policy.emit_script_content(file_type, code)?;
+        let content = output_policy.script_content(file_type, code)?;
         let mut files = vec![OutputFile {
             uri: Uri::from_path(output_path),
             content,
@@ -530,8 +522,8 @@ fn relative_path_between(from_output_path: &Path, to_output_path: &Path) -> Path
     relative_path
 }
 
-/// Choose the emitted file types for one script target.
-fn planned_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
+/// Choose the linked file types for one script target.
+fn linked_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
     match target.emit {
         EmitFormat::Js => {
             let mut file_types = vec![FileType::JavaScript];
