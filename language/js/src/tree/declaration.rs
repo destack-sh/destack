@@ -1,46 +1,13 @@
 use crate::{
-    BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, GenericParameter,
-    LocalNodeId, Member, Name, Node, NodeType, Statement, StringId, TypeExpression, TypeMember,
+    Block, DependencyMode, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member,
+    Name, Node, NodeType, Statement, StringId, TypeExpression, TypeMember,
 };
-
-/// The kind of declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DeclarationKind {
-    /// Declare.
-    Declaration,
-    /// Definition.
-    Definition,
-}
-
-/// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DeclarationAbstraction {
-    /// Abstract declaration.
-    Abstract,
-    /// Concrete declaration.
-    Concrete,
-}
-
-/// The descriptor for a declaration.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DeclarationDescriptor {
-    /// The kind of declaration.
-    pub kind: DeclarationKind,
-    /// The abstraction level of the declaration.
-    pub abstraction: DeclarationAbstraction,
-    /// The anchor of the declaration.
-    pub anchor: BindingAnchor,
-    /// The name of the declaration.
-    pub name: Option<Name>,
-    /// The export type of the declaration.
-    pub export: Option<DependencyMode>,
-}
 
 /// A global augmentation declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GlobalDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
     /// The statements inside the global body.
     pub statements: Vec<LocalNodeId<Statement>>,
 }
@@ -48,8 +15,12 @@ pub struct GlobalDeclaration {
 /// A namespace declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamespaceDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The namespace name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
     /// The statements inside the namespace body.
     pub statements: Vec<LocalNodeId<Statement>>,
 }
@@ -57,8 +28,12 @@ pub struct NamespaceDeclaration {
 /// A type alias declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The declared type value.
@@ -68,8 +43,14 @@ pub struct TypeDeclaration {
 /// A class declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+    /// Whether the declaration is abstract.
+    pub is_abstract: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The optional extended class expression.
@@ -94,8 +75,12 @@ pub struct InterfaceHeritage {
 /// An interface declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The extended interfaces.
@@ -107,8 +92,12 @@ pub struct InterfaceDeclaration {
 /// An enum declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
     /// The enum fields.
     pub fields: Vec<LocalNodeId<EnumField>>,
 }
@@ -116,8 +105,14 @@ pub struct EnumDeclaration {
 /// A function declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDeclaration {
-    /// The declaration descriptor.
-    pub descriptor: DeclarationDescriptor,
+    /// The declared name.
+    pub name: Option<Name>,
+    /// The export mode of the declaration.
+    pub export: Option<DependencyMode>,
+    /// Whether the declaration is ambient.
+    pub is_ambient: bool,
+    /// Whether the declaration is abstract.
+    pub is_abstract: bool,
     /// The function signature.
     pub signature: FunctionSignature,
     /// The optional function body.
@@ -151,15 +146,14 @@ impl Declaration {
     /// Return whether this declaration is type only in plain js output.
     pub fn is_type_only(&self) -> bool {
         match self {
-            Self::Global(GlobalDeclaration { descriptor, .. })
-            | Self::Namespace(NamespaceDeclaration { descriptor, .. })
-            | Self::Type(TypeDeclaration { descriptor, .. })
-            | Self::Class(ClassDeclaration { descriptor, .. })
-            | Self::Interface(InterfaceDeclaration { descriptor, .. })
-            | Self::Enum(EnumDeclaration { descriptor, .. })
-            | Self::Function(FunctionDeclaration { descriptor, .. }) => {
-                descriptor.kind == DeclarationKind::Declaration
-                    || matches!(self, Self::Type(_) | Self::Interface(_))
+            Self::Global(GlobalDeclaration { is_ambient, .. })
+            | Self::Namespace(NamespaceDeclaration { is_ambient, .. })
+            | Self::Type(TypeDeclaration { is_ambient, .. })
+            | Self::Class(ClassDeclaration { is_ambient, .. })
+            | Self::Interface(InterfaceDeclaration { is_ambient, .. })
+            | Self::Enum(EnumDeclaration { is_ambient, .. })
+            | Self::Function(FunctionDeclaration { is_ambient, .. }) => {
+                *is_ambient || matches!(self, Self::Type(_) | Self::Interface(_))
             }
         }
     }

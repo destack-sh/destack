@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumField, FunctionCardinality,
-    InterfaceHeritage, Keyword, LocalNodeId, TypeExpression, Visibility,
+    Asynchrony, Declaration, DependencyMode, EnumField, FunctionCardinality, InterfaceHeritage,
+    Keyword, LocalNodeId, TypeExpression, Visibility,
 };
 use destack_fir::format::FormatResult;
 
@@ -106,16 +106,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
 
         match self {
             Declaration::Global(global) => {
-                let descriptor = &global.descriptor;
                 let statements = &global.statements;
 
-                // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
-                }
-
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if global.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -136,16 +130,15 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
             }
             Declaration::Namespace(namespace) => {
-                let descriptor = &namespace.descriptor;
                 let statements = &namespace.statements;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = namespace.export {
                     write!(f, [export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if namespace.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -153,7 +146,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [Keyword::Namespace])?;
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = namespace.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -171,12 +164,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
             }
             Declaration::Type(ty) => {
-                let descriptor = &ty.descriptor;
                 let generic_parameters = &ty.generic_parameters;
                 let value = ty.value;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = ty.export {
                     write!(f, [export, space()])?;
                 }
 
@@ -184,7 +176,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [Keyword::Type])?;
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = ty.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -197,7 +189,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [space(), token("="), space(), value])?;
             }
             Declaration::Class(class) => {
-                let descriptor = &class.descriptor;
                 let generic_parameters = &class.generic_parameters;
                 let extends_expression = class.extends_expression;
                 let extends_generic_arguments = &class.extends_generic_arguments;
@@ -205,20 +196,25 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 let members = &class.members;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = class.export {
                     write!(f, [export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if class.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // abstract
+                if class.is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
                 }
 
                 // keyword
                 write!(f, [Keyword::Class])?;
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = class.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -253,18 +249,17 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [hard_line_break(), token("}"),])?;
             }
             Declaration::Interface(interface) => {
-                let descriptor = &interface.descriptor;
                 let generic_parameters = &interface.generic_parameters;
                 let extends = &interface.extends;
                 let members = &interface.members;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = interface.export {
                     write!(f, [export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if interface.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -272,7 +267,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [Keyword::Interface])?;
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = interface.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -298,16 +293,15 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [hard_line_break(), token("}"),])?;
             }
             Declaration::Enum(enum_declaration) => {
-                let descriptor = &enum_declaration.descriptor;
                 let fields = &enum_declaration.fields;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = enum_declaration.export {
                     write!(f, [export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if enum_declaration.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -315,7 +309,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [Keyword::Enum])?;
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = enum_declaration.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -331,18 +325,22 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [hard_line_break(), token("}"),])?;
             }
             Declaration::Function(function) => {
-                let descriptor = &function.descriptor;
                 let signature = &function.signature;
                 let body = function.body;
 
                 // export
-                if let Some(export) = descriptor.export {
+                if let Some(export) = function.export {
                     write!(f, [export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if function.is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // abstract
+                if function.is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
                 }
 
                 // asynchrony
@@ -359,7 +357,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // name / key
-                if let Some(name) = descriptor.name {
+                if let Some(name) = function.name {
                     write!(f, [space(), name])?;
                 }
 

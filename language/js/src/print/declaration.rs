@@ -1,8 +1,8 @@
 use super::printer::Printer;
 use crate::{
-    Asynchrony, BindingModifier, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    Declarator, FunctionCardinality, FunctionSignature, JsPrintResult, Key, Keyword, LocalNodeId,
-    Member, Precedence, Property,
+    Asynchrony, BindingModifier, Declaration, Declarator, DependencyMode, FunctionCardinality,
+    FunctionSignature, JsPrintResult, Key, Keyword, LocalNodeId, Member, Name, Precedence,
+    Property,
 };
 
 impl<'a> Printer<'a> {
@@ -18,23 +18,21 @@ impl<'a> Printer<'a> {
 
         match declaration {
             Declaration::Global(global) => {
-                let descriptor = &global.descriptor;
                 let statements = &global.statements;
 
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(None, global.is_ambient);
                 self.write_keyword(Keyword::Global);
                 self.write_punct("{");
                 self.print_statement_list(statements)?;
                 self.write_punct("}");
             }
             Declaration::Namespace(namespace) => {
-                let descriptor = &namespace.descriptor;
                 let statements = &namespace.statements;
 
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(namespace.export, namespace.is_ambient);
                 self.write_keyword(Keyword::Namespace);
 
-                if let Some(name) = descriptor.name {
+                if let Some(name) = namespace.name {
                     self.write_name(name);
                 }
 
@@ -43,11 +41,10 @@ impl<'a> Printer<'a> {
                 self.write_punct("}");
             }
             Declaration::Type(ty) => {
-                let descriptor = &ty.descriptor;
                 let generic_parameters = &ty.generic_parameters;
                 let value = ty.value;
 
-                self.print_type_declaration_prefix(descriptor);
+                self.print_type_declaration_prefix(ty.export, ty.name);
 
                 if !generic_parameters.is_empty() {
                     self.write_punct("<");
@@ -59,14 +56,19 @@ impl<'a> Printer<'a> {
                 self.print_type_id(value)?;
             }
             Declaration::Class(class) => {
-                let descriptor = &class.descriptor;
                 let generic_parameters = &class.generic_parameters;
                 let extends_expression = class.extends_expression;
                 let extends_generic_arguments = &class.extends_generic_arguments;
                 let implements_types = &class.implements_types;
                 let members = &class.members;
 
-                self.print_class_like_prefix(Keyword::Class, descriptor);
+                self.print_class_like_prefix(
+                    Keyword::Class,
+                    class.export,
+                    class.is_ambient,
+                    class.is_abstract,
+                    class.name,
+                );
 
                 if self.include_types && !generic_parameters.is_empty() {
                     self.write_punct("<");
@@ -98,12 +100,17 @@ impl<'a> Printer<'a> {
                 self.write_punct("}");
             }
             Declaration::Interface(interface) => {
-                let descriptor = &interface.descriptor;
                 let generic_parameters = &interface.generic_parameters;
                 let extends = &interface.extends;
                 let members = &interface.members;
 
-                self.print_class_like_prefix(Keyword::Interface, descriptor);
+                self.print_class_like_prefix(
+                    Keyword::Interface,
+                    interface.export,
+                    interface.is_ambient,
+                    false,
+                    interface.name,
+                );
 
                 if !generic_parameters.is_empty() {
                     self.write_punct("<");
@@ -133,22 +140,26 @@ impl<'a> Printer<'a> {
                 self.write_punct("}");
             }
             Declaration::Enum(enum_declaration) => {
-                let descriptor = &enum_declaration.descriptor;
                 let fields = &enum_declaration.fields;
 
-                self.print_class_like_prefix(Keyword::Enum, descriptor);
+                self.print_class_like_prefix(
+                    Keyword::Enum,
+                    enum_declaration.export,
+                    enum_declaration.is_ambient,
+                    false,
+                    enum_declaration.name,
+                );
                 self.write_punct("{");
                 self.print_enum_field_list(fields)?;
                 self.write_punct("}");
             }
             Declaration::Function(function) => {
-                let descriptor = &function.descriptor;
                 let signature = &function.signature;
                 let body = function.body;
 
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(function.export, function.is_ambient);
 
-                if descriptor.abstraction == DeclarationAbstraction::Abstract {
+                if function.is_abstract {
                     self.write_keyword(Keyword::Abstract);
                 }
 
@@ -162,7 +173,7 @@ impl<'a> Printer<'a> {
                     self.write_punct("*");
                 }
 
-                if let Some(name) = descriptor.name {
+                if let Some(name) = function.name {
                     self.write_name(name);
                 }
 
@@ -180,14 +191,18 @@ impl<'a> Printer<'a> {
     }
 
     /// Print one type declaration prefix.
-    pub(crate) fn print_type_declaration_prefix(&mut self, descriptor: &DeclarationDescriptor) {
-        if let Some(export) = descriptor.export {
+    pub(crate) fn print_type_declaration_prefix(
+        &mut self,
+        export: Option<DependencyMode>,
+        name: Option<Name>,
+    ) {
+        if let Some(export) = export {
             self.write_dependency_mode(export);
         }
 
         self.write_keyword(Keyword::Type);
 
-        if let Some(name) = descriptor.name {
+        if let Some(name) = name {
             self.write_name(name);
         }
     }
@@ -196,17 +211,20 @@ impl<'a> Printer<'a> {
     pub(crate) fn print_class_like_prefix(
         &mut self,
         keyword: Keyword,
-        descriptor: &DeclarationDescriptor,
+        export: Option<DependencyMode>,
+        is_ambient: bool,
+        is_abstract: bool,
+        name: Option<Name>,
     ) {
-        self.print_statement_descriptor(descriptor);
+        self.print_statement_prefix(export, is_ambient);
 
-        if descriptor.abstraction == DeclarationAbstraction::Abstract {
+        if is_abstract {
             self.write_keyword(Keyword::Abstract);
         }
 
         self.write_keyword(keyword);
 
-        if let Some(name) = descriptor.name {
+        if let Some(name) = name {
             self.write_name(name);
         }
     }

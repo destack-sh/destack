@@ -1,9 +1,9 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, CatchClause, Declaration, DeclarationKind, DependencyKind, Expression,
-    ForEachDeclarationKind, ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword,
-    LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
+    Asynchrony, CatchClause, Declaration, DependencyKind, Expression, ForEachDeclarationKind,
+    ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword, LocalNodeId,
+    LocalNodeIdAny, Mutability, NodeType, Statement,
 };
 use destack_fir::format::{FormatResult, Formatter};
 use destack_fir::prelude::*;
@@ -191,17 +191,18 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
 
             Statement::Let {
-                descriptor,
+                export,
+                is_ambient,
                 mutability,
                 declarators,
             } => {
                 // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
+                if let Some(export) = export {
+                    write!(f, [*export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if *is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -215,16 +216,17 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 format_variable_declarators(f, declarators)?;
             }
             Statement::Var {
-                descriptor,
+                export,
+                is_ambient,
                 declarators,
             } => {
                 // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
+                if let Some(export) = export {
+                    write!(f, [*export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if *is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -236,16 +238,17 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
             Statement::Using {
                 asynchrony,
-                descriptor,
+                export,
+                is_ambient,
                 declarators,
             } => {
                 // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
+                if let Some(export) = export {
+                    write!(f, [*export, space()])?;
                 }
 
-                // kind
-                if descriptor.kind == DeclarationKind::Declaration {
+                // ambient
+                if *is_ambient {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
