@@ -5,6 +5,7 @@ use destack_ast::{
     Ambientness, BlockContext, BlockFormat, Declaration, Expression, GlobalDeclaration, Keyword,
     LocalNodeId, Name, NamespaceDeclaration, NamespaceKind, NodeType, TokenType,
 };
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use super::expression::common::DeclarationHeader;
 
@@ -31,7 +32,17 @@ impl Parser {
             },
             expressions,
         });
-        Ok(self.insert_node(global, self.get_span_from(start)))
+        let global_id = self.insert_node(global, self.get_span_from(start));
+
+        if let Some(span) = header.declare_span {
+            self.tree.set_side_span(
+                global_id,
+                NodeSpanType::Region(NodeSpanRegion::Prelude),
+                span,
+            );
+        }
+
+        Ok(global_id)
     }
 
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).

@@ -736,8 +736,8 @@ fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 3);
-                assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Null);
+                assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Null);
                 });
                 assert_node!(parser.tree, elements[1], TypeExpression::Object { .. });
                 assert_node!(parser.tree, elements[2], TypeExpression::Literal { value } => {

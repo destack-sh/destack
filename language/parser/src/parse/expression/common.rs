@@ -4,6 +4,7 @@ use destack_ast::{
     Ambientness, BinaryOperator, Declaration, ExportMode, Expression, FunctionDeclaration,
     FunctionKind, GenericArgument, Keyword, LocalNodeId, TokenType,
 };
+use destack_source::Span;
 
 use super::super::PendingDecorators;
 
@@ -66,6 +67,8 @@ pub(crate) struct DeclarationHeader {
     pub export: Option<ExportMode>,
     /// Whether the declaration is ambient.
     pub ambient: Ambientness,
+    /// The explicit `declare` modifier span.
+    pub declare_span: Option<Span>,
     /// Whether the declaration is abstract.
     pub is_abstract: bool,
 }
@@ -75,6 +78,7 @@ impl Default for DeclarationHeader {
         Self {
             export: None,
             ambient: Ambientness::Concrete,
+            declare_span: None,
             is_abstract: false,
         }
     }

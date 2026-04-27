@@ -498,9 +498,9 @@ const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?:
                     });
 
                     // const Mapping extends (...)
-                    assert_node!(parser.tree, generic_parameters[1], GenericParameter::Value { name, declared_type: Some(ty), is_comptime, .. } => {
+                    assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, is_const, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Mapping");
-                        assert!(*is_comptime);
+                        assert!(*is_const);
                         assert_node!(parser.tree, *ty, TypeExpression::Parenthesized { expression } => {
                             assert_node!(parser.tree, *expression, TypeExpression::Conditional { .. });
                         });
@@ -541,9 +541,9 @@ const Mapping
                 assert_node!(parser.tree, properties[0], TypeMember::CallSignature { signature } => {
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
-                    assert_node!(parser.tree, generic_parameters[0], GenericParameter::Value { name, declared_type: Some(ty), is_comptime, .. } => {
+                    assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, is_const, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Mapping");
-                        assert!(*is_comptime);
+                        assert!(*is_const);
                         assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::String);
                         });
@@ -1070,7 +1070,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
-                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
                             assert_string!(parser, *name, "Expected");
                             assert!(variance.is_none());
                             assert!(constraint.is_none());
@@ -1113,7 +1113,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
 
     // <Expected extends IsUnion<Expected> extends true ? ...>
     assert_eq!(generic_parameters.len(), 1);
-    assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+    assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
         assert_string!(parser, *name, "Expected");
         assert!(variance.is_none());
         assert!(default.is_none());
@@ -1155,7 +1155,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
                 assert_eq!(function.generic_parameters.len(), 1);
                 assert!(function.where_clauses.is_empty());
                 assert!(function.this_parameter.is_none());
-                assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
                     assert_string!(parser, *name, "Expected");
                     assert!(variance.is_none());
                     assert!(default.is_none());
@@ -1208,7 +1208,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
             assert!(mutability.is_none());
             assert_eq!(generic_parameters.len(), 1);
             assert!(where_clauses.is_empty());
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
                 assert_string!(parser, *name, "Actual");
                 assert!(variance.is_none());
                 assert!(constraint.is_none());
@@ -1229,7 +1229,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
-                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
                             assert_string!(parser, *name, "Expected");
                             assert!(variance.is_none());
                             assert!(default.is_none());
@@ -1290,7 +1290,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
-                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default } => {
+                        assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, variance, constraint, default, .. } => {
                             assert_string!(parser, *name, "U");
                             assert!(variance.is_none());
                             assert!(default.is_none());

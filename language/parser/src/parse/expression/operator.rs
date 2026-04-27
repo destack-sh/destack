@@ -25,6 +25,8 @@ pub(crate) enum TypeUnaryOperator {
     Typeof,
     /// `keyof T`
     Keyof,
+    /// `readonly T`
+    Readonly,
     /// `T as comptime`
     AsComptime,
 }
@@ -36,6 +38,7 @@ impl TypeUnaryOperator {
         match self {
             TypeUnaryOperator::Typeof => TYPE_UNARY_PRECEDENCE + 4,
             TypeUnaryOperator::Keyof => TYPE_UNARY_PRECEDENCE + 3,
+            TypeUnaryOperator::Readonly => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
         }
     }
@@ -46,6 +49,7 @@ impl TypeUnaryOperator {
         match token_str {
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
+            "readonly" => Some(TypeUnaryOperator::Readonly),
             _ => None,
         }
     }
