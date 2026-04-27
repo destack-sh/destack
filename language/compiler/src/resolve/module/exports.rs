@@ -1,200 +1,19 @@
-use crate::analyze::common::TreeSymbolView;
 use std::collections::HashSet;
 
-use crate::import::{SymbolDescriptor, can_merge_declarations};
+use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, CompilerContext, ImportError};
 use destack_artifact::{ExportedSymbolTable, ModuleBindingExportTable};
 use destack_builtin::builtin_library;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, ExportMode, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
-    ModuleBindingExports, NodeTree, NodeVisitor, NodeVisitorOptions, StaticKey, Symbol, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
+    ModuleBindingExports, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType,
 };
 use destack_source::{LanguageType, ModuleId};
-use destack_workspace::{Module, ProfileId, Revision};
+use destack_workspace::{Module, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
-
-/// Collect canonical dependency symbols for one export initializer.
-#[derive(Debug)]
-struct ExportDependencyCollector<'a> {
-    /// The compiler driving export resolution.
-    compiler: &'a Compiler,
-    /// The pinned revision for remote module reads.
-    revision: Revision,
-    /// The module being resolved.
-    module: &'a Module,
-    /// The active profile.
-    profile: ProfileId,
-    /// The module symbol table.
-    symbols: &'a SymbolTable,
-    /// Collected dependency symbols.
-    dependencies: Vec<GlobalSymbolId>,
-    /// Visitor options.
-    options: NodeVisitorOptions,
-}
-
-impl<'a> ExportDependencyCollector<'a> {
-    /// Create a new export dependency collector.
-    fn new(
-        compiler: &'a Compiler,
-        revision: Revision,
-        module: &'a Module,
-        profile: ProfileId,
-        symbols: &'a SymbolTable,
-    ) -> Self {
-        Self {
-            compiler,
-            revision,
-            module,
-            profile,
-            symbols,
-            dependencies: Vec::new(),
-            options: NodeVisitorOptions::default(),
-        }
-    }
-
-    /// Finish collection and return canonical dependency symbols.
-    fn finish(mut self) -> Vec<GlobalSymbolId> {
-        self.dependencies.sort_unstable();
-        self.dependencies.dedup();
-        self.dependencies
-    }
-
-    /// Return the namespace-like target symbol for member dependency collection.
-    fn namespace_target_symbol_maybe(
-        &self,
-        target_symbol: GlobalSymbolId,
-    ) -> Option<GlobalSymbolId> {
-        // keep imported aliases on their resolved remote target
-        if target_symbol.module_id == self.module.id
-            && let Some(imported_symbol) = self
-                .symbols
-                .get_symbol(target_symbol.local_id)
-                .target_symbol
-        {
-            return Some(imported_symbol);
-        }
-
-        // only namespace-like locals should drive member dependency lookup
-        if target_symbol.module_id == self.module.id {
-            let symbol = self.symbols.get_symbol(target_symbol.local_id);
-            if symbol.kind != SymbolKind::Namespace {
-                return None;
-            }
-        }
-
-        Some(target_symbol)
-    }
-}
-
-impl NodeVisitor for ExportDependencyCollector<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // member access: resolve the member symbol once at export publication time
-        if let Expression::Member { left, name } = expression
-            && let Some(name) = *name
-        {
-            let left_expression = tree.get(*left);
-            let member_key = StaticKey::Name(name);
-
-            if let Some(target_symbol) = left_expression.target_symbol()
-                && let Some(namespace_target) = self.namespace_target_symbol_maybe(target_symbol)
-            {
-                if let Ok(Some(member_symbol)) = self.compiler.resolve_symbol_in_namespace(
-                    self.revision,
-                    id.into_global_any(self.module.id),
-                    namespace_target,
-                    self.profile,
-                    DependencyKind::Value,
-                    member_key,
-                    None,
-                ) {
-                    self.dependencies.push(member_symbol);
-                } else if let Some(member_symbol) = self.compiler.query_static_member_symbol(
-                    self.revision,
-                    self.module,
-                    self.profile,
-                    target_symbol,
-                    member_key,
-                    tree,
-                    self.symbols,
-                ) {
-                    self.dependencies.push(member_symbol);
-                }
-            }
-        }
-
-        // encoded path member access
-        if let Expression::LocalReference {
-            path,
-            generic_arguments,
-            target_symbol,
-        }
-        | Expression::ModuleReference {
-            path,
-            generic_arguments,
-            target_symbol,
-        }
-        | Expression::GlobalReference {
-            path,
-            generic_arguments,
-            target_symbol,
-        } = expression
-            && generic_arguments.is_empty()
-            && path.segments.len() > 1
-        {
-            let mut current_symbol = *target_symbol;
-
-            for segment in path.segments.iter().copied().skip(1) {
-                let member_key = StaticKey::Name(segment);
-                let Some(member_symbol) = self.compiler.query_static_member_symbol(
-                    self.revision,
-                    self.module,
-                    self.profile,
-                    current_symbol,
-                    member_key,
-                    tree,
-                    self.symbols,
-                ) else {
-                    break;
-                };
-                current_symbol = member_symbol;
-            }
-
-            if current_symbol != *target_symbol {
-                self.dependencies.push(current_symbol);
-            }
-        }
-
-        // direct references
-        if let Some(target_symbol) = expression.target_symbol() {
-            if target_symbol.module_id == self.module.id
-                && let Some(imported_symbol) = self
-                    .symbols
-                    .get_symbol(target_symbol.local_id)
-                    .target_symbol
-            {
-                self.dependencies.push(imported_symbol);
-            } else {
-                self.dependencies.push(target_symbol);
-            }
-        }
-
-        destack_core::ensure_sufficient_stack(|| {
-            walk_expression(self, tree, id, expression);
-        });
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1338,28 +1157,9 @@ impl Compiler {
             return export.target.resolved().into_iter().collect();
         }
 
-        // only local value exports with one direct binding initializer participate in
-        // export dependency cycles
-        let tree_symbol_view = TreeSymbolView::new(context, module, profile, tree, symbols);
-        let Some((_, value_symbol)) =
-            self.interface_value_symbol_for_export(symbols, module.id, export)
-        else {
-            return Vec::new();
-        };
-        let Some(declarator_id) =
-            self.direct_binding_declarator_for_symbol(tree_symbol_view, value_symbol)
-        else {
-            return Vec::new();
-        };
-        let Some(value_id) = tree.get(declarator_id).value else {
-            return Vec::new();
-        };
+        let _ = (context, module, profile, tree, symbols, export);
 
-        // collect dependencies from the initializer once
-        let mut collector =
-            ExportDependencyCollector::new(self, context.revision(), module, profile, symbols);
-        collector.visit_expression(tree, value_id, tree.get(value_id));
-        collector.finish()
+        Vec::new()
     }
 
     /// Resolve a default export target from dependency items.
@@ -1560,32 +1360,6 @@ impl Compiler {
         dir.symbols.get_symbol(symbol.local_id).ty
     }
 
-    /// Check whether a symbol can be used as a value.
-    ///
-    /// This centralizes the type/value decision so Resolve can honor declaration-module reexports
-    /// without silently treating nominal value symbols as type-only.
-    pub(crate) fn symbol_is_value_capable(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-    ) -> bool {
-        if let Some(dir) = self.dir_resolved(symbol.module_id, profile) {
-            let entry = dir.symbols.get_symbol(symbol.local_id);
-            return symbol_entry_is_value_capable(entry);
-        }
-
-        let dir = self
-            .dir_prepared(symbol.module_id, profile)
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing prepared dir for symbol capability lookup: module={:?} profile={:?}",
-                    symbol.module_id, profile
-                )
-            });
-        let entry = dir.symbols.get_symbol(symbol.local_id);
-        symbol_entry_is_value_capable(entry)
-    }
-
     /// Insert exports into the table and report conflicts.
     fn insert_exports(
         &self,
@@ -1727,31 +1501,4 @@ impl Compiler {
             _ => can_merge_declarations(language_type, left_descriptor, right_descriptor),
         }
     }
-}
-
-/// Return true when a symbol entry can be used as a value.
-fn symbol_entry_is_value_capable(entry: &Symbol) -> bool {
-    if entry.space == SymbolSpace::Value {
-        return true;
-    }
-
-    if matches!(
-        entry.ty,
-        SymbolType::Struct
-            | SymbolType::Class
-            | SymbolType::Enum
-            | SymbolType::Newtype
-            | SymbolType::Function
-    ) {
-        return true;
-    }
-
-    if entry.space == SymbolSpace::TypeValue {
-        return !matches!(
-            entry.ty,
-            SymbolType::Interface | SymbolType::TypeAlias | SymbolType::Extension
-        );
-    }
-
-    false
 }

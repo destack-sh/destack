@@ -26,6 +26,7 @@ impl EnvironmentImageContext {
     }
 }
 
+#[allow(dead_code)]
 impl Compiler {
     /// Build the current expected language environment image header.
     pub(crate) fn language_environment_image_header(

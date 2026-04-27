@@ -18,7 +18,6 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        options: crate::AnalyzeOptions,
         context: &CompilerContext<'_>,
         tree: &mut dir::NodeTree,
         symbols: &mut dir::SymbolTable,
@@ -29,7 +28,7 @@ impl Compiler {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(context, module.id, module, profile, options);
+        let ctx = ElaborateContext::new(context, module.id, module, profile);
         let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // collect member expressions used as call or new callees

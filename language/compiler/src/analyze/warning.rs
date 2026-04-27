@@ -1,6 +1,6 @@
 use crate::{CompileWarning, DiagnosticAnchor, DiagnosticDefinition};
 use destack_compiler_macros::DefineWarning;
-use destack_dir::{AnchoredGlobalNodeId, GlobalTypeId};
+use destack_dir::AnchoredGlobalNodeId;
 use destack_workspace::Repository;
 
 /// Warnings during the analyze phase.
@@ -8,79 +8,9 @@ use destack_workspace::Repository;
 #[phase(Analyze)]
 pub enum AnalyzeWarning {
     // -------------------------------------------------------------------------
-    // 1xx: Control flow warnings
+    // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
-    /// Non-exhaustive match.
-    #[warning(code = "WA100", message = "non-exhaustive match")]
-    NonExhaustiveMatch { node: AnchoredGlobalNodeId },
-
-    /// Always-true / always-false conditions.
-    #[warning(code = "WA102", message = "constant value condition")]
-    ConstantValueCondition { node: AnchoredGlobalNodeId },
-
-    // -------------------------------------------------------------------------
-    // 2xx: Pattern warnings
-    // -------------------------------------------------------------------------
-    /// Redundant patterns (match arms never hit).
-    #[warning(code = "WA200", message = "redundant pattern")]
-    RedundantPattern { node: AnchoredGlobalNodeId },
-
-    /// Shadowed overload: an earlier overload always matches, so this one is never reached.
-    #[warning(
-        code = "WA201",
-        message = "overload is shadowed by an earlier declaration"
-    )]
-    ShadowedOverload {
-        node: AnchoredGlobalNodeId,
-        shadowed_by: AnchoredGlobalNodeId,
-    },
-
-    // -------------------------------------------------------------------------
-    // 3xx: Unused / ignored
-    // -------------------------------------------------------------------------
-    /// Unused symbol.
-    #[warning(code = "WA300", message = "unused symbol")]
-    UnusedSymbol { node: AnchoredGlobalNodeId },
-
-    /// Ignored return value.
-    #[warning(code = "WA301", message = "ignored return value")]
-    IgnoredReturnValue { node: AnchoredGlobalNodeId },
-
-    // -------------------------------------------------------------------------
-    // 4xx: Performance / suspicious
-    // -------------------------------------------------------------------------
-    /// Large dispatch table (performance warning).
-    #[warning(
-        code = "WA400",
-        message = "complex dynamic dispatch ({size} candidates)"
-    )]
-    ComplexDynamicDispatch {
-        node: AnchoredGlobalNodeId,
-        size: usize,
-    },
-
-    /// Suspicious narrowing.
-    #[warning(code = "WA401", message = "suspicious narrowing")]
-    SuspiciousNarrowing { node: AnchoredGlobalNodeId },
-
-    // -------------------------------------------------------------------------
-    // 5xx: Type inference
-    // -------------------------------------------------------------------------
-    /// Exported value type could not be inferred.
-    #[warning(code = "WA500", message = "exported value has unknown type")]
-    ExportTypeUnknown { node: AnchoredGlobalNodeId },
-
-    /// Try error type does not implement Error.
-    #[warning(
-        code = "WA501",
-        message = "Try error type {ty} does not implement Error"
-    )]
-    TryErrorNotError {
-        node: AnchoredGlobalNodeId,
-        ty: GlobalTypeId,
-    },
-
-    /// Implicit collection conversion.
-    #[warning(code = "WA502", message = "implicit collection conversion")]
-    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+    /// Unsupported node.
+    #[warning(code = "WA900", message = "unsupported construct")]
+    UnsupportedConstruct { node: AnchoredGlobalNodeId },
 }

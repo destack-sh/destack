@@ -1,4 +1,4 @@
-use crate::import::{SymbolDescriptor, can_merge_declarations};
+use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, CompilerContext, ImportError};
 use destack_dir::{
     BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,

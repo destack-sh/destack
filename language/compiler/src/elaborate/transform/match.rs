@@ -5,7 +5,6 @@ use dir::{
     PatternField, ScalarLiteral, StringId, TypeExpression,
 };
 
-use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -1269,22 +1268,8 @@ impl Compiler {
         };
 
         // derive and record the runtime check kind
-        let options = state.ctx.options;
-        let mut ctx = TypeContext::new(
-            state.ctx.compiler_context,
-            state.ctx.module,
-            state.ctx.profile,
-            &options,
-            state.tree,
-            state.symbols,
-            state.types,
-            AnalyzeIndex::default(),
-        );
-        let runtime_check_kind = self.runtime_check_kind_for_relation(
-            &mut ctx.reborrow(),
-            value_type_id,
-            target_type_id,
-        );
+        let runtime_check_kind =
+            self.runtime_check_kind_for_relation(state.types, value_type_id, target_type_id);
         let Some(runtime_check_kind) = runtime_check_kind else {
             return Err(ElaborateError::UnsupportedConstruct {
                 node: expr_id
@@ -1292,7 +1277,7 @@ impl Compiler {
                     .into_anchored(None),
             });
         };
-        ctx.types.set_runtime_check_kind(
+        state.types.set_runtime_check_kind(
             expr_id.into_global_any(state.tree.module_id),
             runtime_check_kind,
         );

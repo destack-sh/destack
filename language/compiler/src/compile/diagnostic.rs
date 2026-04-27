@@ -1,6 +1,5 @@
 use crate::{
-    AnalyzeError, AnalyzeWarning, CompileError, CompileWarning, Compiler, DiagnosticAnchor,
-    ResolveError, ResolveWarning,
+    CompileError, CompileWarning, Compiler, DiagnosticAnchor, ResolveError, ResolveWarning,
 };
 use destack_artifact::ArtifactStore;
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, ModuleId, Span};
@@ -110,16 +109,8 @@ impl CompileDiagnostic {
 struct ModuleDiagnosticPolicy {
     /// Whether the anchored module is a declaration module.
     is_declaration: bool,
-    /// Whether the anchored module is a TypeScript module.
-    is_typescript: bool,
-    /// Whether the anchored module is a JavaScript module.
-    is_javascript: bool,
     /// Whether declaration diagnostics should be skipped.
     skip_lib_check: bool,
-    /// Whether TypeScript compatibility diagnostics are enabled.
-    check_ts: bool,
-    /// Whether JavaScript compatibility diagnostics are enabled.
-    check_js: bool,
 }
 
 impl Compiler {
@@ -127,7 +118,6 @@ impl Compiler {
     pub(super) fn should_emit_error(&self, revision: Revision, error: &CompileError) -> bool {
         match error {
             CompileError::Resolve(error) => self.should_emit_resolve_error(revision, error),
-            CompileError::Analyze(error) => self.should_emit_analyze_error(revision, error),
             _ => true,
         }
     }
@@ -136,7 +126,6 @@ impl Compiler {
     pub(super) fn should_emit_warning(&self, revision: Revision, warning: &CompileWarning) -> bool {
         match warning {
             CompileWarning::Resolve(warning) => self.should_emit_resolve_warning(revision, warning),
-            CompileWarning::Analyze(warning) => self.should_emit_analyze_warning(revision, warning),
             _ => true,
         }
     }
@@ -196,16 +185,11 @@ impl Compiler {
         let context = self.context(revision).ok()?;
         let module = context.module(module_id);
         let module = module.as_ref();
-        let options = context.module_check_options_for_module(module_id);
         let skip_lib_check = self.skip_lib_check_for_anchor(revision, anchor, module_id);
 
         Some(ModuleDiagnosticPolicy {
             is_declaration: module.language_type.is_declaration(),
-            is_typescript: module.language_type.is_typescript(),
-            is_javascript: module.language_type.is_javascript(),
             skip_lib_check,
-            check_ts: options.check_ts,
-            check_js: options.check_js,
         })
     }
 
@@ -228,33 +212,6 @@ impl Compiler {
         true
     }
 
-    /// Check whether an analyze diagnostic should be emitted.
-    fn should_emit_analyze_for_anchor(
-        &self,
-        revision: Revision,
-        anchor: &DiagnosticAnchor,
-    ) -> bool {
-        // allow diagnostics without a module anchor
-        let Some(policy) = self.module_diagnostic_policy_for_anchor(revision, anchor) else {
-            return true;
-        };
-
-        // skip lib checks for declaration modules
-        if policy.is_declaration && policy.skip_lib_check {
-            return false;
-        }
-
-        // skip checks for unchecked compatibility modules
-        if policy.is_typescript && !policy.is_declaration && !policy.check_ts {
-            return false;
-        }
-        if policy.is_javascript && !policy.check_js {
-            return false;
-        }
-
-        true
-    }
-
     /// Check whether a resolve error should be emitted.
     fn should_emit_resolve_error(&self, revision: Revision, error: &ResolveError) -> bool {
         let anchor = error.anchor();
@@ -267,27 +224,5 @@ impl Compiler {
         let anchor = warning.anchor();
 
         self.should_emit_resolve_for_anchor(revision, &anchor)
-    }
-
-    /// Check whether an analyze error should be emitted.
-    fn should_emit_analyze_error(&self, revision: Revision, error: &AnalyzeError) -> bool {
-        // always emit language gating errors
-        if matches!(
-            error,
-            AnalyzeError::TypeScriptDisabled { .. } | AnalyzeError::JavaScriptDisabled { .. }
-        ) {
-            return true;
-        }
-
-        let anchor = error.anchor();
-
-        self.should_emit_analyze_for_anchor(revision, &anchor)
-    }
-
-    /// Check whether an analyze warning should be emitted.
-    fn should_emit_analyze_warning(&self, revision: Revision, warning: &AnalyzeWarning) -> bool {
-        let anchor = warning.anchor();
-
-        self.should_emit_analyze_for_anchor(revision, &anchor)
     }
 }

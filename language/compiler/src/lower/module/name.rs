@@ -1065,14 +1065,7 @@ impl ModuleLowerer<'_> {
         let key = key?;
 
         // resolve the key into a static key
-        let key = self.compiler.static_key_from_key(
-            self.context.revision(),
-            self.profile,
-            self.dir_tree,
-            self.symbols,
-            self.types,
-            key,
-        )?;
+        let key = self.compiler.static_key_from_key(self.dir_tree, key)?;
 
         // return the static key name
         Some(self.static_key_name(key))

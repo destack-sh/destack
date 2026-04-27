@@ -10,7 +10,6 @@ use super::r#type::{
     is_integer_type, is_nullable_union, is_object_type, is_pointer_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
-use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -596,19 +595,7 @@ impl Compiler {
         }
 
         // nominal fallback
-        let options = state.ctx.options;
-        let mut ctx = TypeContext::new(
-            state.ctx.compiler_context,
-            state.ctx.module,
-            state.ctx.profile,
-            &options,
-            state.tree,
-            state.symbols,
-            state.types,
-            AnalyzeIndex::default(),
-        );
-        let assignable = self.is_type_assignable(&mut ctx.reborrow(), target_id, source_id);
-        if assignable.is_assignable() {
+        if target_id == source_id {
             CastOperator::InstanceUpcast
         } else {
             CastOperator::InstanceDowncast

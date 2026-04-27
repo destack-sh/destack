@@ -4,11 +4,16 @@ use destack_workspace::{Repository, Revision};
 use crate::emit::EmitError;
 use crate::{
     AnalyzeError, CompilePhase, DiagnosticAnchor, ElaborateError, ExecuteError, GenerateError,
-    ImportError, LinkError, LowerError, OptimizeError, RequirementSet, ResolveError,
+    ImportError, LinkError, LowerError, OptimizeError, RequirementError, RequirementSet,
+    ResolveError,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompileError {
+    /// Wait for artifact requirements.
+    Yield { requirement: RequirementSet },
+    /// Artifact requirement failed upstream.
+    UnsatisfiedRequirement { requirement: RequirementSet },
     /// Error during importing.
     Import(ImportError),
     /// Error during resolution.
@@ -133,10 +138,22 @@ impl From<InternalError> for CompileError {
     }
 }
 
+impl From<RequirementError> for CompileError {
+    fn from(error: RequirementError) -> Self {
+        match error {
+            RequirementError::NotReady { requirement } => Self::Yield { requirement },
+            RequirementError::Failed { requirement } => {
+                Self::UnsatisfiedRequirement { requirement }
+            }
+        }
+    }
+}
+
 impl CompileError {
     /// Get the phase of the error, if applicable.
     pub fn phase(&self) -> Option<CompilePhase> {
         match self {
+            Self::Yield { .. } | Self::UnsatisfiedRequirement { .. } => None,
             Self::Import(_) => Some(CompilePhase::Import),
             Self::Resolve(_) => Some(CompilePhase::Resolve),
             Self::Analyze(_) => Some(CompilePhase::Analyze),
@@ -163,6 +180,7 @@ impl CompileError {
     #[inline]
     pub fn sub_code(&self) -> u16 {
         match self {
+            Self::Yield { .. } | Self::UnsatisfiedRequirement { .. } => 0,
             Self::Import(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
             Self::Analyze(error) => error.sub_code(),
@@ -180,6 +198,7 @@ impl CompileError {
     /// Get the anchor of the error.
     pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
+            Self::Yield { .. } | Self::UnsatisfiedRequirement { .. } => DiagnosticAnchor::Global,
             Self::Import(error) => error.anchor(),
             Self::Resolve(error) => error.anchor(),
             Self::Analyze(error) => error.anchor(),
@@ -202,6 +221,12 @@ impl CompileError {
         artifacts: &ArtifactStore,
     ) -> String {
         match self {
+            Self::Yield { .. } => {
+                "internal error: compiler requirement yield escaped diagnostics".to_string()
+            }
+            Self::UnsatisfiedRequirement { .. } => {
+                "internal error: compiler requirement failed upstream".to_string()
+            }
             Self::Import(error) => error.message(revision, repository, artifacts),
             Self::Resolve(error) => error.message(revision, repository, artifacts),
             Self::Analyze(error) => error.message(revision, repository, artifacts),
@@ -225,6 +250,8 @@ impl CompileError {
     /// Check whether this error represents a failed requirement yield.
     pub fn is_yield_failed(&self) -> bool {
         match self {
+            Self::Yield { .. } => false,
+            Self::UnsatisfiedRequirement { .. } => true,
             Self::Import(error) => error.is_yield_failed(),
             Self::Resolve(error) => error.is_yield_failed(),
             Self::Analyze(error) => error.is_yield_failed(),
@@ -242,6 +269,7 @@ impl CompileError {
     /// Get the yielded artifact requirement, if any.
     pub fn yielded_to(&self) -> Option<&RequirementSet> {
         match self {
+            Self::Yield { requirement } => Some(requirement),
             Self::Import(ImportError::Yield { requirement }) => Some(requirement),
             Self::Resolve(ResolveError::Yield { requirement }) => Some(requirement),
             Self::Analyze(AnalyzeError::Yield { requirement }) => Some(requirement),
@@ -259,6 +287,9 @@ impl CompileError {
     /// Return the blocking artifact requirement for this error, if any.
     pub fn blocking_requirement(&self) -> Option<&RequirementSet> {
         match self {
+            Self::Yield { requirement } | Self::UnsatisfiedRequirement { requirement } => {
+                Some(requirement)
+            }
             Self::Import(ImportError::Yield { requirement })
             | Self::Import(ImportError::UnsatisfiedRequirement { requirement }) => {
                 Some(requirement)

@@ -7,6 +7,7 @@ use destack_workspace::{ProfileId, Target, TargetDiscovery, TargetSelection};
 use super::globals::GlobalSymbolGroupKey;
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryError};
 
+#[allow(dead_code)]
 impl Compiler {
     /// Resolve a global symbol group by key and space.
     pub(crate) fn get_global_symbol_group(

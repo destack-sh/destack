@@ -73,11 +73,9 @@ impl Compiler {
         let mut types = analyzed.types.as_ref().clone();
 
         let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
-        let options = context.analyze_context_options_for_module(module_ref.id);
         self.elaborate_module_transform(
             module_ref,
             profile,
-            options,
             context,
             &mut tree,
             &mut symbols,
@@ -91,7 +89,6 @@ impl Compiler {
         self.elaborate_module_reify(
             module_ref,
             profile,
-            options,
             context,
             &mut tree,
             &mut symbols,

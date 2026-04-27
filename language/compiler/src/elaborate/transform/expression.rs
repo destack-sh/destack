@@ -18,7 +18,6 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        options: crate::AnalyzeOptions,
         context: &CompilerContext<'_>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -29,7 +28,7 @@ impl Compiler {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(context, module.id, module, profile, options);
+        let ctx = ElaborateContext::new(context, module.id, module, profile);
         let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // 0. split multi-declarators into individual lets

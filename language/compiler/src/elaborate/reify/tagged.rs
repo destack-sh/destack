@@ -7,7 +7,6 @@ use dir::{
     NodeType, SymbolTable, Type, TypeExpression, TypeTable,
 };
 
-use crate::analyze::TreeSymbolView;
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -52,16 +51,7 @@ impl Compiler {
         else {
             return Ok(false);
         };
-        let Some(callee_symbol) = self.reference_symbol_for_type_expression(
-            TreeSymbolView::new(
-                state.ctx.compiler_context,
-                state.ctx.module,
-                state.ctx.profile,
-                state.tree,
-                state.symbols,
-            ),
-            callee_id,
-        ) else {
+        let Some(callee_symbol) = state.tree.get(callee_id).target_symbol() else {
             return Ok(false);
         };
 
@@ -223,7 +213,7 @@ impl Compiler {
         callee_id: LocalNodeId<Expression>,
         generic_arguments: &[LocalNodeId<dir::GenericArgument>],
     ) -> Option<LocalNodeId<TypeExpression>> {
-        let callee_id = self.unwrap_parenthesized_expression(callee_id, state.tree);
+        let callee_id = unwrap_parenthesized_expression(callee_id, state.tree);
         let callee = state.tree.get(callee_id).clone();
         let scope = state.tree.get_scope(callee_id);
         let parent_id = state.tree.get_parent(callee_id.id);
@@ -330,5 +320,18 @@ impl Compiler {
             }
             _ => None,
         }
+    }
+}
+
+/// Unwrap parenthesized expressions.
+fn unwrap_parenthesized_expression(
+    mut expression_id: LocalNodeId<Expression>,
+    tree: &NodeTree,
+) -> LocalNodeId<Expression> {
+    loop {
+        let Expression::Parenthesized { expression } = tree.get(expression_id) else {
+            return expression_id;
+        };
+        expression_id = *expression;
     }
 }

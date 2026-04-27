@@ -76,6 +76,7 @@ impl BuiltinNamespace {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 impl Compiler {
     /// Return whether one specifier is package-like instead of local.
     pub(crate) fn is_package_like_dependency_specifier(specifier: &str) -> bool {

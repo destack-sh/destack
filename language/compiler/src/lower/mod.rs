@@ -3,6 +3,7 @@ mod dispatch;
 mod error;
 mod function;
 mod instance;
+mod key;
 mod module;
 mod process;
 mod runtime;

@@ -1,4 +1,4 @@
-use crate::{AnalyzeOptions, CompilerContext};
+use crate::CompilerContext;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -14,8 +14,6 @@ pub(crate) struct ElaborateContext<'a> {
     pub module: &'a Module,
     /// The active profile id.
     pub profile: ProfileId,
-    /// The active analysis options.
-    pub options: AnalyzeOptions,
 }
 
 impl<'a> ElaborateContext<'a> {
@@ -25,14 +23,12 @@ impl<'a> ElaborateContext<'a> {
         module_id: ModuleId,
         module: &'a Module,
         profile: ProfileId,
-        options: AnalyzeOptions,
     ) -> Self {
         Self {
             compiler_context,
             module_id,
             module,
             profile,
-            options,
         }
     }
 }

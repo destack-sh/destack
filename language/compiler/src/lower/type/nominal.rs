@@ -231,14 +231,7 @@ impl ModuleLowerer<'_> {
                 }
 
                 // resolve a static key for layout naming
-                let Some(key) = self.compiler.static_key_from_key(
-                    self.context.revision(),
-                    self.profile,
-                    self.dir_tree,
-                    self.symbols,
-                    self.types,
-                    *key,
-                ) else {
+                let Some(key) = self.compiler.static_key_from_key(self.dir_tree, *key) else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: member_id
                             .into_global_any(self.module_id)
