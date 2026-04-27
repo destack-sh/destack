@@ -1,11 +1,10 @@
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    ClassDeclaration, Declaration, DeclarationDescriptor, Declarator, DependencyItem,
-    EnumDeclaration, EnumField, Expression, FunctionDeclaration, FunctionSignature,
-    GenericParameter, GlobalDeclaration, InterfaceDeclaration, Key, LocalNodeId, LocalNodeIdAny,
-    Member, NamespaceDeclaration, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, TemplateLiteral, TupleElement, TypeDeclaration,
-    TypeExpression, TypeMember,
+    ClassDeclaration, Declaration, Declarator, DependencyItem, EnumDeclaration, EnumField,
+    Expression, FunctionDeclaration, FunctionSignature, GenericParameter, GlobalDeclaration,
+    InterfaceDeclaration, Key, LocalNodeId, LocalNodeIdAny, Member, NamespaceDeclaration, NodeTree,
+    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    TemplateLiteral, TupleElement, TypeDeclaration, TypeExpression, TypeMember,
 };
 
 /// Walk any node.
@@ -333,7 +332,8 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visitor.visit_statement(tree, *body, body_node);
         }
         Statement::Let {
-            descriptor: _,
+            export: _,
+            is_ambient: _,
             mutability: _,
             declarators,
         } => {
@@ -344,7 +344,8 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         }
         Statement::Using {
             asynchrony: _,
-            descriptor: _,
+            export: _,
+            is_ambient: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -353,7 +354,8 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::Var {
-            descriptor: _,
+            export: _,
+            is_ambient: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -800,15 +802,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the DeclarationDescriptor.
-fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
-    _visitor: &mut V,
-    _tree: &NodeTree,
-    _descriptor: &DeclarationDescriptor,
-) {
-    // nothing to do
-}
-
 /// Walk a declaration.
 pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -820,44 +813,47 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 
     match declaration {
         Declaration::Global(GlobalDeclaration {
-            descriptor,
+            is_ambient: _,
             statements,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             for statement_id in statements {
                 let statement = tree.get(*statement_id);
                 visitor.visit_statement(tree, *statement_id, statement);
             }
         }
         Declaration::Namespace(NamespaceDeclaration {
-            descriptor,
+            name: _,
+            export: _,
+            is_ambient: _,
             statements,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             for statement_id in statements {
                 let statement = tree.get(*statement_id);
                 visitor.visit_statement(tree, *statement_id, statement);
             }
         }
         Declaration::Type(TypeDeclaration {
-            descriptor,
+            name: _,
+            export: _,
+            is_ambient: _,
             generic_parameters,
             value,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generic_parameters(visitor, tree, generic_parameters);
             let ty = tree.get(*value);
             visitor.visit_type_expression(tree, *value, ty);
         }
         Declaration::Class(ClassDeclaration {
-            descriptor,
+            name: _,
+            export: _,
+            is_ambient: _,
+            is_abstract: _,
             generic_parameters,
             extends_expression,
             extends_generic_arguments,
             implements_types,
             members,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generic_parameters(visitor, tree, generic_parameters);
 
             if let Some(extends_expression_id) = extends_expression {
@@ -885,12 +881,13 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             }
         }
         Declaration::Interface(InterfaceDeclaration {
-            descriptor,
+            name: _,
+            export: _,
+            is_ambient: _,
             generic_parameters,
             extends,
             members,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generic_parameters(visitor, tree, generic_parameters);
 
             for heritage in extends {
@@ -908,19 +905,25 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_member(tree, *member_id, member);
             }
         }
-        Declaration::Enum(EnumDeclaration { descriptor, fields }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
+        Declaration::Enum(EnumDeclaration {
+            name: _,
+            export: _,
+            is_ambient: _,
+            fields,
+        }) => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_enum_field(tree, *field_id, field);
             }
         }
         Declaration::Function(FunctionDeclaration {
-            descriptor,
+            name: _,
+            export: _,
+            is_ambient: _,
+            is_abstract: _,
             signature,
             body,
         }) => {
-            walk_declaration_descriptor(visitor, tree, descriptor);
             walk_function_signature(visitor, tree, signature);
             if let Some(body) = body {
                 let body_block = tree.get(*body);

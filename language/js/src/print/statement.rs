@@ -1,8 +1,7 @@
 use super::printer::Printer;
 use crate::{
-    Asynchrony, DeclarationDescriptor, DeclarationKind, Declarator, DependencyKind,
-    ForEachDeclarationKind, ForInitialization, JsPrintResult, Keyword, LocalNodeId, Mutability,
-    Statement,
+    Asynchrony, Declarator, DependencyKind, DependencyMode, ForEachDeclarationKind,
+    ForInitialization, JsPrintResult, Keyword, LocalNodeId, Mutability, Statement,
 };
 use destack_source::NodeSpanType;
 
@@ -93,11 +92,12 @@ impl<'a> Printer<'a> {
                 self.print_statement_id(*body)?;
             }
             Statement::Let {
-                descriptor,
+                export,
+                is_ambient,
                 mutability,
                 declarators,
             } => {
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(*export, *is_ambient);
 
                 match mutability {
                     Mutability::Mutable => self.write_keyword(Keyword::Let),
@@ -108,20 +108,22 @@ impl<'a> Printer<'a> {
                 self.print_declarator_list(declarators)?;
             }
             Statement::Var {
-                descriptor,
+                export,
+                is_ambient,
                 declarators,
             } => {
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(*export, *is_ambient);
                 self.write_keyword(Keyword::Var);
                 self.write_punct(" ");
                 self.print_declarator_list(declarators)?;
             }
             Statement::Using {
                 asynchrony,
-                descriptor,
+                export,
+                is_ambient,
                 declarators,
             } => {
-                self.print_statement_descriptor(descriptor);
+                self.print_statement_prefix(*export, *is_ambient);
 
                 if *asynchrony == Asynchrony::Async {
                     self.write_keyword(Keyword::Await);
@@ -306,13 +308,17 @@ impl<'a> Printer<'a> {
 
         Ok(())
     }
-    /// Print one statement descriptor prefix.
-    pub(crate) fn print_statement_descriptor(&mut self, descriptor: &DeclarationDescriptor) {
-        if let Some(export) = descriptor.export {
+    /// Print one statement prefix.
+    pub(crate) fn print_statement_prefix(
+        &mut self,
+        export: Option<DependencyMode>,
+        is_ambient: bool,
+    ) {
+        if let Some(export) = export {
             self.write_dependency_mode(export);
         }
 
-        if descriptor.kind == DeclarationKind::Declaration {
+        if is_ambient {
             self.write_keyword(Keyword::Declare);
         }
     }

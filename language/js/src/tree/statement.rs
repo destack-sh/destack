@@ -1,6 +1,6 @@
 use crate::{
-    AssignOperator, Asynchrony, Block, CatchClause, Declaration, DeclarationDescriptor, Declarator,
-    DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
+    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
+    DependencyKind, DependencyMode, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
     Property, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
@@ -59,19 +59,22 @@ pub enum Statement {
 
     /// Let binding.
     Let {
-        descriptor: DeclarationDescriptor,
+        export: Option<DependencyMode>,
+        is_ambient: bool,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Var binding.
     Var {
-        descriptor: DeclarationDescriptor,
+        export: Option<DependencyMode>,
+        is_ambient: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Using binding.
     Using {
         asynchrony: Asynchrony,
-        descriptor: DeclarationDescriptor,
+        export: Option<DependencyMode>,
+        is_ambient: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Assignment operation.
@@ -190,11 +193,9 @@ impl Statement {
                 let body = tree.get(*body);
                 body.is_type_only(tree)
             }
-            Self::Let { descriptor, .. }
-            | Self::Var { descriptor, .. }
-            | Self::Using { descriptor, .. } => {
-                descriptor.kind == crate::DeclarationKind::Declaration
-            }
+            Self::Let { is_ambient, .. }
+            | Self::Var { is_ambient, .. }
+            | Self::Using { is_ambient, .. } => *is_ambient,
             _ => false,
         }
     }
