@@ -50,7 +50,7 @@ declare_pass! {
 
 impl ModulePass for InterproceduralSccp {
     /// Run interprocedural SCCP for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         // run the interprocedural pass
         let changed = run_interprocedural_sccp(tree, ctx);
 
@@ -131,7 +131,7 @@ struct CallData {
 }
 
 /// Run interprocedural SCCP over the module.
-fn run_interprocedural_sccp(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
+fn run_interprocedural_sccp(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -214,7 +214,7 @@ fn run_interprocedural_sccp(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>)
 
 /// Seed function lattice state for each defined function.
 fn seed_function_states(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     call_data: &CallData,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, FunctionState> {
@@ -256,7 +256,7 @@ fn seed_function_states(
 
 /// Update parameter lattice values using callsite constants.
 fn update_parameter_states(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     call_data: &CallData,
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
@@ -359,7 +359,7 @@ fn merge_param_constants(constants: &[Option<mir::Constant>], states: &mut [Latt
 
 /// Update return lattice values using constant propagation.
 fn update_return_states(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
@@ -399,7 +399,7 @@ fn update_return_states(
 fn return_state_for_function(
     function: &mir::Function,
     constants: &ConstantPropagation,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_context: crate::optimize::TypeContext,
 ) -> LatticeConstant {
     // require a concrete return type
@@ -464,7 +464,7 @@ fn return_state_for_function(
 
 /// Build constant propagation results for each function.
 fn build_constant_maps(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     type_context: crate::optimize::TypeContext,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
@@ -517,7 +517,7 @@ fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
 
 /// Replace pure callsites with constant returns.
 fn replace_constant_calls(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     type_context: crate::optimize::TypeContext,
@@ -594,7 +594,7 @@ fn replace_constant_calls(
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::NodeTree) -> CallData {
+fn collect_call_data(tree: &mir::Tree) -> CallData {
     // prepare the callsite data container
     let mut data = CallData::default();
 
@@ -716,7 +716,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
 /// Check whether a call is pure enough to replace with a constant.
 fn call_is_pure(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
 ) -> bool {

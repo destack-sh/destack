@@ -2,8 +2,8 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     Ambientness, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, ModuleBinding,
-    Mutability, NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeTable, Visibility,
+    Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, SymbolType, Tree, Type, TypeTable, Visibility,
 };
 use destack_workspace::Module;
 
@@ -68,7 +68,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_property_id: ast::LocalNodeId<ast::Property>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
@@ -274,7 +274,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_member_id: ast::LocalNodeId<ast::Member>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Member> {

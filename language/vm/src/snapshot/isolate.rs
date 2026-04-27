@@ -11,7 +11,7 @@ use destack_engine::EngineId;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsolateImage {
     /// The MIR tree used to rebuild the isolate program.
-    pub tree: mir::NodeTree,
+    pub tree: mir::Tree,
     /// The string pool used to rebuild the isolate program.
     pub strings: ImmutableStringPool,
     /// The isolate configuration options.

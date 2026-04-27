@@ -245,7 +245,7 @@ fn collect_accessor_slots<T>(
 ) -> Vec<AccessorSlot>
 where
     T: AccessorItem + ast::Node + Clone,
-    ast::NodeTree: ast::NodeTreeImpl<T>,
+    ast::Tree: ast::TreeImpl<T>,
 {
     let mut slots = Vec::new();
 

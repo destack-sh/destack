@@ -159,7 +159,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
         symbols: &dir::SymbolTable,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
         // resolve the primary declaration for the symbol
         let primary_declaration = symbols.get_symbol(symbol.local_id).primary_declaration?;
@@ -179,7 +179,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Collect struct field inputs for layout computation.
     fn struct_field_inputs(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
         members: &[dir::LocalNodeId<dir::Member>],
@@ -321,7 +321,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Resolve nominal aliases to their layout type.
     fn resolve_layout_type_id(
         &self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
         module_id: ModuleId,

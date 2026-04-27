@@ -1,7 +1,7 @@
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, ImportResult};
 use destack_artifact::Ast;
-use destack_dir::{LocalScopeId, ModuleBinding, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{LocalScopeId, ModuleBinding, SymbolTable, Tree, TypeTable};
 use destack_source::ModuleId;
 
 impl Compiler {
@@ -13,7 +13,7 @@ impl Compiler {
         namespace_scope: LocalScopeId,
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         roots: &mut Vec<destack_dir::LocalNodeId<destack_dir::Expression>>,

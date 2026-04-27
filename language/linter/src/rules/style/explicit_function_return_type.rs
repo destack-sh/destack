@@ -262,7 +262,7 @@ impl NodeVisitor for ReturnDetectorVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {

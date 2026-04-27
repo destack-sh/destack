@@ -16,8 +16,8 @@ use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
 use destack_dir::{
     Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator, Expression,
-    FunctionKind, GlobalSymbolId, Key, LocalNodeId, LocalNodeIdAny, LocalScopeId, NodeTree,
-    Pattern, ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
+    FunctionKind, GlobalSymbolId, Key, LocalNodeId, LocalNodeIdAny, LocalScopeId, Pattern,
+    ScalarLiteral, StringId, Symbol, SymbolTable, Tree, TypeTable,
 };
 use destack_engine::Value;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -137,8 +137,8 @@ pub struct DecoratorInfo {
 /// One cloned DIR snapshot for test helpers.
 #[derive(Debug, Clone)]
 pub(crate) struct TestDir {
-    /// The cloned node tree.
-    pub(crate) tree: NodeTree,
+    /// The cloned tree.
+    pub(crate) tree: Tree,
     /// The cloned symbol table.
     pub(crate) symbols: SymbolTable,
     /// The cloned type table.
@@ -427,7 +427,7 @@ pub struct ExpectedDiagnostic {
 /// Resolve a root expression id.
 pub fn root_expression_id(
     roots: &[LocalNodeId<Expression>],
-    _tree: &NodeTree,
+    _tree: &Tree,
     index: usize,
 ) -> LocalNodeId<Expression> {
     // select the requested root
@@ -440,7 +440,7 @@ pub fn root_expression_id(
 /// Find a let declarator by binding name.
 pub fn expect_let_declarator_by_name(
     roots: &[LocalNodeId<Expression>],
-    tree: &NodeTree,
+    tree: &Tree,
     name: StringId,
 ) -> LocalNodeId<Declarator> {
     // scan for a matching let declarator
@@ -783,7 +783,7 @@ impl TestProgram {
     }
 
     /// Clone the latest published DIR tree for one module and profile.
-    pub(crate) fn artifact_tree(&self, module_id: ModuleId, profile: ProfileId) -> NodeTree {
+    pub(crate) fn artifact_tree(&self, module_id: ModuleId, profile: ProfileId) -> Tree {
         if let Some(dir) = self
             .repository
             .dir_patched(self.artifact_revision(), module_id, profile)
@@ -1252,7 +1252,7 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
         target_id: &TargetId,
-    ) -> (mir::NodeTree, ImmutableStringPool) {
+    ) -> (mir::Tree, ImmutableStringPool) {
         if let Some(mir) =
             self.repository
                 .mir_optimized(self.artifact_revision(), module_id, profile, *target_id)
@@ -2395,7 +2395,7 @@ impl TestProgram {
     pub(crate) fn with_dir_read<T>(
         &self,
         module_id: ModuleId,
-        f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &TypeTable) -> T,
+        f: impl FnOnce(&Module, ProfileId, &TestDir, &Tree, &SymbolTable, &TypeTable) -> T,
     ) -> T {
         let profile = self.default_profile_id(module_id);
         let module = self.program.module_descriptor(module_id);
@@ -2409,7 +2409,7 @@ impl TestProgram {
     pub(crate) fn with_dir_types_mut<T>(
         &self,
         module_id: ModuleId,
-        f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &mut TypeTable) -> T,
+        f: impl FnOnce(&Module, ProfileId, &TestDir, &Tree, &SymbolTable, &mut TypeTable) -> T,
     ) -> T {
         let profile = self.default_profile_id(module_id);
         let module = self.program.module_descriptor(module_id);
@@ -2750,7 +2750,7 @@ impl TestProgram {
         &self,
         module_id: ModuleId,
         target: &str,
-        f: impl FnOnce(&mir::NodeTree, &ImmutableStringPool) -> T,
+        f: impl FnOnce(&mir::Tree, &ImmutableStringPool) -> T,
     ) -> T {
         // load the module for the target
         let module = self.program.module_descriptor(module_id);

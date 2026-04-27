@@ -35,7 +35,7 @@ impl ScopedNoAliasAA {
     /// Build ScopedNoAliasAA for a function.
     pub(super) fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strict_borrow_mode: bool,
         value_types: &ValueTypeMap,
         type_context: TypeContext,
@@ -59,11 +59,7 @@ impl ScopedNoAliasAA {
     }
 
     /// Check if a parameter has noalias semantics.
-    fn is_noalias_parameter(
-        parameter: &mir::Parameter,
-        tree: &mir::NodeTree,
-        strict: bool,
-    ) -> bool {
+    fn is_noalias_parameter(parameter: &mir::Parameter, tree: &mir::Tree, strict: bool) -> bool {
         if !strict {
             return false;
         }
@@ -82,7 +78,7 @@ impl ScopedNoAliasAA {
         &self,
         loc_a: &MemoryLocation,
         loc_b: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> AliasResult {
         if !self.strict_borrow_mode {
             return AliasResult::MayAlias;

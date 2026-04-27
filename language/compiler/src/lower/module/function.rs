@@ -47,7 +47,7 @@ impl dir::NodeVisitor for ExpressionTypeCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -97,7 +97,7 @@ impl<'a> AddressTakenCollector<'a> {
     /// Record a reference target for address taken tracking.
     fn record_reference_target(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // unwrap reference targets that can yield addressable bases
@@ -185,7 +185,7 @@ impl dir::NodeVisitor for AddressTakenCollector<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

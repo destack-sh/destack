@@ -243,7 +243,7 @@ fn constructor_owner_symbol(
 /// Resolve the symbol referenced by a call target expression.
 fn call_target_symbol(
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     // unwrap call-target wrappers to the underlying expression
@@ -455,7 +455,7 @@ fn parameter_span_for_node(
 
 /// Resolve a function signature for a declaration, member, or binding node.
 fn function_signature_for_node(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<&dir::FunctionSignature> {
     match node_id.ty {
@@ -490,7 +490,7 @@ fn function_signature_for_node(
 
 /// Resolve a function declaration from a declarator or pattern binding.
 fn function_declaration_from_binding(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalNodeId<dir::Declaration>> {
     let declarator_id = match node_id.ty {
@@ -678,7 +678,7 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 fn build_arguments_for_call(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
     old_param_positions: &HashMap<String, usize>,
@@ -813,7 +813,7 @@ fn build_arguments_for_call(
 fn argument_value_text(
     source_file: &File,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     argument: &dir::Argument,
 ) -> String {
     // extract the argument value text without labels

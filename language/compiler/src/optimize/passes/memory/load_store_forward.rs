@@ -84,7 +84,7 @@ impl FunctionPass for LoadStoreForward {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -139,7 +139,7 @@ impl FunctionPass for LoadStoreForward {
 fn run_load_store_forward(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
@@ -230,7 +230,7 @@ impl AvailableMemory {
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
         aa: &AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::Value> {
         // skip untrackable effects
         if !effect_is_trackable(use_effect) {
@@ -333,7 +333,7 @@ impl AvailableMemory {
 /// Find loads that can be forwarded using dominator tree traversal.
 fn find_forwardable_loads(
     entry: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
@@ -398,7 +398,7 @@ fn find_forwardable_loads(
 #[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     value_types: &ValueTypeMap,

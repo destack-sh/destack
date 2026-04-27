@@ -63,7 +63,7 @@ impl FunctionPass for GlobalValueNumbering {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -116,7 +116,7 @@ impl FunctionPass for GlobalValueNumbering {
 fn run_gvn(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
@@ -302,7 +302,7 @@ impl ScopedValueTable {
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
         alias: &AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::Value> {
         let location = &use_effect.location;
 
@@ -400,7 +400,7 @@ impl ScopedValueTable {
 #[allow(clippy::too_many_arguments)]
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
@@ -471,7 +471,7 @@ fn find_redundant_expressions(
 #[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,

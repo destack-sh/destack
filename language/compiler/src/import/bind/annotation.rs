@@ -3,7 +3,7 @@ use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
     Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
+    LocalScopeMark, ModuleBinding, NodeType, SymbolSpaceOrder, SymbolTable, Tree, TypeTable,
 };
 use destack_source::File;
 use destack_workspace::Module;
@@ -15,7 +15,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &Ast,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         context: &CompilerContext<'_>,
     ) {
         let file = context.file(module.file_id);
@@ -51,7 +51,7 @@ impl Compiler {
         namespace_scope: LocalScopeId,
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         context: &CompilerContext<'_>,
@@ -110,7 +110,7 @@ impl Compiler {
         module_bindings: &mut Vec<ModuleBinding>,
         ast_annotation_id: ast::LocalNodeId<ast::Decorator>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Decorator>> {

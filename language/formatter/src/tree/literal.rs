@@ -11,7 +11,7 @@ use crate::tree::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declaration, Expression, FunctionKind, GenericArgument, IfKind, LocalNodeId,
-    NodeTree, NodeType, ScalarLiteral,
+    NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatNodes, FormatResult};
 use destack_fir::prelude::{
@@ -25,7 +25,7 @@ use destack_workspace::QuoteStyle;
 
 /// Return the value expression id for one tree child argument.
 fn tree_child_value_id(
-    tree: &NodeTree,
+    tree: &Tree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     let argument = tree.get(argument_id);

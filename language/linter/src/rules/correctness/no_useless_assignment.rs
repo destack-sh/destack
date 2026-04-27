@@ -191,7 +191,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
 }
 
 /// Return true when one block appears in a try body chain.
-fn block_is_try_body(tree: &dir::NodeTree, block_id: dir::LocalNodeId<dir::Block>) -> bool {
+fn block_is_try_body(tree: &dir::Tree, block_id: dir::LocalNodeId<dir::Block>) -> bool {
     let Some(parent) = tree.get_parent(block_id.id) else {
         return false;
     };
@@ -241,7 +241,7 @@ impl NodeVisitor for UselessAssignmentVisitor<'_, '_> {
 
     fn visit_block(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
     ) {
@@ -257,7 +257,7 @@ impl NodeVisitor for UselessAssignmentVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

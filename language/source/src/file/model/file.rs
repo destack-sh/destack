@@ -25,6 +25,7 @@ impl std::fmt::Display for FileId {
         write!(f, "#{}", self.0)
     }
 }
+
 impl FileId {
     /// Well-known ID for ephemeral files.
     pub const EPHEMERAL: Self = Self(0);

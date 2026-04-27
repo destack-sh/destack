@@ -51,7 +51,7 @@ impl FunctionPass for LoopDelete {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         if function.entry.is_none() {
@@ -92,7 +92,7 @@ impl FunctionPass for LoopDelete {
 /// Core loop deletion logic. Returns true if changes were made.
 fn run_loop_delete(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
     constants: &ConstantPropagation,
@@ -134,7 +134,7 @@ struct DeleteCandidate {
 fn find_deletable_loop(
     lp: &Loop,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     domtree: &DominatorTree,
     constants: &ConstantPropagation,
 ) -> Option<DeleteCandidate> {
@@ -245,7 +245,7 @@ fn find_deletable_loop(
 /// Find the exit block and arguments selected by a constant header condition.
 fn find_constant_exit(
     lp: &Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     preheader: mir::LocalNodeId<mir::Block>,
     constants: &ConstantPropagation,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
@@ -312,7 +312,7 @@ fn find_constant_exit(
 fn preheader_to_header_args(
     preheader: mir::LocalNodeId<mir::Block>,
     header: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<Vec<mir::Value>> {
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
@@ -385,11 +385,7 @@ fn preheader_to_header_args(
 }
 
 /// Delete a loop by replacing the preheader's terminator with a jump to exit.
-fn delete_loop(
-    function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
-    candidate: &DeleteCandidate,
-) {
+fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &DeleteCandidate) {
     // update preheader to jump directly to exit
     let preheader = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {

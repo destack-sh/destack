@@ -4,8 +4,8 @@ use css::print::{
     print_layer_name_list, print_media_query_list, print_rule, print_supports_condition,
 };
 use css::{
-    ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportRule, LocalNodeId,
-    NodeTree, Rule, SupportsCondition, Token,
+    ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportRule, LocalNodeId, Rule,
+    SupportsCondition, Token, Tree,
 };
 use destack_artifact::{OutputContent, OutputFile};
 use destack_css as css;
@@ -255,7 +255,7 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite final linked references in one stylesheet tree.
     fn rewrite_stylesheet(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         stylesheet_id: LocalNodeId<css::Stylesheet>,
         rewrites: &IndexMap<String, (ModuleId, String)>,
         stylesheet_location: &OutputLocation,
@@ -314,7 +314,7 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one CSS rule subtree in place.
     fn rewrite_rule(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         rule_id: LocalNodeId<Rule>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
@@ -429,7 +429,7 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one page margin rule subtree in place.
     fn rewrite_page_margin_rule(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         rule_id: LocalNodeId<css::PageMarginRule>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
@@ -448,7 +448,7 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one declaration block subtree in place.
     fn rewrite_declaration_block(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         declaration_block_id: LocalNodeId<DeclarationBlock>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
@@ -490,7 +490,7 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one supports condition in place.
     fn rewrite_supports_condition(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         condition_id: LocalNodeId<SupportsCondition>,
         replacements: &IndexMap<String, String>,
     ) {
@@ -526,7 +526,7 @@ impl<'a> ScriptLinker<'a> {
     /// Wrap one inlined stylesheet source for one conditioned import rule.
     pub(super) fn wrap_css_import_stylesheet(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         import_rule: &ImportRule,
         mut source: String,
     ) -> LinkResult<String> {

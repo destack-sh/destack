@@ -402,7 +402,7 @@ impl NodeVisitor for IndexUseCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -447,7 +447,7 @@ impl NodeVisitor for IndexUseCollector {
 
 /// Return true when one `arr[i]` expression is used as a write target.
 fn index_expression_is_write_target(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
@@ -489,7 +489,7 @@ impl NodeVisitor for PreferForOfVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

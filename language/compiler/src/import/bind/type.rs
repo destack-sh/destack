@@ -2,9 +2,9 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     ConstructorTypeDeclaration, FunctionTypeDeclaration, GenericArgument, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType,
-    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, TypeModifier,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeType, ScopeKind,
+    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
+    Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, TypeModifier,
     TypePredicateSubject, TypeTable, VarianceBound,
 };
 use destack_workspace::Module;
@@ -25,7 +25,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::GenericArgument>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         space_order: SymbolSpaceOrder,
@@ -91,7 +91,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_element_id: ast::LocalNodeId<ast::TupleElement>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         space_order: SymbolSpaceOrder,
@@ -170,7 +170,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_member_id: ast::LocalNodeId<ast::TypeMember>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         space_order: SymbolSpaceOrder,
@@ -808,7 +808,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         space_order: SymbolSpaceOrder,

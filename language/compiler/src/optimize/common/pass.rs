@@ -124,7 +124,7 @@ pub trait FunctionPass: Pass + Send + Sync {
     fn run(
         &self,
         func: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation;
 
@@ -144,7 +144,7 @@ pub trait ModulePass: Pass + Send + Sync {
     /// Run the pass on a module.
     ///
     /// The context provides access to strings, options, analyses, and diagnostics.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation;
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation;
 
     /// Get the pass name.
     fn name(&self) -> &'static str;
@@ -198,7 +198,7 @@ pub trait ProgramPass: Pass + Send + Sync {
 /// Run a sequence of function passes on a cloned function and write it back when changed.
 pub fn run_function_passes(
     function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     passes: &[&dyn FunctionPass],
 ) -> bool {
@@ -231,7 +231,7 @@ pub fn run_function_passes(
 /// Run a sequence of function passes on a cloned function and always write it back.
 pub fn run_function_passes_always(
     function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     passes: &[&dyn FunctionPass],
 ) {

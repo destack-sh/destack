@@ -250,7 +250,7 @@ fn type_pair_has_string_mismatch(
 
 /// Return argument name hints for one positional argument list.
 fn argument_name_hints(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     argument_ids: &[dir::LocalNodeId<dir::Argument>],
 ) -> Vec<Option<StringId>> {
     let mut hints = Vec::new();
@@ -269,7 +269,7 @@ fn argument_name_hints(
 
 /// Return one argument name hint for an expression when available.
 fn expression_name_hint(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<StringId> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
@@ -364,7 +364,7 @@ fn parameter_names_for_symbol(
 
 /// Return parameter names for one declaration node id.
 fn declaration_parameter_names(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<Option<StringId>>> {
     let parameters = declaration_parameters(tree, declaration_id)?;
@@ -396,7 +396,7 @@ fn parameter_declared_or_inferred_type_id(
 
 /// Return parameter ids for one callable declaration node.
 fn declaration_parameters(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
     if declaration_id.ty == dir::NodeType::Declaration {
@@ -431,7 +431,7 @@ fn declaration_parameters(
 /// When multiple constructors disagree on parameter shape, this
 /// returns none to avoid noisy false positives.
 fn constructor_parameters(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     members: &[dir::LocalNodeId<dir::Member>],
 ) -> Option<Vec<dir::LocalNodeId<dir::Parameter>>> {
     let mut constructor_parameters: Option<Vec<dir::LocalNodeId<dir::Parameter>>> = None;
@@ -460,7 +460,7 @@ fn constructor_parameters(
 
 /// Return a stable name for one signature parameter.
 fn parameter_name_for_signature_parameter(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<StringId> {
     let parameter = tree.get(parameter_id);
@@ -476,7 +476,7 @@ fn parameter_name_for_signature_parameter(
 
 /// Return a stable pattern binding name when one exists.
 fn pattern_name_hint(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> Option<StringId> {
     let pattern = tree.get(pattern_id);

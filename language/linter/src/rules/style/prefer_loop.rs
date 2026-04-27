@@ -98,7 +98,7 @@ impl LintRule for PreferLoop {
 }
 
 /// Check if an expression is always truthy (true or 1).
-fn is_always_true(tree: &ast::NodeTree, expression_id: ast::LocalNodeId<ast::Expression>) -> bool {
+fn is_always_true(tree: &ast::Tree, expression_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expression = tree.get(expression_id);
 
     // unwrap parentheses

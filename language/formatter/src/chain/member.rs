@@ -6,7 +6,7 @@ use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfKind, LocalNodeId,
-    NodeTree, NodeType, PostfixPosition, ScalarLiteral, TokenType,
+    NodeType, PostfixPosition, ScalarLiteral, TokenType, Tree,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -132,7 +132,7 @@ pub(crate) fn first_tail_group_member(tail_groups: &TailChainGroups) -> Option<&
 
 /// Return the left operand for one chain node.
 pub(crate) fn chain_node_left_id(
-    tree: &NodeTree,
+    tree: &Tree,
     node_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(node_id) {
@@ -149,7 +149,7 @@ pub(crate) fn chain_node_left_id(
 
 /// Collect all chain nodes from root to leaf.
 pub(crate) fn chain_nodes(
-    tree: &NodeTree,
+    tree: &Tree,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Expression>> {
     // walk from leaf to root through chain links
@@ -485,7 +485,7 @@ fn path_last_segment_start(
 
 /// Convert one chain expression node into a chain operation.
 pub(crate) fn chain_member_from_node(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<ChainMember> {
     let chain_member = match tree.get(expression_id) {
@@ -569,7 +569,7 @@ pub(crate) fn chain_member_from_node(
 }
 /// Annotate every call operation with its position inside the chain.
 fn annotate_call_chain_positions(
-    tree: &NodeTree,
+    tree: &Tree,
     operations: &mut [ChainMember],
     root_id: LocalNodeId<Expression>,
 ) {
@@ -600,7 +600,7 @@ fn annotate_call_chain_positions(
 
 /// Return the optional postfix position stored on one left operand maybe wrapper.
 fn maybe_position_for_left(
-    tree: &NodeTree,
+    tree: &Tree,
     left_id: LocalNodeId<Expression>,
 ) -> Option<PostfixPosition> {
     let Expression::Maybe { position, .. } = tree.get(left_id) else {
@@ -612,7 +612,7 @@ fn maybe_position_for_left(
 
 /// Return whether the normalized chain contains at least one call-like operation.
 pub(crate) fn chain_has_call_like_expression(
-    tree: &NodeTree,
+    tree: &Tree,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     chain_nodes(tree, node_id).into_iter().any(|expression_id| {

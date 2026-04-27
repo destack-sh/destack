@@ -17,7 +17,7 @@ impl Compiler {
     /// Return one simple expression target from one assignment pattern.
     fn reify_assign_pattern_target_expression(
         &self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         mut assign_pattern_id: LocalNodeId<AssignPattern>,
     ) -> Option<LocalNodeId<Expression>> {
         loop {

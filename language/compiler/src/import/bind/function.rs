@@ -3,9 +3,9 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    GenericParameter, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree,
-    NodeType, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, Type, TypeExpression, TypeTable, VarianceModifier,
+    GenericParameter, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
+    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
+    Tree, Type, TypeExpression, TypeTable, VarianceModifier,
 };
 use destack_workspace::Module;
 
@@ -23,7 +23,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_parameter_id: ast::LocalNodeId<ast::GenericParameter>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> destack_dir::LocalNodeId<GenericParameter> {
@@ -276,7 +276,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         signature: &ast::FunctionSignature,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> FunctionSignature {

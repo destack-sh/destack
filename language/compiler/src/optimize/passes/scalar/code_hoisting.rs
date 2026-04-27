@@ -63,7 +63,7 @@ impl FunctionPass for CodeHoisting {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -102,7 +102,7 @@ impl FunctionPass for CodeHoisting {
 /// Hoist common instructions out of branch diamonds.
 fn run_code_hoisting(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
 ) -> bool {
@@ -190,7 +190,7 @@ fn run_code_hoisting(
 #[allow(clippy::too_many_arguments)]
 fn hoist_common_prefix(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     domtree: &DominatorTree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     header: mir::LocalNodeId<mir::Block>,
@@ -466,7 +466,7 @@ struct HoistCandidate {
 fn build_expression_index(
     block: &mir::Block,
     value_rewrites: &HashMap<mir::Value, mir::Value>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> HashMap<ExpressionKey, ExpressionEntry> {
     // allocate the index map
     let mut index = HashMap::new();

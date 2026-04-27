@@ -8,8 +8,8 @@ use crate::lex::{
 use crate::{
     Attribute, AttributeResource, AttributeValue, AttributeValueForm, Comment, Content, Doctype,
     DoctypeKind, DoctypeQuoteStyle, Document, Element, Fragment, HtmlResource, HtmlResourceKind,
-    LocalNodeId, Name, Namespace as HtmlNamespace, NodeSpanKind, NodeTree, SelfClosingStyle,
-    SourceSetItem, SourceSetResource, Text,
+    LocalNodeId, Name, Namespace as HtmlNamespace, NodeSpanKind, SelfClosingStyle, SourceSetItem,
+    SourceSetResource, Text, Tree,
 };
 use destack_source::{File, Span};
 
@@ -83,7 +83,7 @@ struct ElementHandle {
 #[derive(Debug)]
 struct BuilderInner<'a> {
     /// The output HTML tree.
-    tree: NodeTree,
+    tree: Tree,
     /// The authored source cursor.
     cursor: HtmlSourceCursor<'a>,
     /// The document node id.
@@ -128,7 +128,7 @@ impl ElementName {
 impl<'a> BuilderInner<'a> {
     /// Create one fresh builder state.
     pub(crate) fn new(file: &'a File, source: &'a str) -> Self {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let document = tree.insert(
             Document {
                 doctype: None,
@@ -689,7 +689,7 @@ impl<'a> BuilderInner<'a> {
     }
 
     /// Lower one parsed qualified name into one owned HTML name.
-    fn lower_qualified_name(tree: &NodeTree, name: &QualifiedName) -> Name {
+    fn lower_qualified_name(tree: &Tree, name: &QualifiedName) -> Name {
         Name {
             prefix: name
                 .prefix
@@ -715,7 +715,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Lower one parsed attribute list.
     fn lower_attributes(
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         file_id: destack_source::FileId,
         element_name: &Name,
         raw_attributes: &[HtmlAttribute],
@@ -745,7 +745,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Lower one raw attribute value into one owned attribute value.
     fn lower_raw_attribute_value(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attributes: &[HtmlAttribute],
         attribute: &HtmlAttribute,
@@ -766,7 +766,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Lower one raw attribute resource payload when this value owns one.
     fn lower_attribute_resource(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attributes: &[HtmlAttribute],
         attribute: &HtmlAttribute,
@@ -792,7 +792,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Return the single-value resource role for one raw attribute when it owns one.
     fn resource_kind_for_attribute(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attributes: &[HtmlAttribute],
         attribute_name: LocalName,
@@ -815,7 +815,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Return whether one raw attribute is the `src` of one script element.
     fn is_script_src_attribute(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attribute_name: LocalName,
     ) -> bool {
@@ -824,7 +824,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Return the resource role for one link `href` attribute when it owns one.
     fn link_resource_kind(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attributes: &[HtmlAttribute],
         attribute_name: LocalName,
@@ -953,7 +953,7 @@ impl<'a> BuilderInner<'a> {
 
     /// Return whether one raw attribute is `srcset`-style for one element.
     fn is_source_set_attribute(
-        tree: &NodeTree,
+        tree: &Tree,
         element_name: &Name,
         attribute_name: LocalName,
     ) -> bool {
@@ -1024,7 +1024,7 @@ impl<'a> HtmlBuilder<'a> {
     }
 
     /// Finish parsing and return the owned HTML tree.
-    pub(super) fn finish(self) -> (NodeTree, LocalNodeId<Document>) {
+    pub(super) fn finish(self) -> (Tree, LocalNodeId<Document>) {
         let mut state = self.inner.into_inner();
 
         // authored source attachment
@@ -1697,11 +1697,7 @@ impl BuilderInner<'_> {
 }
 
 /// Return whether one attribute name is asset-bearing for one element.
-fn is_asset_attribute_name(
-    tree: &NodeTree,
-    element_name: &Name,
-    attribute_name: LocalName,
-) -> bool {
+fn is_asset_attribute_name(tree: &Tree, element_name: &Name, attribute_name: LocalName) -> bool {
     (element_name.local_eq(&tree.strings, "img") && attribute_name == local_name!("src"))
         || (element_name.local_eq(&tree.strings, "source") && attribute_name == local_name!("src"))
         || (element_name.local_eq(&tree.strings, "video")
@@ -1715,7 +1711,7 @@ fn is_asset_attribute_name(
 
 /// Return whether one attribute name is `srcset`-style for one element.
 fn is_source_set_attribute_name(
-    tree: &NodeTree,
+    tree: &Tree,
     element_name: &Name,
     attribute_name: LocalName,
 ) -> bool {

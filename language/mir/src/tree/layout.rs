@@ -1,5 +1,5 @@
 use crate::{
-    Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type, TypeReference,
+    Field, LocalNodeId, TensorDimension, TensorLayout, Tree, Type, TypeReference,
     slice_header_types,
 };
 
@@ -52,7 +52,7 @@ impl TypeLayout {
 
 /// Compute the layout of a MIR type.
 pub(crate) fn compute_type_layout(
-    tree: &NodeTree,
+    tree: &Tree,
     type_id: LocalNodeId<Type>,
     pointer_bytes: u8,
 ) -> TypeLayout {
@@ -199,7 +199,7 @@ fn compute_tensor_element_count(shape: &[TensorDimension], layout: &TensorLayout
 
 /// Compute the layout of a tuple type.
 fn compute_tuple_layout(
-    tree: &NodeTree,
+    tree: &Tree,
     elements: &[LocalNodeId<Type>],
     pointer_bytes: u8,
 ) -> TypeLayout {
@@ -223,7 +223,7 @@ fn compute_tuple_layout(
 }
 
 fn compute_tuple_layout_from_references(
-    tree: &NodeTree,
+    tree: &Tree,
     elements: &[TypeReference],
     pointer_bytes: u8,
 ) -> TypeLayout {
@@ -236,11 +236,7 @@ fn compute_tuple_layout_from_references(
     compute_tuple_layout(tree, &elements, pointer_bytes)
 }
 
-fn compute_type_pair_layout(
-    tree: &NodeTree,
-    elements: [&Type; 2],
-    pointer_bytes: u8,
-) -> TypeLayout {
+fn compute_type_pair_layout(tree: &Tree, elements: [&Type; 2], pointer_bytes: u8) -> TypeLayout {
     let mut offset = 0u32;
     let mut max_alignment = 1u32;
 
@@ -255,7 +251,7 @@ fn compute_type_pair_layout(
     TypeLayout::new(final_size, max_alignment)
 }
 
-fn compute_inline_type_layout(_tree: &NodeTree, ty: &Type, pointer_bytes: u8) -> TypeLayout {
+fn compute_inline_type_layout(_tree: &Tree, ty: &Type, pointer_bytes: u8) -> TypeLayout {
     match ty {
         Type::Reference { .. } | Type::FunctionPointer { .. } => {
             TypeLayout::natural(pointer_bytes as u32)
@@ -272,7 +268,7 @@ fn compute_inline_type_layout(_tree: &NodeTree, ty: &Type, pointer_bytes: u8) ->
 /// Compute the layout of a struct from its field definitions.
 /// This computes offsets from field order and field types.
 fn compute_struct_layout_from_fields(
-    tree: &NodeTree,
+    tree: &Tree,
     fields: &[LocalNodeId<Field>],
     pointer_bytes: u8,
 ) -> TypeLayout {

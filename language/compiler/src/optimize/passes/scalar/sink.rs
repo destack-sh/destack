@@ -63,7 +63,7 @@ impl FunctionPass for Sink {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -105,7 +105,7 @@ impl FunctionPass for Sink {
 fn run_sink(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     loops: &LoopAnalysis,
@@ -325,7 +325,7 @@ fn run_sink(
 fn memory_read_can_sink(
     block: &mir::Block,
     index: usize,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // load the instruction to sink

@@ -1,8 +1,8 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_ast::{
-    Argument, Expression, GenericArgument, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
-    Pattern, Property, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
+    Argument, Expression, GenericArgument, IfCondition, IfKind, LocalNodeId, NodeType, Pattern,
+    Property, ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -62,7 +62,7 @@ impl ExpressionLeftSide {
 }
 
 /// Return whether a type expression prefers inline layout.
-fn is_trivial_type_expression(tree: &NodeTree, expression_id: LocalNodeId<TypeExpression>) -> bool {
+fn is_trivial_type_expression(tree: &Tree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     matches!(
         tree.get(expression_id),
         TypeExpression::ScalarLiteral { .. }
@@ -76,7 +76,7 @@ fn is_trivial_type_expression(tree: &NodeTree, expression_id: LocalNodeId<TypeEx
 }
 
 /// Return whether an expression prefers inline layout.
-pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_)
         | Expression::Identifier { .. }
@@ -125,7 +125,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
 
 /// Return whether generic arguments stay concise when inlined.
 fn generic_arguments_are_trivial(
-    tree: &NodeTree,
+    tree: &Tree,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> bool {
     generic_arguments
@@ -138,7 +138,7 @@ fn generic_arguments_are_trivial(
 }
 
 /// Return whether an argument prefers inline layout.
-pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+pub fn is_trivial_argument(tree: &Tree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
@@ -149,7 +149,7 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
 }
 
 /// Return whether a property prefers inline layout.
-pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
+pub fn is_trivial_property(tree: &Tree, property: &Property) -> bool {
     match property {
         Property::Field { value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Property::Method { body, .. } => {
@@ -161,7 +161,7 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
 }
 
 /// Return whether an expression can break across multiple lines.
-pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
     match expression {
         Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
@@ -207,10 +207,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
 }
 
 /// Return whether a type expression can break across multiple lines.
-fn is_type_expression_breakable(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<TypeExpression>,
-) -> bool {
+fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     match tree.get(expression_id) {
         TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
             !elements.is_empty()
@@ -227,7 +224,7 @@ fn is_type_expression_breakable(
 }
 
 /// Return whether a pattern can expand to multiple lines.
-pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+pub fn is_pattern_breakable(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
         Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => !fields.is_empty(),
         Pattern::Array { fields }
@@ -239,7 +236,7 @@ pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -
 
 /// Return whether array elements are simple enough for concise fill formatting.
 pub(crate) fn array_elements_are_fill_candidates(
-    tree: &NodeTree,
+    tree: &Tree,
     elements: &[LocalNodeId<Argument>],
 ) -> bool {
     elements
@@ -290,7 +287,7 @@ fn is_comment_token_type(token_type: TokenType) -> bool {
 }
 
 /// Return whether a single array element is a concise fill candidate.
-fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argument>) -> bool {
+fn array_element_is_fill_candidate(tree: &Tree, element_id: LocalNodeId<Argument>) -> bool {
     let value_id = match tree.get(element_id) {
         Argument::Positional { value, .. } => *value,
         _ => return false,

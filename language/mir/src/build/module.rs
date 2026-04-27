@@ -1,13 +1,13 @@
 use destack_core::{ImmutableStringPool, StringId, StringPool};
 
-use crate::NodeTree;
+use crate::Tree;
 use crate::validate::Validator;
 
 /// Builder for constructing a MIR module (collection of functions and types).
 #[derive(Debug)]
 pub struct ModuleBuilder {
-    /// The node tree being built.
-    pub(super) tree: NodeTree,
+    /// The tree being built.
+    pub(super) tree: Tree,
     /// String pool for names.
     pub(super) strings: StringPool,
     /// Whether to verify functions as they are built.
@@ -28,19 +28,19 @@ impl ModuleBuilder {
     /// Create a new module builder with the given verify flag.
     pub fn new_with_verify(verify: bool) -> Self {
         Self {
-            tree: NodeTree::new(),
+            tree: Tree::new(),
             strings: StringPool::new(),
             verify,
         }
     }
 
-    /// Get a reference to the node tree.
-    pub fn tree(&self) -> &NodeTree {
+    /// Get a reference to the tree.
+    pub fn tree(&self) -> &Tree {
         &self.tree
     }
 
-    /// Get a mutable reference to the node tree.
-    pub fn tree_mut(&mut self) -> &mut NodeTree {
+    /// Get a mutable reference to the tree.
+    pub fn tree_mut(&mut self) -> &mut Tree {
         &mut self.tree
     }
 
@@ -65,13 +65,13 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module.
-    pub fn finish_immutable(self) -> (NodeTree, ImmutableStringPool) {
+    pub fn finish_immutable(self) -> (Tree, ImmutableStringPool) {
         self.validate_tree();
         (self.tree, self.strings.into_immutable())
     }
 
     /// Finish building the module with a mutable string pool.
-    pub fn finish_mutable(self) -> (NodeTree, StringPool) {
+    pub fn finish_mutable(self) -> (Tree, StringPool) {
         self.validate_tree();
         (self.tree, self.strings)
     }

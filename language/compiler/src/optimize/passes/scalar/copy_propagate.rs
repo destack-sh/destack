@@ -45,7 +45,7 @@ impl FunctionPass for CopyPropagate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // run copy propagation
@@ -70,7 +70,7 @@ impl FunctionPass for CopyPropagate {
 
 /// Core copy propagation logic.
 #[allow(clippy::type_complexity)]
-fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // build predecessor map: block -> list of (predecessor_block, arguments passed)
     let mut predecessors: HashMap<
         mir::LocalNodeId<mir::Block>,

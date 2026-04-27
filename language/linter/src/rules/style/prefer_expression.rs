@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
     self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfKind, LetKind,
-    LocalNodeId, NodeTree, Pattern,
+    LocalNodeId, Pattern, Tree,
 };
 use destack_core::StringId;
 use destack_workspace::LintSeverity;
@@ -67,7 +67,7 @@ impl LintRule for PreferExpression {
 fn check_expression(
     ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
 ) {
     let expression = tree.get(expression_id);
@@ -111,7 +111,7 @@ fn check_expression(
 fn check_block(
     ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
-    tree: &NodeTree,
+    tree: &Tree,
     block_id: LocalNodeId<Block>,
 ) {
     let block = tree.get(block_id);
@@ -155,7 +155,7 @@ fn check_block(
 
 /// Build one expression-pattern candidate from adjacent expressions.
 fn expression_pattern_candidate(
-    tree: &NodeTree,
+    tree: &Tree,
     let_expression_id: LocalNodeId<Expression>,
     if_expression_id: LocalNodeId<Expression>,
 ) -> Option<ExpressionPatternCandidate> {
@@ -177,7 +177,7 @@ fn expression_pattern_candidate(
 
 /// Return the declaration kind, declarator, and name for an uninitialized let binding.
 fn uninitialized_let_declarator(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<(LetKind, LocalNodeId<Declarator>, StringId)> {
     let expression_id = unwrap_statement_expression(tree, expression_id);
@@ -206,7 +206,7 @@ fn uninitialized_let_declarator(
 
 /// Return assignment details for `if` patterns that assign both branches.
 fn if_assignment_pattern(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
     variable_name: StringId,
 ) -> Option<(
@@ -244,7 +244,7 @@ fn if_assignment_pattern(
 
 /// Return the assigned value in a branch when it is one simple assignment.
 fn branch_assigned_value(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
     variable_name: StringId,
 ) -> Option<LocalNodeId<Expression>> {
@@ -312,7 +312,7 @@ fn prefer_expression_fix(
 }
 
 /// Return the simple binding name from one pattern.
-fn simple_binding_name(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> Option<StringId> {
+fn simple_binding_name(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> Option<StringId> {
     let pattern = tree.get(pattern_id);
     match pattern {
         Pattern::Binding {
@@ -325,18 +325,14 @@ fn simple_binding_name(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> Opt
 }
 
 /// Return true when one expression is a simple path to the given name.
-fn is_path_with_name(
-    tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-    name: StringId,
-) -> bool {
+fn is_path_with_name(tree: &Tree, expression_id: LocalNodeId<Expression>, name: StringId) -> bool {
     expression_path_segments(tree, expression_id)
         .is_some_and(|path_segments| path_segments.as_slice() == [name])
 }
 
 /// Unwrap one statement wrapper when present.
 fn unwrap_statement_expression(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     let _ = tree;

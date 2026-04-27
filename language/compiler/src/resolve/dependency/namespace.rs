@@ -4,7 +4,7 @@ use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Expression, GlobalNodeIdAny, GlobalSymbolId,
-    ImportSource, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
+    ImportSource, LocalNodeId, LocalScopeId, ModuleTarget, StaticKey, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::workspace::{Module, ProfileId};
@@ -66,7 +66,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         item_ids: &[LocalNodeId<DependencyItem>],
         scope_id: LocalScopeId,
     ) -> ResolveResult<Vec<destack_dir::NamespaceExport>> {
@@ -93,7 +93,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         item_ids: &[LocalNodeId<DependencyItem>],
     ) -> ResolveResult<FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>>> {
         let mut exports_by_scope: FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>> =
@@ -120,7 +120,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
         scope_id: LocalScopeId,
     ) -> ResolveResult<Option<destack_dir::NamespaceExport>> {
@@ -144,7 +144,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> ResolveResult<Option<(LocalScopeId, destack_dir::NamespaceExport)>> {
         // extract namespace export metadata
@@ -365,7 +365,7 @@ impl Compiler {
     /// Resolve a dependency item's parent expression target module when available.
     pub(super) fn parent_expression_target_module_for_dependency_item(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> Option<ModuleTarget> {
         // locate the parent expression node
@@ -385,7 +385,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> ResolveResult<Option<destack_artifact::Loader>> {
         // locate the parent expression node

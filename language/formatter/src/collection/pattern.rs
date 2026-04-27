@@ -11,8 +11,7 @@ use crate::context::MemoizeFormatExt;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
-    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
-    TypeExpression,
+    Mutability, Node, NodeType, Parameter, Pattern, PatternField, Tree, TreeImpl, TypeExpression,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -29,7 +28,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
 
 /// Return object-pattern fields to render, normalizing out parser elision artifacts.
 fn object_pattern_render_fields<'a>(
-    tree: &NodeTree,
+    tree: &Tree,
     fields: &'a [LocalNodeId<PatternField>],
 ) -> Cow<'a, [LocalNodeId<PatternField>]> {
     let has_elision = fields
@@ -52,7 +51,7 @@ fn object_pattern_render_fields<'a>(
 
 /// Return whether trailing separators are invalid for the current pattern field list.
 fn pattern_fields_disallow_trailing_separator(
-    tree: &NodeTree,
+    tree: &Tree,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
     fields.last().is_some_and(|field_id| {
@@ -118,7 +117,7 @@ fn format_pattern_field_list<'ast>(
 
 /// Return whether trailing separators are invalid for the current assign-pattern field list.
 fn assign_pattern_fields_disallow_trailing_separator(
-    tree: &NodeTree,
+    tree: &Tree,
     fields: &[LocalNodeId<AssignPatternField>],
 ) -> bool {
     fields.last().is_some_and(|field_id| {
@@ -173,7 +172,7 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let span = f.context().span(node_id);
     let mut interior_items = Vec::new();
@@ -304,7 +303,7 @@ fn object_pattern_has_assignment_wrapper_parent(
 
 /// Return whether one pattern field contains a direct nested object or array pattern.
 fn object_pattern_field_has_direct_nested_pattern(
-    tree: &NodeTree,
+    tree: &Tree,
     field_id: LocalNodeId<PatternField>,
 ) -> bool {
     match tree.get(field_id) {
@@ -329,10 +328,7 @@ fn object_pattern_field_has_direct_nested_pattern(
 }
 
 /// Return whether one pattern is directly object-like or array-like.
-fn pattern_is_direct_object_or_array_like(
-    tree: &NodeTree,
-    pattern_id: LocalNodeId<Pattern>,
-) -> bool {
+fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
         // direct nested destructuring
         Pattern::Object { .. }
@@ -513,7 +509,7 @@ fn object_assign_pattern_has_assignment_wrapper_parent(
 
 /// Return whether one assign-pattern field contains a direct nested object or array pattern.
 fn object_assign_pattern_field_has_direct_nested_pattern(
-    tree: &NodeTree,
+    tree: &Tree,
     field_id: LocalNodeId<AssignPatternField>,
 ) -> bool {
     match tree.get(field_id) {
@@ -539,7 +535,7 @@ fn object_assign_pattern_field_has_direct_nested_pattern(
 
 /// Return whether one assign-pattern is directly object-like or array-like.
 fn assign_pattern_is_direct_object_or_array_like(
-    tree: &NodeTree,
+    tree: &Tree,
     pattern_id: LocalNodeId<AssignPattern>,
 ) -> bool {
     match tree.get(pattern_id) {

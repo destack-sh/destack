@@ -59,7 +59,7 @@ impl Isolate {
     /// Build a new isolate with default options.
     pub fn build(
         isolate_id: engine::EngineId,
-        tree: mir::NodeTree,
+        tree: mir::Tree,
         strings: ImmutableStringPool,
     ) -> RuntimeResult<Self> {
         Self::build_with_options(isolate_id, tree, strings, IsolateOptions::default())
@@ -68,7 +68,7 @@ impl Isolate {
     /// Build a new isolate with custom options.
     pub fn build_with_options(
         isolate_id: engine::EngineId,
-        tree: mir::NodeTree,
+        tree: mir::Tree,
         strings: ImmutableStringPool,
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
@@ -470,7 +470,7 @@ impl Isolate {
     }
 
     /// Borrow the program MIR tree.
-    pub fn tree(&self) -> &mir::NodeTree {
+    pub fn tree(&self) -> &mir::Tree {
         &self.program.tree
     }
 }

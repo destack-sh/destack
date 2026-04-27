@@ -1,6 +1,6 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, NodeTree, Type,
+    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, Tree, Type,
     TypeAlias,
 };
 use destack_core::StringPool;
@@ -73,7 +73,7 @@ entry0(value0: ref<Point, managed>, value1: ref<Node, managed>):
 /// Formats attributed struct fields without parsed field spans.
 #[test]
 fn test_format_struct_fields_with_attributes_without_parsed_spans() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let strings = StringPool::new();
 
     let int32_type = tree.insert_type(Type::Int {

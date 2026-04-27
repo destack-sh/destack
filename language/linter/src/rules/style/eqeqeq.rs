@@ -164,7 +164,7 @@ impl LintRule for Eqeqeq {
 
 /// Return true when a loose equality operator is allowed by the active mode.
 fn loose_equality_is_allowed(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     mode: EqeqeqMode,
     null_policy: EqeqeqNullPolicy,
     left: &Expression,
@@ -189,18 +189,14 @@ fn loose_equality_is_allowed(
 }
 
 /// Return true when replacing loose equality is semantics preserving.
-fn equality_operator_fix_is_safe(
-    tree: &ast::NodeTree,
-    left: &Expression,
-    right: &Expression,
-) -> bool {
+fn equality_operator_fix_is_safe(tree: &ast::Tree, left: &Expression, right: &Expression) -> bool {
     expression_is_typeof(left)
         || expression_is_typeof(right)
         || expressions_have_same_literal_kind(tree, left, right)
 }
 
 /// Return true when the expression is a null literal.
-fn expression_is_null_literal(tree: &ast::NodeTree, expression: &Expression) -> bool {
+fn expression_is_null_literal(tree: &ast::Tree, expression: &Expression) -> bool {
     let Expression::Type { value } = expression else {
         return false;
     };
@@ -226,7 +222,7 @@ fn expression_is_typeof(expression: &Expression) -> bool {
 
 /// Return true when both expressions are literals with identical runtime kind.
 fn expressions_have_same_literal_kind(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     left: &Expression,
     right: &Expression,
 ) -> bool {

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
-use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
+use destack_ast::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl};
 use destack_fir::format::{FormatResult, GroupId};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -34,7 +34,7 @@ pub(crate) struct FormatSeparatedElement<T: Node + Clone> {
 impl<'ast, T> Format<DestackFormatContext<'ast>> for FormatSeparatedElement<T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         write!(f, [self.element])?;
@@ -211,7 +211,7 @@ fn next_leading_comment_start<T: Node + Clone>(
     next_element: Option<LocalNodeId<T>>,
 ) -> Option<usize>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let next_element = next_element?;
     let next_element_span = context.span(next_element);
@@ -459,7 +459,7 @@ pub(crate) fn separated_entries<'ast, 'e, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     format_with(move |f: &mut Formatter<'_, DestackFormatContext<'ast>>| {
         let has_elements = !elements.is_empty();
@@ -523,7 +523,7 @@ fn format_list_with_ignored_ranges<'ast, T>(
 ) -> FormatResult<bool>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut skip_until: Option<u32> = None;
     let mut needs_separator = false;
@@ -589,7 +589,7 @@ fn list_element_following_span_start<T>(
 ) -> u32
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let element_span = context.span(*element_id);
     let next_element = elements

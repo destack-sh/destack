@@ -256,7 +256,7 @@ where
 }
 
 impl_contextual_field!(
-    dir::NodeTree,
+    dir::Tree,
     dir::SymbolTable,
     dir::TypeTable,
     dir::CaptureTable,

@@ -77,7 +77,7 @@ impl FunctionPass for LoopUnswitch {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -110,7 +110,7 @@ impl FunctionPass for LoopUnswitch {
 /// Core loop unswitching logic. Returns true if changes were made.
 fn run_loop_unswitch(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // track progress and exclusions
@@ -262,7 +262,7 @@ impl<'a> UnswitchHeuristics<'a> {
     /// Create heuristics from profile data.
     fn new(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         profile: Option<&mir::ProfileTable>,
         hotness_policy: &'a CallsiteHotnessPolicy,
     ) -> Self {
@@ -323,7 +323,7 @@ impl<'a> UnswitchHeuristics<'a> {
 fn find_unswitchable_loop(
     lp: &Loop,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
@@ -478,7 +478,7 @@ fn find_unswitchable_loop(
 fn collect_base_invariant_values(
     lp: &Loop,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashSet<mir::Value> {
     let mut invariant = HashSet::new();
 
@@ -519,7 +519,7 @@ fn try_hoist_invariant_condition(
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     header_param_rewrites: &HashMap<mir::Value, mir::Value>,
     invariant_values: &HashSet<mir::Value>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<HoistedCondition> {
     // resolve the instruction defining the condition
     let instruction_id = value_definitions.get(&condition)?;
@@ -559,7 +559,7 @@ fn try_hoist_invariant_condition(
 /// Collect invariant header parameter rewrites based on preheader arguments.
 fn collect_header_param_rewrites(
     lp: &Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     invariant_values: &HashSet<mir::Value>,
     preheader_args: &[mir::Value],
@@ -632,7 +632,7 @@ fn collect_header_param_rewrites(
 /// Perform loop unswitching transformation.
 fn unswitch_loop(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &UnswitchCandidate,
 ) {
     // clone all loop blocks with fresh IDs and values

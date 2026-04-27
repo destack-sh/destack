@@ -45,7 +45,7 @@ impl FunctionPass for ConstantFold {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get constant propagation analysis
@@ -77,7 +77,7 @@ impl FunctionPass for ConstantFold {
 /// Core constant folding logic. Returns true if changes were made.
 fn run_constant_fold(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     type_context: TypeContext,
 ) -> bool {
@@ -369,7 +369,7 @@ fn run_constant_fold(
 /// Fold branch, check, and switch terminators when conditions are constant.
 fn fold_terminators(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
 ) -> bool {
     // track whether any terminators change

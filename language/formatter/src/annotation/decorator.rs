@@ -1,7 +1,7 @@
 use crate::expression::format_expression;
 use crate::file::node_has_ignore_directive;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Decorator, Expression, LocalNodeId, NodeTree};
+use destack_ast::{Decorator, Expression, LocalNodeId, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;
@@ -35,7 +35,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 }
 
 /// Return whether a decorator expression requires parentheses.
-fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+fn decorator_needs_parentheses(tree: &Tree, expression_id: LocalNodeId<Expression>) -> bool {
     match tree.get(expression_id) {
         Expression::Identifier { .. } => false,
         Expression::QualifiedReference {
@@ -49,7 +49,7 @@ fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expre
 
 /// Return whether an expression is an identifier or static-member-only path.
 fn is_identifier_or_static_member_only(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match tree.get(expression_id) {

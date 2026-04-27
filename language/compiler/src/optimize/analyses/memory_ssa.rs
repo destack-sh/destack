@@ -324,7 +324,7 @@ impl MemorySSA {
     /// Build MemorySSA for a function.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         domtree: &DominatorTree,
         type_context: TypeContext,
@@ -495,7 +495,7 @@ impl MemorySSA {
         &self,
         use_access: MemoryAccessId,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // read the memory use location
         let MemoryAccess::Use(use_access_data) = self.access(use_access) else {
@@ -528,7 +528,7 @@ impl MemorySSA {
         &self,
         def_access: MemoryAccessId,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // read the memory def location
         let MemoryAccess::Def(def_access_data) = self.access(def_access) else {
@@ -562,7 +562,7 @@ impl MemorySSA {
         access_id: MemoryAccessId,
         location: &MemoryAccessLocation,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // resolve the defining access for this read
         let defining_access = self
@@ -606,7 +606,7 @@ impl MemorySSA {
         def_access: MemoryAccessId,
         target_access: MemoryAccessId,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         // only defs can clobber accesses
         let MemoryAccess::Def(def_access) = self.access(def_access) else {
@@ -632,7 +632,7 @@ impl MemorySSA {
         access_id: MemoryAccessId,
         query: &MemoryAccessQuery,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cache: &mut HashMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
         visiting: &mut HashSet<MemoryAccessId>,
     ) -> MemoryAccessId {
@@ -705,7 +705,7 @@ impl Analysis for MemorySSA {
 impl FunctionAnalysis for MemorySSA {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         // read dependencies
@@ -747,8 +747,8 @@ struct MemoryAccessCollection {
 struct MemoryAccessCollector<'a> {
     /// MIR function under analysis.
     function: &'a mir::Function,
-    /// MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// MIR tree.
+    tree: &'a mir::Tree,
     /// Value type lookup for pointer resolution.
     value_types: ValueTypeMap,
     /// Map from value to defining instruction.
@@ -761,11 +761,7 @@ struct MemoryAccessCollector<'a> {
 
 impl<'a> MemoryAccessCollector<'a> {
     /// Create a new collector.
-    fn new(
-        function: &'a mir::Function,
-        tree: &'a mir::NodeTree,
-        type_context: TypeContext,
-    ) -> Self {
+    fn new(function: &'a mir::Function, tree: &'a mir::Tree, type_context: TypeContext) -> Self {
         // collect value definitions for pointer resolution
         let definitions = build_value_definition_map(function, tree);
 
@@ -1941,8 +1937,8 @@ impl<'a> MemoryAccessCollector<'a> {
 
 /// MemorySSA renamer for def use chains.
 struct MemoryRenamer<'a> {
-    /// MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// MIR tree.
+    tree: &'a mir::Tree,
     /// Entry block id.
     entry: mir::LocalNodeId<mir::Block>,
     /// Reachable block set.
@@ -1954,7 +1950,7 @@ struct MemoryRenamer<'a> {
 impl<'a> MemoryRenamer<'a> {
     /// Create a new renamer.
     fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         domtree: &'a DominatorTree,
         entry: mir::LocalNodeId<mir::Block>,
         reachable_blocks: &[mir::LocalNodeId<mir::Block>],
@@ -2066,7 +2062,7 @@ fn access_clobbers_query(
     def_access: &MemoryDef,
     query: &MemoryAccessQuery,
     alias: &crate::optimize::analyses::AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // treat barriers as clobbering all memory
     if def_access.effect.is_barrier {
@@ -2137,7 +2133,7 @@ fn access_clobbers_query(
 fn effects_may_alias(
     def_effect: &MemoryAccessEffect,
     query: &MemoryAccessQuery,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // check location sets
     if !space_sets_may_alias(def_effect.space_set, query.space_set) {

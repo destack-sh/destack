@@ -7,8 +7,7 @@ use destack_builtin::builtin_library;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, ExportMode, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
-    ModuleBindingExports, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType,
+    ModuleBindingExports, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Tree,
 };
 use destack_source::{LanguageType, ModuleId};
 use destack_workspace::{Module, ProfileId};
@@ -21,7 +20,7 @@ impl Compiler {
     pub(super) fn build_module_binding_exports(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
         module_bindings: &[ModuleBinding],
         module_binding_exports: &mut ModuleBindingExportTable,
@@ -269,7 +268,7 @@ impl Compiler {
         module_id: ModuleId,
         language_type: LanguageType,
         binding: &ModuleBinding,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
@@ -489,7 +488,7 @@ impl Compiler {
     /// Group dependency items by their declaring scope.
     pub(super) fn dependency_items_by_scope(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>> {
         // group dependency items by their declaring scope
         let mut items_by_scope: FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>> =
@@ -505,7 +504,7 @@ impl Compiler {
     /// Group export items by their declaring scope.
     pub(super) fn export_items_by_scope(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
     ) -> FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>> {
         // filter dependency items to export statements
@@ -527,7 +526,7 @@ impl Compiler {
     pub(super) fn export_assignments_by_scope(
         &self,
         module_id: ModuleId,
-        tree: &NodeTree,
+        tree: &Tree,
         export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
     ) -> FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>> {
         // scan export statements for export assignments
@@ -569,7 +568,7 @@ impl Compiler {
     pub(super) fn build_module_exports(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
         namespace_scope: LocalScopeId,
         default_symbol: LocalSymbolId,
@@ -796,7 +795,7 @@ impl Compiler {
         module_id: ModuleId,
         language_type: LanguageType,
         default_symbol: LocalSymbolId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
@@ -903,7 +902,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
         default_symbol: LocalSymbolId,
         export_assignment_symbol: LocalSymbolId,
@@ -965,7 +964,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
         module_bindings: &[ModuleBinding],
         binding_exports: &mut ModuleBindingExportTable,
@@ -1036,7 +1035,7 @@ impl Compiler {
     /// Resolve reexport targets after dependency resolution.
     fn finalize_export_targets(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
     ) {
         // update unresolved reexports with resolved targets
@@ -1062,7 +1061,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         language_type: LanguageType,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
     ) {
@@ -1131,7 +1130,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
     ) {
@@ -1148,7 +1147,7 @@ impl Compiler {
         context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         export: &Export,
     ) -> Vec<GlobalSymbolId> {
@@ -1167,7 +1166,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         default_symbol: LocalSymbolId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
         dependency_items: impl Iterator<Item = LocalNodeId<DependencyItem>>,
     ) {
@@ -1203,7 +1202,7 @@ impl Compiler {
     /// Get the export statement parent for an item, if any.
     fn export_statement_parent(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> Option<LocalNodeId<Expression>> {
         // resolve the parent expression
@@ -1218,7 +1217,7 @@ impl Compiler {
     /// Get any export parent expression for an item, if any.
     pub(crate) fn export_item_parent(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> Option<LocalNodeId<Expression>> {
         // resolve the parent expression

@@ -134,7 +134,7 @@ impl OwnershipMap {
         &mut self,
         value: impl Into<mir::ValueReference>,
         at: MoveLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         value_types: &ValueTypeMap,
     ) {
         let value = value.into();
@@ -365,7 +365,7 @@ impl OwnershipAnalysis {
     pub fn pointee_type(
         &self,
         pointer: impl Into<mir::ValueReference>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::LocalNodeId<Type>> {
         let type_id = self.require_value_type(pointer);
         let ty = tree.get(type_id);
@@ -377,7 +377,7 @@ impl OwnershipAnalysis {
     }
 
     /// Check if a type has copy semantics.
-    pub fn is_copy_type(&self, ty_id: mir::LocalNodeId<Type>, tree: &mir::NodeTree) -> bool {
+    pub fn is_copy_type(&self, ty_id: mir::LocalNodeId<Type>, tree: &mir::Tree) -> bool {
         let ty = tree.get(ty_id);
         match ty {
             // primitives are always copy
@@ -432,11 +432,7 @@ impl OwnershipAnalysis {
     }
 
     /// Check if a value has copy semantics.
-    pub fn value_is_copy(
-        &self,
-        value: impl Into<mir::ValueReference>,
-        tree: &mir::NodeTree,
-    ) -> bool {
+    pub fn value_is_copy(&self, value: impl Into<mir::ValueReference>, tree: &mir::Tree) -> bool {
         // resolve the value type
         let ty_id = self.require_value_type(value);
 
@@ -449,7 +445,7 @@ impl OwnershipAnalysis {
         state: &mut OwnershipMap,
         destination: impl Into<mir::ValueReference>,
         origin: Option<mir::LocalReference>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) {
         let destination = destination.into();
 
@@ -479,7 +475,7 @@ impl OwnershipAnalysis {
         state: &mut OwnershipMap,
         inst_id: mir::LocalNodeId<Instruction>,
         inst: &Instruction,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) {
         let at = MoveLocation::Instruction(inst_id);
 
@@ -887,7 +883,7 @@ impl OwnershipAnalysis {
         state: &mut OwnershipMap,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) {
         let at = MoveLocation::Terminator(block_id);
 
@@ -1031,7 +1027,7 @@ impl OwnershipAnalysis {
     }
 
     /// Build the analysis.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
         if function.entry.is_none() {
             let value_types = ValueTypeMap::new(function, tree);
             return Self {
@@ -1212,7 +1208,7 @@ impl Analysis for OwnershipAnalysis {
 impl FunctionAnalysis for OwnershipAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
@@ -1223,7 +1219,7 @@ impl FunctionAnalysis for OwnershipAnalysis {
 /// Collect allocation sites for stack and heap values.
 fn collect_allocation_kinds(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> (HashSet<Value>, HashSet<Value>) {
     // seed allocation sets
     let mut stack_allocated = HashSet::new();
@@ -1257,7 +1253,7 @@ fn collect_allocation_kinds(
 /// Check if a value has copy semantics.
 fn value_is_copy(
     value: impl Into<mir::ValueReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) -> bool {
     let type_id = value_types.require_value_type(value);
@@ -1312,7 +1308,7 @@ fn set_origin_if_move_only(
     state: &mut OwnershipMap,
     destination: impl Into<mir::ValueReference>,
     origin: Option<mir::LocalReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) {
     let destination = destination.into();
@@ -1329,7 +1325,7 @@ fn process_instruction(
     state: &mut OwnershipMap,
     inst_id: mir::LocalNodeId<Instruction>,
     inst: &Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) {
     let at = MoveLocation::Instruction(inst_id);
@@ -1715,7 +1711,7 @@ fn process_terminator(
     state: &mut OwnershipMap,
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) {
     let at = MoveLocation::Terminator(block_id);
@@ -1835,7 +1831,7 @@ fn process_terminator(
 fn predecessor_arguments(
     predecessor: mir::LocalNodeId<mir::Block>,
     target: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Vec<&[mir::ValueReference]> {
     let block = tree.get(predecessor);
     let terminator = tree.get(block.terminator);

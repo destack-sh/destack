@@ -50,7 +50,7 @@ impl FunctionPass for LocalCse {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // build alias analysis
@@ -80,7 +80,7 @@ impl FunctionPass for LocalCse {
 /// Run local CSE on all blocks in a function.
 fn run_local_cse(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // track whether any block changes
@@ -98,7 +98,7 @@ fn run_local_cse(
 /// Returns true if any changes were made.
 fn eliminate_common_subexpressions_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // expression table: key -> defining value

@@ -17,7 +17,7 @@ impl LintAstAnalysisCache {
     /// Return a cached constant value for an expression.
     pub fn const_value(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Expression>,
     ) -> Option<ConstValue> {
         if let Some(value) = self.const_values.get(&id.id) {
@@ -57,7 +57,7 @@ impl LintAstAnalysisCache {
 
 /// Evaluate an AST expression to a constant value when possible.
 fn evaluate_const_value(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ConstValue> {
     let expression = tree.get(id);

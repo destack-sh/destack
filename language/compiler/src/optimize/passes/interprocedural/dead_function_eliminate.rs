@@ -47,7 +47,7 @@ declare_pass! {
 
 impl ModulePass for DeadFunctionEliminate {
     /// Run dead function elimination for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_dead_function_eliminate(tree);
 
         // report analysis preservation based on whether changes occurred
@@ -80,7 +80,7 @@ enum CallConstraint {
 }
 
 /// Run dead function elimination over the module.
-pub(crate) fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
+pub(crate) fn run_dead_function_eliminate(tree: &mut mir::Tree) -> bool {
     // build the module call graph
     let analyses = ModuleAnalyses::new(tree);
     let callgraph = analyses.get::<CallGraph>();
@@ -179,7 +179,7 @@ pub(crate) fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
 
 /// Build a map from signature keys to candidate function ids.
 fn build_signature_index(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     functions: &[mir::LocalNodeId<mir::Function>],
 ) -> HashMap<SignatureKey, Vec<mir::LocalNodeId<mir::Function>>> {
     // insert each function under its signature key
@@ -200,7 +200,7 @@ fn build_signature_index(
 
 /// Collect unresolved call constraints for a function.
 fn unknown_call_constraints(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
 ) -> Vec<CallConstraint> {
     // scan the function blocks for indirect calls
@@ -228,7 +228,7 @@ fn unknown_call_constraints(
 
 /// Resolve a call constraint from a call instruction.
 fn call_constraint_from_instruction(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     instruction: &mir::Instruction,
 ) -> Option<CallConstraint> {
     let dispatch = instruction.call_dispatch_kind()?;
@@ -243,7 +243,7 @@ fn call_constraint_from_instruction(
 
 /// Resolve a call constraint from a call terminator.
 fn call_constraint_from_terminator(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     _block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
 ) -> Option<CallConstraint> {
@@ -278,7 +278,7 @@ fn call_constraint_from_terminator(
 
 /// Resolve call constraints from a signature type.
 fn call_constraint_from_signature(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     signature: mir::TypeReference,
     declared_target: Option<mir::FunctionReference>,
 ) -> Option<CallConstraint> {
@@ -295,7 +295,7 @@ fn call_constraint_from_signature(
 }
 
 /// Strip the body of a function, leaving an import declaration.
-fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::NodeTree) {
+fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::Tree) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks.clone();
     let mut instruction_ids = Vec::new();

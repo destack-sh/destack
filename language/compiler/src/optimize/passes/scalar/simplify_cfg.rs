@@ -100,7 +100,7 @@ impl FunctionPass for SimplifyCfg {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // run simplify cfg with bounded fixed point
@@ -128,7 +128,7 @@ impl FunctionPass for SimplifyCfg {
 /// SimplifyCFG logic. Returns true if changes were made.
 fn run_simplify_cfg(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     profile: Option<&mir::ProfileTable>,
     ctx: &PipelineContext<'_>,
 ) -> bool {
@@ -253,7 +253,7 @@ fn run_simplify_cfg(
 /// Returns true if any branches were folded.
 fn fold_branches(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
@@ -425,7 +425,7 @@ fn fold_branches(
 /// Thread edges through empty or condition only blocks using edge specific facts.
 fn thread_edge_conditions(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     domtree: &DominatorTree,
@@ -540,7 +540,7 @@ fn resolve_edge_if_available(
     condition: mir::ValueReference,
     is_true: bool,
     target: &mir::BlockTarget,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
@@ -576,7 +576,7 @@ fn resolve_edge_target(
     condition: mir::ValueReference,
     is_true: bool,
     target: &mir::BlockTarget,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     value_definitions: &HashMap<mir::Value, mir::Instruction>,
@@ -695,7 +695,7 @@ fn resolve_edge_target(
 fn is_threadable_condition_block(
     block: &mir::Block,
     terminator: &mir::Terminator,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_use_counts: &HashMap<mir::Value, usize>,
 ) -> bool {
     // accept empty blocks
@@ -1098,7 +1098,7 @@ fn comparison_bounds(
 /// Return true when a block assumes the condition is true.
 fn assume_truth_value(
     block: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     condition: mir::ValueReference,
 ) -> Option<bool> {
     for instruction_id in &block.instructions {
@@ -1297,7 +1297,7 @@ fn lower_boolean_switch(
 /// Lower a single case switch into a conditional branch when possible.
 fn lower_single_case_switch(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     value: mir::ValueReference,
     default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
@@ -1417,7 +1417,7 @@ fn record_kept_return(
 /// Check whether any return edge can be remapped into a canonical return block.
 fn function_has_remappable_return_edges(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
     is_void_return: bool,
 ) -> bool {
@@ -1481,7 +1481,7 @@ fn function_has_remappable_return_edges(
 }
 
 /// Canonicalize empty return blocks by routing them to one return block.
-fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // collect candidate return and unreachable blocks
     let mut return_blocks: HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> = HashMap::new();
     let mut unreachable_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
@@ -1834,7 +1834,7 @@ fn rewrite_return_targets(
 /// Remap block targets for terminators based on a redirect map.
 fn remap_block_targets(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     redirects: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // track whether any changes were made
@@ -1863,7 +1863,7 @@ fn remap_block_targets(
 }
 
 /// Fold branches and checks that target identical edges.
-fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool {
     // track whether any changes were made
     let mut changed = false;
 
@@ -1928,7 +1928,7 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
 }
 
 /// Fold branches that target the same block into a jump with selects.
-fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // track whether any changes were made
     let mut changed = false;
 
@@ -2027,7 +2027,7 @@ struct JumpPredecessor {
 /// Duplicate small jump targets into jump predecessors.
 fn tail_duplicate_blocks(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     profile: Option<&mir::ProfileTable>,
     domtree: &DominatorTree,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
@@ -2348,7 +2348,7 @@ fn insert_block_after(
 }
 
 /// Split critical edges into their own blocks.
-fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
     // collect predecessor sets for each block
     let mut predecessors: HashMap<
         mir::LocalNodeId<mir::Block>,
@@ -2541,7 +2541,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) 
 /// Split a critical edge target and return the new block id when needed.
 fn split_critical_edge_target(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     source: mir::LocalNodeId<mir::Block>,
     target: &mir::BlockTarget,
     predecessors: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
@@ -2616,7 +2616,7 @@ fn split_critical_edge_target(
 /// Returns true if any blocks were merged.
 fn merge_blocks(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
     domtree: &DominatorTree,
 ) -> bool {
@@ -2763,7 +2763,7 @@ fn merge_blocks(
 /// Returns true if any blocks were removed.
 fn eliminate_unreachable_blocks(
     function: &mut mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // find all reachable blocks via BFS from entry
@@ -4094,7 +4094,7 @@ b0:
         test.assert_output(expected);
     }
 
-    fn collect_argument_mismatches(function: &mir::Function, tree: &mir::NodeTree) -> Vec<String> {
+    fn collect_argument_mismatches(function: &mir::Function, tree: &mir::Tree) -> Vec<String> {
         let mut mismatches = Vec::new();
 
         for &block_id in &function.blocks {
@@ -4365,7 +4365,7 @@ b0:
         mismatches
     }
 
-    fn collect_undefined_uses(function: &mir::Function, tree: &mir::NodeTree) -> Vec<String> {
+    fn collect_undefined_uses(function: &mir::Function, tree: &mir::Tree) -> Vec<String> {
         let mut defined_values: HashSet<mir::Value> = HashSet::new();
 
         for &block_id in &function.blocks {

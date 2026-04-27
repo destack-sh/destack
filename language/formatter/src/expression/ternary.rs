@@ -4,8 +4,7 @@ use crate::annotation::FormatTrailingComments;
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeTree, NodeType,
-    ScalarLiteral,
+    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -18,7 +17,7 @@ const UNDEFINED_IDENTIFIER: &str = "undefined";
 
 /// Return the value expression for an argument.
 pub(crate) fn argument_value(
-    tree: &NodeTree,
+    tree: &Tree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
@@ -29,7 +28,7 @@ pub(crate) fn argument_value(
 
 /// Return ternary components for one expression node.
 fn ternary_parts(
-    tree: &NodeTree,
+    tree: &Tree,
     node_id: LocalNodeId<Expression>,
 ) -> Option<(
     LocalNodeId<Expression>,

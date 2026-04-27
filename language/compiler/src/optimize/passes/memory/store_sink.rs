@@ -57,7 +57,7 @@ impl FunctionPass for StoreSink {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -117,7 +117,7 @@ struct StoreCandidate {
 /// Run store sinking and return true when changes are made.
 fn run_store_sink(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // gather analyses
@@ -230,7 +230,7 @@ fn run_store_sink(
 /// Collect store candidates for sinking.
 fn collect_store_candidates(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     non_escaping_stack_allocs: &HashSet<mir::Value>,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -354,7 +354,7 @@ fn store_is_sinkable_location(
     pointer: Option<mir::Value>,
     non_escaping_stack_allocs: &HashSet<mir::Value>,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // allow local stores
     if matches!(kind, StoreKind::LocalSet) {
@@ -375,7 +375,7 @@ fn store_is_sinkable_location(
 /// Collect blocks that read from each clobbering def.
 fn collect_use_blocks_by_def(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
 ) -> HashMap<MemoryAccessId, HashSet<mir::LocalNodeId<mir::Block>>> {
@@ -406,7 +406,7 @@ fn collect_use_blocks_by_def(
 
 /// Return true when a successor reaches any of the use blocks.
 fn successor_reaches_use(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     start: mir::LocalNodeId<mir::Block>,
     use_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
@@ -440,7 +440,7 @@ fn successor_reaches_use(
 
 /// Insert a store instruction for a candidate.
 fn insert_store_for_candidate(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     candidate: &StoreCandidate,
 ) -> mir::LocalNodeId<mir::Instruction> {
@@ -466,7 +466,7 @@ fn insert_store_for_candidate(
 
 /// Clone store metadata to a new instruction.
 fn clone_store_metadata(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,

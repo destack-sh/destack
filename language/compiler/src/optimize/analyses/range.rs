@@ -333,7 +333,7 @@ impl RangeAnalysis {
     /// Build range analysis for a function.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         type_context: TypeContext,
     ) -> Self {
@@ -475,7 +475,7 @@ impl Analysis for RangeAnalysis {
 impl FunctionAnalysis for RangeAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
@@ -513,7 +513,7 @@ enum ParamRangeState {
 /// Apply block parameter ranges derived from predecessor arguments.
 fn apply_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
     entry_state: &mut RangeMap,
@@ -540,7 +540,7 @@ fn apply_block_param_ranges(
 /// Resolve ranges for block parameters from predecessor arguments.
 fn resolve_block_param_ranges(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
 ) -> HashMap<mir::Value, ValueRange> {
@@ -622,7 +622,7 @@ fn resolve_block_param_ranges(
 fn transfer_block(
     block_id: mir::LocalNodeId<mir::Block>,
     entry_state: &RangeMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> RangeMap {
     // clone entry state for updates
@@ -652,7 +652,7 @@ fn transfer_block(
 /// Evaluate a range for an instruction when possible.
 fn range_for_instruction(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     state: &RangeMap,
     pointer_width_bits: u16,
 ) -> Option<ValueRange> {
@@ -764,7 +764,7 @@ fn range_for_cast(
     operator: mir::CastOperator,
     argument: Option<&ValueRange>,
     to_type: mir::LocalNodeId<mir::Type>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Option<ValueRange> {
     // require a range for the operand

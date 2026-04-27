@@ -9,9 +9,9 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::parse::TokenType;
 use crate::{
-    Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node, NodeTree,
-    NodeTreeImpl, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator, Type,
-    TypeAlias, TypeReference, Value, function_signature_parts,
+    Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node, NodeType,
+    ReferenceKind, TensorDimension, TensorLayout, Terminator, Tree, TreeImpl, Type, TypeAlias,
+    TypeReference, Value, function_signature_parts,
 };
 
 use super::r#type::format_type_declaration;
@@ -105,7 +105,7 @@ pub struct MirFormatContext<'a> {
     /// Format options.
     pub options: MirFormatOptions,
     /// The MIR tree.
-    pub tree: &'a NodeTree,
+    pub tree: &'a Tree,
     /// The strings.
     pub strings: &'a ImmutableStringPool,
     /// Dummy file for FIR compatibility.
@@ -137,7 +137,7 @@ impl<'a> std::fmt::Debug for MirFormatContext<'a> {
 impl<'a> MirFormatContext<'a> {
     /// Create a new format context.
     pub fn new(
-        tree: &'a NodeTree,
+        tree: &'a Tree,
         strings: &'a ImmutableStringPool,
         options: MirFormatOptions,
     ) -> Self {
@@ -276,7 +276,7 @@ impl<'a> MirFormatContext<'a> {
 
 /// Build unique display names for functions.
 fn build_unique_function_names(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     use_local_names: bool,
 ) -> HashMap<LocalNodeId<Function>, String> {
@@ -295,7 +295,7 @@ fn build_unique_function_names(
 
 /// Build unique display names for globals.
 fn build_unique_global_names(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     use_local_names: bool,
 ) -> HashMap<LocalNodeId<Global>, String> {
@@ -357,7 +357,7 @@ where
 /// Build synthetic type aliases based on usage counts.
 #[allow(clippy::type_complexity)]
 fn build_synthetic_aliases(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     mut type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     min_uses: u8,
@@ -451,7 +451,7 @@ fn should_alias_type(ty: &Type) -> bool {
 
 /// Choose an alias name for a candidate group.
 fn alias_name_for_candidate(
-    tree: &NodeTree,
+    tree: &Tree,
     candidate: &AliasCandidateGroup,
     next_alias_indices: &mut HashMap<String, usize>,
     alias_names: &HashSet<String>,
@@ -525,7 +525,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
 
 /// Read the metadata name for a type, if any.
 fn metadata_name_for_type(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     ty: LocalNodeId<Type>,
     use_local_names: bool,
@@ -571,18 +571,14 @@ struct AliasCandidateGroup {
 }
 
 /// Build a structural key used for alias grouping.
-fn type_key_for_alias(
-    tree: &NodeTree,
-    strings: &ImmutableStringPool,
-    ty: LocalNodeId<Type>,
-) -> String {
+fn type_key_for_alias(tree: &Tree, strings: &ImmutableStringPool, ty: LocalNodeId<Type>) -> String {
     let mut active_types = HashSet::new();
     type_key_for_alias_inner(tree, strings, ty, &mut active_types)
 }
 
 /// Build one structural key from a type reference.
 fn type_key_for_alias_reference(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     ty: TypeReference,
     active_types: &mut HashSet<LocalNodeId<Type>>,
@@ -596,7 +592,7 @@ fn type_key_for_alias_reference(
 
 /// Build a structural key used for alias grouping.
 fn type_key_for_alias_inner(
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     ty: LocalNodeId<Type>,
     active_types: &mut HashSet<LocalNodeId<Type>>,
@@ -856,7 +852,7 @@ fn format_tensor_layout_key(layout: &TensorLayout) -> String {
 }
 
 /// Collect type usage counts for formatting.
-fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
+fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
     // initialize usage counts
     let mut counts = HashMap::new();
 
@@ -1039,11 +1035,7 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
 }
 
 /// Record usage of a type and its nested types.
-fn record_type_use(
-    tree: &NodeTree,
-    ty: TypeReference,
-    counts: &mut HashMap<LocalNodeId<Type>, u32>,
-) {
+fn record_type_use(tree: &Tree, ty: TypeReference, counts: &mut HashMap<LocalNodeId<Type>, u32>) {
     let TypeReference::Type(ty) = ty else {
         return;
     };
@@ -1057,7 +1049,7 @@ fn record_type_use(
 
 /// Record usage of a type once per traversal.
 fn record_type_use_inner(
-    tree: &NodeTree,
+    tree: &Tree,
     ty: LocalNodeId<Type>,
     counts: &mut HashMap<LocalNodeId<Type>, u32>,
     visited: &mut HashSet<LocalNodeId<Type>>,
@@ -1178,7 +1170,7 @@ pub trait FormatMirNode<'a, T: Node> {
 /// Implement Format for LocalNodeId<T> where T implements FormatMirNode.
 impl<'a, T: Node + Clone> Format<MirFormatContext<'a>> for LocalNodeId<T>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     T: FormatMirNode<'a, T>,
 {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -1188,11 +1180,7 @@ where
 }
 
 /// Format a MIR tree to a string.
-pub fn format_mir(
-    tree: &NodeTree,
-    strings: &ImmutableStringPool,
-    options: MirFormatOptions,
-) -> String {
+pub fn format_mir(tree: &Tree, strings: &ImmutableStringPool, options: MirFormatOptions) -> String {
     let context = MirFormatContext::new(tree, strings, options);
 
     // format all globals and functions
@@ -1225,7 +1213,7 @@ struct CommentBlock {
 }
 
 /// Return one node's leading trivia byte bounds.
-fn leading_trivia_bounds<T>(tree: &NodeTree, id: LocalNodeId<T>) -> Option<(u32, u32)>
+fn leading_trivia_bounds<T>(tree: &Tree, id: LocalNodeId<T>) -> Option<(u32, u32)>
 where
     T: Node,
 {
@@ -1234,7 +1222,7 @@ where
 }
 
 /// Return the source start used to order one top level item.
-fn top_level_item_start<T>(tree: &NodeTree, id: LocalNodeId<T>) -> u32
+fn top_level_item_start<T>(tree: &Tree, id: LocalNodeId<T>) -> u32
 where
     T: Node,
 {
@@ -1248,7 +1236,7 @@ where
 }
 
 /// Collect normalized comments between byte offsets.
-fn collect_comments_between(tree: &NodeTree, start: u32, end: u32) -> CommentBlock {
+fn collect_comments_between(tree: &Tree, start: u32, end: u32) -> CommentBlock {
     let mut comments = Vec::new();
     let mut newline_count = 0usize;
 
@@ -1335,7 +1323,7 @@ fn write_comment_block<'a>(
 
 /// Write comment lines after one canonical separator.
 fn write_comments_after_separator<'a>(
-    tree: &NodeTree,
+    tree: &Tree,
     start: u32,
     end: u32,
     f: &mut MirFormatter<'a, '_>,
@@ -1346,7 +1334,7 @@ fn write_comments_after_separator<'a>(
 
 /// Write comment lines between byte offsets as standalone lines.
 pub(crate) fn write_comments_before<'a>(
-    tree: &NodeTree,
+    tree: &Tree,
     start: u32,
     end: u32,
     f: &mut MirFormatter<'a, '_>,
@@ -1357,7 +1345,7 @@ pub(crate) fn write_comments_before<'a>(
 
 /// Write comments after one anchor, keeping inline comments inline.
 pub(crate) fn write_inline_comment_after<'a>(
-    tree: &NodeTree,
+    tree: &Tree,
     start: u32,
     end: u32,
     f: &mut MirFormatter<'a, '_>,
@@ -1374,7 +1362,7 @@ pub(crate) fn write_inline_comment_after<'a>(
 
 /// Write comments after one anchor, keeping inline comments inline.
 pub(crate) fn write_comments_after<'a>(
-    tree: &NodeTree,
+    tree: &Tree,
     start: u32,
     end: u32,
     f: &mut MirFormatter<'a, '_>,
@@ -1411,7 +1399,7 @@ pub(crate) fn write_comments_after<'a>(
 
 /// Write leading comments for one node.
 pub(crate) fn write_node_leading_comments<'a, T>(
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<T>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<bool>
@@ -1427,7 +1415,7 @@ where
 
 /// Write leading comments after one canonical sibling separator.
 pub(crate) fn write_node_leading_comments_after_separator<'a, T>(
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<T>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<bool>
@@ -1443,7 +1431,7 @@ where
 
 /// Write trailing comments after the final top level item.
 fn write_top_level_comments_after<'a, T>(
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<T>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<bool>
@@ -1473,7 +1461,7 @@ struct SyntheticAliasEntry {
 }
 
 /// Order alias entries so referenced aliases appear first.
-fn order_alias_entries(tree: &NodeTree, entries: &[SyntheticAliasEntry]) -> Vec<usize> {
+fn order_alias_entries(tree: &Tree, entries: &[SyntheticAliasEntry]) -> Vec<usize> {
     if entries.len() <= 1 {
         return (0..entries.len()).collect();
     }
@@ -1541,7 +1529,7 @@ fn order_alias_entries(tree: &NodeTree, entries: &[SyntheticAliasEntry]) -> Vec<
 
 /// Collect alias dependencies for a type id.
 fn collect_alias_dependencies(
-    tree: &NodeTree,
+    tree: &Tree,
     root: LocalNodeId<Type>,
     alias_types: &HashSet<LocalNodeId<Type>>,
 ) -> HashSet<LocalNodeId<Type>> {
@@ -1716,14 +1704,14 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
 
 /// Format one explicit top level item.
 fn format_top_level_item<'a, T>(
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<T>,
     next_boundary: Option<u32>,
     has_output: bool,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     T: FormatMirNode<'a, T> + Node + Clone,
 {
     // item spacing

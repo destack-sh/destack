@@ -14,7 +14,7 @@ pub struct MirBase {
     /// The target this is for.
     pub target: TargetId,
     /// The MIR of the Module.
-    pub tree: mir::NodeTree,
+    pub tree: mir::Tree,
     /// The string pool of the Module's MIR stuff.
     pub strings: StringPool,
     /// Profile-guided optimization data for this module and target.
@@ -27,7 +27,7 @@ impl MirBase {
         Self {
             id,
             target,
-            tree: mir::NodeTree::new(),
+            tree: mir::Tree::new(),
             strings: StringPool::new(),
             profile: None,
         }
@@ -58,7 +58,7 @@ pub struct MirOptimized {
     /// The target this is for.
     pub target: TargetId,
     /// The optimized MIR of the Module.
-    pub tree: mir::NodeTree,
+    pub tree: mir::Tree,
     /// The string pool of the Module's MIR stuff.
     pub strings: StringPool,
     /// Profile-guided optimization data for this module and target.
@@ -71,7 +71,7 @@ impl MirOptimized {
         Self {
             id,
             target,
-            tree: mir::NodeTree::new(),
+            tree: mir::Tree::new(),
             strings: StringPool::new(),
             profile: None,
         }

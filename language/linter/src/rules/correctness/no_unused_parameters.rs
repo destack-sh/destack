@@ -246,7 +246,7 @@ fn symbol_is_value_binding(ctx: &LintModuleDirContext<'_>, symbol_id: dir::Local
 
 /// Return true when the parameter belongs to a declaration or member body.
 fn parameter_requires_usage(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
     let mut parent = tree.get_parent(parameter_id.id);

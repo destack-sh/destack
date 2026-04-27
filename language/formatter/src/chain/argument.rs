@@ -1,9 +1,9 @@
 use crate::DestackFormatContext;
-use destack_ast::{Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeTree};
+use destack_ast::{Argument, Declaration, Expression, FunctionKind, LocalNodeId, Tree};
 
 /// Get the value expression of any argument variant.
 pub(crate) fn argument_value_id_if_present(
-    tree: &NodeTree,
+    tree: &Tree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {

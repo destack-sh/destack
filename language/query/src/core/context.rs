@@ -48,8 +48,8 @@ impl<'a> AstQuery<'a> {
         self.file_id
     }
 
-    /// Return the AST node tree.
-    pub(crate) fn tree(self) -> &'a ast::NodeTree {
+    /// Return the AST tree.
+    pub(crate) fn tree(self) -> &'a ast::Tree {
         &self.ast.tree
     }
 
@@ -108,8 +108,8 @@ impl<'a> DirQuery<'a> {
         self.revision
     }
 
-    /// Return the DIR node tree.
-    pub(crate) fn tree(self) -> &'a dir::NodeTree {
+    /// Return the DIR tree.
+    pub(crate) fn tree(self) -> &'a dir::Tree {
         &self.analyzed.tree
     }
 

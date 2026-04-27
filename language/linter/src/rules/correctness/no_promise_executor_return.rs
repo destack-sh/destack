@@ -153,7 +153,7 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
     /// Visit an expression node.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -202,7 +202,7 @@ fn executor_declaration(
 
 /// Check whether a function declaration returns a value.
 fn analyze_executor_returns(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
     allow_void: bool,
 ) -> crate::rules::common::CallableReturnUsage {
@@ -244,7 +244,7 @@ fn analyze_executor_returns(
 
 /// Return true when one expression is a `void` unary expression.
 fn expression_is_void_operator(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_transparent(tree, expression_id);

@@ -17,8 +17,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 /// Context for lowering a single MIR function to Cranelift IR.
 #[allow(dead_code)]
 pub(crate) struct FunctionLowerer<'a> {
-    /// The MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// The MIR tree.
+    tree: &'a mir::Tree,
     /// String pool for resolving names.
     strings: &'a StringPool,
     /// The MIR function being lowered.
@@ -47,7 +47,7 @@ pub(crate) struct FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer.
     pub(crate) fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         strings: &'a StringPool,
         function: &'a mir::Function,
         isa: &'a Arc<dyn TargetIsa>,

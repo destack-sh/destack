@@ -52,7 +52,7 @@ impl FunctionPipeline {
 }
 
 impl Pipeline for FunctionPipeline {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
         // collect function ids
@@ -136,7 +136,7 @@ impl ModulePipeline {
 }
 
 impl Pipeline for ModulePipeline {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
         for pass in &self.passes {
@@ -183,7 +183,7 @@ impl FunctionToModuleAdaptor {
 }
 
 impl Pipeline for FunctionToModuleAdaptor {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         self.inner.run(tree, ctx)
     }
 
@@ -231,7 +231,7 @@ impl RepeatedPipeline {
 }
 
 impl Pipeline for RepeatedPipeline {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
         for _ in 0..self.max_iterations {
@@ -292,7 +292,7 @@ impl CompositePipeline {
 }
 
 impl Pipeline for CompositePipeline {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
         for pipeline in &self.pipelines {
             let changed = pipeline.run(tree, ctx);
@@ -338,7 +338,7 @@ mod tests {
         fn run(
             &self,
             _func: &mut mir::Function,
-            _tree: &mut mir::NodeTree,
+            _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
         ) -> AnalysisPreservation {
             AnalysisPreservation::all()
@@ -372,7 +372,7 @@ mod tests {
         fn run(
             &self,
             _func: &mut mir::Function,
-            _tree: &mut mir::NodeTree,
+            _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
         ) -> AnalysisPreservation {
             AnalysisPreservation::none()

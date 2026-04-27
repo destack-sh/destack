@@ -16,7 +16,7 @@ use crate::declaration::expression_is_in_statement_position;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, Keyword, LocalNodeId, NodeTree, NodeType};
+use destack_ast::{Argument, Expression, Keyword, LocalNodeId, NodeType, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, indent, line_suffix_boundary,
@@ -307,7 +307,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
 }
 
 /// Return whether an array should expand under nested array and object rules.
-fn array_expression_should_break(tree: &NodeTree, elements: &[LocalNodeId<Argument>]) -> bool {
+fn array_expression_should_break(tree: &Tree, elements: &[LocalNodeId<Argument>]) -> bool {
     if elements.len() < 2 {
         return false;
     }

@@ -8,9 +8,8 @@ pub use destack_ast::Decorator;
 use destack_ast::{
     Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, DependencyItem,
     EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny,
-    MatchCase, Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, TokenType, TupleElement, TypeExpression, TypeMember,
-    WhereClause,
+    MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
+    TokenSpan, TokenType, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{
@@ -53,7 +52,7 @@ pub struct DestackFormatContext<'a> {
     /// The side span.
     pub side_span: &'a MultiSpan,
     /// The tree.
-    pub tree: &'a NodeTree,
+    pub tree: &'a Tree,
     /// The parent index.
     pub parents: NodeParentIndex,
     /// The string pool.
@@ -79,7 +78,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn new(
         options: DestackFormatOptions,
         file: &'a File,
-        tree: &'a NodeTree,
+        tree: &'a Tree,
         tokens: &'a [TokenSpan],
         side_tokens: &'a [TokenSpan],
         side_span: &'a MultiSpan,
@@ -279,7 +278,7 @@ pub(crate) struct FormatNodeWithoutTrailingComments<T: Node>(pub LocalNodeId<T>)
 impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
@@ -294,7 +293,7 @@ where
 impl<'a, T: Node> Format<DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]

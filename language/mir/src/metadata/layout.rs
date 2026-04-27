@@ -7,8 +7,8 @@ use destack_core::StringId;
 
 use crate::tree::compute_type_layout;
 use crate::{
-    AddressSpace, Global, LocalNodeId, NodeTree, PrimitiveTypeIndex, ReferenceKind, Type,
-    TypeLineage, TypeReference, UnionLayout, slice_header_types,
+    AddressSpace, Global, LocalNodeId, PrimitiveTypeIndex, ReferenceKind, Tree, Type, TypeLineage,
+    TypeReference, UnionLayout, slice_header_types,
 };
 
 /// Heap-reference metadata for one runtime payload.
@@ -247,7 +247,7 @@ impl std::fmt::Display for LayoutMetadataError {
 impl std::error::Error for LayoutMetadataError {}
 
 /// Complete canonical layout metadata for every concrete MIR aggregate type.
-pub(crate) fn complete_layout_metadata(tree: &mut NodeTree) -> LayoutMetadataResult<()> {
+pub(crate) fn complete_layout_metadata(tree: &mut Tree) -> LayoutMetadataResult<()> {
     let type_ids: Vec<_> = tree
         .iter_nodes::<Type>()
         .map(|(type_id, _)| type_id)
@@ -264,7 +264,7 @@ pub(crate) fn complete_layout_metadata(tree: &mut NodeTree) -> LayoutMetadataRes
 /// One in-place layout metadata completion pass.
 struct LayoutMetadataCompletion<'a> {
     /// The MIR tree being completed.
-    tree: &'a mut NodeTree,
+    tree: &'a mut Tree,
 }
 
 impl LayoutMetadataCompletion<'_> {
@@ -896,7 +896,7 @@ mod tests {
     use destack_source::FileId;
 
     /// Parse one MIR module and complete its layout metadata.
-    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (NodeTree, ImmutableStringPool) {
+    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (Tree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
@@ -914,7 +914,7 @@ mod tests {
 
     /// Look up one aliased type by name.
     fn lookup_type_alias(
-        tree: &NodeTree,
+        tree: &Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> LocalNodeId<Type> {

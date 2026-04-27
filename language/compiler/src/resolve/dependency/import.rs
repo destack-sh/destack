@@ -2,7 +2,7 @@ use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Expression, GlobalNodeIdAny, GlobalSymbolId,
-    ImportSource, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
+    ImportSource, LocalScopeId, ModuleTarget, StaticKey, SymbolTable, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Revision};
@@ -355,7 +355,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         scope_id: LocalScopeId,
         item: &DependencyItem,
         cache: Option<&mut ResolveDependencyItemCache>,
@@ -396,7 +396,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         scope_id: LocalScopeId,
         target_symbol: GlobalSymbolId,
         cache: Option<&mut ResolveDependencyItemCache>,
@@ -431,7 +431,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
-        tree: &NodeTree,
+        tree: &Tree,
         scope_id: LocalScopeId,
         value: destack_dir::LocalNodeId<Expression>,
         mut cache: Option<&mut ResolveDependencyItemCache>,
@@ -529,7 +529,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         scope_id: LocalScopeId,
         name: StringId,
         cache: Option<&mut ResolveDependencyItemCache>,
@@ -566,7 +566,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         item_ids: &[destack_dir::LocalNodeId<DependencyItem>],
     ) -> ResolveResult<FxHashMap<LocalScopeId, FxHashMap<StringId, ModuleTarget>>> {
         let mut redirects_by_scope: FxHashMap<LocalScopeId, FxHashMap<StringId, ModuleTarget>> =
@@ -650,7 +650,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         scope_id: LocalScopeId,
         name: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {

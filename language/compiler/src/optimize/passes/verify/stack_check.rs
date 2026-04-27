@@ -182,7 +182,7 @@ impl StackPointerMap {
         &mut self,
         instruction_id: mir::LocalNodeId<Instruction>,
         instruction: &Instruction,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         lifetime_analysis: &LifetimeAnalysis,
         call_targets: &CallTargetAnalysis,
     ) {
@@ -298,7 +298,7 @@ impl StackPointerMap {
         &mut self,
         destination: ValueReference,
         signature: mir::TypeReference,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         arguments: &[ValueReference],
         env: Option<ValueReference>,
     ) {
@@ -345,7 +345,7 @@ impl StackPointerMap {
     /// Apply terminator effects on stack pointer state.
     ///
     /// This handles propagation of stack pointers through block parameters.
-    fn apply_terminator_effects(&mut self, terminator: &mir::Terminator, tree: &mir::NodeTree) {
+    fn apply_terminator_effects(&mut self, terminator: &mir::Terminator, tree: &mir::Tree) {
         // for jump/branch, propagate stack state to block parameter values
         // the dataflow framework handles this via its worklist algorithm
         // we just need to make sure the state correctly reflects what flows out
@@ -372,7 +372,7 @@ impl StackPointerMap {
     }
 
     /// Propagate stack state across one block edge.
-    fn propagate_block_target(&mut self, target: &mir::BlockTarget, tree: &mir::NodeTree) {
+    fn propagate_block_target(&mut self, target: &mir::BlockTarget, tree: &mir::Tree) {
         let Some(block) = target.block.block() else {
             return;
         };
@@ -506,7 +506,7 @@ impl Lattice for StackPointerMap {
 #[allow(clippy::too_many_arguments)]
 fn run_stack_check(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     lifetime_analysis: &LifetimeAnalysis,
     call_targets: &CallTargetAnalysis,
@@ -591,7 +591,7 @@ impl FunctionPass for StackCheck {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get function-level analyses

@@ -73,7 +73,7 @@ impl LintRule for MaxSwitchCases {
 }
 
 /// Return true when one switch case counts toward the max-switch-cases limit.
-fn switch_case_counts(tree: &ast::NodeTree, case_id: ast::LocalNodeId<ast::MatchCase>) -> bool {
+fn switch_case_counts(tree: &ast::Tree, case_id: ast::LocalNodeId<ast::MatchCase>) -> bool {
     // resolve selector and skip default cases
     let case = tree.get(case_id);
     if case.selector().is_default() {
@@ -89,7 +89,7 @@ fn switch_case_counts(tree: &ast::NodeTree, case_id: ast::LocalNodeId<ast::Match
 
 /// Return true when one case expression body has executable content.
 fn expression_has_case_content(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);

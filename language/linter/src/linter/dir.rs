@@ -52,9 +52,9 @@ pub struct LintModuleDirContext<'a> {
     pub file: Arc<File>,
 
     /// The AST tree.
-    pub ast: &'a ast::NodeTree,
+    pub ast: &'a ast::Tree,
     /// The DIR tree.
-    pub tree: &'a dir::NodeTree,
+    pub tree: &'a dir::Tree,
     /// The symbol table.
     pub symbols: &'a dir::SymbolTable,
     /// The type table.
@@ -113,8 +113,8 @@ impl<'a> LintModuleDirContext<'a> {
         revision: Revision,
         profile: Profile,
         file: Arc<File>,
-        ast: &'a ast::NodeTree,
-        tree: &'a dir::NodeTree,
+        ast: &'a ast::Tree,
+        tree: &'a dir::Tree,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         roots: Vec<dir::LocalNodeId<dir::Expression>>,

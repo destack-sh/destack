@@ -32,7 +32,7 @@ impl FunctionPass for LoopSimplify {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
@@ -74,7 +74,7 @@ impl FunctionPass for LoopSimplify {
 fn run_loop_simplify(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
 ) -> bool {
@@ -229,7 +229,7 @@ fn fresh_parameters_like(
 fn needs_preheader(
     lp: &crate::optimize::analyses::Loop,
     cfg: &ControlFlowGraph,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // entry block always needs preheader if it's a loop header
@@ -285,7 +285,7 @@ fn insert_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &[mir::LocalNodeId<mir::Block>],
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     let header_block = tree.get(header);
@@ -504,7 +504,7 @@ fn merge_latches(
     header: mir::LocalNodeId<mir::Block>,
     latches: &[mir::LocalNodeId<mir::Block>],
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     if latches.len() <= 1 {
         return false;
@@ -563,7 +563,7 @@ fn insert_dedicated_exit(
     exit_block: mir::LocalNodeId<mir::Block>,
     exiting_blocks: &[mir::LocalNodeId<mir::Block>],
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     let exit_block_data = tree.get(exit_block);
     let exit_params = &exit_block_data.parameters;

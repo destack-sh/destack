@@ -58,7 +58,7 @@ impl FunctionPass for SparseConditionalConstantPropagation {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // run SCCP
@@ -83,7 +83,7 @@ impl FunctionPass for SparseConditionalConstantPropagation {
 /// SCCP logic. Returns (cfg_changed, value_changed).
 fn run_sccp(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     type_context: TypeContext,
 ) -> (bool, bool) {
     // skip extern functions
@@ -193,7 +193,7 @@ impl SccpResult {
 /// SCCP analysis state and worklists.
 struct SccpState<'a> {
     /// The MIR tree for instruction lookup.
-    tree: &'a mir::NodeTree,
+    tree: &'a mir::Tree,
     /// Blocks that use a given value.
     use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
     /// The entry block.
@@ -217,7 +217,7 @@ struct SccpState<'a> {
 impl<'a> SccpState<'a> {
     /// Create a new SCCP analysis state.
     fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
         entry: mir::LocalNodeId<mir::Block>,
         type_context: TypeContext,
@@ -1030,7 +1030,7 @@ fn select_switch_target(value: i64, cases: &[mir::SwitchCase]) -> Option<&mir::S
 /// Apply SCCP results to the function and tree.
 fn apply_sccp_result(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     result: &SccpResult,
 ) -> (bool, bool) {
     // track cfg and value changes
@@ -1126,7 +1126,7 @@ fn apply_sccp_result(
 /// Insert constants for block parameters and populate substitutions.
 fn function_insert_block_param_constants(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     result: &SccpResult,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
 ) -> bool {
@@ -1208,7 +1208,7 @@ fn function_insert_block_param_constants(
 /// Substitute constant values in instruction and terminator uses.
 fn function_substitute_constant_uses(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // track whether any substitutions occur
@@ -1260,7 +1260,7 @@ fn function_substitute_constant_uses(
 /// Check if an instruction uses any substituted values.
 fn instruction_needs_substitution(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // check inline operands

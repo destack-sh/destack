@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 use destack_mir::{
-    BinaryOperator, CastOperator, Constant, Intrinsic, LocalNodeId, NodeTree, Type, UnaryOperator,
+    BinaryOperator, CastOperator, Constant, Intrinsic, LocalNodeId, Tree, Type, UnaryOperator,
 };
 
 use super::{
@@ -63,7 +63,7 @@ pub fn constant_matches_type(
     constant_type: ConstantType,
     destination_type: impl Into<mir::TypeReference>,
     pointer_width_bits: u16,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> bool {
     let Some(destination_type) = destination_type.into().ty() else {
         return false;
@@ -98,7 +98,7 @@ pub fn constant_matches_type(
 pub fn constant_for_value(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::Constant> {
     // find the instruction that defines the value
     let inst_id = *definitions.get(&value)?;
@@ -117,7 +117,7 @@ pub fn constant_arguments_for_parameters(
     parameters: &[mir::Parameter],
     constants: &impl ConstantLookup,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<Vec<Option<mir::Constant>>> {
     // ensure argument and parameter counts match
     if arguments.len() != parameters.len() {
@@ -146,7 +146,7 @@ pub fn constant_arguments_for_parameters(
 pub fn apply_constant_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     constants: &[Option<mir::Constant>],
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     // prepare the substitution map and new instructions
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
@@ -367,7 +367,7 @@ pub fn constant_all_ones_like(template: &Constant) -> Constant {
 /// Read a scalar constant from an immutable global.
 pub fn constant_from_global(
     global: impl Into<mir::GlobalReference>,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> Option<Constant> {
     let global = global.into().global()?;
 
@@ -398,7 +398,7 @@ pub enum ConstantTree {
 /// Read a constant tree from an immutable global initializer.
 pub fn constant_tree_from_global(
     global: impl Into<mir::GlobalReference>,
-    tree: &NodeTree,
+    tree: &Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> Option<ConstantTree> {
@@ -677,7 +677,7 @@ fn mask_to_width(value: u64, width: u8) -> u64 {
 fn constant_tree_from_initializer(
     initializer: &mir::GlobalInitializer,
     ty: impl Into<mir::TypeReference>,
-    tree: &NodeTree,
+    tree: &Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -708,7 +708,7 @@ fn constant_tree_from_initializer(
 fn constant_tree_from_scalar(
     constant: &Constant,
     ty: impl Into<mir::TypeReference>,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> ConstantTree {
     let Some(ty) = ty.into().ty() else {
         return ConstantTree::Unknown;
@@ -732,7 +732,7 @@ fn constant_tree_from_scalar(
 /// Build a zero constant tree for the given type.
 fn constant_tree_from_zero(
     ty: impl Into<mir::TypeReference>,
-    tree: &NodeTree,
+    tree: &Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -850,7 +850,7 @@ fn constant_tree_from_zero(
 fn constant_tree_from_bytes(
     bytes: &[u8],
     ty: impl Into<mir::TypeReference>,
-    tree: &NodeTree,
+    tree: &Tree,
     max_aggregate_elements: usize,
 ) -> ConstantTree {
     let Some(ty) = ty.into().ty() else {
@@ -924,7 +924,7 @@ fn constant_tree_from_bytes(
 fn constant_tree_from_aggregate_initializer(
     elements: &[mir::GlobalInitializer],
     ty: impl Into<mir::TypeReference>,
-    tree: &NodeTree,
+    tree: &Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -1217,7 +1217,7 @@ pub fn fold_cast(
     value: Constant,
     to_type: LocalNodeId<Type>,
     pointer_width_bits: u16,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> Option<Constant> {
     // load target type
     let target_type = tree.get(to_type);

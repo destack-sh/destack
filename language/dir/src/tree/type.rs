@@ -431,7 +431,7 @@ impl TypeExpression {
 
     /// Resolve the source span kind that identifies this member name token.
     pub fn member_source_part(
-        tree: &crate::NodeTree,
+        tree: &crate::Tree,
         expression_id: LocalNodeId<TypeExpression>,
     ) -> NodeSpanType {
         let source_id = tree.get_source(expression_id.id);

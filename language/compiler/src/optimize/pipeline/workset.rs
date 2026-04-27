@@ -53,13 +53,13 @@ impl ModuleWorkItem {
     }
 
     /// Read the MIR tree for this module.
-    pub fn with_tree<T>(&self, f: impl FnOnce(&mir::NodeTree) -> T) -> T {
+    pub fn with_tree<T>(&self, f: impl FnOnce(&mir::Tree) -> T) -> T {
         let mir = self.mir.read();
         f(&mir.tree)
     }
 
     /// Mutate the MIR tree for this module.
-    pub fn with_tree_mut<T>(&self, f: impl FnOnce(&mut mir::NodeTree) -> T) -> T {
+    pub fn with_tree_mut<T>(&self, f: impl FnOnce(&mut mir::Tree) -> T) -> T {
         let mut mir = self.mir.write();
         f(&mut mir.tree)
     }

@@ -64,7 +64,7 @@ impl FunctionPass for Licm {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
@@ -124,7 +124,7 @@ impl FunctionPass for Licm {
 fn run_licm(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
@@ -347,7 +347,7 @@ fn collect_loop_blocks(
 /// Collect values that are defined outside the loop.
 fn collect_invariant_seed_values(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> HashSet<mir::Value> {
     let mut invariant_values = HashSet::new();
@@ -477,7 +477,7 @@ fn instruction_is_hoistable(
     instruction: &mir::Instruction,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
@@ -558,7 +558,7 @@ fn instruction_is_hoistable(
 fn load_is_hoistable(
     load_id: mir::LocalNodeId<mir::Instruction>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
@@ -619,7 +619,7 @@ fn loop_clobbers_access(
     origin_instruction: mir::LocalNodeId<mir::Instruction>,
     use_access: MemoryAccessId,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
 ) -> bool {
@@ -651,7 +651,7 @@ fn loop_clobbers_access(
 fn read_only_access_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,

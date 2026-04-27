@@ -1,5 +1,5 @@
 use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
-use destack_ast::{self as ast, LocalNodeId, NodeTree, TypeExpression};
+use destack_ast::{self as ast, LocalNodeId, Tree, TypeExpression};
 use destack_workspace::LintSeverity;
 
 declare_lint! {
@@ -81,7 +81,7 @@ fn has_type_expression_parent(
 
 /// Compute one nesting style complexity score for a type expression.
 fn type_expression_complexity(
-    tree: &NodeTree,
+    tree: &Tree,
     type_expression_id: LocalNodeId<TypeExpression>,
 ) -> usize {
     type_expression_complexity_inner(tree, type_expression_id, 0)
@@ -89,7 +89,7 @@ fn type_expression_complexity(
 
 /// Compute the maximum type nesting depth below one type expression.
 fn type_expression_complexity_inner(
-    tree: &NodeTree,
+    tree: &Tree,
     type_expression_id: LocalNodeId<TypeExpression>,
     current_depth: usize,
 ) -> usize {

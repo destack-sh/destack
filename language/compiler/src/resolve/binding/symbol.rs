@@ -1,7 +1,7 @@
 use destack_dir::{
     Expression, GenericArgument, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, NodeTree, NodeType, Path, ProvenanceReason, Scope, ScopeKind, StaticKey,
-    StringId, SymbolSpace, SymbolTable, SymbolType,
+    LocalSymbolId, NodeType, Path, ProvenanceReason, Scope, ScopeKind, StaticKey, StringId,
+    SymbolSpace, SymbolTable, SymbolType, Tree,
 };
 use destack_workspace::workspace::{Module, ProfileId};
 
@@ -14,7 +14,7 @@ impl Compiler {
         root_expr: Expression,
         remaining_path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
     ) -> Expression {
         let original_scope = tree.get_scope(expression_id);
 

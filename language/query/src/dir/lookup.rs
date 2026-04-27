@@ -853,7 +853,7 @@ fn pattern_field_symbol_at_offset(
     repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     field_id: dir::LocalNodeId<PatternField>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
@@ -897,7 +897,7 @@ fn pattern_symbol_at_offset(
     repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<Pattern>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {

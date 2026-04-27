@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
-    Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree,
-    NodeType, SymbolTable, Type, TypeExpression, TypeTable,
+    Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeType,
+    SymbolTable, Tree, Type, TypeExpression, TypeTable,
 };
 
 use crate::elaborate::common::ElaborateState;
@@ -26,8 +26,8 @@ enum ConstructorKind {
 struct NominalLookupView<'a> {
     /// The module id for global node conversion.
     module_id: ModuleId,
-    /// The node tree for declaration lookup.
-    tree: &'a NodeTree,
+    /// The tree for declaration lookup.
+    tree: &'a Tree,
     /// The symbol table for declaration mapping.
     symbols: &'a SymbolTable,
     /// The type table for constructor classification.
@@ -326,7 +326,7 @@ impl Compiler {
 /// Unwrap parenthesized expressions.
 fn unwrap_parenthesized_expression(
     mut expression_id: LocalNodeId<Expression>,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> LocalNodeId<Expression> {
     loop {
         let Expression::Parenthesized { expression } = tree.get(expression_id) else {

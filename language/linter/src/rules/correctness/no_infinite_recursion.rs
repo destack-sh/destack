@@ -155,7 +155,7 @@ struct FunctionCallCollector {
 
 impl FunctionCallCollector {
     /// Walk one function body and collect call profile data.
-    fn run(&mut self, tree: &dir::NodeTree, body_id: dir::LocalNodeId<dir::Expression>) {
+    fn run(&mut self, tree: &dir::Tree, body_id: dir::LocalNodeId<dir::Expression>) {
         let body = tree.get(body_id);
         self.visit_expression(tree, body_id, body);
     }
@@ -176,7 +176,7 @@ impl NodeVisitor for FunctionCallCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -200,7 +200,7 @@ impl NodeVisitor for FunctionCallCollector {
 
     fn visit_declaration(
         &mut self,
-        _tree: &dir::NodeTree,
+        _tree: &dir::Tree,
         _id: dir::LocalNodeId<dir::Declaration>,
         _declaration: &dir::Declaration,
     ) {
@@ -247,7 +247,7 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
 
 /// Analyze one function body and return call profile data.
 fn analyze_function_calls(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> FunctionCallProfile {
     let mut collector = FunctionCallCollector::default();

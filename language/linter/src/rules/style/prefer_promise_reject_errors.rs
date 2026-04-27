@@ -262,7 +262,7 @@ fn reject_payload_is_obviously_non_error(
 
 /// Return the first positional argument expression id when available.
 fn value_id_from_arguments(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let first_argument = tree.get(*arguments.first()?);
@@ -355,7 +355,7 @@ fn expression_is_result_constructor_call(
 
 /// Return true when one expression is a non-Error literal payload.
 fn expression_is_non_error_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);

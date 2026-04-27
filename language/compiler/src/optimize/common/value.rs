@@ -13,7 +13,7 @@ pub struct ValueTypeMap {
 
 impl ValueTypeMap {
     /// Build a value type map for a function.
-    pub fn new(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    pub fn new(function: &mir::Function, tree: &mir::Tree) -> Self {
         // seed value types from the function table
         let values = function.value_types.clone();
 

@@ -51,7 +51,7 @@ impl FunctionPass for Mem2Reg {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip functions without locals
@@ -93,7 +93,7 @@ impl FunctionPass for Mem2Reg {
 /// Core mem2reg logic. Returns true if changes were made.
 fn run_mem2reg(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
 ) -> bool {
@@ -169,7 +169,7 @@ type RenameWorklistEntry = (
 /// Locals whose address is taken are not promotable.
 fn find_promotable_locals(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal> {
     // collect locals with address taken
     let mut address_taken = HashSet::new();
@@ -203,7 +203,7 @@ fn find_promotable_locals(
 fn find_definition_blocks(
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Local>, HashSet<mir::LocalNodeId<mir::Block>>> {
     let mut def_blocks: HashMap<
         mir::LocalNodeId<mir::Local>,
@@ -285,7 +285,7 @@ fn compute_parameter_placements(
 fn compute_local_liveness(
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> {
     // initialize per block use and def sets
     let mut block_use: HashMap<
@@ -399,7 +399,7 @@ fn insert_block_parameters(
     param_placements: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>>,
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value> {
     let mut block_params = HashMap::new();
 
@@ -445,7 +445,7 @@ fn rename_variables(
         mir::Value,
     >,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     _cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     entry: mir::LocalNodeId<mir::Block>,

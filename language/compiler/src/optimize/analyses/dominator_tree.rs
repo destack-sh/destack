@@ -47,7 +47,7 @@ impl Analysis for DominatorTree {
 impl FunctionAnalysis for DominatorTree {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();

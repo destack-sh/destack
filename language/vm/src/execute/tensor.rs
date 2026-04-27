@@ -101,7 +101,7 @@ pub(crate) fn tensor_storage_len(shape: &[u64], strides: &[u64]) -> Result<usize
 
 /// Resolve tensor layout information from a tensor type.
 pub(crate) fn tensor_layout_info(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<TensorLayout, Error> {
     // resolve tensor shape and layout
@@ -136,7 +136,7 @@ pub(crate) fn tensor_layout_info(
 
 /// Return the scalar element type for one tensor or tensor view.
 fn tensor_element_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ScalarLayout, Error> {
     let element = match tree.get(ty) {

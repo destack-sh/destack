@@ -227,7 +227,7 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -376,7 +376,7 @@ enum ReferenceWriteKind {
 
 /// Return the write kind for one symbol reference.
 fn reference_write_kind(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     reference_id: LocalNodeId<dir::Expression>,
 ) -> Option<ReferenceWriteKind> {
     let parent = tree.get_parent(reference_id.id)?;
@@ -429,7 +429,7 @@ fn assignment_can_become_const_declaration(
 }
 
 /// Return true when one pattern is a destructuring pattern.
-fn pattern_is_destructuring(tree: &dir::NodeTree, pattern_id: LocalNodeId<dir::Pattern>) -> bool {
+fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Pattern>) -> bool {
     !matches!(
         tree.get(pattern_id),
         dir::Pattern::Wildcard

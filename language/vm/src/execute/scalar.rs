@@ -112,7 +112,7 @@ impl From<mir::TensorConvertMode> for ScalarConvertMode {
 
 /// Resolve the scalar value representation from a MIR type.
 pub(crate) fn scalar_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ScalarLayout, Error> {
     // resolve scalar types

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Declaration, Expression, GlobalSymbolId, Key, LocalNodeId, Name, NodeTree, StaticKey,
-    SymbolTable, TypeExpression, TypeMember,
+    Declaration, Expression, GlobalSymbolId, Key, LocalNodeId, Name, StaticKey, SymbolTable, Tree,
+    TypeExpression, TypeMember,
 };
 use destack_workspace::{Module, ProfileId, Revision};
 
@@ -13,7 +13,7 @@ impl Compiler {
     /// Return the nominal owner symbol denoted by one expression.
     fn nominal_owner_symbol_for_expression(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<GlobalSymbolId> {
         let expression = tree.get(expression_id);
@@ -39,7 +39,7 @@ impl Compiler {
     /// Return the nominal owner symbol denoted by one type expression.
     pub(crate) fn nominal_owner_symbol_for_type_expression(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<TypeExpression>,
     ) -> Option<GlobalSymbolId> {
         let expression = tree.get(expression_id);
@@ -60,7 +60,7 @@ impl Compiler {
     /// Return inherited nominal symbols for one declaration.
     fn inherited_heritage_symbols(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         declaration: &Declaration,
     ) -> Vec<GlobalSymbolId> {
         // struct heritage
@@ -156,7 +156,7 @@ impl Compiler {
         profile: ProfileId,
         target_symbol: GlobalSymbolId,
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         // canonicalize the target before member lookup
@@ -205,7 +205,7 @@ impl Compiler {
         profile: ProfileId,
         target_symbol: GlobalSymbolId,
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         visited_targets: &mut HashSet<GlobalSymbolId>,
     ) -> Option<GlobalSymbolId> {
@@ -375,7 +375,7 @@ impl Compiler {
         declaration_id: LocalNodeId<Declaration>,
         fields: &[LocalNodeId<destack_dir::EnumField>],
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         for field_id in fields {
@@ -402,7 +402,7 @@ impl Compiler {
         members: &[LocalNodeId<destack_dir::Member>],
         member_key: StaticKey,
         fields_static_by_default: bool,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         for member_id in members {
@@ -442,7 +442,7 @@ impl Compiler {
         module_id: destack_source::ModuleId,
         members: &[LocalNodeId<TypeMember>],
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         for member_id in members {
@@ -477,7 +477,7 @@ impl Compiler {
         profile: ProfileId,
         heritage_symbols: &[GlobalSymbolId],
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         visited_targets: &mut HashSet<GlobalSymbolId>,
     ) -> Option<GlobalSymbolId> {
@@ -591,7 +591,7 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
         member_key: StaticKey,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> ResolveResult<GlobalSymbolId> {
         // prefer the canonical symbol when available

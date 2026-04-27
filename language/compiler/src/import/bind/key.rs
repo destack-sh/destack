@@ -3,8 +3,8 @@ use crate::common::ast::evaluate_numeric_literal;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, NodeTree,
-    SymbolSpaceOrder, SymbolTable, TypeTable,
+    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, SymbolSpaceOrder,
+    SymbolTable, Tree, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -35,7 +35,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Key {

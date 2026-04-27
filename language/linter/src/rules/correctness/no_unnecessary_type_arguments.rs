@@ -197,7 +197,7 @@ fn generic_parameter_defaults_for_symbol(
 
 /// Resolve generic parameter ids from one declaration or member node.
 fn generic_parameters_for_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalNodeId<dir::GenericParameter>>> {
     // handle declaration symbols directly
@@ -271,7 +271,7 @@ fn first_redundant_trailing_argument_index(
 
 /// Return true when all generic arguments are explicit values or types.
 fn generic_arguments_are_explicit(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
 ) -> bool {
     generic_arguments.iter().all(|argument_id| {
@@ -294,7 +294,7 @@ enum GenericArgumentValue {
 
 /// Return one explicit generic argument.
 fn generic_argument_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     argument_id: dir::LocalNodeId<dir::GenericArgument>,
 ) -> Option<GenericArgumentValue> {
     let argument = tree.get(argument_id);
@@ -420,7 +420,7 @@ fn expression_ast_signature_for_module(
 
 /// Resolve the default expression for one generic parameter.
 fn parameter_default_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     parameter_id: dir::LocalNodeId<dir::GenericParameter>,
 ) -> Option<GenericParameterDefaultValue> {
     let parameter = tree.get(parameter_id);

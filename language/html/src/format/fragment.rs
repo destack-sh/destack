@@ -4,11 +4,11 @@ use destack_fir::write;
 
 use super::content::write_content;
 use super::context::{HtmlFormatContext, HtmlFormatOptions};
-use crate::{Fragment, LocalNodeId, NodeTree};
+use crate::{Fragment, LocalNodeId, Tree};
 
 /// Format one HTML fragment as pretty HTML.
 pub fn format_fragment(
-    tree: &NodeTree,
+    tree: &Tree,
     fragment: LocalNodeId<Fragment>,
     options: HtmlFormatOptions,
 ) -> FormatResult<String> {
@@ -23,7 +23,7 @@ pub fn format_fragment(
 
 /// Write one HTML fragment.
 pub(crate) fn write_fragment(
-    tree: &NodeTree,
+    tree: &Tree,
     fragment_id: LocalNodeId<Fragment>,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {

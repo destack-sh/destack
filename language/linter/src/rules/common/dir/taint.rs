@@ -122,7 +122,7 @@ pub struct TaintAnalysis<'a> {
     /// Active module id.
     module_id: ModuleId,
     /// Active module tree.
-    tree: &'a dir::NodeTree,
+    tree: &'a dir::Tree,
     /// Active module symbols.
     symbols: &'a dir::SymbolTable,
     /// Active module types.
@@ -141,7 +141,7 @@ impl<'a> TaintAnalysis<'a> {
         revision: Revision,
         profile_id: ProfileId,
         module_id: ModuleId,
-        tree: &'a dir::NodeTree,
+        tree: &'a dir::Tree,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         cache: &'a mut TaintCache,
@@ -888,7 +888,7 @@ pub fn expression_sanitizer_taint_labels(
 
 /// Return true when expression shape looks like user-controlled data.
 fn expression_is_heuristically_tainted(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

@@ -300,7 +300,7 @@ pub(crate) fn execute_unary_bool(op: mir::UnaryOperator, arg: Word) -> Result<Wo
 /// Execute a cast opcode.
 #[inline(always)]
 pub(crate) fn execute_cast(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     operator: mir::CastOperator,
     argument: Word,
     to_type: mir::LocalNodeId<mir::Type>,

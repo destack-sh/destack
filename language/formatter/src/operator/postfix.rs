@@ -1,6 +1,6 @@
 use crate::expression::write_expression_without_derived_parentheses;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Expression, LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ScalarLiteral};
+use destack_ast::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};
@@ -10,7 +10,7 @@ use super::binary::expression_precedence;
 /// Return whether postfix formatting requires parentheses.
 #[inline]
 pub(crate) fn needs_parens_in_postfix_position(
-    tree: &NodeTree,
+    tree: &Tree,
     expr_id: LocalNodeId<Expression>,
 ) -> bool {
     if matches!(

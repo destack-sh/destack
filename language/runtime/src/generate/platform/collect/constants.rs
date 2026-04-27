@@ -137,7 +137,7 @@ fn binding_type_supports_integer_constants(binding_type: &BindingType) -> bool {
 
 /// Evaluate one integer constant expression payload.
 fn evaluate_integer_constant_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
     known_values: &BTreeMap<String, i128>,
@@ -222,7 +222,7 @@ fn evaluate_integer_scalar_literal(value: &ScalarLiteral) -> i128 {
 
 /// Evaluate one integer unary expression payload.
 fn evaluate_integer_unary_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     operator: UnaryOperator,
     right: dir::LocalNodeId<Expression>,
     strings: &StringPool,
@@ -242,7 +242,7 @@ fn evaluate_integer_unary_expression(
 
 /// Evaluate one integer binary expression payload.
 fn evaluate_integer_binary_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     left: dir::LocalNodeId<Expression>,
     operator: BinaryOperator,
     right: dir::LocalNodeId<Expression>,
@@ -292,7 +292,7 @@ fn evaluate_integer_binary_expression(
 }
 
 /// Collect semantic documentation from one DIR node.
-fn node_documentation(strings: &StringPool, tree: &dir::NodeTree, node_id: u32) -> Option<String> {
+fn node_documentation(strings: &StringPool, tree: &dir::Tree, node_id: u32) -> Option<String> {
     let documentation = tree.get_documentation(node_id)?;
 
     Some(strings.get(documentation.text).to_string())

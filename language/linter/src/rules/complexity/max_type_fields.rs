@@ -134,7 +134,7 @@ fn object_type_field_count(
 
 /// Return the type expression id with parenthesized wrappers removed.
 fn unwrap_parenthesized_type_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     mut type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> ast::LocalNodeId<ast::TypeExpression> {
     loop {

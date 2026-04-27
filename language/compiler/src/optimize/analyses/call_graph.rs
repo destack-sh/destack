@@ -101,7 +101,7 @@ struct SignatureKey {
 
 impl SignatureKey {
     /// Build a signature key from a MIR function.
-    fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Option<Self> {
+    fn from_function(tree: &mir::Tree, function: &mir::Function) -> Option<Self> {
         // capture parameter signatures
         let parameters = function
             .parameters
@@ -117,7 +117,7 @@ impl SignatureKey {
 
     /// Build a signature key from a function pointer type.
     fn from_function_type(
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         signature: impl Into<mir::TypeReference>,
     ) -> Option<Self> {
         let signature = signature.into().ty()?;
@@ -279,7 +279,7 @@ enum SignatureType {
 
 impl SignatureType {
     /// Build a signature type from a MIR type.
-    fn from_type(tree: &mir::NodeTree, ty_id: mir::LocalNodeId<mir::Type>) -> Option<Self> {
+    fn from_type(tree: &mir::Tree, ty_id: mir::LocalNodeId<mir::Type>) -> Option<Self> {
         // load the MIR type
         let ty = tree.get(ty_id);
 
@@ -555,7 +555,7 @@ impl CallGraph {
     }
 
     /// Build a call graph for the given module.
-    fn build(tree: &mir::NodeTree) -> Self {
+    fn build(tree: &mir::Tree) -> Self {
         let mut graph = Self {
             outgoing: HashMap::new(),
             incoming: HashMap::new(),
@@ -636,7 +636,7 @@ impl Analysis for CallGraph {
 
 impl ModuleAnalysis for CallGraph {
     /// Compute the module call graph.
-    fn compute(tree: &mir::NodeTree, _analyses: &ModuleAnalyses<'_>) -> Self {
+    fn compute(tree: &mir::Tree, _analyses: &ModuleAnalyses<'_>) -> Self {
         Self::build(tree)
     }
 }
@@ -677,14 +677,14 @@ impl Analysis for CallGraphScc {
 
 impl ModuleAnalysis for CallGraphScc {
     /// Compute the SCCs for the module call graph.
-    fn compute(tree: &mir::NodeTree, analyses: &ModuleAnalyses<'_>) -> Self {
+    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses<'_>) -> Self {
         let callgraph = analyses.get::<CallGraph>();
         compute_callgraph_scc(tree, &callgraph)
     }
 }
 
 /// Compute SCCs for the module call graph.
-fn compute_callgraph_scc(tree: &mir::NodeTree, callgraph: &CallGraph) -> CallGraphScc {
+fn compute_callgraph_scc(tree: &mir::Tree, callgraph: &CallGraph) -> CallGraphScc {
     // prepare tarjan state
     let mut index = 0usize;
     let mut next_scc_id = 0usize;
@@ -1109,7 +1109,7 @@ impl SymbolCallSite {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
         symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<Self> {
         // capture the callsite identity
         let callsite = CallSiteId {
@@ -1159,7 +1159,7 @@ impl SymbolCallSite {
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<Self> {
         // capture the callsite identity
         let callsite = CallSiteId {
@@ -1482,7 +1482,7 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        _tree: &mir::NodeTree,
+        _tree: &mir::Tree,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
         let callee = instruction
@@ -1504,7 +1504,7 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        _tree: &mir::NodeTree,
+        _tree: &mir::Tree,
     ) -> Option<Self> {
         let callsite = CallSiteRef::Terminator(block_id);
 

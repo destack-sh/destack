@@ -128,7 +128,7 @@ impl ArtifactStore {
 
     /// Publish the synthetic root AST for one program.
     pub fn publish_root_ast(&self, root_module_id: ModuleId, fallback_file_id: FileId) {
-        let root_ast = ast::NodeTree::new();
+        let root_ast = ast::Tree::new();
         let mut root_module_ast = Ast::from_tree(
             root_module_id,
             root_ast,

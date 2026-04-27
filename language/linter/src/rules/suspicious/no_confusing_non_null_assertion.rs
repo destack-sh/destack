@@ -138,7 +138,7 @@ enum ConfusingOperatorKind {
 
 /// Return one confusing operator case when one expression matches.
 fn confusing_operator_case(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression: &Expression,
 ) -> Option<ConfusingOperatorCase> {
     match expression {

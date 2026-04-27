@@ -205,7 +205,7 @@ fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSym
 
 /// Classify one return value expression as awaited or plain.
 fn classify_return_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     value_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> ReturnValueKind {
     if let Some((await_expression_id, awaited_value_id)) =
@@ -351,7 +351,7 @@ fn check_return_value_expression(
 
 /// Collect all branch expressions that may be returned by one expression.
 fn collect_possible_return_values(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     values: &mut Vec<dir::LocalNodeId<dir::Expression>>,
 ) {
@@ -375,9 +375,7 @@ fn collect_possible_return_values(
 }
 
 /// Collect concise async callable bodies that behave as implicit returns.
-fn async_callable_expression_bodies(
-    tree: &dir::NodeTree,
-) -> Vec<dir::LocalNodeId<dir::Expression>> {
+fn async_callable_expression_bodies(tree: &dir::Tree) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut bodies = Vec::new();
 
     // collect function declaration expression bodies
@@ -497,7 +495,7 @@ fn expression_thenable_certainty(
 
 /// Return the explicit await expression and its awaited value when present.
 fn explicit_await_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(
     dir::LocalNodeId<dir::Expression>,

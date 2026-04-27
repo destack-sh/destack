@@ -52,7 +52,7 @@ impl FunctionPass for CfgLayout {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -112,7 +112,7 @@ struct EdgePredecessor {
 /// Reorder blocks according to profile data.
 fn run_cfg_layout(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::ProfileTable,
     ctx: &PipelineContext<'_>,
@@ -263,7 +263,7 @@ fn classify_cold_blocks(
 /// Outline cold edges by inserting cold edge blocks.
 fn outline_cold_edges(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     cold_blocks: &mut HashSet<mir::LocalNodeId<mir::Block>>,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
@@ -323,7 +323,7 @@ fn outline_cold_edges(
 /// Duplicate hot edges into small blocks to improve fallthrough.
 fn duplicate_hot_edges(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     domtree: &DominatorTree,
     profile: &mir::ProfileTable,
     policy: &CallsiteHotnessPolicy,
@@ -735,7 +735,7 @@ fn layout_start_blocks(
 /// Pick the hottest successor for a block.
 fn select_hot_successor(
     block: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     edge_weights: &HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     cold_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
@@ -797,7 +797,7 @@ fn sort_blocks_by_hotness(
 /// Compute edge weights for layout decisions.
 fn compute_edge_weights(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     profile: &mir::ProfileTable,
     policy: &CallsiteHotnessPolicy,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,

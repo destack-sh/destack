@@ -1,14 +1,14 @@
 use crate::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::operator::format_declarator_assignment;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Declarator, LocalNodeId, NodeTree};
+use destack_ast::{Declarator, LocalNodeId, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::write;
 
 /// Format one declarator through the shared assignment-like owner.
 pub(crate) fn format_declarator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _tree: &NodeTree,
+    _tree: &Tree,
     node_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
     format_declarator_assignment(f, node_id)

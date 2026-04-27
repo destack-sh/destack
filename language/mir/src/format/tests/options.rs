@@ -1,6 +1,6 @@
 use super::{assert_format_eq_with_options, assert_output_eq, format_tree_with_options};
 use crate::{
-    Constant, Function, Global, GlobalInitializer, MirFormatOptions, NodeTree, Parameter, Type,
+    Constant, Function, Global, GlobalInitializer, MirFormatOptions, Parameter, Tree, Type,
     TypeAlias, Value,
 };
 use destack_core::StringPool;
@@ -44,7 +44,7 @@ entry0(value0: Tuple0):
 /// Formats local metadata names from MIR trees when configured.
 #[test]
 fn test_format_local_names() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let int32_type = tree.insert_type(Type::Int {
         width: 32,
         is_signed: true,

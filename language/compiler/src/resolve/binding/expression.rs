@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{
-    Expression, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
-    ScalarLiteral, SymbolTable, TypeTable,
+    Expression, ImportSource, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
+    ScalarLiteral, SymbolTable, Tree, TypeTable,
 };
 use destack_source::{NodeSpanList, NodeSpanType, SourcePartKey};
 
@@ -17,7 +17,7 @@ impl Compiler {
     /// Return the static string specifier for one import target expression when one exists.
     fn static_import_target_string(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<StringId> {
         let mut expression_id = expression_id;
@@ -48,7 +48,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         imported_modules: &mut ImportedModuleTable,

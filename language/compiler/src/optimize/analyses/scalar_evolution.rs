@@ -126,7 +126,7 @@ impl ScalarEvolution {
     /// Build scalar evolution for a function.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         loops: &LoopAnalysis,
         type_context: TypeContext,
@@ -182,7 +182,7 @@ impl Analysis for ScalarEvolution {
 impl FunctionAnalysis for ScalarEvolution {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
@@ -224,7 +224,7 @@ struct ValueDefinitions {
 
 impl ValueDefinitions {
     /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         let mut definitions = HashMap::new();
 
         // record block parameters
@@ -276,8 +276,8 @@ impl ValueDefinitions {
 
 /// Helper for building loop local scalar evolution expressions.
 struct LoopScevBuilder<'a> {
-    /// MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// MIR tree.
+    tree: &'a mir::Tree,
     /// Control flow graph.
     cfg: &'a ControlFlowGraph,
     /// Loop being analyzed.
@@ -300,7 +300,7 @@ impl<'a> LoopScevBuilder<'a> {
     /// Create a new builder for a loop.
     fn new(
         function: &'a mir::Function,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         cfg: &'a ControlFlowGraph,
         lp: &'a Loop,
         definitions: &'a ValueDefinitions,
@@ -806,7 +806,7 @@ impl<'a> LoopScevBuilder<'a> {
 /// Collect loop invariant values using a fixed point scan.
 fn collect_loop_invariants(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     lp: &Loop,
     definitions: &ValueDefinitions,
 ) -> HashSet<mir::Value> {
@@ -865,7 +865,7 @@ fn collect_loop_invariants(
 /// Check if all operands of an instruction are loop invariant.
 fn instruction_uses_invariants(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     invariants: &HashSet<mir::Value>,
 ) -> bool {
     // check inline operands
@@ -893,7 +893,7 @@ fn instruction_uses_invariants(
 
 /// Get the header argument for a specific predecessor and parameter.
 fn header_argument_from_pred(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pred: mir::LocalNodeId<mir::Block>,
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
@@ -909,7 +909,7 @@ fn header_argument_from_pred(
 /// Get a constant value for an SSA value if it is constant.
 fn constant_for_value(
     value: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &ValueDefinitions,
 ) -> Option<mir::Constant> {
     // require an instruction definition
@@ -928,7 +928,7 @@ fn constant_for_value(
 
 /// Build a zero constant for a parameter type.
 fn zero_constant_for_param(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
     pointer_width_bits: u16,

@@ -18,8 +18,7 @@ use crate::file::{
 };
 use destack_ast::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionKind,
-    FunctionMode, IfCondition, IfKind, LocalNodeId, Member, NodeTree, NodeType, Property,
-    TokenSpan,
+    FunctionMode, IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan, Tree,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
@@ -325,7 +324,7 @@ fn write_expression_postfix_annotations<'ast>(
 }
 
 /// Return whether one expression is a lambda declaration expression.
-fn expression_is_lambda_declaration(tree: &NodeTree, expression: &Expression) -> bool {
+fn expression_is_lambda_declaration(tree: &Tree, expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::Declaration(declaration_id)

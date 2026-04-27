@@ -29,7 +29,7 @@ pub fn declaration_has_embedded_types(declaration: &dir::Declaration) -> bool {
 
 /// Return true when every member in one list is a field member.
 pub fn members_are_all_fields(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     member_ids: &[dir::LocalNodeId<dir::Member>],
 ) -> bool {
     member_ids

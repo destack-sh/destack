@@ -27,7 +27,7 @@ pub struct ReferencePath {
 
 /// Resolve the target symbol for a reference expression.
 pub fn expression_target_symbol(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     // unwrap transparent wrappers first
@@ -40,7 +40,7 @@ pub fn expression_target_symbol(
 
 /// Resolve the target symbol for one assignment pattern.
 pub fn assign_pattern_target_symbol(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
     let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
@@ -50,7 +50,7 @@ pub fn assign_pattern_target_symbol(
 
 /// Return true when one expression is exactly `new.target`.
 pub fn expression_is_new_target(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     new_name: StringId,
     target_name: StringId,
@@ -85,7 +85,7 @@ pub fn expression_is_new_target(
 
 /// Resolve a reference path for member expressions.
 pub fn expression_reference_path(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ReferencePath> {
     // collect member names walking left
@@ -100,7 +100,7 @@ pub fn expression_reference_path(
 
 /// Resolve a reference path for one assignment pattern.
 pub fn assign_pattern_reference_path(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<ReferencePath> {
     let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
@@ -155,7 +155,7 @@ fn normalize_expression_source_text(source: &str) -> String {
 
 /// Return true when the expression is a global qualified member access.
 pub fn expression_is_global_qualified_member(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     qualifiers: &[dir::GlobalSymbolId],
     member_name: StringId,
@@ -196,7 +196,7 @@ pub fn expression_is_global_qualified_member(
 
 /// Return true when one expression resolves to a symbol or its global-qualified member form.
 pub fn expression_is_symbol_or_global_qualified_member(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbol_id: dir::GlobalSymbolId,
     qualifiers: &[dir::GlobalSymbolId],
@@ -214,7 +214,7 @@ pub fn expression_is_symbol_or_global_qualified_member(
 
 /// Return true when one expression matches any direct symbol or global-qualified member.
 pub fn expression_is_any_symbol_or_global_qualified_member(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbols: &[dir::GlobalSymbolId],
     qualifiers: &[dir::GlobalSymbolId],
@@ -235,7 +235,7 @@ pub fn expression_is_any_symbol_or_global_qualified_member(
 
 /// Return one static string literal value from an expression.
 pub fn expression_static_string_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<StringId> {
     // normalize transparent wrappers first
@@ -263,7 +263,7 @@ pub fn expression_static_string_literal(
 
 /// Return one static regex literal pair as `(pattern, flags)`.
 pub fn expression_regex_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(StringId, Option<StringId>)> {
     // normalize transparent wrappers first
@@ -283,7 +283,7 @@ pub fn expression_regex_literal(
 
 /// Return one positional argument value by index.
 pub fn positional_argument_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     index: usize,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
@@ -298,7 +298,7 @@ pub fn positional_argument_value(
 
 /// Return one static property access pair as `(left, property_name)`.
 pub fn expression_static_property_access(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, StringId)> {
     // normalize transparent wrappers first
@@ -324,7 +324,7 @@ pub fn expression_static_property_access(
 
 /// Return one static property name from a member-like or path-like expression.
 pub fn expression_static_property_name(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<StringId> {
     // prefer direct property access forms first
@@ -360,7 +360,7 @@ pub struct PromiseRejectionCallback {
 
 /// Resolve Promise rejection callback info for `catch` and `then`.
 pub fn promise_rejection_callback(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     argument_count: usize,
     catch_name: StringId,
@@ -437,7 +437,7 @@ pub fn member_receiver_text(
 
 /// Return true when this expression is used as receiver helper target.
 pub fn parent_is_receiver_helper(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     bind_name: StringId,
     call_name: StringId,
@@ -472,7 +472,7 @@ pub fn parent_is_receiver_helper(
 
 /// Return true when a call-like invocation safely binds method receivers.
 pub fn call_like_invocation_is_receiver_bound(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     call_like_id: dir::LocalNodeId<dir::Expression>,
     bind_name: StringId,
     call_name: StringId,
@@ -515,7 +515,7 @@ pub fn call_like_invocation_is_receiver_bound(
 }
 /// Get the base of a reference path.
 fn expression_reference_path_base(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     members: &mut Vec<StringId>,
 ) -> Option<ReferenceBase> {
@@ -598,7 +598,7 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
 
 /// Match a method call expression and extract its parts.
 pub fn expression_method_call(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<MethodCallInfo<'_>> {
     // match call expression

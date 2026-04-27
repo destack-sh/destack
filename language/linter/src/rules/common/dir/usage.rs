@@ -59,7 +59,7 @@ impl ModuleSymbolUsage {
 /// Collect symbol usage for all expression nodes in one module.
 pub fn collect_module_symbol_usage(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
 ) -> ModuleSymbolUsage {
     let mut usage = ModuleSymbolUsage::default();
@@ -87,7 +87,7 @@ pub fn collect_module_symbol_usage(
 /// Collect direct reference expression ids for one local symbol in one module.
 pub fn collect_local_symbol_direct_reference_expression_ids(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbol_id: dir::LocalSymbolId,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut references = Vec::new();
@@ -106,7 +106,7 @@ pub fn collect_local_symbol_direct_reference_expression_ids(
 /// Return true when one local symbol has direct references in one module.
 pub fn local_symbol_has_direct_references(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
     tree.iter_nodes_of_type::<dir::Expression>()
@@ -115,7 +115,7 @@ pub fn local_symbol_has_direct_references(
 
 /// Collect symbols read by one expression subtree.
 pub fn collect_expression_read_symbol_usage(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut collector = ReadSymbolCollector {
@@ -129,7 +129,7 @@ pub fn collect_expression_read_symbol_usage(
 
 /// Collect read symbols for a list of module roots.
 pub fn collect_module_read_symbol_usage(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     roots: &[dir::LocalNodeId<dir::Expression>],
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut reads = HashSet::new();
@@ -145,7 +145,7 @@ pub fn collect_module_read_symbol_usage(
 /// Collect read symbols and resolved read candidates for one module.
 pub fn collect_module_resolved_read_symbol_usage(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut reads = HashSet::new();
@@ -180,7 +180,7 @@ pub fn collect_assigned_symbol_usage(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     mut include_assignment: impl FnMut(
@@ -235,7 +235,7 @@ impl NodeVisitor for ReadSymbolCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -274,7 +274,7 @@ impl NodeVisitor for ReadSymbolCollector {
 
 /// Return true when one expression reference is consumed in a read context.
 pub fn expression_reference_is_read(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_id = expression_id;

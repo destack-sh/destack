@@ -13,7 +13,7 @@ use super::ValueTypeMap;
 /// operations across independently-created but structurally equivalent types.
 ///
 /// Recursive types are resolved eagerly during construction, so the key is
-/// self-contained and can be hashed/compared without access to the node tree.
+/// self-contained and can be hashed/compared without access to the tree.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TypeKey {
     /// Non concrete type structure.
@@ -108,13 +108,13 @@ pub enum TypeKey {
 
 impl TypeKey {
     /// Build a type key from a MIR type id, resolving nested types.
-    pub fn from_type(type_id: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> Self {
+    pub fn from_type(type_id: mir::LocalNodeId<mir::Type>, tree: &mir::Tree) -> Self {
         let mut visiting = Vec::new();
         Self::from_type_inner(type_id, tree, &mut visiting)
     }
 
     /// Build a type key from a recoverable MIR type reference.
-    pub fn from_type_reference(type_id: mir::TypeReference, tree: &mir::NodeTree) -> Self {
+    pub fn from_type_reference(type_id: mir::TypeReference, tree: &mir::Tree) -> Self {
         let Some(type_id) = type_id.ty() else {
             return TypeKey::NonConcrete;
         };
@@ -124,7 +124,7 @@ impl TypeKey {
 
     fn from_type_inner(
         type_id: mir::LocalNodeId<mir::Type>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         visiting: &mut Vec<mir::LocalNodeId<mir::Type>>,
     ) -> Self {
         if visiting.contains(&type_id) {
@@ -320,7 +320,7 @@ pub fn unsigned_int_width_for_value(
     value: mir::Value,
     value_types: &ValueTypeMap,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<u16> {
     // look up the value type
     let type_id = value_types.require_value_type(value);
@@ -342,7 +342,7 @@ pub fn can_substitute_value(
     destination: mir::Value,
     replacement: mir::Value,
     value_types: &ValueTypeMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // enforce type equality when substituting values
     let destination_type = value_types.require_value_type(destination);
@@ -363,12 +363,12 @@ fn bytes_for_width(width: u16) -> Option<u64> {
 /// Check if two MIR types are structurally equal.
 ///
 /// This performs deep structural comparison, resolving `LocalNodeId<Type>`
-/// references through the node tree. Two types are equal if they have the
+/// references through the tree. Two types are equal if they have the
 /// same structure, regardless of whether they have different node IDs.
 pub fn types_are_equal(
     a: mir::LocalNodeId<mir::Type>,
     b: mir::LocalNodeId<mir::Type>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // fast path: same node ID
     if a == b {
@@ -384,7 +384,7 @@ pub fn types_are_equal(
 fn types_are_equal_inner(
     a: mir::LocalNodeId<mir::Type>,
     b: mir::LocalNodeId<mir::Type>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     visiting: &mut HashSet<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)>,
 ) -> bool {
     if !visiting.insert((a, b)) {
@@ -561,7 +561,7 @@ fn types_are_equal_inner(
 fn type_references_are_equal(
     left: mir::TypeReference,
     right: mir::TypeReference,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     visiting: &mut HashSet<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)>,
 ) -> bool {
     match (left.ty(), right.ty()) {
@@ -578,7 +578,7 @@ mod tests {
     /// Scalar types produce scalar keys.
     #[test]
     fn test_type_key_scalar_types() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
         let void_id = tree.insert_type(mir::Type::Void);
         let boolean_id = tree.insert_type(mir::Type::Boolean);
         let int32_id = tree.insert_type(mir::Type::INT32);
@@ -619,7 +619,7 @@ mod tests {
     /// Scalar types are identified as scalar.
     #[test]
     fn test_type_key_is_scalar() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
         let void_id = tree.insert_type(mir::Type::Void);
         let boolean_id = tree.insert_type(mir::Type::Boolean);
         let int32_id = tree.insert_type(mir::Type::INT32);
@@ -640,7 +640,7 @@ mod tests {
     /// Complex types produce complex keys.
     #[test]
     fn test_type_key_complex_types() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
 
         // array type
         let i32_id = tree.insert_type(mir::Type::INT32);
@@ -667,7 +667,7 @@ mod tests {
     /// Structurally equal types produce equal keys.
     #[test]
     fn test_type_key_structural_equality() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
 
         // create two structurally identical array types with different node IDs
         let i32_id_1 = tree.insert_type(mir::Type::INT32);
@@ -693,7 +693,7 @@ mod tests {
     /// Copy differences yield distinct keys.
     #[test]
     fn test_type_key_copyability_distinguishes() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
 
         let i32_id = tree.insert_type(mir::Type::INT32);
         let array_trivial_id = tree.insert_type(mir::Type::Array {

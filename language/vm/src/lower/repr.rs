@@ -43,8 +43,8 @@ pub(super) fn value_type_for_value(
 
 /// One value representation builder for one function.
 pub(super) struct ReprMapBuilder<'a> {
-    /// The MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// The MIR tree.
+    tree: &'a mir::Tree,
     /// The MIR function being lowered.
     func: &'a mir::Function,
     /// The MIR blocks in lowered order.
@@ -58,7 +58,7 @@ pub(super) struct ReprMapBuilder<'a> {
 impl<'a> ReprMapBuilder<'a> {
     /// Create one value representation builder.
     pub(super) fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         func: &'a mir::Function,
         mir_block: &'a [mir::LocalNodeId<mir::Block>],
         value_type: &'a [mir::LocalNodeId<mir::Type>],
@@ -190,7 +190,7 @@ pub(super) fn pointer_class_for_value(
 
 /// Get reference metadata for a type when available.
 pub(super) fn reference_meta_for_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> ReferenceMeta {
     match value_repr_from_type(tree, ty) {
@@ -236,7 +236,7 @@ pub(super) fn raw_pointee_type_for_value_repr(
 
 /// Resolve one heap pointee type from a value type when available.
 pub(super) fn heap_pointee_type_for_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -259,7 +259,7 @@ pub(super) fn heap_pointee_type_for_value(
 
 /// Resolve one raw pointee type from a value type when available.
 pub(super) fn raw_pointee_type_for_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -344,7 +344,7 @@ fn merge_block_parameter_repr(existing: ValueRepr, incoming: ValueRepr) -> Value
 
 /// Propagate value representations into block parameters from control flow edges.
 fn propagate_block_parameter_reprs(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
     value_repr_map: &mut ValueReprMap,
 ) -> bool {
@@ -548,7 +548,7 @@ fn propagate_block_parameter_reprs(
 
 /// Update one target block from incoming argument representations.
 fn propagate_target_repr(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_repr_map: &mut ValueReprMap,
     target: mir::LocalNodeId<mir::Block>,
     arguments: &[mir::Value],
@@ -580,7 +580,7 @@ fn propagate_target_repr(
 
 /// Infer the value representation for a MIR instruction.
 fn infer_instruction_repr(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     inst: &mir::Instruction,
     value_repr_map: &ValueReprMap,
     value_types: &[mir::LocalNodeId<mir::Type>],
@@ -820,7 +820,7 @@ fn infer_instruction_repr(
 
 /// Infer the value representation for one intrinsic call.
 fn infer_intrinsic_repr(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     intrinsic: mir::Intrinsic,
     arguments: mir::ArgumentSlice,
     value_repr_map: &ValueReprMap,
@@ -879,7 +879,7 @@ fn repr_from_constant(constant: &mir::Constant) -> ValueRepr {
 }
 
 /// Resolve one pointee representation from one pointer-like value.
-fn repr_from_pointer(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr> {
+fn repr_from_pointer(tree: &mir::Tree, repr: ValueRepr) -> Option<ValueRepr> {
     match repr {
         ValueRepr::Pointer { pointee, .. } => Some(value_repr_from_type(tree, pointee)),
         _ => None,
@@ -887,7 +887,7 @@ fn repr_from_pointer(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr>
 }
 
 /// Resolve the field representation for one payload value.
-fn repr_from_field(tree: &mir::NodeTree, repr: ValueRepr, index: u32) -> Option<ValueRepr> {
+fn repr_from_field(tree: &mir::Tree, repr: ValueRepr, index: u32) -> Option<ValueRepr> {
     let ValueRepr::FrameBytes { ty } = repr else {
         return None;
     };
@@ -907,7 +907,7 @@ fn repr_from_field(tree: &mir::NodeTree, repr: ValueRepr, index: u32) -> Option<
 }
 
 /// Resolve the element representation for one array value.
-fn repr_from_element(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr> {
+fn repr_from_element(tree: &mir::Tree, repr: ValueRepr) -> Option<ValueRepr> {
     match repr {
         ValueRepr::Array { element, .. } => Some(value_repr_from_type(tree, element)),
         ValueRepr::FrameBytes { ty } => match tree.get(ty) {
@@ -920,7 +920,7 @@ fn repr_from_element(tree: &mir::NodeTree, repr: ValueRepr) -> Option<ValueRepr>
 
 /// Rebuild one address-producing result representation from the source pointer class.
 fn pointer_result_repr_from_source(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     result_type: mir::LocalNodeId<mir::Type>,
     source_repr: ValueRepr,
 ) -> Option<ValueRepr> {

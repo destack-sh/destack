@@ -4,11 +4,11 @@ use destack_fir::write;
 
 use super::context::HtmlFormatContext;
 use super::name::write_authored_or_resolved_name;
-use crate::{Attribute, AttributeValue, AttributeValueForm, NodeTree};
+use crate::{Attribute, AttributeValue, AttributeValueForm, Tree};
 
 /// Write one authored attribute.
 pub(crate) fn write_attribute(
-    tree: &NodeTree,
+    tree: &Tree,
     attribute: &Attribute,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {

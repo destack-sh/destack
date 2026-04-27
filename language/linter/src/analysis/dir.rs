@@ -19,7 +19,7 @@ impl LintDirAnalysisCache {
     /// Return a cached constant value for an expression.
     pub fn const_value(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<ConstValue> {
         if let Some(value) = self.const_values.get(&id.id) {
@@ -34,7 +34,7 @@ impl LintDirAnalysisCache {
 
 /// Evaluate a DIR expression to a constant value when possible.
 fn evaluate_const_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ConstValue> {
     let expression = tree.get(id);

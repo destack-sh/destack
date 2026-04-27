@@ -778,26 +778,25 @@ mod tests {
 
     use crate::{
         FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
-        LocalNodeIdAny, NOOP_JS_SOURCE_MAP, NodeTree, Parameter, Path, PrimitiveType,
-        ScalarLiteral, TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter,
-        TypeModifier, TypePredicateSubject, TypeTemplateLiteral, format_roots,
-        print_roots_minified,
+        LocalNodeIdAny, NOOP_JS_SOURCE_MAP, Parameter, Path, PrimitiveType, ScalarLiteral, Tree,
+        TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+        TypePredicateSubject, TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
     fn dummy_source_id() -> dir::LocalNodeIdAny {
         dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
     }
 
-    fn insert_type(tree: &mut NodeTree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
+    fn insert_type(tree: &mut Tree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
         tree.insert_from_source_any(ty, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_parameter(tree: &mut NodeTree, parameter: Parameter) -> LocalNodeId<Parameter> {
+    fn insert_parameter(tree: &mut Tree, parameter: Parameter) -> LocalNodeId<Parameter> {
         tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
     fn insert_generic_parameter(
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         parameter: GenericParameter,
     ) -> LocalNodeId<GenericParameter> {
         tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
@@ -812,7 +811,7 @@ mod tests {
         Path { segments }
     }
 
-    fn build_modern_type_roots(tree: &mut NodeTree, strings: &StringPool) -> Vec<LocalNodeIdAny> {
+    fn build_modern_type_roots(tree: &mut Tree, strings: &StringPool) -> Vec<LocalNodeIdAny> {
         let type_parameter_t = insert_type(
             tree,
             TypeExpression::Path {
@@ -1030,7 +1029,7 @@ mod tests {
     }
 
     fn print_typescript_roots_minified(
-        tree: &NodeTree,
+        tree: &Tree,
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
@@ -1041,7 +1040,7 @@ mod tests {
     }
 
     fn format_typescript_roots_pretty(
-        tree: &NodeTree,
+        tree: &Tree,
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
@@ -1081,7 +1080,7 @@ mod tests {
     /// Print modern typescript type nodes through the direct minified printer.
     #[test]
     fn test_prints_modern_typescript_type_nodes_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         // one representative modern type root list
@@ -1099,7 +1098,7 @@ mod tests {
     /// Format modern typescript type nodes through the pretty formatter.
     #[test]
     fn test_formats_modern_typescript_type_nodes_pretty() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         // one representative modern type root list

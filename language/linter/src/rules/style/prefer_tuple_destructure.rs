@@ -234,7 +234,7 @@ fn direct_reference_text(
 
 /// Resolve one integer literal index as a zero based tuple slot.
 fn integer_literal_index(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<usize> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

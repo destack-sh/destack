@@ -71,7 +71,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -151,7 +151,7 @@ struct ValueDefinitions {
 
 impl ValueDefinitions {
     /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect parameter and instruction definitions
         let mut definitions = HashMap::new();
 
@@ -248,7 +248,7 @@ struct NonNegativeGuard {
 
 /// Eliminate redundant bounds checks inside loops.
 fn run_loop_bounds_check_eliminate(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
@@ -369,7 +369,7 @@ fn run_loop_bounds_check_eliminate(
 /// Collect guard comparisons that imply index less than length.
 fn collect_loop_guards(
     lp: &Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &ValueDefinitions,
     ranges: &RangeAnalysis,
 ) -> LoopGuards {
@@ -481,7 +481,7 @@ fn guard_comparison(
     condition: mir::Value,
     guard_is_true: bool,
     definitions: &ValueDefinitions,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::BinaryOperator, mir::Value, mir::Value, bool)> {
     // resolve the condition instruction
     let definition = definitions.definition_for(condition)?;
@@ -925,7 +925,7 @@ fn signed_range_min(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
 
 /// Replace a block terminator with a jump.
 fn replace_terminator_with_jump(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
 ) {

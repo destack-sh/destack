@@ -52,7 +52,7 @@ impl FunctionPass for GuardEliminate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -111,7 +111,7 @@ impl FunctionPass for GuardEliminate {
 
 /// Replace a check terminator with a direct jump.
 fn replace_check_with_jump(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
 ) {

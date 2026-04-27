@@ -41,7 +41,7 @@ pub struct LintAstContext<'a> {
     pub file: Arc<File>,
 
     /// The AST tree.
-    pub tree: &'a ast::NodeTree,
+    pub tree: &'a ast::Tree,
     /// The parent index.
     pub parents: &'a ast::NodeParentIndex,
     /// The roots.
@@ -78,7 +78,7 @@ impl<'a> LintAstContext<'a> {
         module: &'a Module,
         revision: Revision,
         file: Arc<File>,
-        tree: &'a ast::NodeTree,
+        tree: &'a ast::Tree,
         parents: &'a ast::NodeParentIndex,
         roots: &'a Vec<ast::LocalNodeId<ast::Expression>>,
         strings: &'a StringPool,

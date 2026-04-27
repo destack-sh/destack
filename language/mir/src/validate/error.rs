@@ -1,8 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeType, Terminator,
-    Value,
+    Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeType, Terminator, Tree, Value,
 };
 
 /// Anchor for a validation error.
@@ -19,7 +18,7 @@ impl ValidateAnchor {
     }
 
     /// Create an anchor for one raw node id.
-    pub fn for_raw_node(tree: &NodeTree, node_id: u32) -> Self {
+    pub fn for_raw_node(tree: &Tree, node_id: u32) -> Self {
         let node_type = tree.get_node_type(node_id);
 
         Self {

@@ -24,8 +24,8 @@ const result = if (cond) { a } else { b };  // if is an expression
 
 ## Architecture
 
-Like every IR in Destack, the AST uses a `NodeTree` arena to store nodes.
-Every source file gets its own `NodeTree`, and each node gets a typed ID (`LocalNodeId<T>`) for type-safe access.
+Like every IR in Destack, the AST uses a `Tree` arena to store nodes.
+Every source file gets its own `Tree`, and each node gets a typed ID (`LocalNodeId<T>`) for type-safe access.
 
 ```ds
 const expressionId: LocalNodeId<Expression> = tree.insert(expr, span)
@@ -53,7 +53,7 @@ Override specific `visit_*` methods and call the corresponding `walk_*` function
 
 ```ds
 class MyVisitor implements NodeVisitor {
-    visitExpression(tree: NodeTree, id: LocalNodeId<Expression>, expr: Expression): void {
+    visitExpression(tree: Tree, id: LocalNodeId<Expression>, expr: Expression): void {
         // custom logic here
         walkExpression(this, tree, id, expr)  // recurse into children
     }

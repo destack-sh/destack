@@ -3,7 +3,7 @@ use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, GlobalNodeIdAny, GlobalSymbolId, ImportSource,
     LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleTarget, Name, NamespaceExport,
-    NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::workspace::{Module, ProfileId};
@@ -113,7 +113,7 @@ impl Compiler {
         &self,
         revision: destack_workspace::Revision,
         module: &Module,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         imported_modules: &mut ImportedModuleTable,
         exported_symbols: &mut ExportedSymbolTable,

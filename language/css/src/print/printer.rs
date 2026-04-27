@@ -1,14 +1,14 @@
-use crate::{LocalNodeId, NodeTree, Rule, Stylesheet};
+use crate::{LocalNodeId, Rule, Stylesheet, Tree};
 
 /// Print one stylesheet subtree as canonical CSS source.
-pub fn print_stylesheet(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>) -> String {
+pub fn print_stylesheet(tree: &Tree, stylesheet: LocalNodeId<Stylesheet>) -> String {
     let mut printer = Printer::new(tree);
     printer.print_stylesheet_id(stylesheet);
     printer.finish()
 }
 
 /// Print one CSS rule subtree as canonical CSS source.
-pub fn print_rule(tree: &NodeTree, rule: LocalNodeId<Rule>) -> String {
+pub fn print_rule(tree: &Tree, rule: LocalNodeId<Rule>) -> String {
     let mut printer = Printer::new(tree);
     printer.print_rule_id(rule);
     printer.finish()
@@ -18,14 +18,14 @@ pub fn print_rule(tree: &NodeTree, rule: LocalNodeId<Rule>) -> String {
 #[derive(Debug)]
 pub(crate) struct Printer<'a> {
     /// The CSS tree being printed.
-    pub(crate) tree: &'a NodeTree,
+    pub(crate) tree: &'a Tree,
     /// The emitted CSS source.
     pub(crate) source: String,
 }
 
 impl<'a> Printer<'a> {
     /// Create one CSS printer.
-    pub(crate) fn new(tree: &'a NodeTree) -> Self {
+    pub(crate) fn new(tree: &'a Tree) -> Self {
         Self {
             tree,
             source: String::new(),

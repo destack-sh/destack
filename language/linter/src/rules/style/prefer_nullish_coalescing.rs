@@ -228,7 +228,7 @@ impl NodeVisitor for PreferNullishCoalescingVisitor<'_, '_> {
     /// Visit one expression node.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -505,7 +505,7 @@ fn should_skip_expression_context(
 
 /// Return true when one logical expression mixes operators in its operand tree.
 fn expression_is_mixed_logical(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
@@ -530,7 +530,7 @@ fn expression_is_mixed_logical(
 
 /// Return true when one logical operand tree contains a different logical operator.
 fn logical_operand_has_other_operator(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     root_operator: dir::BinaryOperator,
 ) -> bool {
@@ -560,7 +560,7 @@ fn logical_operand_has_other_operator(
 
 /// Return true when an operand must be parenthesized in a `??` expression.
 fn expression_needs_parentheses_for_nullish_operand(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
@@ -577,7 +577,7 @@ fn expression_needs_parentheses_for_nullish_operand(
 
 /// Return true when the expression is used as a condition.
 fn expression_is_condition(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     parent_id: dir::LocalNodeIdAny,
 ) -> bool {

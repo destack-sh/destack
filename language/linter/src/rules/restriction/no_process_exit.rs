@@ -227,7 +227,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
 /// Return true when one argument value is a function-like expression.
 fn argument_is_function_like(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> bool {
     let argument = tree.get(argument_id);
@@ -236,7 +236,7 @@ fn argument_is_function_like(
 
 /// Return true when one expression is a function declaration expression.
 fn expression_is_function_like(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let dir::Expression::Declaration(declaration) = tree.get(expression_id) else {
@@ -264,7 +264,7 @@ impl NodeVisitor for NoProcessExitVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

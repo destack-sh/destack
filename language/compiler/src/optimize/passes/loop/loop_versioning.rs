@@ -88,7 +88,7 @@ impl FunctionPass for LoopVersioning {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -129,7 +129,7 @@ struct GuardInfo {
 /// Run loop versioning on a single function and report whether it changed.
 fn run_loop_versioning(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // gather analyses
@@ -315,7 +315,7 @@ fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlFlowGraph,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
     let mut outside_preds: Vec<_> = cfg
@@ -351,7 +351,7 @@ fn find_preheader(
 fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     use_def: &UseDefMaps,
 ) -> Option<GuardInfo> {
     // read the header terminator
@@ -443,7 +443,7 @@ fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution)
 fn bounds_check_in_loop(
     lp: &crate::optimize::analyses::Loop,
     induction: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::Value, mir::Value)> {
     // scan loop blocks for a matching bounds check
     for &block_id in &lp.blocks {
@@ -504,7 +504,7 @@ fn insert_preheader_guard(
     bound: mir::Value,
     length: mir::Value,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     preheader_args: &[mir::Value],
     header: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::LocalNodeId<mir::Instruction>> {
@@ -547,7 +547,7 @@ fn preheader_guard_bound(
     bound: mir::Value,
     width: u16,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ranges: &RangeAnalysis,
 ) -> Option<(Vec<mir::LocalNodeId<mir::Instruction>>, mir::Value)> {
     // use the existing bound for strict guards
@@ -611,7 +611,7 @@ fn strip_bounds_checks(
     induction: mir::Value,
     length: mir::Value,
     collection: mir::Value,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // strip matching bounds checks in cloned blocks
     for &cloned_id in block_map.values() {

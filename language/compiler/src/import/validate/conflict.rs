@@ -2,9 +2,9 @@ use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, CompilerContext, ImportError};
 use destack_dir::{
     BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,
-    GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeTree, NodeType,
-    Pattern, Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
-    SymbolType,
+    GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeType, Pattern,
+    Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Tree,
 };
 use destack_workspace::{DiagnosticPolicy, Module};
 use std::collections::{HashMap, HashSet};
@@ -15,7 +15,7 @@ impl Compiler {
         &self,
         context: &CompilerContext<'_>,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         global_augmentation_scope: LocalScopeId,
     ) {
@@ -201,7 +201,7 @@ impl Compiler {
         }
     }
     /// Check if the symbols are a const enum mismatch.
-    fn is_const_enum_mismatch(&self, tree: &NodeTree, left: &Symbol, right: &Symbol) -> bool {
+    fn is_const_enum_mismatch(&self, tree: &Tree, left: &Symbol, right: &Symbol) -> bool {
         let Some(left_kind) = self.enum_kind_for_symbol(tree, left) else {
             return false;
         };
@@ -211,7 +211,7 @@ impl Compiler {
         left_kind != right_kind
     }
     /// Get the enum kind for a symbol.
-    fn enum_kind_for_symbol(&self, tree: &NodeTree, symbol: &Symbol) -> Option<EnumKind> {
+    fn enum_kind_for_symbol(&self, tree: &Tree, symbol: &Symbol) -> Option<EnumKind> {
         let primary = symbol.primary_declaration?;
         if primary.local_id.ty != NodeType::Declaration {
             return None;
@@ -223,11 +223,7 @@ impl Compiler {
         }
     }
     /// Get the enum kind for a declaration.
-    fn enum_kind_for_declaration(
-        &self,
-        tree: &NodeTree,
-        node: GlobalNodeIdAny,
-    ) -> Option<EnumKind> {
+    fn enum_kind_for_declaration(&self, tree: &Tree, node: GlobalNodeIdAny) -> Option<EnumKind> {
         if node.local_id.ty != NodeType::Declaration {
             return None;
         }
@@ -240,7 +236,7 @@ impl Compiler {
     /// Check if the nodes are a enum kind mismatch.
     fn enum_kind_mismatch_nodes(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         symbol: &Symbol,
     ) -> Option<(GlobalNodeIdAny, GlobalNodeIdAny)> {
         if symbol.ty != SymbolType::Enum {
@@ -260,12 +256,7 @@ impl Compiler {
         None
     }
     /// Check if the symbols are a type value import conflict.
-    fn is_type_value_import_conflict(
-        &self,
-        tree: &NodeTree,
-        left: &Symbol,
-        right: &Symbol,
-    ) -> bool {
+    fn is_type_value_import_conflict(&self, tree: &Tree, left: &Symbol, right: &Symbol) -> bool {
         let Some(left_kind) = self.dependency_kind_for_symbol(tree, left) else {
             return false;
         };
@@ -275,11 +266,7 @@ impl Compiler {
         left_kind != right_kind
     }
     /// Get the dependency kind for a symbol.
-    fn dependency_kind_for_symbol(
-        &self,
-        tree: &NodeTree,
-        symbol: &Symbol,
-    ) -> Option<DependencyKind> {
+    fn dependency_kind_for_symbol(&self, tree: &Tree, symbol: &Symbol) -> Option<DependencyKind> {
         let primary = symbol.primary_declaration?;
         if primary.local_id.ty != NodeType::DependencyItem {
             return None;
@@ -296,7 +283,7 @@ impl Compiler {
     fn validate_switch_case_binding_conflicts(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         reported_conflicts: &mut HashSet<(u32, u32)>,
     ) {
@@ -411,7 +398,7 @@ impl Compiler {
     /// Return true when two ancestor-chain categories form a redeclaration conflict.
     fn ancestor_binding_categories_conflict(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         current_symbol: &Symbol,
         ancestor_symbol: &Symbol,
@@ -472,7 +459,7 @@ impl Compiler {
             && symbol.binding == SymbolBinding::Runtime
     }
     /// Return true when a symbol is the catch parameter of a try expression.
-    fn symbol_is_catch_parameter(&self, tree: &NodeTree, symbol: &Symbol) -> bool {
+    fn symbol_is_catch_parameter(&self, tree: &Tree, symbol: &Symbol) -> bool {
         let Some(primary_declaration) = symbol.primary_declaration else {
             return false;
         };
@@ -506,7 +493,7 @@ impl Compiler {
     /// Return true when a scope belongs to a function or method.
     fn scope_is_function_boundary(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         scope_id: LocalScopeId,
     ) -> bool {
@@ -640,7 +627,7 @@ struct ConflictContext<'a> {
     /// The module being validated.
     module: &'a Module,
     /// The module syntax tree.
-    tree: &'a NodeTree,
+    tree: &'a Tree,
     /// The module symbol table.
     symbols: &'a SymbolTable,
     /// The root scope for `declare global` isolation.
@@ -659,7 +646,7 @@ impl<'a> ConflictContext<'a> {
     fn new(
         compiler: &'a Compiler,
         module: &'a Module,
-        tree: &'a NodeTree,
+        tree: &'a Tree,
         symbols: &'a SymbolTable,
         global_augmentation_scope: LocalScopeId,
         reported_conflicts: HashSet<(u32, u32)>,

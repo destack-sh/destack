@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_core::StringPool;
-use destack_dir::{Declaration, EnumField, LocalNodeId, Member, NodeTree, TypeMember};
+use destack_dir::{Declaration, EnumField, LocalNodeId, Member, Tree, TypeMember};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -224,7 +224,7 @@ fn document_symbols_with_ast(
 
 /// Convert a member to a document symbol.
 fn member_to_document_symbol(
-    dir_tree: &NodeTree,
+    dir_tree: &Tree,
     member_id: LocalNodeId<Member>,
     ctx: &QueryContext,
     repository: &Repository,
@@ -265,7 +265,7 @@ fn member_to_document_symbol(
 
 /// Convert a type member to a document symbol.
 fn type_member_to_document_symbol(
-    dir_tree: &NodeTree,
+    dir_tree: &Tree,
     member_id: LocalNodeId<TypeMember>,
     ctx: &QueryContext,
     repository: &Repository,
@@ -291,7 +291,7 @@ fn type_member_to_document_symbol(
 
 /// Convert an enum field to a document symbol.
 fn enum_field_to_document_symbol(
-    dir_tree: &NodeTree,
+    dir_tree: &Tree,
     field_id: LocalNodeId<EnumField>,
     ctx: &QueryContext,
     repository: &Repository,

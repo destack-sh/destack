@@ -27,8 +27,8 @@ fn test_target_id_for_package(package_id: PackageId, name: &str) -> TargetId {
 ///
 /// Parses MIR from text, applies passes, and formats the result back to text.
 pub(crate) struct TestProgram {
-    /// The MIR node tree.
-    pub(crate) tree: mir::NodeTree,
+    /// The MIR tree.
+    pub(crate) tree: mir::Tree,
     /// String pool for identifiers (immutable, from parser).
     strings: ImmutableStringPool,
     /// Thread safe string pool for optimization context.
@@ -893,7 +893,7 @@ mod tests {
     impl FunctionAnalysis for TestAnalysisA {
         fn compute(
             _function: &mir::Function,
-            _tree: &mir::NodeTree,
+            _tree: &mir::Tree,
             _analyses: &FunctionAnalyses<'_>,
         ) -> Self {
             Self { computed: true }
@@ -913,7 +913,7 @@ mod tests {
     impl FunctionAnalysis for TestAnalysisB {
         fn compute(
             _function: &mir::Function,
-            _tree: &mir::NodeTree,
+            _tree: &mir::Tree,
             analyses: &FunctionAnalyses<'_>,
         ) -> Self {
             let a = analyses.get::<TestAnalysisA>();
@@ -936,7 +936,7 @@ mod tests {
     impl FunctionAnalysis for TestAnalysisC {
         fn compute(
             _function: &mir::Function,
-            _tree: &mir::NodeTree,
+            _tree: &mir::Tree,
             analyses: &FunctionAnalyses<'_>,
         ) -> Self {
             let b = analyses.get::<TestAnalysisB>();
@@ -1202,11 +1202,7 @@ b0:
     }
 
     impl ModulePass for TestProfilePass {
-        fn run(
-            &self,
-            _tree: &mut mir::NodeTree,
-            _ctx: &PipelineContext<'_>,
-        ) -> AnalysisPreservation {
+        fn run(&self, _tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
             AnalysisPreservation::all()
         }
 
@@ -1216,11 +1212,7 @@ b0:
     }
 
     impl ModulePass for TestLayoutPass {
-        fn run(
-            &self,
-            _tree: &mut mir::NodeTree,
-            _ctx: &PipelineContext<'_>,
-        ) -> AnalysisPreservation {
+        fn run(&self, _tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
             AnalysisPreservation::all()
         }
 
@@ -1337,7 +1329,7 @@ b0(v0: int32, v1: int32):
     /// Borrow address instructions are not speculatable.
     #[test]
     fn test_instruction_is_speculatable_rejects_borrow_addresses() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
 
         let pointee = tree.insert_type(mir::Type::Int {
             width: 32,
@@ -1384,7 +1376,7 @@ b0(v0: int32, v1: int32):
     /// Raw address instructions are speculatable with typed checks.
     #[test]
     fn test_instruction_is_speculatable_allows_raw_addresses() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
 
         let pointee = tree.insert_type(mir::Type::Int {
             width: 32,

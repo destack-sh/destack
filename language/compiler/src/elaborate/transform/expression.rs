@@ -1,4 +1,4 @@
-use destack_dir::{NodeTree, SymbolTable, TypeTable};
+use destack_dir::{SymbolTable, Tree, TypeTable};
 use destack_workspace::{Module, ProfileId};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
@@ -19,7 +19,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         context: &CompilerContext<'_>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ElaborateResult<()> {

@@ -61,7 +61,7 @@ impl FunctionPass for LoadPre {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -124,7 +124,7 @@ struct EdgeInsertion {
 /// Run load PRE and return true when changes are made.
 fn run_load_pre(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // gather analyses
@@ -299,7 +299,7 @@ fn run_load_pre(
 fn load_access_info(
     load: &LoadCandidate,
     block: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Option<LoadAccessInfo> {
     // resolve the memory ssa use access
@@ -332,7 +332,7 @@ fn load_access_info(
 fn load_can_move_to_entry(
     load_id: mir::LocalNodeId<mir::Instruction>,
     block: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // inspect instructions before the load
@@ -386,7 +386,7 @@ fn collect_edge_insertions(
     access_info: &LoadAccessInfo,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
     param_indices: &HashMap<mir::Value, usize>,
@@ -469,7 +469,7 @@ fn reusable_predecessor_load(
     pointer: mir::Value,
     result_type: mir::LocalNodeId<mir::Type>,
     incoming_access: MemoryAccessId,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
 ) -> Option<mir::Value> {
@@ -518,7 +518,7 @@ fn reusable_predecessor_load(
 
 /// Clone load metadata to a new instruction.
 fn clone_load_metadata(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: mir::Value,

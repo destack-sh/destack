@@ -16,7 +16,7 @@ pub struct SignatureKey {
 
 impl SignatureKey {
     /// Build a signature key from a function definition.
-    pub fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Option<Self> {
+    pub fn from_function(tree: &mir::Tree, function: &mir::Function) -> Option<Self> {
         // collect parameter type keys
         let parameters = function
             .parameters
@@ -32,7 +32,7 @@ impl SignatureKey {
 
     /// Build a signature key from a function pointer type.
     pub fn from_signature_type(
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         signature: impl Into<mir::TypeReference>,
     ) -> Option<Self> {
         let signature = signature.into().ty()?;
@@ -168,7 +168,7 @@ impl ParameterRemap {
 /// Build a function pointer signature type for a function.
 pub fn build_signature_type(
     function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> mir::LocalNodeId<mir::Type> {
     // collect parameter types from the function signature
     let function = tree.get(function_id);

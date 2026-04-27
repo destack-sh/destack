@@ -54,7 +54,7 @@ impl FunctionPass for MemCse {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -160,7 +160,7 @@ struct SourceAccess {
 /// Run memory common subexpression elimination.
 fn run_mem_cse(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     constants: &ConstantPropagation,
@@ -210,7 +210,7 @@ fn run_mem_cse(
 /// Collect candidate memory definitions.
 fn collect_candidates(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Vec<DefCandidate> {
     let mut candidates = Vec::new();
@@ -252,10 +252,7 @@ fn collect_candidates(
 }
 
 /// Classify store like instructions for redundancy checks.
-fn def_kind_for_instruction(
-    tree: &mir::NodeTree,
-    instruction: &mir::Instruction,
-) -> Option<DefKind> {
+fn def_kind_for_instruction(tree: &mir::Tree, instruction: &mir::Instruction) -> Option<DefKind> {
     match instruction {
         mir::Instruction::Store { value, .. } => Some(DefKind::Store {
             value: value.value()?,
@@ -323,7 +320,7 @@ fn candidate_is_redundant(
     candidate: &DefCandidate,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // skip untrackable candidates
@@ -410,7 +407,7 @@ fn def_kinds_equivalent(
     clobber_def: &MemoryDef,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // compare candidate and clobber kinds
@@ -522,7 +519,7 @@ fn memop_source_is_stable(
     clobber: &SourceAccess,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // compare clobbering accesses for the source
     let candidate_clobber = memory_ssa.clobbering_access_for_use(candidate.access, alias, tree);
@@ -546,7 +543,7 @@ fn memop_alias_result(
     dest_effect: &MemoryAccessEffect,
     source_effect: &MemoryAccessEffect,
     alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> AliasResult {
     // apply alias scopes
     if !alias_scopes_may_alias(

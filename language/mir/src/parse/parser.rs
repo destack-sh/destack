@@ -9,8 +9,7 @@ use destack_source::{
 use crate::metadata::complete_layout_metadata;
 use crate::validate::Validator;
 use crate::{
-    Block, Field, Function, Global, LocalNodeId, Node, NodeTree, Type, Value,
-    finalize_function_names,
+    Block, Field, Function, Global, LocalNodeId, Node, Tree, Type, Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -22,7 +21,7 @@ use super::token::{Token, TokenType};
 #[derive(Debug)]
 pub struct ParsedMir {
     /// The parsed MIR tree.
-    pub tree: NodeTree,
+    pub tree: Tree,
     /// The parsed string pool.
     pub strings: ImmutableStringPool,
     /// The collected parse diagnostics.
@@ -31,12 +30,12 @@ pub struct ParsedMir {
 
 impl ParsedMir {
     /// Return the parsed tree, strings, and diagnostics.
-    pub fn into_parts(self) -> (NodeTree, ImmutableStringPool, DiagnosticCollection) {
+    pub fn into_parts(self) -> (Tree, ImmutableStringPool, DiagnosticCollection) {
         (self.tree, self.strings, self.diagnostics)
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
-    pub fn validate(self) -> ParseResult<(NodeTree, ImmutableStringPool)> {
+    pub fn validate(self) -> ParseResult<(Tree, ImmutableStringPool)> {
         let Self {
             mut tree,
             strings,
@@ -90,8 +89,8 @@ impl Default for ParseOptions {
 pub struct Parser {
     /// Current position in the tokens.
     pub(super) pos: usize,
-    /// The node tree being built.
-    pub(super) tree: NodeTree,
+    /// The tree being built.
+    pub(super) tree: Tree,
     /// The string pool.
     pub(super) strings: StringPool,
     /// The source file id for spans.
@@ -130,8 +129,7 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
-        let mut tree =
-            NodeTree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
+        let mut tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
         tree.set_pointer_bytes(options.pointer_bytes);
 
         Self {

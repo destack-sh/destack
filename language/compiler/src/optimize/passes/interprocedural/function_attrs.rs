@@ -30,7 +30,7 @@ declare_pass! {
 
 impl ModulePass for FunctionAttrs {
     /// Run the function attribute inference pass.
-    fn run(&self, tree: &mut mir::NodeTree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_function_attrs(tree);
 
         // report analysis preservation based on whether changes occurred
@@ -261,7 +261,7 @@ impl CallBehaviorBuilder {
 }
 
 /// Run function attribute inference over the module.
-fn run_function_attrs(tree: &mut mir::NodeTree) -> bool {
+fn run_function_attrs(tree: &mut mir::Tree) -> bool {
     // build the call graph for direct caller tracking
     let analyses = ModuleAnalyses::new(tree);
     let callgraph = analyses.get::<CallGraph>();
@@ -344,7 +344,7 @@ fn run_function_attrs(tree: &mut mir::NodeTree) -> bool {
 
 /// Compute a summary for a function using current callee summaries.
 fn compute_function_summary(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> FunctionSummary {
@@ -531,7 +531,7 @@ fn merge_call_behavior(
 
 /// Update call metadata entries with inferred callee summaries.
 fn update_call_metadata(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> bool {
@@ -579,7 +579,7 @@ fn update_call_metadata(
 
 /// Resolve call effects for a call instruction.
 fn call_effects_for_instruction(
-    _tree: &mir::NodeTree,
+    _tree: &mir::Tree,
     instruction: &mir::Instruction,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> Option<(mir::MemoryEffect, mir::CallBehavior)> {
@@ -635,7 +635,7 @@ fn call_effects_for_direct_callee(
 
 /// Resolve call effects for a dynamic call terminator.
 fn call_effects_for_dynamic_terminator(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> (mir::MemoryEffect, mir::CallBehavior) {
@@ -667,7 +667,7 @@ fn direct_callee_for_instruction(
 
 /// Compute effects for non call instructions.
 fn effects_for_instruction(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
 ) -> (mir::MemoryEffect, mir::CallBehavior) {

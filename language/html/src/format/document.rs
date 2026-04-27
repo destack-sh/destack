@@ -5,11 +5,11 @@ use destack_fir::write;
 use super::attribute::{write_double_quoted_value, write_single_quoted_value};
 use super::content::write_content;
 use super::context::{HtmlFormatContext, HtmlFormatOptions};
-use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, LocalNodeId, NodeTree};
+use crate::{Doctype, DoctypeKind, DoctypeQuoteStyle, Document, LocalNodeId, Tree};
 
 /// Format one HTML document as pretty HTML.
 pub fn format_document(
-    tree: &NodeTree,
+    tree: &Tree,
     document: LocalNodeId<Document>,
     options: HtmlFormatOptions,
 ) -> FormatResult<String> {
@@ -24,7 +24,7 @@ pub fn format_document(
 
 /// Write one HTML document.
 pub(crate) fn write_document(
-    tree: &NodeTree,
+    tree: &Tree,
     document_id: LocalNodeId<Document>,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {
@@ -58,7 +58,7 @@ pub(crate) fn write_document(
 
 /// Write one HTML doctype.
 fn write_doctype(
-    tree: &NodeTree,
+    tree: &Tree,
     doctype: &Doctype,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {

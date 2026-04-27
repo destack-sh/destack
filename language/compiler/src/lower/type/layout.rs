@@ -320,7 +320,7 @@ impl TypeLowerer {
     pub(crate) fn size_and_align_of_type(
         &self,
         ty: &mir::Type,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<(u32, u32)> {
         let pointer_bytes = self.pointer_bytes();
         match ty {

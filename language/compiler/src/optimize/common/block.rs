@@ -129,7 +129,7 @@ pub fn terminator_arguments_for_successor(
 /// Collect blocks reachable from the entry in function order.
 pub fn collect_reachable_blocks(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> Vec<mir::LocalNodeId<mir::Block>> {
     // seed worklist with entry
@@ -225,7 +225,7 @@ pub enum EdgeSplitPolicy {
 
 /// Append extra arguments to edges that target a successor block.
 pub fn append_successor_arguments(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     successor: mir::LocalNodeId<mir::Block>,
     extra_args: &[mir::Value],
@@ -360,7 +360,7 @@ pub fn ensure_edge_block(
     predecessor: mir::LocalNodeId<mir::Block>,
     successor: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     edge_blocks: &mut HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
@@ -450,7 +450,7 @@ fn redirect_successor_to_edge(
     block_id: mir::LocalNodeId<mir::Block>,
     successor: mir::LocalNodeId<mir::Block>,
     edge_block: mir::LocalNodeId<mir::Block>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     // clone the terminator for updates
     let terminator_id = tree.get(block_id).terminator;
@@ -601,7 +601,7 @@ pub struct BlockParamForwarding {
 
 impl BlockParamForwarding {
     /// Build forwarding information for block parameters.
-    pub fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
         // map parameters to consistent incoming values
         let mut map = HashMap::new();
 
@@ -715,7 +715,7 @@ impl BlockParamForwarding {
 /// Apply substitutions to blocks dominated by the root.
 pub fn apply_substitutions_in_dominated_blocks(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     domtree: &DominatorTree,
     root: mir::LocalNodeId<mir::Block>,
     substitutions: &HashMap<mir::Value, mir::Value>,
@@ -851,7 +851,7 @@ pub fn terminator_arguments_for_successor_checked(
 }
 
 /// Collect all SSA values used by a block.
-pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::Value> {
+pub fn collect_block_uses(block: &mir::Block, tree: &mir::Tree) -> Vec<mir::Value> {
     // prepare the use list
     let mut uses = Vec::new();
 
@@ -879,7 +879,7 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
 pub fn block_uses_available_in_predecessor(
     block_id: mir::LocalNodeId<mir::Block>,
     block: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     predecessor: mir::LocalNodeId<mir::Block>,
     value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     domtree: &DominatorTree,
@@ -926,7 +926,7 @@ pub fn resolve_edge_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     predecessor: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     param_indices: &HashMap<mir::Value, usize>,
 ) -> Option<mir::Value> {
     // map block parameters to predecessor arguments
@@ -999,7 +999,7 @@ pub fn block_parameters_used_outside_block(
 /// (A to B to C becomes A to C).
 ///
 /// Returns true if any changes were made.
-pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
+pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> bool {
     // find all empty blocks (no instructions) that can be threaded
     let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
 
@@ -1351,7 +1351,7 @@ fn block_resolve_jump_target(
 fn arguments_match_block(
     target: mir::LocalNodeId<mir::Block>,
     arguments: &[mir::ValueReference],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // require argument counts to match parameters
     let target_block = tree.get(target);

@@ -46,7 +46,7 @@ declare_pass! {
 
 impl ModulePass for DeadArgEliminate {
     /// Run dead argument elimination for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_dead_arg_eliminate(tree);
 
         // report analysis preservation based on whether changes occurred
@@ -88,7 +88,7 @@ struct CallData {
 }
 
 /// Run dead argument elimination over the module.
-fn run_dead_arg_eliminate(tree: &mut mir::NodeTree) -> bool {
+fn run_dead_arg_eliminate(tree: &mut mir::Tree) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -138,7 +138,7 @@ fn run_dead_arg_eliminate(tree: &mut mir::NodeTree) -> bool {
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::NodeTree) -> CallData {
+fn collect_call_data(tree: &mir::Tree) -> CallData {
     // prepare the callsite data container
     let mut data = CallData::default();
 
@@ -223,7 +223,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 }
 
 /// Collect unused parameter indices for a function body.
-fn unused_parameter_indices(function: &mir::Function, tree: &mir::NodeTree) -> Vec<usize> {
+fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<usize> {
     // collect uses without treating parameters as implicitly used
     let use_def = build_use_def_maps(function, tree);
 
@@ -253,7 +253,7 @@ fn unused_parameter_indices(function: &mir::Function, tree: &mir::NodeTree) -> V
 fn apply_parameter_removals(
     function_id: mir::LocalNodeId<mir::Function>,
     unused: &[usize],
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // collect removed parameter values for debug updates
     let removed_values: HashSet<mir::Value> = {
@@ -297,7 +297,7 @@ fn update_call_sites(
     function_id: mir::LocalNodeId<mir::Function>,
     call_sites: &[DirectCallSite],
     unused: &[usize],
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
@@ -389,7 +389,7 @@ fn update_call_sites(
 fn update_debug_for_removed_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     removed_values: &HashSet<mir::Value>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // read the function scope for parameter variables
     let Some(function_scope) = tree

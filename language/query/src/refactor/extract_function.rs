@@ -819,7 +819,7 @@ impl dir::NodeVisitor for ControlFlowVisitor {
     /// Visit expressions and detect control flow blockers.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -870,7 +870,7 @@ impl dir::NodeVisitor for AwaitVisitor {
     /// Visit expressions and detect await usage.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -919,7 +919,7 @@ impl dir::NodeVisitor for ReferenceCollector<'_> {
     /// Visit expressions and collect references.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

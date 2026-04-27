@@ -42,7 +42,7 @@ impl Compiler {
         profile: ProfileId,
         target_id: &TargetId,
         context: &CompilerContext<'_>,
-    ) -> ExecuteResult<(mir::NodeTree, destack_core::StringPool)> {
+    ) -> ExecuteResult<(mir::Tree, destack_core::StringPool)> {
         // snapshot dir inputs for lowering
         let module = module.as_ref();
         let module_id = module.id;
@@ -105,7 +105,7 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         context: &CompilerContext<'_>,
     ) -> ExecuteResult<(
-        mir::NodeTree,
+        mir::Tree,
         destack_core::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
@@ -235,7 +235,7 @@ impl<'a> ComptimeLowerer<'a> {
         mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> ExecuteResult<(
-        mir::NodeTree,
+        mir::Tree,
         destack_core::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
@@ -495,7 +495,7 @@ impl<'a> ComptimeLowerer<'a> {
 
 /// Resolve the DIR type id for a typed expression.
 fn dir_type_id_for_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     module_id: destack_source::ModuleId,

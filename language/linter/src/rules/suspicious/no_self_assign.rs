@@ -108,7 +108,7 @@ impl LintRule for NoSelfAssign {
 
 /// Return true when one assignment target is property-like.
 fn assign_pattern_is_property_assignment_target(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
 ) -> bool {
     let Some(expression_id) = assign_pattern_expression(tree, assign_pattern_id) else {

@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_dir::{
     BinaryOperator, Block, Declaration, Decorator, Expression, LocalNodeId, LocalNodeIdAny, Member,
-    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, Type,
-    TypeLiteral, TypeMember, TypeTable, walk_any,
+    NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, Tree, Type, TypeLiteral,
+    TypeMember, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportMeta, ProfileEnv, ProfileId};
@@ -223,7 +223,7 @@ struct InactiveNodeCollector {
 
 impl InactiveNodeCollector {
     /// Collect node ids in a subtree.
-    fn collect(&mut self, tree: &NodeTree, root: LocalNodeIdAny) {
+    fn collect(&mut self, tree: &Tree, root: LocalNodeIdAny) {
         // reset the collected nodes
         self.nodes.clear();
 
@@ -239,7 +239,7 @@ impl NodeVisitor for InactiveNodeCollector {
     }
 
     /// Record each visited node id.
-    fn visit_any(&mut self, _tree: &NodeTree, ty: NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &Tree, ty: NodeType, id: u32) {
         self.nodes.push(LocalNodeIdAny::new(id, ty));
     }
 }
@@ -252,7 +252,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         import_meta: Option<&ImportMeta>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &TypeTable,
         roots: &mut Vec<LocalNodeId<Expression>>,
@@ -490,7 +490,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> ResolveResult<()> {
         // cache the decorator identifier
         let if_name = self.repository.strings.intern("if");
@@ -550,7 +550,7 @@ impl Compiler {
     }
 
     /// Mark static if decorators inactive after they are processed.
-    fn mark_static_if_annotations_inactive(&self, tree: &mut NodeTree, types: &TypeTable) {
+    fn mark_static_if_annotations_inactive(&self, tree: &mut Tree, types: &TypeTable) {
         // cache the decorator identifier
         let if_name = self.repository.strings.intern("if");
 
@@ -568,7 +568,7 @@ impl Compiler {
     }
 
     /// Mark a subtree and its decorators inactive.
-    fn mark_inactive_subtree(&self, tree: &mut NodeTree, types: &TypeTable, root: LocalNodeIdAny) {
+    fn mark_inactive_subtree(&self, tree: &mut Tree, types: &TypeTable, root: LocalNodeIdAny) {
         // collect nodes in the main subtree
         let mut collector = InactiveNodeCollector::default();
         let mut inactive_ids = HashSet::new();
@@ -637,7 +637,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &TypeTable,
         declaration_id: LocalNodeId<Declaration>,
@@ -792,7 +792,7 @@ impl Compiler {
     /// Deactivate a declaration and its members for the profile.
     fn deactivate_declaration(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &TypeTable,
         declaration_id: LocalNodeId<Declaration>,
@@ -853,7 +853,7 @@ impl Compiler {
     /// Resolve the symbol declared by one enum field.
     pub(super) fn enum_field_symbol_maybe(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         declaration_id: LocalNodeId<Declaration>,
         field_id: LocalNodeId<destack_dir::EnumField>,
@@ -887,7 +887,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         node_id: LocalNodeIdAny,
-        tree: &NodeTree,
+        tree: &Tree,
         import_meta: &ImportMeta,
     ) -> ResolveResult<Option<bool>> {
         // track whether any @if decorators were encountered
@@ -970,7 +970,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {

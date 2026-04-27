@@ -35,7 +35,7 @@ impl BasicAA {
     /// Build BasicAA for a function.
     pub(super) fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strict_borrow_mode: bool,
         value_types: &ValueTypeMap,
         type_context: TypeContext,
@@ -70,7 +70,7 @@ impl BasicAA {
         &self,
         loc_a: &MemoryLocation,
         loc_b: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> AliasResult {
         // same pointer is must alias
         if loc_a.ptr == loc_b.ptr {
@@ -319,7 +319,7 @@ impl BasicAA {
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ModRefInfo {
         self.get_mod_ref_info_with_metadata(instruction_id, loc, &[], &[], None, tree)
     }
@@ -332,7 +332,7 @@ impl BasicAA {
         query_alias_scopes: &[mir::MemoryAliasScopeId],
         query_noalias_scopes: &[mir::MemoryAliasScopeId],
         query_type_alias_tag: Option<mir::TypeAliasTagId>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ModRefInfo {
         // prefer explicit memory metadata when present
         if let Some(accesses) = tree.metadata.memory.memory_accesses(instruction_id) {
@@ -460,7 +460,7 @@ impl BasicAA {
         query_alias_scopes: &[mir::MemoryAliasScopeId],
         query_noalias_scopes: &[mir::MemoryAliasScopeId],
         query_type_alias_tag: Option<mir::TypeAliasTagId>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ModRefInfo {
         if accesses.is_empty() {
             return ModRefInfo::NO_MOD_REF;
@@ -506,7 +506,7 @@ impl BasicAA {
         query_alias_scopes: &[mir::MemoryAliasScopeId],
         query_noalias_scopes: &[mir::MemoryAliasScopeId],
         query_type_alias_tag: Option<mir::TypeAliasTagId>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         if !self.space_sets_overlap(access, loc, tree) {
             return false;
@@ -575,7 +575,7 @@ impl BasicAA {
         &self,
         access: &mir::MemoryAccessMetadata,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         let Some(loc_set) = self.space_set_for_location(loc, tree) else {
             return true;
@@ -590,7 +590,7 @@ impl BasicAA {
         &self,
         access: &mir::MemoryAccessMetadata,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         let Some(loc_space) = self.location_address_space(loc, tree) else {
             return true;
@@ -607,7 +607,7 @@ impl BasicAA {
     fn space_set_for_access(
         &self,
         access: &mir::MemoryAccessMetadata,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> mir::MemorySpaceSet {
         if let Some(address_space) = access.address_space.clone() {
             return self.space_set_for_address_space(address_space);
@@ -631,7 +631,7 @@ impl BasicAA {
     fn address_space_for_access(
         &self,
         access: &mir::MemoryAccessMetadata,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::AddressSpace> {
         if let Some(address_space) = access.address_space.clone() {
             return Some(address_space);
@@ -666,7 +666,7 @@ impl BasicAA {
         _instruction_id: mir::LocalNodeId<mir::Instruction>,
         inst: &mir::Instruction,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ModRefInfo {
         // read callsite effects when present
         // read call memory effects from metadata or callee
@@ -719,7 +719,7 @@ impl BasicAA {
         &self,
         inst: &mir::Instruction,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when a real region restriction exists
@@ -868,7 +868,7 @@ impl BasicAA {
     fn call_argument_types(
         &self,
         inst: &mir::Instruction,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
         // use the instruction signature when available
         let signature = inst.call_signature()?.ty()?;
@@ -888,7 +888,7 @@ impl BasicAA {
     fn callee_memory_effects(
         &self,
         inst: &mir::Instruction,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::MemoryEffect> {
         // resolve the declared target when available
         let function = inst.call_declared_target()?.function()?;
@@ -900,7 +900,7 @@ impl BasicAA {
     fn space_set_for_location(
         &self,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::MemorySpaceSet> {
         // compute pointer base for space classification
         let mut decomposer = PointerDecomposer::new(
@@ -930,7 +930,7 @@ impl BasicAA {
     fn location_address_space(
         &self,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::AddressSpace> {
         // compute pointer base for address space inference
         let mut decomposer = PointerDecomposer::new(
@@ -995,7 +995,7 @@ impl BasicAA {
 
     /// Check if a value is derived from a function argument.
     #[allow(dead_code)]
-    pub(super) fn is_arg_derived(&self, value: mir::Value, tree: &mir::NodeTree) -> bool {
+    pub(super) fn is_arg_derived(&self, value: mir::Value, tree: &mir::Tree) -> bool {
         let mut decomposer = PointerDecomposer::new(
             &self.function.constants,
             &self.function.definitions,

@@ -99,7 +99,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
 
     /// Borrow the program MIR tree.
     #[inline]
-    pub(crate) fn tree(&self) -> &mir::NodeTree {
+    pub(crate) fn tree(&self) -> &mir::Tree {
         &self.program.tree
     }
 

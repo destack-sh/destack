@@ -71,10 +71,10 @@ impl NodeIndexEntry {
     }
 }
 
-/// Snapshot of NodeTree allocation lengths for speculative parser restores.
-/// NOTE #Cleanup: can we somehow do something better than ast::NodeTreeMark?
+/// Snapshot of Tree allocation lengths for speculative parser restores.
+/// NOTE #Cleanup: can we somehow do something better than ast::TreeMark?
 #[derive(Debug, Copy, Clone)]
-pub struct NodeTreeMark {
+pub struct TreeMark {
     /// The global node id cursor.
     next_global_id: u32,
     /// The expression arena length.
@@ -125,7 +125,7 @@ pub struct NodeTreeMark {
     decorators_len: usize,
 }
 
-impl NodeTreeMark {
+impl TreeMark {
     /// Get the next global node id captured by this mark.
     #[inline]
     pub fn next_global_id(self) -> u32 {
@@ -133,9 +133,9 @@ impl NodeTreeMark {
     }
 }
 
-/// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
+/// Mutable AST tree for a single source unit.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct NodeTree {
+pub struct Tree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by global node id.
@@ -144,7 +144,7 @@ pub struct NodeTree {
     pub(crate) decorators_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Decorator>>>,
     /// Whether decorator vectors are already globally sorted by start span.
     pub(crate) decorators_are_sorted: bool,
-    /// The spans of the NodeTree.
+    /// The spans of the Tree.
     pub source_map: NodeSourceMap,
 
     // node arenas
@@ -173,28 +173,28 @@ pub struct NodeTree {
     pub(crate) decorators: Arena<Decorator>,
 }
 
-impl Debug for NodeTree {
+impl Debug for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree")
+        f.debug_struct("Tree")
             .field("next_global_id", &self.next_global_id)
             .field("node_count", &self.node_index_by_node_id.len())
             .finish()
     }
 }
 
-impl Default for NodeTree {
+impl Default for Tree {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NodeTree {
-    /// Create a new NodeTree.
+impl Tree {
+    /// Create a new Tree.
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
 
-    /// Create a new NodeTree with the given capacity.
+    /// Create a new Tree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             next_global_id: 0,
@@ -249,11 +249,11 @@ impl NodeTree {
     pub fn insert<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_map.append(span);
@@ -264,11 +264,11 @@ impl NodeTree {
     pub fn insert_during_parse<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_map.append_during_parse(span);
@@ -286,8 +286,8 @@ impl NodeTree {
 
     /// Snapshot tree allocation lengths for speculative parser restores.
     #[inline]
-    pub fn mark(&self) -> NodeTreeMark {
-        NodeTreeMark {
+    pub fn mark(&self) -> TreeMark {
+        TreeMark {
             next_global_id: self.next_global_id,
             expressions_len: self.expressions.len(),
             type_expressions_len: self.type_expressions.len(),
@@ -317,7 +317,7 @@ impl NodeTree {
 
     /// Restore tree allocation lengths from a speculative mark.
     #[inline]
-    pub fn restore_to_mark(&mut self, mark: NodeTreeMark) {
+    pub fn restore_to_mark(&mut self, mark: TreeMark) {
         self.node_index_by_node_id
             .truncate(mark.next_global_id as usize);
         self.source_map.prune_from(mark.next_global_id);
@@ -371,10 +371,10 @@ impl NodeTree {
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let local_id = self.node_index_by_node_id[id.id as usize].local_id();
-        <Self as NodeTreeImpl<T>>::get(self, local_id)
+        <Self as TreeImpl<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
@@ -382,10 +382,10 @@ impl NodeTree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let local_id = self.node_index_by_node_id[id.id as usize].local_id();
-        <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
+        <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
     /// Get the span for a node.
@@ -761,43 +761,43 @@ impl NodeTree {
 }
 
 /// Map node types to arenas.
-pub trait NodeTreeImpl<T: Node> {
+pub trait TreeImpl<T: Node> {
     /// Allocate a node into the relevant arena.
-    fn allocate(tree: &mut NodeTree, node: T) -> u32;
+    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the relevant arena.
-    fn get(tree: &NodeTree, idx: u32) -> &T;
+    fn get(tree: &Tree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
-    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
+    fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
 
-macro_rules! impl_node_tree_store {
+macro_rules! impl_tree_store {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeImpl<$ty> for NodeTree {
+        impl TreeImpl<$ty> for Tree {
             #[inline]
-            fn allocate(tree: &mut NodeTree, node: $ty) -> u32 {
+            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &NodeTree, idx: u32) -> &$ty {
+            fn get(tree: &Tree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
             }
 
             #[inline]
-            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
+            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
                 tree.$field.get_mut(idx)
             }
         }
     };
 }
 
-macro_rules! impl_node_tree_stores {
+macro_rules! impl_tree_stores {
     ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
-        $( impl_node_tree_store!($ty, $field); )*
+        $( impl_tree_store!($ty, $field); )*
     };
 }
 
-impl_node_tree_stores! {
+impl_tree_stores! {
     Expression => expressions,
     TypeExpression => type_expressions,
     Block => blocks,

@@ -283,7 +283,7 @@ pub fn block_hotness_from_counts(
 /// Compute execution counts for blocks using profile data.
 pub fn block_execution_counts(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     profile: Option<&mir::ProfileTable>,
     policy: &CallsiteHotnessPolicy,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
@@ -332,7 +332,7 @@ pub fn block_execution_counts(
 /// Compute block entry counts from edge profiles.
 fn incoming_edge_counts(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     profile: &mir::ProfileTable,
     scale: &ProfileScalingPolicy,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {

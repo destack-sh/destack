@@ -2,7 +2,7 @@ use destack_mir as mir;
 use destack_mir::function_signature_parts;
 
 /// Check whether a type contains any borrowed references.
-pub fn type_contains_borrowed_refs(ty: &mir::Type, tree: &mir::NodeTree) -> bool {
+pub fn type_contains_borrowed_refs(ty: &mir::Type, tree: &mir::Tree) -> bool {
     // check direct borrowed references
     if ty.is_borrowed_reference() {
         return true;
@@ -46,7 +46,7 @@ pub fn type_contains_borrowed_refs(ty: &mir::Type, tree: &mir::NodeTree) -> bool
 /// Check whether a function signature returns borrowed references.
 pub fn signature_return_contains_borrowed_refs(
     signature_type: impl Into<mir::TypeReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     let Some(signature_type) = signature_type.into().ty() else {
         return true;
@@ -68,7 +68,7 @@ pub fn signature_return_contains_borrowed_refs(
 /// Collect borrowed parameter indices from a function signature.
 pub fn borrowed_parameter_indices_for_signature(
     signature_type: impl Into<mir::TypeReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<Vec<usize>> {
     let signature_type = signature_type.into().ty()?;
     let signature_type = tree.get(signature_type);
@@ -94,7 +94,7 @@ pub fn borrowed_parameter_indices_for_signature(
 /// Collect borrowed parameter indices from a function definition.
 pub fn borrowed_parameter_indices_for_function(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Vec<u32> {
     function
         .parameters

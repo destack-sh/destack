@@ -347,7 +347,7 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

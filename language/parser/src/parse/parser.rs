@@ -1,8 +1,8 @@
 use crate::{Lexer, LexerSnapshot, is_semantic, keyword_from_identifier};
 use core::fmt;
 use destack_ast::{
-    BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeTreeMark,
-    NodeType, StringId, Token, TokenSpan, TokenType, TypeExpression,
+    BlockFormat, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token, TokenSpan,
+    TokenType, Tree, TreeImpl, TreeMark, TypeExpression,
 };
 use destack_core::LocalStringPool;
 use destack_source::{
@@ -969,7 +969,7 @@ pub struct Parser {
     preserve_parenthesized_wrappers: bool,
 
     /// The Node AST tree.
-    pub tree: NodeTree,
+    pub tree: Tree,
     /// The string pool (lockless for single-threaded parsing).
     pub strings: LocalStringPool,
 
@@ -1063,7 +1063,7 @@ impl Parser {
             options: ParserOptions::default(),
             preserve_parenthesized_wrappers: true,
             language,
-            tree: NodeTree::with_capacity(estimated_nodes),
+            tree: Tree::with_capacity(estimated_nodes),
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
@@ -1137,7 +1137,7 @@ impl Parser {
 
     /// Get the span of all side decorators from a tree.
     #[inline]
-    pub fn compute_side_span_from_tree(tree: &NodeTree) -> MultiSpan {
+    pub fn compute_side_span_from_tree(tree: &Tree) -> MultiSpan {
         MultiSpan::new(tree.get_side_decorator_spans())
     }
 
@@ -1666,7 +1666,7 @@ impl Parser {
     pub(crate) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         let _timing = self.timing_scope(tags::PARSE_ALLOC_NODE);
         self.tree.insert_during_parse(node, span)
@@ -1676,7 +1676,7 @@ impl Parser {
     pub(crate) fn set_node_leading_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_start: u32)
     where
         T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         let node_span = self.tree.get_span(node_id);
         if boundary_start >= node_span.start {
@@ -1695,7 +1695,7 @@ impl Parser {
     pub(crate) fn set_node_trailing_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_end: u32)
     where
         T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         let node_span = self.tree.get_span(node_id);
         if boundary_end <= node_span.end {
@@ -2546,7 +2546,7 @@ pub struct ParserCheckpoint {
     /// The last consumed visible token at checkpoint time.
     last_consumed_token: TokenSpan,
     /// Tree allocation snapshot at checkpoint time.
-    tree_mark: NodeTreeMark,
+    tree_mark: TreeMark,
     /// The lexer checkpoint for speculative parsing.
     lexer_checkpoint: LexerSnapshot,
     /// The parser error count at checkpoint time.

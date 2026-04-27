@@ -162,7 +162,7 @@ impl FunctionPass for LoopUnroll {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -197,7 +197,7 @@ impl FunctionPass for LoopUnrollAndJam {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -352,7 +352,7 @@ struct UnrollIteration {
 /// Run loop unrolling and return true when changes were made.
 fn run_loop_unroll(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // read the unroll threshold from the pipeline options
@@ -465,7 +465,7 @@ fn run_loop_unroll(
 /// Run loop unroll and jam and return true when changes were made.
 fn run_loop_unroll_and_jam(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // read the unroll threshold from the pipeline options
@@ -602,7 +602,7 @@ fn find_unroll_candidate(
     lp: &Loop,
     loop_index: usize,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     scev: &ScalarEvolution,
     forwarding: &BlockParamForwarding,
     unroll_threshold: usize,
@@ -785,7 +785,7 @@ fn find_jam_candidate(
     outer: &Loop,
     inner: &Loop,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     scev: &ScalarEvolution,
@@ -1108,7 +1108,7 @@ fn block_param_index(block: &mir::Block, value: mir::Value) -> Option<usize> {
 /// Collect inner loop values that forward to the outer induction.
 fn outer_equivalent_values(
     inner: &Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
     outer_induction: mir::Value,
     inner_outer_param: mir::Value,
@@ -1167,7 +1167,7 @@ fn outer_step_from_latch(
     param_index: usize,
     induction: mir::Value,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
 ) -> Option<i128> {
     // read the latch argument for the induction parameter
@@ -1231,7 +1231,7 @@ fn trip_count_from_header(
     step: i128,
     cfg: &ControlFlowGraph,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
 ) -> Option<u64> {
     // find the unique predecessor outside the loop
@@ -1275,7 +1275,7 @@ fn inner_body_is_jammable(
     inner_outer_param: mir::Value,
     outer_induction: mir::Value,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     domtree: &DominatorTree,
 ) -> bool {
     // gather definition maps for dependency checks
@@ -1378,7 +1378,7 @@ fn inner_uses_are_safe(
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     outer_induction: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // cache header parameters for non induction checks
     let header_params: Vec<_> = tree
@@ -1463,7 +1463,7 @@ fn value_depends_on(
     outer_induction: mir::Value,
     inner_outer_param: Option<mir::Value>,
     def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     visiting: &mut HashSet<mir::Value>,
 ) -> bool {
     // treat the outer induction as a dependency root
@@ -1533,7 +1533,7 @@ fn value_depends_on(
 fn select_jam_plan(
     candidate: &JamCandidate,
     limits: &UnrollLimits,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     allow_remainder: bool,
 ) -> Option<JamPlan> {
     // compute the inner body size
@@ -1579,7 +1579,7 @@ fn select_jam_plan(
 #[allow(clippy::too_many_arguments)]
 fn unroll_and_jam_loop(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     plan: JamPlan,
@@ -1632,7 +1632,7 @@ fn find_jam_preheader(
     candidate: &JamCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::ValueReference>)> {
     // collect predecessors outside the loop
     let mut outside_preds: Vec<_> = cfg
@@ -1671,7 +1671,7 @@ fn find_jam_preheader(
 /// Peel remainder iterations before unroll and jam.
 fn peel_jam_remainder(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &JamCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -1758,7 +1758,7 @@ struct InnerUpdateInfo {
 /// Find the inner loop induction update instruction information.
 fn inner_update_info(
     candidate: &JamCandidate,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<InnerUpdateInfo> {
     // find the update value passed to the header
@@ -1844,7 +1844,7 @@ fn inner_update_info(
 /// Rewrite the outer latch to advance by the unroll factor.
 fn rewrite_outer_latch_step(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
@@ -1921,7 +1921,7 @@ fn rewrite_outer_latch_step(
 /// Duplicate the inner loop body for the unrolled outer iterations.
 fn jam_inner_body(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
@@ -2005,7 +2005,7 @@ fn scaled_step_constant(
     step: i128,
     factor: u64,
     type_id: mir::LocalNodeId<mir::Type>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Option<mir::Constant> {
     let scaled = step.checked_mul(factor as i128)?;
@@ -2138,7 +2138,7 @@ fn select_unroll_mode(candidate: &UnrollCandidate, limits: &UnrollLimits) -> Opt
 /// Unroll the loop according to the selected mode.
 fn unroll_loop(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &UnrollCandidate,
     mode: UnrollMode,
     cfg: &ControlFlowGraph,
@@ -2233,7 +2233,7 @@ fn unroll_loop(
 /// Peel remainder iterations before the main unrolled loop.
 fn peel_remainder(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &UnrollCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -2316,7 +2316,7 @@ fn find_preheader(
     candidate: &UnrollCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::ValueReference>)> {
     // collect predecessors outside the loop
     let mut outside_preds: Vec<_> = cfg
@@ -2352,7 +2352,7 @@ fn find_preheader(
 
 /// Rewrite a latch to unconditionally jump to the next header.
 fn rewrite_latch_to_jump(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mut mir::Block,
     header: mir::LocalNodeId<mir::Block>,
     next_header: mir::LocalNodeId<mir::Block>,
@@ -2382,7 +2382,7 @@ fn rewrite_latch_to_jump(
 
 /// Rewrite an exiting block for a specific unrolled iteration.
 fn rewrite_latch_block(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mut mir::Block,
     candidate: &UnrollCandidate,
     iteration: &UnrollIteration,
@@ -2502,7 +2502,7 @@ fn guard_from_condition(
     condition: mir::Value,
     guard_is_true: bool,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
 ) -> Option<GuardComparison> {
     // resolve forwarded values
@@ -2614,7 +2614,7 @@ fn trip_count_for_guard(
     scev: &ScalarEvolution,
     forwarding: &BlockParamForwarding,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<u64> {
     // resolve forwarded values
     let induction = forwarding.resolve(guard.induction);
@@ -2662,7 +2662,7 @@ fn scev_constant(scev: &Scev) -> Option<&mir::Constant> {
 fn constant_value_for(
     value: mir::Value,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     forwarding: &BlockParamForwarding,
 ) -> Option<mir::Constant> {
     // resolve forwarded values
@@ -2821,7 +2821,7 @@ struct ValueDefinitions {
 
 impl ValueDefinitions {
     /// Build a value definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         let mut definitions = HashMap::new();
 
         // scan all instruction destinations

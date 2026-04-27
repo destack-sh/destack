@@ -75,7 +75,7 @@ impl FunctionPass for LoopIdiomRecognize {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -114,7 +114,7 @@ struct GuardInfo {
 /// Run loop idiom recognition on a single function and report whether it changed.
 fn run_loop_idiom(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     let mut changed = false;
@@ -576,7 +576,7 @@ struct MemcpyPattern {
 fn match_memset_pattern(
     lp: &crate::optimize::analyses::Loop,
     induction: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<MemsetPattern> {
     // scan loop blocks for a single store with a speculatable body
@@ -645,7 +645,7 @@ fn match_memset_pattern(
 fn match_memcpy_pattern(
     lp: &crate::optimize::analyses::Loop,
     induction: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<MemcpyPattern> {
@@ -751,7 +751,7 @@ fn match_memcpy_pattern(
 /// Find an element address instruction for the given pointer.
 fn element_addr_for_pointer(
     pointer: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<(mir::Value, mir::Value, mir::LocalNodeId<mir::Type>)> {
     // find the instruction that defines the pointer
@@ -770,7 +770,7 @@ fn element_addr_for_pointer(
 }
 
 /// Check whether the array element type is u8.
-fn array_is_u8(array: mir::Value, value_types: &ValueTypeMap, tree: &mir::NodeTree) -> bool {
+fn array_is_u8(array: mir::Value, value_types: &ValueTypeMap, tree: &mir::Tree) -> bool {
     // resolve the array element type
     let Some(element) = array_element_type(array, value_types, tree) else {
         return false;
@@ -789,7 +789,7 @@ fn array_is_u8(array: mir::Value, value_types: &ValueTypeMap, tree: &mir::NodeTr
 fn array_element_type(
     array: mir::Value,
     value_types: &ValueTypeMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // resolve the array type
     let ty_id = value_types.require_value_type(array);
@@ -810,7 +810,7 @@ fn arrays_are_value_types(
     dest_array: mir::Value,
     src_array: mir::Value,
     value_types: &ValueTypeMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     if dest_array == src_array {
         return false;
@@ -826,7 +826,7 @@ fn arrays_are_value_types(
 /// Return the address space for a reference type.
 fn reference_address_space(
     ty_id: mir::TypeReference,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::AddressSpace> {
     let ty_id = ty_id.ty()?;
 
@@ -844,7 +844,7 @@ fn should_guard_copy_bounds(
     preheader: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // skip guards when the start is definitely zero
     let start_const = constant_for_value(start, value_definitions, tree);
@@ -883,7 +883,7 @@ fn insert_bound_guard(
     start: mir::Value,
     bound: mir::Value,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     preheader_block: &mut mir::Block,
     success_target: mir::LocalNodeId<mir::Block>,
     failure_target: mir::LocalNodeId<mir::Block>,
@@ -926,7 +926,7 @@ fn emit_memset(
     fill_value: mir::Constant,
     length: mir::Value,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mut mir::Block,
 ) {
     // materialize the fill constant
@@ -979,7 +979,7 @@ fn emit_memcpy_or_memmove(
     start: mir::Value,
     length: mir::Value,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mut mir::Block,
 ) {
     // compute the destination base pointer
@@ -1021,7 +1021,7 @@ fn unsigned_bounds_for_value(
     ranges: &RangeAnalysis,
     preheader: mir::LocalNodeId<mir::Block>,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(i128, i128)> {
     // use range information when available
     if let Some(ValueRange::Integer {
@@ -1078,7 +1078,7 @@ fn emit_copy_length(
     preheader: mir::LocalNodeId<mir::Block>,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mut mir::Block,
 ) -> Option<mir::Value> {
     // skip length materialization when byte sized with zero start
@@ -1211,7 +1211,7 @@ fn find_preheader(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlFlowGraph,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
     let mut outside_preds: Vec<_> = cfg
@@ -1248,7 +1248,7 @@ fn preheader_value_for_param(
     value: mir::Value,
     header: mir::LocalNodeId<mir::Block>,
     preheader_args: &[mir::Value],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::Value> {
     // identify the header parameter position
     let header_block = tree.get(header);
@@ -1269,7 +1269,7 @@ fn preheader_induction_start(
     induction: mir::Value,
     header: mir::LocalNodeId<mir::Block>,
     preheader_args: &[mir::Value],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::Value> {
     // require the induction to be a header parameter
     let header_block = tree.get(header);
@@ -1286,7 +1286,7 @@ fn preheader_induction_start(
 fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     use_def: &UseDefMaps,
 ) -> Option<GuardInfo> {
     let header_block = tree.get(header);

@@ -11,7 +11,7 @@ pub struct Ast {
     pub id: ModuleId,
 
     /// The AST of the Module (may be empty).
-    pub tree: ast::NodeTree,
+    pub tree: ast::Tree,
     /// The AST parent index.
     pub parents: ast::NodeParentIndex,
     /// The top-level AST expressions of the Module.
@@ -32,7 +32,7 @@ impl Ast {
         // build empty module ast
         Self {
             id,
-            tree: ast::NodeTree::new(),
+            tree: ast::Tree::new(),
             parents: ast::NodeParentIndex::new(),
             roots: Vec::new(),
             strings: StringPool::new(),
@@ -45,7 +45,7 @@ impl Ast {
     /// Create an AST payload from a tree.
     pub fn from_tree(
         id: ModuleId,
-        tree: ast::NodeTree,
+        tree: ast::Tree,
         roots: Vec<ast::LocalNodeId<ast::Expression>>,
         strings: StringPool,
         tokens: Vec<ast::TokenSpan>,

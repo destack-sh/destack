@@ -26,10 +26,10 @@ impl Compiler {
         &self,
         module: &Module,
         key: &dir::Key,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
-        ast_tree: &mut ast::NodeTree,
+        ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::Key {

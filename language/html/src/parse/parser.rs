@@ -5,7 +5,7 @@ use crate::lex::{
     RawKind, Tag, expanded_name, namespace_prefix, ns,
 };
 use crate::parse::parser::RawKind::{Rawtext, Rcdata, ScriptData};
-use crate::{Document, Fragment, LocalNodeId, Namespace as HtmlNamespace, NodeTree};
+use crate::{Document, Fragment, LocalNodeId, Namespace as HtmlNamespace, Tree};
 
 use destack_source::File;
 
@@ -332,13 +332,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one HTML document tree from authored source.
-    pub fn parse(self) -> (NodeTree, LocalNodeId<Document>) {
+    pub fn parse(self) -> (Tree, LocalNodeId<Document>) {
         let lexer = self.run();
         lexer.parser.finish()
     }
 
     /// Parse one HTML fragment tree from authored source.
-    pub fn parse_fragment(self) -> (NodeTree, LocalNodeId<Fragment>) {
+    pub fn parse_fragment(self) -> (Tree, LocalNodeId<Fragment>) {
         let (mut tree, document) = self.parse();
         let children = tree.get(document).children.clone();
         let span = tree.span(document);
@@ -348,7 +348,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Finish parsing and return the direct HTML tree.
-    pub(crate) fn finish(self) -> (NodeTree, LocalNodeId<Document>) {
+    pub(crate) fn finish(self) -> (Tree, LocalNodeId<Document>) {
         self.builder.finish()
     }
 
@@ -441,7 +441,7 @@ fn namespace_prefix_from_string(prefix: &str) -> Prefix {
 }
 
 /// Parse one HTML document tree from authored source.
-pub fn parse_html(file: &File, source: &str) -> (NodeTree, LocalNodeId<Document>) {
+pub fn parse_html(file: &File, source: &str) -> (Tree, LocalNodeId<Document>) {
     Parser::new(file, source).parse()
 }
 
@@ -450,7 +450,7 @@ pub fn parse_html_with_options(
     file: &File,
     source: &str,
     options: ParserOptions,
-) -> (NodeTree, LocalNodeId<Document>) {
+) -> (Tree, LocalNodeId<Document>) {
     let builder = HtmlBuilder::new(file, source);
 
     Parser::new_with_options(builder, source, options).parse()
@@ -461,7 +461,7 @@ pub fn parse_fragment(
     file: &File,
     source: &str,
     context: &ParseContextName,
-) -> (NodeTree, LocalNodeId<Fragment>) {
+) -> (Tree, LocalNodeId<Fragment>) {
     Parser::new_fragment(file, source, context).parse_fragment()
 }
 
@@ -471,6 +471,6 @@ pub fn parse_fragment_with_options(
     source: &str,
     context: &ParseContextName,
     options: ParserOptions,
-) -> (NodeTree, LocalNodeId<Fragment>) {
+) -> (Tree, LocalNodeId<Fragment>) {
     Parser::new_fragment_with_options(file, source, context, options).parse_fragment()
 }

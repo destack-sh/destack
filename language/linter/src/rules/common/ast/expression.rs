@@ -8,7 +8,7 @@ use crate::{ConstValue, LintAstContext};
 
 /// Return the AST expression id with parenthesized source form unwrapped.
 pub fn expression_unwrap_parenthesized_source_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     mut expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
     // follow parenthesized wrappers until a non parenthesized expression is found
@@ -24,7 +24,7 @@ pub fn expression_unwrap_parenthesized_source_form(
 
 /// Return the AST expression id with statement source form unwrapped.
 pub fn expression_unwrap_statement_source_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
     let _ = tree;
@@ -33,7 +33,7 @@ pub fn expression_unwrap_statement_source_form(
 
 /// Return one simple expression target from one assignment pattern.
 pub fn assign_pattern_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     mut assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     loop {
@@ -57,7 +57,7 @@ pub fn assign_pattern_expression(
 
 /// Return true when one assignment pattern is one unqualified path name.
 pub fn assign_pattern_is_unqualified_path_name(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
     target_name: destack_core::StringId,
 ) -> bool {
@@ -221,7 +221,7 @@ pub enum ConditionAssignmentStyle {
 
 /// Return the assignment wrapping style for one conditional expression.
 pub fn condition_assignment_style(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ConditionAssignmentStyle {
     // inspect the outer condition expression
@@ -265,7 +265,7 @@ pub fn control_flow_condition_expression(
 
 /// Return the outer expression id including parenthesized source form.
 pub fn expression_outer_parenthesized_source_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
@@ -296,7 +296,7 @@ pub fn expression_outer_parenthesized_source_form(
 
 /// Return the surrounding statement expression for a standalone expression.
 pub fn expression_statement_ancestor(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
@@ -345,7 +345,7 @@ pub fn expression_statement_ancestor(
 
 /// Return the enclosing statement span for a standalone expression.
 pub fn expression_statement_span(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Span> {
@@ -358,7 +358,7 @@ pub fn expression_statement_span(
 
 /// Return true when one expression is the direct child of a statement wrapper.
 pub fn expression_is_direct_statement(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -369,7 +369,7 @@ pub fn expression_is_direct_statement(
 
 /// Return true when one expression is a direct leading expression in a block.
 pub fn expression_is_direct_block_leading_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -476,7 +476,7 @@ pub fn expression_starts_nested_declaration_scope(expression: &ast::Expression) 
 
 /// Return true when one declaration expression is immediately invoked.
 pub fn expression_is_immediately_invoked(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -510,7 +510,7 @@ pub fn expression_is_immediately_invoked(
 
 /// Return true when one expression subtree contains an assignment expression.
 pub fn expression_contains_assignment(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // visit one expression subtree and stop once assignment is found
@@ -526,7 +526,7 @@ pub fn expression_contains_assignment(
 
 /// Return true when one expression subtree mentions this identifier name.
 pub fn expression_subtree_mentions_identifier_name(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
     name: ast::StringId,
 ) -> bool {
@@ -535,7 +535,7 @@ pub fn expression_subtree_mentions_identifier_name(
 
 /// Return true when one AST subtree mentions this identifier name.
 pub fn subtree_mentions_identifier_name(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     node_type: ast::NodeType,
     node_id: u32,
     name: ast::StringId,
@@ -553,7 +553,7 @@ pub fn subtree_mentions_identifier_name(
 
 /// Return true when one expression is the target of optional chaining.
 pub fn expression_is_optional_chain_target(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -588,7 +588,7 @@ pub struct IfBranchChain {
 
 /// Return true when an `if` expression is an `else if` child branch.
 pub fn expression_is_else_if_branch(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -614,7 +614,7 @@ pub fn expression_is_else_if_branch(
 
 /// Return one normalized branch chain for an `if` expression.
 pub fn if_expression_branch_chain(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<IfBranchChain> {
     // require one `if` expression entry point
@@ -666,7 +666,7 @@ pub fn if_expression_branch_chain(
 
 /// Return true when one expression is a direct unqualified path to a name.
 pub fn expression_is_unqualified_path_name(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
     name: ast::StringId,
 ) -> bool {
@@ -681,7 +681,7 @@ pub fn expression_is_unqualified_path_name(
 
 /// Return true when one expression belongs to one type annotation position.
 pub fn expression_is_type_annotation(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -824,7 +824,7 @@ impl ast::NodeVisitor for AssignmentSearchVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         expression_id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {
@@ -860,7 +860,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         expression_id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {
@@ -880,7 +880,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
     fn visit_declaration(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         declaration_id: ast::LocalNodeId<ast::Declaration>,
         declaration: &ast::Declaration,
     ) {
@@ -903,7 +903,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
     fn visit_parameter(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         parameter_id: ast::LocalNodeId<ast::Parameter>,
         parameter: &ast::Parameter,
     ) {
@@ -929,7 +929,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
     fn visit_pattern(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         pattern_id: ast::LocalNodeId<ast::Pattern>,
         pattern: &ast::Pattern,
     ) {
@@ -952,7 +952,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
 /// Return true when one block has no expressions and no comment trivia.
 pub fn block_is_empty_without_comment(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
     let block = tree.get(block_id);
@@ -966,7 +966,7 @@ pub fn block_is_empty_without_comment(
 
 /// Return the block expression id for one block node.
 pub fn block_expression_ancestor(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
@@ -986,7 +986,7 @@ pub fn block_expression_ancestor(
 
 /// Return true when one block expression is the body of a function or method.
 pub fn block_is_function_body(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
@@ -1033,7 +1033,7 @@ pub fn block_is_function_body(
 
 /// Return true when one block expression belongs to a static block member.
 pub fn block_is_static_block_body(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
@@ -1060,7 +1060,7 @@ pub fn block_is_static_block_body(
 
 /// Return one declaration wrapper expression id for a declaration node.
 pub fn declaration_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
@@ -1082,7 +1082,7 @@ pub fn declaration_expression(
 
 /// Return true when one declaration expression is at an allowed root location.
 pub fn declaration_at_allowed_root(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     declaration_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -1141,7 +1141,7 @@ pub fn declaration_at_allowed_root(
 
 /// Return path segments when the expression is a non-generic reference chain.
 pub fn expression_path_segments(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Vec<ast::StringId>> {
     let mut segments = Vec::new();
@@ -1153,7 +1153,7 @@ pub fn expression_path_segments(
 
 /// Collect path segments for one non-generic reference chain.
 fn collect_expression_path_segments(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
     segments: &mut Vec<ast::StringId>,
 ) -> Option<()> {
@@ -1191,7 +1191,7 @@ fn collect_expression_path_segments(
 
 /// Return one static string literal value from an expression source form.
 pub fn expression_static_string_literal_source_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::StringId> {
     // normalize expression shape
@@ -1216,7 +1216,7 @@ pub fn expression_static_string_literal_source_form(
 
 /// Return one static property access pair as `(left, property_name)` from source form.
 pub fn expression_static_property_access_source_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(ast::LocalNodeId<ast::Expression>, ast::StringId)> {
     // normalize expression shape
@@ -1242,7 +1242,7 @@ pub fn expression_static_property_access_source_form(
 
 /// Return the value expression id for one argument node.
 pub fn argument_value_expression_id(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     argument_id: ast::LocalNodeId<ast::Argument>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let argument = tree.get(argument_id);
@@ -2405,7 +2405,7 @@ fn expression_signature(
 
 /// Build a structural signature for one expression subtree.
 pub fn expression_signature_for_tree(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     strings: &ast::StringPool,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<u64> {
@@ -2465,14 +2465,14 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     }
 
     /// Visit any AST node and record its node type.
-    fn visit_any(&mut self, _tree: &ast::NodeTree, ty: ast::NodeType, _id: u32) {
+    fn visit_any(&mut self, _tree: &ast::Tree, ty: ast::NodeType, _id: u32) {
         self.push_debug("node", ty);
     }
 
     /// Visit one expression node and record expression specific signature tokens.
     fn visit_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {
@@ -2608,7 +2608,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one type expression node and record type specific signature tokens.
     fn visit_type_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::TypeExpression>,
         type_expression: &ast::TypeExpression,
     ) {
@@ -2678,7 +2678,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one declaration node and record declaration signature tokens.
     fn visit_declaration(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Declaration>,
         declaration: &ast::Declaration,
     ) {
@@ -2689,7 +2689,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one property node and record property signature tokens.
     fn visit_property(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Property>,
         property: &ast::Property,
     ) {
@@ -2700,7 +2700,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one member node and record member signature tokens.
     fn visit_member(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Member>,
         member: &ast::Member,
     ) {
@@ -2711,7 +2711,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one parameter node and record parameter signature tokens.
     fn visit_parameter(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Parameter>,
         parameter: &ast::Parameter,
     ) {
@@ -2722,7 +2722,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one argument node and record argument signature tokens.
     fn visit_argument(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Argument>,
         argument: &ast::Argument,
     ) {
@@ -2733,7 +2733,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one pattern node and record pattern signature tokens.
     fn visit_pattern(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Pattern>,
         pattern: &ast::Pattern,
     ) {
@@ -2744,7 +2744,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one pattern field node and record field signature tokens.
     fn visit_pattern_field(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::PatternField>,
         pattern_field: &ast::PatternField,
     ) {
@@ -2755,7 +2755,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Visit one match case node and record case signature tokens.
     fn visit_match_case(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::MatchCase>,
         match_case: &ast::MatchCase,
     ) {

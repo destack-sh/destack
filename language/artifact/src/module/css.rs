@@ -1,12 +1,12 @@
 use destack_css::print::print_stylesheet;
-use destack_css::{LocalNodeId, NodeTree, Stylesheet};
+use destack_css::{LocalNodeId, Stylesheet, Tree};
 use serde::{Deserialize, Serialize};
 
 /// One parsed CSS module payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Css {
-    /// The CSS node tree.
-    pub tree: NodeTree,
+    /// The CSS tree.
+    pub tree: Tree,
     /// The root stylesheet node.
     pub stylesheet: LocalNodeId<Stylesheet>,
 }

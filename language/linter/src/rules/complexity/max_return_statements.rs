@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression, walk_member, walk_property,
+    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+    walk_member, walk_property,
 };
 use destack_workspace::LintSeverity;
 
@@ -96,7 +96,7 @@ impl LintRule for MaxReturnStatements {
 }
 
 /// Count explicit return expressions for one callable body.
-fn count_callable_returns(tree: &NodeTree, body_expression_id: LocalNodeId<Expression>) -> usize {
+fn count_callable_returns(tree: &Tree, body_expression_id: LocalNodeId<Expression>) -> usize {
     // initialize return counter visitor
     let mut visitor = ReturnCountVisitor {
         options: NodeVisitorOptions::default(),
@@ -158,7 +158,7 @@ impl NodeVisitor for ReturnCountVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -183,7 +183,7 @@ impl NodeVisitor for ReturnCountVisitor {
 
     fn visit_property(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         property_id: LocalNodeId<ast::Property>,
         property: &ast::Property,
     ) {
@@ -198,7 +198,7 @@ impl NodeVisitor for ReturnCountVisitor {
 
     fn visit_member(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         member_id: LocalNodeId<ast::Member>,
         member: &ast::Member,
     ) {

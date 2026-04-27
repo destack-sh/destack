@@ -302,7 +302,7 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -341,7 +341,7 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
 
     fn visit_match_case(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
     ) {

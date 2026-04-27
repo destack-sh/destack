@@ -297,7 +297,7 @@ fn callback_primary_declaration(
 
 /// Resolve one first callback parameter from one declaration node.
 fn first_callback_parameter_in_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalNodeId<dir::Parameter>> {
     // keep function declarations

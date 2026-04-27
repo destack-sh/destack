@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_ast::{
     DependencyItem, DependencyKind, DependencyMode as AstDependencyMode, Expression, ImportTarget,
-    NodeTree, ScalarLiteral, TokenType, TypeExpression,
+    ScalarLiteral, TokenType, Tree, TypeExpression,
 };
 use destack_core::StringId;
 use destack_dir::{
@@ -441,7 +441,7 @@ impl ImportEditMode {
 
 /// Resolve a module specifier and dependency kind for an AST expression.
 pub(crate) fn module_specifier_in_expression(
-    tree: &NodeTree,
+    tree: &Tree,
     expression: &Expression,
 ) -> Option<(StringId, DependencyKind)> {
     match expression {

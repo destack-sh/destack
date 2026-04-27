@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable, TypeExpression, TypeTable,
+    LocalScopeId, NamespaceExport, SymbolSpace, SymbolTable, Tree, TypeExpression, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
@@ -28,7 +28,7 @@ pub(crate) struct ResolveModuleWorklist {
 
 impl ResolveModuleWorklist {
     /// Build resolve worklists from the module tree.
-    pub(crate) fn from_tree(tree: &NodeTree) -> Self {
+    pub(crate) fn from_tree(tree: &Tree) -> Self {
         // collect declarations that need resolve passes
         let mut declaration_ids = Vec::new();
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
@@ -102,7 +102,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         prepared: &DirPrepared,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         imported_modules: &mut ImportedModuleTable,
@@ -150,7 +150,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         prepared: &DirPrepared,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         exported_symbols: &mut ExportedSymbolTable,
@@ -196,7 +196,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         prepared: &DirPrepared,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         export_assignment: &mut Option<LocalNodeId<DependencyItem>>,
@@ -362,7 +362,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module: &Module,
         prepared: &DirPrepared,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         namespace_exports: &mut Vec<NamespaceExport>,
         imported_modules: &mut ImportedModuleTable,
@@ -390,7 +390,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module: &Module,
         prepared: &DirPrepared,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         namespace_exports: &mut Vec<NamespaceExport>,
         imported_modules: &mut ImportedModuleTable,

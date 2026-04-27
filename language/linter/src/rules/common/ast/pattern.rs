@@ -25,7 +25,7 @@ pub fn parameter_default_expression_id(
 
 /// Return one default expression id for a pattern field when present.
 pub fn pattern_field_default_expression_id(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     pattern_field: &ast::PatternField,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     match pattern_field {
@@ -44,7 +44,7 @@ pub fn pattern_field_default_expression_id(
 
 /// Return the default value expression for one assignment pattern.
 fn pattern_assignment_value_expression_id(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     match tree.get(pattern_id) {

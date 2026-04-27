@@ -7,7 +7,7 @@ use crate::{
     SupportsCondition,
 };
 
-use crate::NodeTree;
+use crate::Tree;
 
 /// Print one layer name list as canonical CSS source.
 pub fn print_layer_name_list(name: &LayerNameList) -> String {
@@ -15,15 +15,12 @@ pub fn print_layer_name_list(name: &LayerNameList) -> String {
 }
 
 /// Print one media query list as canonical CSS source.
-pub fn print_media_query_list(tree: &NodeTree, media: LocalNodeId<MediaQueryList>) -> String {
+pub fn print_media_query_list(tree: &Tree, media: LocalNodeId<MediaQueryList>) -> String {
     Printer::new(tree).render_media_query_list(media)
 }
 
 /// Print one supports condition as canonical CSS source.
-pub fn print_supports_condition(
-    tree: &NodeTree,
-    condition: LocalNodeId<SupportsCondition>,
-) -> String {
+pub fn print_supports_condition(tree: &Tree, condition: LocalNodeId<SupportsCondition>) -> String {
     Printer::new(tree).render_supports_condition(condition)
 }
 

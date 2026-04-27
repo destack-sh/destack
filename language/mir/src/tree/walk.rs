@@ -1,12 +1,12 @@
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, Terminator, Type, TypeAlias, TypeReference,
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeType, NodeVisitor,
+    Terminator, Tree, Type, TypeAlias, TypeReference,
 };
 
 /// Walk any node.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     node_type: NodeType,
     node_id: u32,
 ) {
@@ -62,7 +62,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 /// Walk a Function.
 pub fn walk_function<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Function>,
     function: &Function,
 ) {
@@ -80,7 +80,7 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
 /// Walk a Block.
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Block>,
     block: &Block,
 ) {
@@ -98,7 +98,7 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 /// Walk an Instruction.
 pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Instruction>,
     _instruction: &Instruction,
 ) {
@@ -108,7 +108,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
 /// Walk a Terminator.
 pub fn walk_terminator<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Terminator>,
     _terminator: &Terminator,
 ) {
@@ -118,7 +118,7 @@ pub fn walk_terminator<V: NodeVisitor + ?Sized>(
 /// Walk a Local.
 pub fn walk_local<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Local>,
     _local: &Local,
 ) {
@@ -128,7 +128,7 @@ pub fn walk_local<V: NodeVisitor + ?Sized>(
 /// Walk a Type.
 pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Type>,
     ty: &Type,
 ) {
@@ -223,7 +223,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 /// Walk a TypeAlias.
 pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<TypeAlias>,
     type_alias: &TypeAlias,
 ) {
@@ -237,7 +237,7 @@ pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
 /// Walk a Field.
 pub fn walk_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Field>,
     field: &Field,
 ) {
@@ -251,7 +251,7 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
 /// Walk a Global.
 pub fn walk_global<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Global>,
     _global: &Global,
 ) {

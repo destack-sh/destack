@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
+use destack_ast::{LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl};
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -122,7 +122,7 @@ fn ignore_target_span<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> Span
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let node_span = ctx.span(node_id);
 
@@ -207,7 +207,7 @@ pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -221,7 +221,7 @@ pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -236,7 +236,7 @@ pub fn node_has_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     if !ctx.has_ignore_directive_markers() {
         return false;
@@ -279,7 +279,7 @@ pub fn ignore_range_for_node<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> Option<Span>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     if !ctx.has_ignore_directive_markers() {
         return None;
@@ -328,7 +328,7 @@ fn ignored_node_span<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> Span
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -346,7 +346,7 @@ pub fn ignore_ranges_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> HashMap<u32, Span>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut ignore_ranges = HashMap::new();
     for node_id in node_ids.iter().copied() {
@@ -364,7 +364,7 @@ pub fn any_ignore_range_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> bool
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     node_ids
         .iter()
@@ -486,7 +486,7 @@ pub fn write_ignored_node<'ast, T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let span = ignored_node_span(f.context(), node_id);
     write_ignored_span(f, span)

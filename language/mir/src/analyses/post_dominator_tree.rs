@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, ControlFlowGraph, Function, LocalNodeId, NodeTree};
+use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Postdominator tree for one function.
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct PostDominatorTree {
 
 impl PostDominatorTree {
     /// Build the postdominator tree for one function.
-    pub fn build(function: &Function, tree: &NodeTree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let Some(entry) = function.entry else {
             return Self {
                 immediate_postdominators: HashMap::new(),
@@ -118,7 +118,7 @@ impl PostDominatorTree {
     }
 
     /// Collect blocks with no successors.
-    fn collect_exit_blocks(function: &Function, tree: &NodeTree) -> HashSet<LocalNodeId<Block>> {
+    fn collect_exit_blocks(function: &Function, tree: &Tree) -> HashSet<LocalNodeId<Block>> {
         let mut exits = HashSet::new();
 
         // terminators with no successors

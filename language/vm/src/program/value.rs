@@ -57,10 +57,7 @@ pub(crate) enum ValueRepr {
 }
 
 /// Get the runtime representation for a MIR type.
-pub(crate) fn value_repr_from_type(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> ValueRepr {
+pub(crate) fn value_repr_from_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> ValueRepr {
     // map mir type to value representation
     match tree.get(ty) {
         mir::Type::Void => ValueRepr::Void,

@@ -1,6 +1,6 @@
 use destack_dir::{
-    AssignOperator, AssignPattern, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType,
-    ProvenanceReason,
+    AssignOperator, AssignPattern, BinaryOperator, Expression, LocalNodeId, NodeType,
+    ProvenanceReason, Tree,
 };
 
 use crate::Compiler;
@@ -11,7 +11,7 @@ impl Compiler {
     pub(super) fn desugar_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
     ) {
         let scope = tree.get_scope(expression_id);
         let expression = tree.get(expression_id).clone();

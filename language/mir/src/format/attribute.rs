@@ -4,7 +4,7 @@ use destack_fir::write;
 use destack_source::Span;
 
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, MirFormatter, NodeTree,
+    Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, MirFormatter, Tree,
     write_comments_before,
 };
 
@@ -41,7 +41,7 @@ pub(crate) fn write_attributes_before_anchor<'a>(
     attributes: &[Attribute],
     attribute_spans: &[Span],
     anchor_start: u32,
-    tree: &NodeTree,
+    tree: &Tree,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     if attribute_spans.len() != attributes.len() {

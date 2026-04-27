@@ -11,7 +11,7 @@ pub struct ControlFlowGraph {
 
 impl ControlFlowGraph {
     /// Build the control flow graph for one function.
-    pub(crate) fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    pub(crate) fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         Self {
             graph: mir::ControlFlowGraph::build(function, tree),
         }
@@ -43,7 +43,7 @@ impl Analysis for ControlFlowGraph {
 impl FunctionAnalysis for ControlFlowGraph {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         _analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         Self::build(function, tree)

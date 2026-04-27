@@ -108,7 +108,7 @@ pub struct ReachingDefinitions {
 
 impl ReachingDefinitions {
     /// Build reaching definitions for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
         // seed entry state
         let entry_state = ReachingDefinitionMap::with_entry_definitions(function);
 
@@ -164,7 +164,7 @@ impl ReachingDefinitions {
         &self,
         block: mir::LocalNodeId<mir::Block>,
         instruction_index: usize,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ReachingDefinitionMap {
         // read the block data and entry state
         let block_data = tree.get(block);
@@ -193,7 +193,7 @@ impl Analysis for ReachingDefinitions {
 impl FunctionAnalysis for ReachingDefinitions {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         // read the control flow graph
@@ -207,7 +207,7 @@ impl FunctionAnalysis for ReachingDefinitions {
 fn transfer_block(
     block: mir::LocalNodeId<mir::Block>,
     entry_state: ReachingDefinitionMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> ReachingDefinitionMap {
     // read block data and entry state
     let block_data = tree.get(block);
@@ -250,7 +250,7 @@ mod tests {
     /// Return the first local set instruction in a block.
     fn first_local_set_instruction(
         block: mir::LocalNodeId<mir::Block>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> mir::LocalNodeId<Instruction> {
         // read the block data
         let block_data = tree.get(block);

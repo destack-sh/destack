@@ -5,7 +5,7 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Lower a MIR type to a Cranelift IR type.
 pub(crate) fn lower_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_id: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<cir::Type> {

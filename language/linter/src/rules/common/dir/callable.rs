@@ -22,7 +22,7 @@ impl CallableReturnUsage {
 
 /// Analyze return value usage for one callable body.
 pub fn callable_return_usage(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     signature: &dir::FunctionSignature,
     body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
 ) -> CallableReturnUsage {
@@ -85,7 +85,7 @@ impl NodeVisitor for ReturnValueVisitor {
     /// Visit one expression in the callable body.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

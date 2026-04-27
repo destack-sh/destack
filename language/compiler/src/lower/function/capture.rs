@@ -222,7 +222,7 @@ impl FunctionLowerer<'_> {
         function_id: mir::LocalNodeId<mir::Function>,
         env_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
-        // update the function metadata in the shared node tree
+        // update the function metadata in the shared tree
         let function = self.state.builder.tree_mut().get_mut(function_id);
         match function.environment {
             Some(existing) if existing.ty() != Some(env_type) => {

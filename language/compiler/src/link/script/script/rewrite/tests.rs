@@ -7,8 +7,8 @@ use super::linker::Rewriter;
 
 /// One small script module builder for minify rewrite tests.
 struct TestModuleBuilder {
-    /// The JS node tree being built.
-    tree: js::NodeTree,
+    /// The JS tree being built.
+    tree: js::Tree,
     /// The string pool for the module.
     strings: StringPool,
     /// The next fake DIR source id.
@@ -19,7 +19,7 @@ impl TestModuleBuilder {
     /// Create one empty test module builder.
     fn new() -> Self {
         Self {
-            tree: js::NodeTree::new(),
+            tree: js::Tree::new(),
             strings: StringPool::new(),
             next_source_id: 0,
         }

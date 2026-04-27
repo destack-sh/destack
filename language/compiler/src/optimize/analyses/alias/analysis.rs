@@ -32,14 +32,14 @@ pub struct AliasAnalysis {
     /// Destack ownership/borrow-based noalias analysis.
     scoped: ScopedNoAliasAA,
     /// The MIR tree for queries.
-    tree: Arc<mir::NodeTree>,
+    tree: Arc<mir::Tree>,
 }
 
 impl AliasAnalysis {
     /// Build combined AA for a function with explicit options.
     pub fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strict_borrow_mode: bool,
         value_types: &ValueTypeMap,
         type_context: TypeContext,
@@ -216,7 +216,7 @@ impl Analysis for AliasAnalysis {
 impl FunctionAnalysis for AliasAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let value_types = ValueTypeMap::new(function, tree);

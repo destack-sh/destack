@@ -40,7 +40,7 @@ impl FunctionPass for Narrow {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -87,7 +87,7 @@ struct IntegerInfo {
 /// Run narrowing on a single function and report whether it changed.
 fn run_narrow(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ranges: &RangeAnalysis,
     value_types: &ValueTypeMap,
 ) -> bool {
@@ -259,7 +259,7 @@ fn integer_info_for_value(
     value: mir::ValueReference,
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
     let value = value.value()?;
 
@@ -310,7 +310,7 @@ fn narrow_pair(
     left: mir::ValueReference,
     right: mir::ValueReference,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
     cast_cache: &mut HashMap<(mir::Value, u16, bool), mir::Value>,
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
@@ -378,7 +378,7 @@ fn narrow_value_to_width(
     width: u16,
     signed: bool,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
     cast_cache: &mut HashMap<(mir::Value, u16, bool), mir::Value>,
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,

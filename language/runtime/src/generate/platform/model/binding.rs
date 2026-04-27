@@ -25,7 +25,7 @@ pub(crate) struct BindingTypeContext<'a> {
     /// The generator context that owns retained semantic artifacts.
     context: &'a GeneratorContext,
     /// The committed module tree.
-    tree: &'a dir::NodeTree,
+    tree: &'a dir::Tree,
     /// The committed module types.
     types: &'a dir::TypeTable,
     /// The committed module symbols.
@@ -47,7 +47,7 @@ impl<'a> BindingTypeContext<'a> {
     pub(crate) fn new(
         compiler: &'a Compiler,
         context: &'a GeneratorContext,
-        tree: &'a dir::NodeTree,
+        tree: &'a dir::Tree,
         types: &'a dir::TypeTable,
         symbols: &'a dir::SymbolTable,
         modules: &'a GeneratorContext,
@@ -277,10 +277,7 @@ pub(crate) fn collect_binding_params(
 }
 
 /// Return whether one parameter is optional at the call boundary.
-fn parameter_is_optional(
-    parameter_id: dir::LocalNodeId<dir::Parameter>,
-    tree: &dir::NodeTree,
-) -> bool {
+fn parameter_is_optional(parameter_id: dir::LocalNodeId<dir::Parameter>, tree: &dir::Tree) -> bool {
     let parameter = tree.get::<dir::Parameter>(parameter_id);
 
     parameter
@@ -316,7 +313,7 @@ pub(crate) fn collect_binding_return(
 /// Resolve the parameter name string from a node.
 fn parameter_name(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     strings: &StringPool,
 ) -> String {
     let parameter = tree.get::<dir::Parameter>(parameter_id);
@@ -378,7 +375,7 @@ fn resolve_return_type_text(
     declaration_id: dir::LocalNodeId<Declaration>,
     signature: &dir::FunctionSignature,
     context: &GeneratorContext,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     strings: &StringPool,
 ) -> Option<String> {
@@ -413,7 +410,7 @@ pub(crate) fn binding_type_from_type_id(
     compiler: &Compiler,
     context: &GeneratorContext,
     type_id: dir::LocalTypeId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_table: &dir::SymbolTable,
     modules: &GeneratorContext,
@@ -979,7 +976,7 @@ fn binding_type_from_tagged_union_alias(
     context: &GeneratorContext,
     name: String,
     elements: &[dir::LocalTypeId],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_table: &dir::SymbolTable,
     modules: &GeneratorContext,
@@ -1050,7 +1047,7 @@ fn binding_type_from_object_type(
     context: &GeneratorContext,
     name: String,
     fields: &[dir::TypeField],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_table: &dir::SymbolTable,
     modules: &GeneratorContext,
@@ -1102,7 +1099,7 @@ fn binding_type_from_tuple(
     context: &GeneratorContext,
     type_id: dir::LocalTypeId,
     elements: &[dir::TypeElement],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_table: &dir::SymbolTable,
     modules: &GeneratorContext,
@@ -1157,7 +1154,7 @@ fn binding_type_from_struct(
     struct_symbol: GlobalSymbolId,
     _declaration_id: dir::LocalNodeId<Declaration>,
     members: &[dir::LocalNodeId<dir::Member>],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbols: &dir::SymbolTable,
     domain: String,
@@ -1248,7 +1245,7 @@ fn node_documentation(
     _artifacts: &ArtifactStore,
     _modules: &ModuleRegistry,
     _module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     node_id: u32,
 ) -> Option<String> {
     let documentation = tree.get_documentation(node_id)?;
@@ -1260,7 +1257,7 @@ fn node_documentation(
 fn binding_type_from_enum(
     name: String,
     fields: Vec<dir::LocalNodeId<dir::EnumField>>,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_id: GlobalSymbolId,
     domain: String,
@@ -1321,7 +1318,7 @@ fn tuple_struct_name(type_text: Option<&str>, arity: usize) -> String {
 fn infer_enum_backing(
     name: &str,
     fields: &[dir::LocalNodeId<dir::EnumField>],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     symbol_id: GlobalSymbolId,
     strings: &StringPool,
@@ -1400,7 +1397,7 @@ fn infer_enum_backing(
 /// Resolve enum field literal values directly from the AST.
 fn enum_field_value_from_expression(
     expr_id: dir::LocalNodeId<Expression>,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     strings: &StringPool,
 ) -> Option<BindingEnumValue> {
     let expression = tree.get::<Expression>(expr_id);
@@ -1458,7 +1455,7 @@ fn unwrap_first_type_argument(
 /// Format a type expression node into a signature fragment.
 fn format_type_expression(
     expression_id: dir::LocalNodeId<Expression>,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     strings: &StringPool,
 ) -> Option<String> {
     // render the expression node based on its type
@@ -1608,7 +1605,7 @@ fn format_type_expression(
 /// Format a list of type arguments as source text.
 fn format_argument_list(
     arguments: &[dir::LocalNodeId<Argument>],
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     strings: &StringPool,
 ) -> Option<String> {
     let mut formatted = Vec::new();
@@ -1621,7 +1618,7 @@ fn format_argument_list(
 /// Format a single type argument expression.
 fn format_argument_expression(
     argument_id: dir::LocalNodeId<Argument>,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     strings: &StringPool,
 ) -> Option<String> {
     let argument = tree.get::<Argument>(argument_id);
@@ -1655,7 +1652,7 @@ fn format_parameter_declared(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     module_id: ModuleId,
     context: &GeneratorContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     types: &dir::TypeTable,
     strings: &StringPool,
 ) -> String {
@@ -1690,7 +1687,7 @@ fn format_parameter_declared(
 fn type_text_for_signature(
     type_id: dir::LocalTypeId,
     context: &GeneratorContext,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     strings: &StringPool,
 ) -> Option<String> {

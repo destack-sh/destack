@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::{Compiler, CompilerContext, ImportError, ImportResult, RequirementError};
 use destack_artifact::{ArtifactKey, DirBase};
 use destack_dir::{
-    ExportMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeLiteral, TypeTable,
+    ExportMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind, SymbolBinding,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Tree, TypeLiteral, TypeTable,
 };
 use destack_source::{FileId, ModuleId};
 
@@ -128,7 +128,7 @@ impl Compiler {
             );
 
             // seed the local mutable tables
-            let mut tree = NodeTree::new(module);
+            let mut tree = Tree::new(module);
             let anchor_node = self.create_base_dir_anchor(&mut tree, namespace_scope, anchor_id.id);
 
             (
@@ -220,7 +220,7 @@ impl Compiler {
     /// Create a stable module-level anchor node.
     fn create_base_dir_anchor(
         &self,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         namespace_scope: destack_dir::LocalScopeId,
         anchor_source_id: u32,
     ) -> LocalNodeIdAny {

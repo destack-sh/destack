@@ -4,7 +4,6 @@
 
 pub mod capture;
 mod flow;
-mod formatter;
 mod symbol;
 mod tree;
 mod r#type;

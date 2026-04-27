@@ -60,7 +60,7 @@ struct BorrowCheckContext<'a> {
     /// The function being checked.
     function: &'a mir::Function,
     /// The MIR tree.
-    tree: &'a mir::NodeTree,
+    tree: &'a mir::Tree,
     /// Alias analysis for may-alias queries.
     alias_analysis: Arc<AliasAnalysis>,
     /// Lifetime analysis for cross-function borrow tracking.
@@ -92,7 +92,7 @@ struct BorrowCheckContext<'a> {
 impl<'a> BorrowCheckContext<'a> {
     fn new(
         function: &'a mir::Function,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         alias_analysis: Arc<AliasAnalysis>,
         lifetime_analysis: Arc<LifetimeAnalysis>,
         module_id: ModuleId,
@@ -766,7 +766,7 @@ impl FunctionPass for BorrowCheck {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get function-level analyses
@@ -840,7 +840,7 @@ fn expire_dead_borrows(
     block_id: mir::LocalNodeId<mir::Block>,
     instruction_index: usize,
     liveness: &LivenessAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) {
     // collect expired borrow IDs
     let expired: Vec<BorrowId> = checker

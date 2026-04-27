@@ -61,7 +61,7 @@ impl FunctionPass for CorrelatedValueProp {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -98,7 +98,7 @@ impl FunctionPass for CorrelatedValueProp {
 /// Propagate equalities implied by conditional branches.
 fn run_correlated_value_prop(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     domtree: &DominatorTree,
     cfg: &ControlFlowGraph,
     constants: &ConstantPropagation,
@@ -339,7 +339,7 @@ fn equality_condition(
 fn range_constraints_for_condition(
     condition: mir::Value,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> RangeConstraintPair {
     // default to no constraints
     let mut constraints = RangeConstraintPair {
@@ -406,7 +406,7 @@ fn range_constraints_for_condition(
 fn constant_from_value(
     value: mir::Value,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
-    _tree: &mir::NodeTree,
+    _tree: &mir::Tree,
 ) -> Option<mir::Constant> {
     // look up the defining instruction
     let instruction = value_to_instruction.get(&value)?;
@@ -538,7 +538,7 @@ fn integer_range_from_bounds(
 /// Apply a range constraint by folding dominated comparisons.
 fn apply_range_constraint(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     domtree: &DominatorTree,
     root: mir::LocalNodeId<mir::Block>,
     constraint: &RangeConstraint,
@@ -615,7 +615,7 @@ fn comparison_from_range(
     right: mir::Value,
     constraint: &RangeConstraint,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<bool> {
     // identify the constrained operand
     let (is_left, constant_value) = if left == constraint.value {

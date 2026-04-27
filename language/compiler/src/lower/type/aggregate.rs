@@ -11,7 +11,7 @@ const MAX_ARRAY_COUNT_UNWRAP_STEPS: usize = 16;
 /// Compute aggregate copy from element types.
 fn compute_aggregate_copyability(
     element_types: &[mir::LocalNodeId<mir::Type>],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> mir::Copy {
     let mut copy = mir::Copy::Yes;
     for &element_type_id in element_types {

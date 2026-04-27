@@ -411,7 +411,7 @@ impl NodeVisitor for GuardForInVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -432,7 +432,7 @@ impl NodeVisitor for GuardForInVisitor<'_, '_> {
 
 /// Return one global loop binding symbol when the for-in binding is a simple identifier.
 fn for_in_binding_symbol(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     binding: &dir::ForEachBinding,
 ) -> Option<dir::LocalSymbolId> {
     let pattern_id = match binding {

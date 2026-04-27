@@ -6,7 +6,7 @@ use super::attribute::{write_attribute, write_attributes};
 
 use crate::{
     FormatMirNode, Function, FunctionHeaderSpans, Linkage, Local, LocalNodeId, MirFormatContext,
-    MirFormatter, Mutability, NodeTree, Ownership, write_comments_after, write_comments_before,
+    MirFormatter, Mutability, Ownership, Tree, write_comments_after, write_comments_before,
     write_inline_comment_after, write_node_leading_comments,
     write_node_leading_comments_after_separator,
 };
@@ -423,7 +423,7 @@ fn format_function_parameters<'a>(
 
 /// Return whether one parameter list needs comment preserving formatting.
 fn has_parameter_comments(
-    tree: &NodeTree,
+    tree: &Tree,
     header_spans: Option<&FunctionHeaderSpans>,
     has_tokens: bool,
 ) -> bool {

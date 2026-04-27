@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSize, Block, BorrowRegion, CallBehavior, Linkage, Local, LocalNodeId, MemoryEffect,
-    Node, NodeTree, NodeType, Parameter, PointerAttribute, Type, TypeReference, Value,
-    ValueReference,
+    Node, NodeType, Parameter, PointerAttribute, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -452,7 +451,7 @@ impl Function {
     ///
     /// Call this before allocating new values if the function was parsed
     /// or modified externally and `next_value_id` may be stale.
-    pub fn recompute_next_value_id(&mut self, tree: &NodeTree) {
+    pub fn recompute_next_value_id(&mut self, tree: &Tree) {
         let mut max_id: u32 = 0;
 
         // function parameters

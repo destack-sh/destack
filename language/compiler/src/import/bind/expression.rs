@@ -5,9 +5,9 @@ use destack_dir::{
     Ambientness, AssignPattern, AssignPatternField, BindingCategory, CastSource, Declarator,
     ExportMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, IfCondition,
     IfKind, ImportSource, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeTree,
-    NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, SymbolType, Type, TypeTable, YieldCardinality,
+    LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeType, Path,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, Tree, Type, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -52,7 +52,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<AssignPattern> {
@@ -175,7 +175,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<AssignPatternField> {
@@ -301,7 +301,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
@@ -423,7 +423,7 @@ impl Compiler {
             scope: (LocalScopeId, LocalScopeMark),
             ast_expression_id: ast::LocalNodeId<ast::Expression>,
             parent_id: Option<LocalNodeIdAny>,
-            tree: &mut NodeTree,
+            tree: &mut Tree,
             symbols: &mut SymbolTable,
             types: &mut TypeTable,
             space_order: SymbolSpaceOrder,
@@ -2656,7 +2656,7 @@ impl Compiler {
         binding_category: Option<BindingCategory>,
         ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declarator> {

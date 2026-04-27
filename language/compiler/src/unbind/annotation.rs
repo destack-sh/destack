@@ -30,10 +30,10 @@ impl Compiler {
         &self,
         module: &Module,
         decorator_id: dir::LocalNodeId<dir::Decorator>,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
-        ast_tree: &mut ast::NodeTree,
+        ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Decorator> {
@@ -63,10 +63,10 @@ impl Compiler {
     pub(super) fn attach_unbind_decorators(
         &self,
         module: &Module,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
-        ast_tree: &mut ast::NodeTree,
+        ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) {

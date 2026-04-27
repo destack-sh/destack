@@ -3,9 +3,9 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, ExportMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind,
+    LocalSymbolId, ModuleBinding, Mutability, NodeType, Pattern, PatternField, ScopeKind,
     StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, TypeTable,
+    SymbolType, Tree, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -128,7 +128,7 @@ impl Compiler {
         binding_category: Option<BindingCategory>,
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Pattern> {
@@ -556,7 +556,7 @@ impl Compiler {
     /// Return the binding symbol introduced by one bound pattern.
     fn bound_pattern_symbol(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         pattern_id: LocalNodeId<Pattern>,
     ) -> Option<LocalSymbolId> {
         match tree.get(pattern_id) {
@@ -592,7 +592,7 @@ impl Compiler {
         binding_category: Option<BindingCategory>,
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<PatternField> {

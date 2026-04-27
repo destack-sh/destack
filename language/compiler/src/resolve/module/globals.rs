@@ -3,8 +3,8 @@ use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
     DependencyKind, Expression, GenericArgument, GlobalNodeIdAny, GlobalSymbolId, ImportSource,
-    LocalNodeId, ModuleResolution, ModuleTarget, NodeTree, Path, StaticKey, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    LocalNodeId, ModuleResolution, ModuleTarget, Path, StaticKey, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -159,7 +159,7 @@ impl Compiler {
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         space_order: SymbolSpaceOrder,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
         // load the cached table for this module
         let cache = self.global_symbol_table_for_module(revision, module.id, profile_id)?;
@@ -741,7 +741,7 @@ impl Compiler {
     fn collect_export_namespace_globals(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
@@ -781,7 +781,7 @@ impl Compiler {
     fn collect_dependency_targets(
         &self,
         module_id: ModuleId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
     ) -> Vec<DependencyTarget> {
         // collect import and reexport targets

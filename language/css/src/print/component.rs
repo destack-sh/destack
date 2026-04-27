@@ -2,14 +2,11 @@ use super::TokenRenderer;
 use super::printer::Printer;
 use crate::{
     BlockKind, ComponentFragment, ComponentValue, ComponentValueList, Function, LocalNodeId,
-    NodeTree, Number, SimpleBlock, Token,
+    Number, SimpleBlock, Token, Tree,
 };
 
 /// Print one component fragment as canonical CSS source.
-pub fn print_component_fragment(
-    tree: &NodeTree,
-    fragment: LocalNodeId<ComponentFragment>,
-) -> String {
+pub fn print_component_fragment(tree: &Tree, fragment: LocalNodeId<ComponentFragment>) -> String {
     Printer::new(tree).render_component_value_list(&tree.get(fragment).value)
 }
 

@@ -87,7 +87,7 @@ impl FunctionPass for LoopDistribute {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // gather analyses
@@ -158,7 +158,7 @@ struct StoreGroup {
 /// Run loop distribution and return true when changes are made.
 fn run_loop_distribute(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -194,7 +194,7 @@ fn run_loop_distribute(
 #[allow(clippy::too_many_arguments)]
 fn build_candidate(
     lp: &Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     memory_ssa: &MemorySSA,
@@ -288,7 +288,7 @@ fn build_candidate(
 #[allow(clippy::too_many_arguments)]
 fn collect_store_groups(
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -416,7 +416,7 @@ fn collect_group_instructions(
     pointer: Option<mir::Value>,
     value: mir::Value,
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     control_instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -481,7 +481,7 @@ fn collect_group_instructions(
 #[allow(clippy::too_many_arguments)]
 fn collect_group_effects(
     instructions: &HashSet<mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Option<Vec<MemoryAccessEffect>> {
     // collect memory effects
@@ -543,11 +543,7 @@ fn ordered_group_instructions(
 }
 
 /// Check whether store groups are independent.
-fn groups_are_independent(
-    groups: &[StoreGroup],
-    tree: &mir::NodeTree,
-    alias: &AliasAnalysis,
-) -> bool {
+fn groups_are_independent(groups: &[StoreGroup], tree: &mir::Tree, alias: &AliasAnalysis) -> bool {
     // compare each group pair
     for (index, group) in groups.iter().enumerate() {
         for other in groups.iter().skip(index + 1) {
@@ -570,7 +566,7 @@ fn groups_are_independent(
 /// Apply loop distribution for a candidate.
 fn apply_distribution(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &DistributeCandidate,
 ) -> bool {
     // prepare for cloning
@@ -698,7 +694,7 @@ fn map_keep_set(
 
 /// Remove instructions not in the keep set.
 fn prune_latch_instructions(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     latch: mir::LocalNodeId<mir::Block>,
     keep: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
@@ -720,7 +716,7 @@ fn prune_latch_instructions(
 
 /// Update the header terminator to chain loop exits.
 fn update_header_exit(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     header: mir::LocalNodeId<mir::Block>,
     exit_block: mir::LocalNodeId<mir::Block>,
     next_header: Option<mir::LocalNodeId<mir::Block>>,

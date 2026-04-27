@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    Block, BlockReference, Function, Instruction, Local, LocalNodeId, LocalReference, NodeTree,
-    Value, ValueReference,
+    Block, BlockReference, Function, Instruction, Local, LocalNodeId, LocalReference, Tree, Value,
+    ValueReference,
 };
 
 /// Per-block use and def facts for liveness.
@@ -33,7 +33,7 @@ pub struct FunctionLiveness {
 
 impl FunctionLiveness {
     /// Build liveness for one MIR function.
-    pub fn build(function: &Function, tree: &NodeTree) -> Self {
+    pub fn build(function: &Function, tree: &Tree) -> Self {
         // block facts
         let facts = Self::collect_block_facts(function, tree);
 
@@ -49,7 +49,7 @@ impl FunctionLiveness {
     /// Collect local use and def facts for each block.
     fn collect_block_facts(
         function: &Function,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> HashMap<LocalNodeId<Block>, BlockLivenessFacts> {
         let mut facts = HashMap::new();
 
@@ -115,7 +115,7 @@ impl FunctionLiveness {
         facts: &mut BlockLivenessFacts,
         seen_value_defs: &HashSet<Value>,
         instruction: &Instruction,
-        tree: &NodeTree,
+        tree: &Tree,
     ) {
         for used in instruction.uses() {
             let Some(used) = concrete_value(used) else {
@@ -205,7 +205,7 @@ impl FunctionLiveness {
     fn propagate_to_fixed_point(
         liveness: &mut Self,
         function: &Function,
-        tree: &NodeTree,
+        tree: &Tree,
         facts: &HashMap<LocalNodeId<Block>, BlockLivenessFacts>,
     ) {
         let mut changed = true;
@@ -225,7 +225,7 @@ impl FunctionLiveness {
     fn propagate_block(
         liveness: &mut Self,
         block_id: LocalNodeId<Block>,
-        tree: &NodeTree,
+        tree: &Tree,
         facts: &HashMap<LocalNodeId<Block>, BlockLivenessFacts>,
     ) -> bool {
         let block = tree.get(block_id);
@@ -368,7 +368,7 @@ impl FunctionLiveness {
         block_id: LocalNodeId<Block>,
         instruction_index: usize,
         value: Value,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> bool {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -416,7 +416,7 @@ impl FunctionLiveness {
     /// Return the values live before one instruction offset in one block.
     pub fn value_live_before_instruction(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         block_id: LocalNodeId<Block>,
         instruction_offset: usize,
     ) -> HashSet<Value> {

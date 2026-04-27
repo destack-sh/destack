@@ -13,7 +13,7 @@ pub trait Pipeline: Send + Sync {
     /// Run the pipeline on a module.
     ///
     /// Returns true if any changes were made.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool;
+    fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool;
 
     /// Get the name of this pipeline.
     fn name(&self) -> &'static str;

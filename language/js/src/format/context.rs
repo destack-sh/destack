@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
     Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId,
-    LocalNodeIdAny, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, TupleElement, TypeExpression, TypeMember,
+    LocalNodeIdAny, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement,
+    SwitchCase, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember,
 };
 use destack_core::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
@@ -16,15 +16,10 @@ pub type JsFormatter<'context, 'buffer> = Formatter<'buffer, JsFormatContext<'co
 /// One source span provider for JS formatting and printing.
 pub trait JsSourceMap: std::fmt::Debug {
     /// Return one source span for one lowered node when one exists.
-    fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span>;
+    fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span>;
 
     /// Return one source part span for one lowered node when one exists.
-    fn source_part_span(
-        &self,
-        tree: &NodeTree,
-        node_id: u32,
-        span_type: NodeSpanType,
-    ) -> Option<Span>;
+    fn source_part_span(&self, tree: &Tree, node_id: u32, span_type: NodeSpanType) -> Option<Span>;
 }
 
 /// One no-op source span provider.
@@ -32,19 +27,14 @@ pub trait JsSourceMap: std::fmt::Debug {
 pub struct NoopJsSourceMap;
 
 impl JsSourceMap for NoopJsSourceMap {
-    fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+    fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span> {
         let _ = tree;
         let _ = node_id;
 
         None
     }
 
-    fn source_part_span(
-        &self,
-        tree: &NodeTree,
-        node_id: u32,
-        span_type: NodeSpanType,
-    ) -> Option<Span> {
+    fn source_part_span(&self, tree: &Tree, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
         let _ = tree;
         let _ = node_id;
         let _ = span_type;
@@ -201,7 +191,7 @@ pub struct JsFormatContext<'a> {
     /// The source file for line ending and print integration.
     pub file: &'a File,
     /// The JS AST tree.
-    pub tree: &'a NodeTree,
+    pub tree: &'a Tree,
     /// Root nodes to format.
     pub roots: &'a [LocalNodeIdAny],
     /// The string pool.
@@ -264,7 +254,7 @@ where
 impl<'a, T: Node> Format<JsFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]

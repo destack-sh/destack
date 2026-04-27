@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, MatchSelector,
-    ModuleBinding, NodeTree, NodeType, ScopeKind, SymbolBinding, SymbolSpaceOrder, SymbolTable,
+    ModuleBinding, NodeType, ScopeKind, SymbolBinding, SymbolSpaceOrder, SymbolTable, Tree,
     TypeTable,
 };
 
@@ -23,7 +23,7 @@ impl Compiler {
         scope_id: LocalScopeId,
         ast_selector: &ast::MatchSelector,
         parent_id: LocalNodeIdAny,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> MatchSelector {
@@ -82,7 +82,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {

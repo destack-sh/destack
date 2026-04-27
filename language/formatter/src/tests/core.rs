@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
-use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
+use destack_ast::{NodeParentIndex, TokenSpan, Tree};
 use destack_core::ImmutableStringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
@@ -18,7 +18,7 @@ pub(crate) struct TestFormatter {
     tokens: Vec<TokenSpan>,
     side_tokens: Vec<TokenSpan>,
     side_span: MultiSpan,
-    tree: NodeTree,
+    tree: Tree,
     strings: ImmutableStringPool,
 }
 

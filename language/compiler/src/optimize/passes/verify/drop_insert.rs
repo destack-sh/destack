@@ -38,7 +38,7 @@ declare_pass! {
 /// Returns true if any changes were made.
 fn run_drop_insert(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     liveness: &LivenessAnalysis,
     ownership: &OwnershipAnalysis,
 ) -> bool {
@@ -172,7 +172,7 @@ impl FunctionPass for DropInsert {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get analyses
@@ -224,7 +224,7 @@ enum DropInsertionPoint {
 /// field.set/element.set without inference.
 fn find_droppable_values_with_ownership(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ownership: &OwnershipAnalysis,
     value_types: &ValueTypeMap,
 ) -> HashSet<Value> {
@@ -277,7 +277,7 @@ fn value_needs_drop(
     value: Value,
     ownership: &OwnershipAnalysis,
     value_types: &ValueTypeMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // heap allocations are GC owned
     if ownership.is_heap_allocated(value) {
@@ -318,7 +318,7 @@ fn find_death_point(
     start_idx: usize,
     value: Value,
     instructions: &[mir::LocalNodeId<Instruction>],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     _liveness: &LivenessAnalysis,
 ) -> Option<usize> {
     // scan forward to find the last use
@@ -355,7 +355,7 @@ fn last_use_moves_value(
     value: Value,
     instruction_index: usize,
     instructions: &[mir::LocalNodeId<Instruction>],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ownership: &OwnershipAnalysis,
 ) -> bool {
     let instruction_id = match instructions.get(instruction_index) {
@@ -373,7 +373,7 @@ fn last_use_moves_value(
 
 /// Emit one ownership-end marker for a value.
 fn emit_drop_sequence(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     value: Value,
     instructions: &mut Vec<mir::LocalNodeId<Instruction>>,
 ) {
@@ -388,7 +388,7 @@ fn emit_drop_sequence(
 /// Insert Drop instructions at the specified points.
 fn insert_drops(
     _function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     drops: &[DropInsertionPoint],
     _ownership: &OwnershipAnalysis,
 ) {

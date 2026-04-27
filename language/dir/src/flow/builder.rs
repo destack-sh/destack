@@ -7,7 +7,7 @@ use crate::{
     Expression, FlowBlock, FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard,
     ForEachBinding, GenericArgument, GenericParameter, GlobalSymbolId, IfCondition, ImportTarget,
     Key, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector,
-    MatchSource, NodeTree, Pattern, PatternField, Property, TemplateLiteral, TupleElement,
+    MatchSource, Pattern, PatternField, Property, TemplateLiteral, Tree, TupleElement,
     TypeExpression, TypeMember, UnaryOperator,
 };
 
@@ -50,7 +50,7 @@ pub struct FlowGraphBuilder<'tree> {
     /// Identify the module that owns the graph.
     module_id: ModuleId,
     /// Provide access to the DIR tree for traversal.
-    tree: &'tree NodeTree,
+    tree: &'tree Tree,
     /// The blocks built so far.
     blocks: Vec<FlowBlock>,
     /// Map nodes to their containing block.
@@ -63,7 +63,7 @@ pub struct FlowGraphBuilder<'tree> {
 
 impl<'tree> FlowGraphBuilder<'tree> {
     /// Create a new flow graph builder.
-    pub fn new(module_id: ModuleId, tree: &'tree NodeTree) -> Self {
+    pub fn new(module_id: ModuleId, tree: &'tree Tree) -> Self {
         Self {
             module_id,
             tree,
@@ -2547,7 +2547,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
 pub fn build_flow_graph_for_body(
     module_id: ModuleId,
     body_id: LocalNodeId<Expression>,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> FlowGraph {
     let builder = FlowGraphBuilder::new(module_id, tree);
     builder.build(body_id)

@@ -5,7 +5,7 @@ Low-level utilities shared across the Destack toolchain.
 ## Arena
 
 Simple chunked allocator providing stable references.
-Used by `NodeTree` (AST), `NodeGraph` (DIR), and other IR structures to store nodes efficiently.
+Used by IR `Tree` structures and other indexed data to store nodes efficiently.
 
 ```ds
 const arena: Arena<MyNode> = Arena.new()
