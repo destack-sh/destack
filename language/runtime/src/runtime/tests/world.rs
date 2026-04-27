@@ -57,8 +57,8 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
 
     // set one hard limit just above bootstrap usage so the entrypoint allocation trips it
     let baseline_usage = runtime.heap_usage();
-    let max_managed_bytes = baseline_usage.heap.active_bytes + 4 * 1024;
-    let max_total_bytes = baseline_usage.active_bytes() + 1024 * 1024;
+    let max_managed_bytes = baseline_usage.heap.retained_bytes + 4 * 1024;
+    let max_total_bytes = baseline_usage.retained_bytes() + 1024 * 1024;
     runtime.set_heap_limits(heap::HeapLimits {
         max_bytes: Some(max_total_bytes),
         heap: heap::HeapSpaceLimits {
