@@ -3,7 +3,6 @@
 
 mod analyses;
 mod build;
-mod dump;
 mod format;
 mod metadata;
 pub mod parse;
@@ -12,7 +11,6 @@ mod validate;
 
 pub use analyses::*;
 pub use build::*;
-pub use dump::*;
 pub use format::*;
 pub use metadata::*;
 pub use tree::*;

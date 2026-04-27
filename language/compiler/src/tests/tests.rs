@@ -15,9 +15,9 @@ use destack_artifact::{
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
 use destack_dir::{
-    Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator, DumperOptions,
-    Expression, FunctionKind, GlobalSymbolId, Key, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
+    Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator, Expression,
+    FunctionKind, GlobalSymbolId, Key, LocalNodeId, LocalNodeIdAny, LocalScopeId, NodeTree,
+    Pattern, ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_engine::Value;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -411,8 +411,6 @@ pub struct TestProgram {
     latest_diagnostics: Mutex<DiagnosticCollection>,
     /// Pending artifact roots for the next test compile.
     pending_artifact_keys: Mutex<Vec<ArtifactKey>>,
-    /// The dumper options.
-    pub dumper_options: DumperOptions,
     /// Optional override for the default profile in tests.
     pub default_profile_override: Option<ProfileId>,
 }
@@ -1326,7 +1324,6 @@ impl TestProgram {
             linter,
             latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
             pending_artifact_keys: Mutex::new(Vec::new()),
-            dumper_options: DumperOptions::default(),
             default_profile_override: None,
         }
     }
@@ -2380,26 +2377,6 @@ impl TestProgram {
     pub fn compile_check_clean(&self) {
         self.compile();
         self.check_no_diagnostic(DiagnosticSeverity::Note);
-    }
-
-    /// Compile, dump and check no diagnostics.
-    pub fn compile_dump_clean(&self) {
-        self.compile();
-        self.dump();
-        self.check_no_diagnostic(DiagnosticSeverity::Note);
-    }
-
-    /// Compile, check no diagnostics and dump output.
-    pub fn compile_dump_check(&self) {
-        self.compile();
-        self.check_no_diagnostic(DiagnosticSeverity::Note);
-        self.dump();
-    }
-
-    /// Compile, dump and ignore diagnostics.
-    pub fn compile_dump(&self) {
-        self.compile();
-        self.dump();
     }
 
     /// Get the file for a module.

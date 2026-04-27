@@ -1,11 +1,69 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_artifact::{Ast, DirPrepared, DirResolved};
-use destack_core::StringPool;
-use destack_dir::{Dumper, DumperOptions, NodeVisitor};
+use destack_artifact::{Ast, DehydrationContext, DirPrepared, DirResolved, Image};
+use destack_core::{ImmutableStringPool, StringId, StringPool};
 use destack_source::{FileId, ModuleId};
+use serde::Serialize;
 
 use crate::tests::TestWorkspaceView;
+
+/// Persisted artifact test wrapper with one image-local string table.
+#[derive(Debug, Clone, Serialize)]
+struct EncodedDir<T> {
+    /// The image-local string table.
+    strings: ImmutableStringPool,
+    /// The artifact payload using image-local string ids.
+    payload: T,
+}
+
+/// String-id mapping state for deterministic DIR test encodings.
+struct TestDehydrationContext<'a> {
+    /// The source string pool.
+    strings: &'a StringPool,
+    /// The encoded string pool.
+    encoded_strings: StringPool,
+    /// Encoded string ids keyed by source string id.
+    encoded_id_by_string_id: HashMap<StringId, StringId>,
+}
+
+impl<'a> TestDehydrationContext<'a> {
+    /// Create one context for deterministic DIR test encodings.
+    fn new(strings: &'a StringPool) -> Self {
+        Self {
+            strings,
+            encoded_strings: StringPool::new(),
+            encoded_id_by_string_id: HashMap::new(),
+        }
+    }
+
+    /// Encode one DIR artifact with an image-local string table.
+    fn encode<I>(mut self, payload: &I) -> Vec<u8>
+    where
+        I: Image<Live = I> + Serialize,
+    {
+        let payload = I::dehydrate(payload, &mut self);
+        let encoded = EncodedDir {
+            strings: self.encoded_strings.into_immutable(),
+            payload,
+        };
+
+        postcard::to_allocvec(&encoded)
+            .unwrap_or_else(|error| panic!("failed to encode dir artifact: {error}"))
+    }
+}
+
+impl DehydrationContext for TestDehydrationContext<'_> {
+    fn dehydrate_string_id(&mut self, string_id: StringId) -> StringId {
+        *self
+            .encoded_id_by_string_id
+            .entry(string_id)
+            .or_insert_with(|| {
+                let string = self.strings.get(string_id);
+                self.encoded_strings.intern(&string)
+            })
+    }
+}
 
 /// Build one stable profile key for scenario cache tests.
 pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
@@ -79,60 +137,14 @@ pub(crate) fn normalize_ast(mut ast: Ast) -> Ast {
     ast
 }
 
-/// Dump one prepared DIR node surface deterministically.
-pub(crate) fn dump_dir_prepared_nodes(strings: &StringPool, dir: &DirPrepared) -> String {
-    // prepare one stable dumper
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    // visit the root node surface in order
-    for expression_id in dir.roots.iter().copied() {
-        let expression = dir.tree.get(expression_id);
-        dumper.visit_expression(&dir.tree, expression_id, expression);
-    }
-
-    dumper.finish()
+/// Encode one prepared DIR deterministically for equality assertions.
+pub(crate) fn encode_dir_prepared(strings: &StringPool, dir: &DirPrepared) -> Vec<u8> {
+    TestDehydrationContext::new(strings).encode(dir)
 }
 
-/// Dump one prepared DIR symbol surface deterministically.
-pub(crate) fn dump_dir_prepared_symbols(strings: &StringPool, dir: &DirPrepared) -> String {
-    // prepare one stable dumper
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    // visit the namespace scope surface
-    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
-    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
-
-    dumper.finish()
-}
-
-/// Dump one resolved DIR node surface deterministically.
-pub(crate) fn dump_dir_resolved_nodes(strings: &StringPool, dir: &DirResolved) -> String {
-    // prepare one stable dumper
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    // visit the root node surface in order
-    for expression_id in dir.roots.iter().copied() {
-        let expression = dir.tree.get(expression_id);
-        dumper.visit_expression(&dir.tree, expression_id, expression);
-    }
-
-    dumper.finish()
-}
-
-/// Dump one resolved DIR symbol surface deterministically.
-pub(crate) fn dump_dir_resolved_symbols(strings: &StringPool, dir: &DirResolved) -> String {
-    // prepare one stable dumper
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    // visit the namespace scope surface
-    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
-    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
-
-    dumper.finish()
+/// Encode one resolved DIR deterministically for equality assertions.
+pub(crate) fn encode_dir_resolved(strings: &StringPool, dir: &DirResolved) -> Vec<u8> {
+    TestDehydrationContext::new(strings).encode(dir)
 }
 
 /// Encode one AST deterministically for equality assertions.
@@ -157,15 +169,11 @@ pub(crate) fn assert_dir_prepared_eq(
     expected: &DirPrepared,
     actual: &DirPrepared,
 ) {
-    // dump both prepared surfaces deterministically
-    let expected_nodes = dump_dir_prepared_nodes(expected_strings, expected);
-    let expected_symbols = dump_dir_prepared_symbols(expected_strings, expected);
-    let actual_nodes = dump_dir_prepared_nodes(actual_strings, actual);
-    let actual_symbols = dump_dir_prepared_symbols(actual_strings, actual);
+    // compare deterministic artifact encodings
+    let expected = encode_dir_prepared(expected_strings, expected);
+    let actual = encode_dir_prepared(actual_strings, actual);
 
-    // compare nodes and symbols independently
-    assert_eq!(actual_nodes, expected_nodes);
-    assert_eq!(actual_symbols, expected_symbols);
+    assert_eq!(actual, expected);
 }
 
 /// Assert two resolved DIR values are equivalent.
@@ -175,13 +183,9 @@ pub(crate) fn assert_dir_resolved_eq(
     expected: &DirResolved,
     actual: &DirResolved,
 ) {
-    // dump both resolved surfaces deterministically
-    let expected_nodes = dump_dir_resolved_nodes(expected_strings, expected);
-    let expected_symbols = dump_dir_resolved_symbols(expected_strings, expected);
-    let actual_nodes = dump_dir_resolved_nodes(actual_strings, actual);
-    let actual_symbols = dump_dir_resolved_symbols(actual_strings, actual);
+    // compare deterministic artifact encodings
+    let expected = encode_dir_resolved(expected_strings, expected);
+    let actual = encode_dir_resolved(actual_strings, actual);
 
-    // compare nodes and symbols independently
-    assert_eq!(actual_nodes, expected_nodes);
-    assert_eq!(actual_symbols, expected_symbols);
+    assert_eq!(actual, expected);
 }

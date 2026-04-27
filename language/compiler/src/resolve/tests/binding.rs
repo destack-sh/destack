@@ -687,7 +687,7 @@ let sum = A.X + A.Y;
 "#,
     );
     test.resolve_module(module_b_id);
-    test.compile_dump();
+    test.compile();
 
     // the namespace import A should target a.ds's namespace_symbol
     let b_a_symbol = test.resolve_to_symbol("b.ds", "A").unwrap();
@@ -719,7 +719,6 @@ let x = DefaultValue;
     test.resolve_module(module_b_id);
     test.compile();
     test.check_clean();
-    test.dump();
 
     // the default import should target a.ds's default_symbol
     let b_default = test.resolve_to_symbol("b.ds", "DefaultValue").unwrap();
@@ -756,7 +755,6 @@ let y = X + 1;
     test.resolve_module(module_c_id);
     test.compile();
     test.check_clean();
-    test.dump();
 
     // c's X should resolve to b's re-export, which targets a's X
     let c_x_symbol_id = test.resolve_to_symbol("c.ds", "X").unwrap();
@@ -864,7 +862,6 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
 
     test.resolve_module(consumer_id);
     test.compile();
-    test.dump();
     test.check_clean();
 
     // consumer.ds VALUE_A -> relay.ds -> base.ds VALUE_A
