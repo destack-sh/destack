@@ -4,11 +4,11 @@ use destack_ast as ast;
 use destack_dir::{
     BindingCategory, ClassDeclaration, Declaration, DependencyItem, EnumDeclaration, EnumField,
     EnumKind, ExportMode, Expression, ExtensionDeclaration, FunctionDeclaration, GlobalDeclaration,
-    ImportAliasDeclaration, ImportAliasTarget, ImportSource, InterfaceDeclaration, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleBinding, Name,
-    NamespaceDeclaration, NamespaceKind, NodeTree, NodeType, ProvenanceReason, ScopeKind,
-    StaticKey, StructDeclaration, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, SymbolType, TypeDeclaration, TypeTable,
+    ImportAliasDeclaration, ImportAliasTarget, ImportSource, InterfaceDeclaration,
+    InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
+    ModuleBinding, Name, NamespaceDeclaration, NamespaceKind, NodeTree, NodeType, ProvenanceReason,
+    ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, SymbolType, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -1215,24 +1215,49 @@ impl Compiler {
                     .collect();
 
                 // relations and body
-                let extends_types = declaration
-                    .extends_types
+                let extends = declaration
+                    .extends
                     .iter()
-                    .map(|ty| {
-                        self.bind_type_expression(
+                    .map(|heritage| {
+                        let expression = self.bind_expression(
                             module,
                             ast,
                             namespace_scope,
                             global_augmentation_scope,
                             module_bindings,
                             declaration_scope,
-                            *ty,
+                            heritage.expression,
                             Some(declaration_id),
                             tree,
                             symbols,
                             types,
                             SymbolSpaceOrder::TypeThenValue,
-                        )
+                        );
+                        let generic_arguments = heritage
+                            .generic_arguments
+                            .iter()
+                            .map(|argument| {
+                                self.bind_generic_argument(
+                                    module,
+                                    ast,
+                                    namespace_scope,
+                                    global_augmentation_scope,
+                                    module_bindings,
+                                    declaration_scope,
+                                    *argument,
+                                    Some(declaration_id),
+                                    tree,
+                                    symbols,
+                                    types,
+                                    SymbolSpaceOrder::TypeThenValue,
+                                )
+                            })
+                            .collect();
+
+                        InterfaceHeritage {
+                            expression,
+                            generic_arguments,
+                        }
                     })
                     .collect();
                 let members = declaration
@@ -1265,7 +1290,7 @@ impl Compiler {
                     is_nominal: declaration.is_nominal,
                     generic_parameters,
                     where_clauses,
-                    extends_types,
+                    extends,
                     members,
                 })
             }
