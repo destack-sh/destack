@@ -105,6 +105,29 @@ class C {
     );
 }
 
+/// Static `new` methods should keep generic parameters attached to the key.
+#[test]
+fn test_format_static_new_method_generic_parameters() {
+    assert_format_program!(
+        r#"
+extension<T> of Set<T> {
+  static new<T>(): Set<T> { undefined! }
+}
+"#
+        .trim_start(),
+        r#"
+extension<T> of Set<T> {
+  static new<T>(): Set<T> {
+    undefined!;
+  }
+}
+"#
+        .trim_start(),
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
 /// TypeScript object literals should quote all eligible keys in one consistent group.
 #[test]
 fn test_format_object_quote_props_consistent() {

@@ -8,8 +8,9 @@ use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
     format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
-    write_generic_parameter_list, write_signature_hug_parameter_list,
-    write_signature_parameter_list, write_signature_return_type,
+    write_generic_parameter_list, write_grouped_parameters_with_return_type,
+    write_signature_hug_parameter_list, write_signature_parameter_list,
+    write_signature_return_type,
 };
 use crate::declaration::statement::format_block;
 use crate::operator::write_type_expression_with_inline_prefix_annotations;
@@ -17,9 +18,8 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Ambientness, Argument, Declaration, ExportMode, Expression, FunctionCardinality, FunctionKind,
     FunctionSignature, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
-    TypeExpression,
 };
-use destack_fir::format::{FormatNodes, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -244,66 +244,6 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
     file_uses_module_only_extension(&f.context().file.name)
 }
 
-/// Return whether one generic parameter is simple enough for grouped function parameters.
-fn function_grouping_generic_parameter_is_plain(
-    context: &DestackFormatContext<'_>,
-    generic_parameter_id: LocalNodeId<GenericParameter>,
-) -> bool {
-    match context.tree.get(generic_parameter_id) {
-        GenericParameter::Type {
-            constraint,
-            default,
-            ..
-        } => constraint.is_none() && default.is_none(),
-        GenericParameter::Value {
-            declared_type,
-            default,
-            ..
-        } => declared_type.is_none() && default.is_none(),
-        GenericParameter::Error => false,
-    }
-}
-
-/// Return whether one function-like head should group its parameter container first.
-pub(crate) fn should_group_function_parameters(
-    f: &mut DestackFormatter<'_, '_>,
-    node_id: LocalNodeId<Declaration>,
-    signature: &FunctionSignature,
-    parameter_count: usize,
-) -> FormatResult<bool> {
-    match signature.generic_parameters.as_slice() {
-        [] => {}
-        [generic_parameter_id]
-            if function_grouping_generic_parameter_is_plain(f.context(), *generic_parameter_id) => {
-        }
-        _ => return Ok(false),
-    }
-
-    let Some(return_type) = signature.return_type else {
-        return Ok(false);
-    };
-    if parameter_count != 1 {
-        return Ok(false);
-    }
-
-    if matches!(
-        f.context().tree.get(return_type),
-        TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
-    ) {
-        return Ok(true);
-    }
-
-    let format_return_type = format_with(|f: &mut DestackFormatter<'_, '_>| {
-        write_function_return_type(f, node_id, signature, &None, &[])
-    })
-    .memoized();
-    let will_break = format_return_type
-        .inspect(f)?
-        .is_some_and(|content| content.will_break());
-
-    Ok(will_break)
-}
-
 /// Write one function generic parameter list.
 pub(crate) fn write_function_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -380,6 +320,27 @@ pub(crate) fn write_function_return_type<'ast>(
     write_signature_return_type(f, node_id, return_type)
 }
 
+/// Write one cached function return type when present.
+pub(crate) fn write_cached_function_return_type<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    signature: &FunctionSignature,
+    body: &Option<LocalNodeId<Expression>>,
+    parameters: &[LocalNodeId<Parameter>],
+    cache_mode: FunctionCacheMode,
+) -> FormatResult<()> {
+    let Some(return_type) = signature.return_type else {
+        return Ok(());
+    };
+
+    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_function_return_type(f, node_id, signature, body, parameters)
+    });
+    let return_type_span = f.context().span(return_type);
+
+    FormatContentWithCacheMode::new(return_type_span, format_return_type, cache_mode).format(f)
+}
+
 /// Write one function parameter list and return type.
 fn write_function_parameters_and_return_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -390,8 +351,6 @@ fn write_function_parameters_and_return_type<'ast>(
     can_omit_parens: bool,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    let group_parameters =
-        should_group_function_parameters(f, node_id, signature, parameters.len())?;
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_function_parameters(f, node_id, signature, parameters, can_omit_parens)
     });
@@ -399,15 +358,26 @@ fn write_function_parameters_and_return_type<'ast>(
         function_parameter_container_span(f.context(), node_id),
         format_parameters,
         cache_mode,
-    );
+    )
+    .memoized();
+    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
+    });
+    let format_return_type = format_return_type.memoized();
+    let format_parameter_head =
+        format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
 
-    if group_parameters {
-        write!(f, [group(&format_parameters)])?;
-    } else {
-        write!(f, [format_parameters])?;
-    }
-
-    write_function_return_type(f, node_id, signature, body, parameters)
+    write_grouped_parameters_with_return_type(
+        f,
+        &signature.generic_parameters,
+        parameters.len(),
+        signature.return_type,
+        &format_parameter_head,
+        &format_parameters,
+        &format_return_type,
+        false,
+        false,
+    )
 }
 
 /// Write one non-lambda function body.

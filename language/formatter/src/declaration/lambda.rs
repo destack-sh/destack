@@ -1,16 +1,16 @@
 use super::function::{
     FormatContentWithCacheMode, function_can_omit_lambda_parameter_parentheses,
-    function_parameter_container_span, function_parameters, should_group_function_parameters,
+    function_parameter_container_span, function_parameters, write_cached_function_return_type,
     write_function_ambient_prefix, write_function_export_prefix, write_function_generic_parameters,
-    write_function_return_type,
 };
 use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, format_leading_comments, postfix_annotations,
 };
 use crate::chain::{is_lambda_expression, transparent_inner_expression};
+use crate::context::MemoizeFormatExt;
 use crate::declaration::signature::{
     expression_body_requires_head_space, format_where_clause_with_break,
-    write_function_header_prefix,
+    write_function_header_prefix, write_grouped_parameters_with_return_type,
 };
 use crate::declaration::statement::format_block;
 use crate::expression::ExpressionLeftSide;
@@ -140,9 +140,6 @@ fn write_lambda_parameters_and_return_type<'ast>(
     can_omit_parens: bool,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    // grouping
-    let group_parameters =
-        should_group_function_parameters(f, node_id, signature, parameters.len())?;
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         super::function::write_function_parameters(
             f,
@@ -156,15 +153,26 @@ fn write_lambda_parameters_and_return_type<'ast>(
         function_parameter_container_span(f.context(), node_id),
         format_parameters,
         cache_mode,
-    );
+    )
+    .memoized();
+    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
+    });
+    let format_return_type = format_return_type.memoized();
+    let format_parameter_head =
+        format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
 
-    if group_parameters {
-        write!(f, [group(&format_parameters)])?;
-    } else {
-        write!(f, [format_parameters])?;
-    }
-
-    write_function_return_type(f, node_id, signature, body, parameters)
+    write_grouped_parameters_with_return_type(
+        f,
+        &signature.generic_parameters,
+        parameters.len(),
+        signature.return_type,
+        &format_parameter_head,
+        &format_parameters,
+        &format_return_type,
+        false,
+        false,
+    )
 }
 
 /// Return whether one lambda declaration needs a trailing semicolon.

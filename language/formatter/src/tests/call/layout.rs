@@ -666,6 +666,23 @@ fn test_format_function_callback_with_short_array_tail() {
     );
 }
 
+/// Function callbacks after spread arguments keep their own function head.
+#[test]
+fn test_format_spread_with_function_callback_argument() {
+    assert_format_program!(
+        r#"bar(...items, function() {
+  return 1;
+});
+"#,
+        r#"bar(...items, function () {
+  return 1;
+});
+"#,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
 /// Lambda callbacks should keep the hook-style callback and deps-array layout.
 #[test]
 fn test_format_lambda_callback_with_short_array_tail() {
