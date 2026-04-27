@@ -51,6 +51,17 @@ fn test_format_yield_member_separator_comment() {
     );
 }
 
+/// For-loop assignments should only parenthesize the condition slot.
+#[test]
+fn test_format_for_assignment_slots() {
+    assert_format_program!(
+        r#"for (i = 0; foo = bar; i += 1) {}"#,
+        r#"for (i = 0; (foo = bar); i += 1) {}
+"#,
+        FileType::TypeScript
+    );
+}
+
 #[test]
 fn test_format_match_with_block_case_and_guard() {
     assert_format!(
