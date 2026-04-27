@@ -182,6 +182,7 @@ pub enum Member {
         key: Option<Key>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
+        is_optional: bool,
         visibility: Option<Visibility>,
         ambient: Ambientness,
         is_abstract: bool,

@@ -17,6 +17,7 @@ pub enum GenericParameter {
         constraint: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<TypeExpression>>,
         symbol: LocalSymbolId,
+        is_const: bool,
     },
     /// Value parameter.
     Value {

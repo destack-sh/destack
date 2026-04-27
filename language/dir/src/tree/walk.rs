@@ -1412,9 +1412,18 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                     let where_clause = tree.get(*where_clause_id);
                     visitor.visit_where_clause(tree, *where_clause_id, where_clause);
                 }
-                for extends_type_id in &declaration.extends_types {
-                    let extends_type = tree.get(*extends_type_id);
-                    visitor.visit_type_expression(tree, *extends_type_id, extends_type);
+                for heritage in &declaration.extends {
+                    let expression = tree.get(heritage.expression);
+                    visitor.visit_expression(tree, heritage.expression, expression);
+
+                    for generic_argument_id in &heritage.generic_arguments {
+                        let generic_argument = tree.get(*generic_argument_id);
+                        visitor.visit_generic_argument(
+                            tree,
+                            *generic_argument_id,
+                            generic_argument,
+                        );
+                    }
                 }
                 for member_id in &declaration.members {
                     let member = tree.get(*member_id);
@@ -1616,6 +1625,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             key,
             signature,
             body,
+            is_optional: _,
             visibility: _,
             ambient: _,
             is_abstract: _,
