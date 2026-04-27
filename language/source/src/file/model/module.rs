@@ -1,8 +1,12 @@
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use destack_core::stable_hash_key_value_128;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{PackageId, fnv1a_32};
+use super::id;
+use crate::PackageId;
+
+const MODULE_KEY_DOMAIN: &[u8] = b"module";
 
 /// Version of a module's compiled state (increments on recompilation).
 #[repr(transparent)]
@@ -36,6 +40,56 @@ impl ModuleVersion {
     }
 }
 
+/// Stable key for one module within a package.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ModuleKey(pub u128);
+
+impl Serialize for ModuleKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        id::serialize_u128(self.0, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ModuleKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        id::deserialize_u128(deserializer).map(Self)
+    }
+}
+
+impl std::fmt::Debug for ModuleKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:032x}", self.0)
+    }
+}
+
+impl std::fmt::Display for ModuleKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:032x}", self.0)
+    }
+}
+
+impl ModuleKey {
+    /// The ephemeral module key.
+    pub const EPHEMERAL: Self = Self(0);
+
+    /// Wrap a raw stable module key.
+    pub const fn new(key: u128) -> Self {
+        Self(key)
+    }
+
+    /// Return the raw stable key value.
+    pub const fn raw(self) -> u128 {
+        self.0
+    }
+}
+
 /// Unique identifier for Modules.
 ///
 /// ModuleId is hierarchical: it includes the PackageId and a local identifier.
@@ -44,19 +98,19 @@ impl ModuleVersion {
 pub struct ModuleId {
     /// The package this module belongs to.
     pub package_id: PackageId,
-    /// Local identifier within the package (hash of relative path).
-    pub local_id: u32,
+    /// The stable key for this module within its package.
+    pub module_key: ModuleKey,
 }
 
 impl std::fmt::Debug for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{:08x}", self.package_id, self.local_id)
+        write!(f, "{}:{}", self.package_id, self.module_key)
     }
 }
 
 impl std::fmt::Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{:08x}", self.package_id, self.local_id)
+        write!(f, "{}:{}", self.package_id, self.module_key)
     }
 }
 
@@ -64,14 +118,14 @@ impl ModuleId {
     /// Well-known ID for ephemeral/virtual modules (e.g., REPL, root).
     pub const EPHEMERAL: Self = Self {
         package_id: PackageId::EPHEMERAL,
-        local_id: 0,
+        module_key: ModuleKey::EPHEMERAL,
     };
 
-    /// Create a ModuleId from package and local id.
-    pub fn new(package: PackageId, local: u32) -> Self {
+    /// Create a ModuleId from a package and module key.
+    pub const fn new(package: PackageId, module_key: u128) -> Self {
         Self {
             package_id: package,
-            local_id: local,
+            module_key: ModuleKey::new(module_key),
         }
     }
 
@@ -79,7 +133,10 @@ impl ModuleId {
     pub fn from_relative_path(package: PackageId, relative_path: &Path) -> Self {
         Self {
             package_id: package,
-            local_id: fnv1a_32(relative_path.to_string_lossy().as_bytes()),
+            module_key: ModuleKey::new(stable_hash_key_value_128(
+                MODULE_KEY_DOMAIN,
+                relative_path.to_string_lossy().as_bytes(),
+            )),
         }
     }
 
@@ -114,7 +171,10 @@ impl ModuleId {
 
         Self {
             package_id: package,
-            local_id: fnv1a_32(hash_input.as_bytes()),
+            module_key: ModuleKey::new(stable_hash_key_value_128(
+                MODULE_KEY_DOMAIN,
+                hash_input.as_bytes(),
+            )),
         }
     }
 }

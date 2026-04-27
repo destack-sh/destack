@@ -8,6 +8,11 @@ use crate::query::common::{
     byte_span_to_range, byte_to_utf16_position, position_to_byte, span_to_location,
 };
 
+/// Return a logical missing file id for conversion tests.
+fn missing_file_id() -> FileId {
+    FileId::from_logical_str("missing/lsp-common.ds")
+}
+
 /// Return none when the span file is missing in the repository registry.
 #[test]
 fn test_span_to_location_returns_none_for_unknown_file() {
@@ -16,7 +21,7 @@ fn test_span_to_location_returns_none_for_unknown_file() {
     let revision = repository
         .current(&Ref::for_workspace_root(repository.workspace_root()))
         .expect("expected workspace root revision");
-    let span = Span::new(FileId::new(u64::MAX), 0, 0);
+    let span = Span::new(missing_file_id(), 0, 0);
 
     // ensure missing file ids do not panic
     let location = span_to_location(&repository, revision, span);
@@ -80,7 +85,7 @@ fn test_span_to_location_accepts_absolute_workspace_path() {
 fn test_byte_span_to_range_clamps_out_of_bounds_end() {
     // create one source file with known two-line boundaries
     let file = File::from_text(
-        FileId::new(1),
+        FileId::from_logical_str("test/lsp/span_range.ds"),
         "span_range.ds".to_string(),
         Uri::from_file_path(PathBuf::from("/tmp/span_range.ds")),
         None,
@@ -105,7 +110,7 @@ fn test_byte_span_to_range_clamps_out_of_bounds_end() {
 fn test_position_to_byte_recovers_without_line_start_offsets() {
     // create one source file and remove precomputed line offsets
     let mut file = File::from_text(
-        FileId::new(2),
+        FileId::from_logical_str("test/lsp/position_to_byte.ds"),
         "position_to_byte.ds".to_string(),
         Uri::from_file_path(PathBuf::from("/tmp/position_to_byte.ds")),
         None,
@@ -130,7 +135,7 @@ fn test_position_to_byte_recovers_without_line_start_offsets() {
 fn test_byte_to_utf16_position_counts_surrogate_pairs() {
     // create one source file with a four-byte emoji between ascii characters
     let file = File::from_text(
-        FileId::new(3),
+        FileId::from_logical_str("test/lsp/utf16_units.ds"),
         "utf16_units.ds".to_string(),
         Uri::from_file_path(PathBuf::from("/tmp/utf16_units.ds")),
         None,
@@ -150,7 +155,7 @@ fn test_byte_to_utf16_position_counts_surrogate_pairs() {
 fn test_byte_to_utf16_position_clamps_to_end_of_file() {
     // create one source file and clear line offsets to exercise recompute path
     let mut file = File::from_text(
-        FileId::new(4),
+        FileId::from_logical_str("test/lsp/clamp_eof.ds"),
         "clamp_eof.ds".to_string(),
         Uri::from_file_path(PathBuf::from("/tmp/clamp_eof.ds")),
         None,

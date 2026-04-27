@@ -315,7 +315,7 @@ pub(crate) fn workspace_symbol_sort_key(
     Option<String>,
     usize,
     String,
-    u64,
+    u128,
     u32,
     u32,
 ) {

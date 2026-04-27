@@ -220,7 +220,7 @@ fn reference_span_sort_key(
     repository: &Repository,
     revision: Revision,
     span: Span,
-) -> (String, u32, u32, u64) {
+) -> (String, u32, u32, u128) {
     let Some(file) = repository.file(revision, span.file).ok().flatten() else {
         return (String::new(), span.start, span.end, span.file.0);
     };

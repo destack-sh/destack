@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_lsp_server::UriExt;
-use destack_source::{BatchEdit, Edit, FileEdit, Span};
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span};
 use destack_workspace::{Change, Ref, Repository};
 
 use crate::query::refactor::batch_edit_to_workspace_edit;
@@ -22,7 +22,7 @@ fn test_batch_edit_to_workspace_edit_skips_unknown_files() {
         .expect("expected revision write");
 
     // build a batch edit with one known file and one unknown file
-    let unknown_file_id = destack_source::FileId::new(u64::MAX);
+    let unknown_file_id = FileId::from_logical_str("missing/lsp-refactor.ds");
     let known_edit = FileEdit::with_edits(
         known_file_id,
         vec![Edit::replace(Span::new(known_file_id, 13, 18), "answer")],

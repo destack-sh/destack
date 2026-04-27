@@ -1,7 +1,7 @@
 use destack_dir::GlobalSymbolId;
 use destack_source::{File, ModuleId, PackageId};
 use destack_workspace::{Repository, Revision};
-use serde_json::{from_value, json, to_value};
+use serde_json::{Value, from_value, json, to_value};
 use {destack_lsp_types as lsp, destack_query as query};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
@@ -11,13 +11,16 @@ use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};
 fn symbol_id_from_lsp_data(
     repository: &Repository,
     revision: Revision,
-    data: &serde_json::Value,
+    data: &Value,
 ) -> Option<GlobalSymbolId> {
-    let package = data.get("package")?.as_u64()?;
-    let module = data.get("module")?.as_u64()? as u32;
-    let symbol = data.get("symbol")?.as_u64()? as u32;
-
-    let module_id = ModuleId::new(PackageId(package), module);
+    let package = from_value::<PackageId>(data.get("package")?.clone()).ok()?;
+    let module = from_value(data.get("module")?.clone()).ok()?;
+    let symbol = data.get("symbol")?.as_u64()?;
+    let symbol = u32::try_from(symbol).ok()?;
+    let module_id = ModuleId {
+        package_id: package,
+        module_key: module,
+    };
     query::resolve_global_symbol_id(repository, revision, module_id, symbol)
 }
 
@@ -156,8 +159,8 @@ pub fn call_hierarchy_item_to_lsp(
     // store both symbol id and full query item for robust roundtrips
     let query_item = to_value(item).ok()?;
     let data = Some(json!({
-        "package": item.symbol_id.module_id.package_id.0,
-        "module": item.symbol_id.module_id.local_id,
+        "package": item.symbol_id.module_id.package_id,
+        "module": item.symbol_id.module_id.module_key,
         "symbol": item.symbol_id.local_id.id,
         "query_item": query_item,
     }));
@@ -256,8 +259,8 @@ pub fn type_hierarchy_item_to_lsp(
     // store both symbol id and full query item for robust roundtrips
     let query_item = to_value(item).ok()?;
     let data = Some(json!({
-        "package": item.symbol_id.module_id.package_id.0,
-        "module": item.symbol_id.module_id.local_id,
+        "package": item.symbol_id.module_id.package_id,
+        "module": item.symbol_id.module_id.module_key,
         "symbol": item.symbol_id.local_id.id,
         "query_item": query_item,
     }));

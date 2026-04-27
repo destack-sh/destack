@@ -1,26 +1,48 @@
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use destack_core::stable_hash_key_value_128;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{Uri, fnv1a_64};
+use super::id;
+use crate::Uri;
+
+const PACKAGE_ID_DOMAIN: &[u8] = b"package";
 
 /// Unique identifier for Packages.
 ///
 /// PackageId is a stable hash based on the package's root path, making it
 /// deterministic across compiler runs on the same machine.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct PackageId(pub u64);
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct PackageId(pub u128);
+
+impl Serialize for PackageId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        id::serialize_u128(self.0, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for PackageId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        id::deserialize_u128(deserializer).map(Self)
+    }
+}
 
 impl std::fmt::Debug for PackageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
+        write!(f, "#{:032x}", self.0)
     }
 }
 
 impl std::fmt::Display for PackageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
+        write!(f, "#{:032x}", self.0)
     }
 }
 
@@ -29,29 +51,32 @@ impl PackageId {
     pub const EPHEMERAL: Self = Self(0);
 
     /// Create a PackageId from a raw hash value.
-    pub fn new(id: u64) -> Self {
+    pub const fn new(id: u128) -> Self {
         Self(id)
     }
 
     /// Create a PackageId from a URI (deterministic).
     pub fn from_uri(uri: &Uri) -> Self {
-        Self(fnv1a_64(uri.as_ref().as_bytes()))
+        Self(stable_hash_key_value_128(
+            PACKAGE_ID_DOMAIN,
+            uri.as_ref().as_bytes(),
+        ))
     }
 
     /// Create a PackageId from a directory path (for physical packages).
     pub fn from_path(path: &Path) -> Self {
         let key = format!("physical:{}", path.to_string_lossy());
-        Self(fnv1a_64(key.as_bytes()))
+        Self(stable_hash_key_value_128(PACKAGE_ID_DOMAIN, key.as_bytes()))
     }
 
     /// Create a PackageId for a synthetic package (loose files in a directory).
     pub fn from_synthetic_path(path: &Path) -> Self {
         let key = format!("synthetic:{}", path.to_string_lossy());
-        Self(fnv1a_64(key.as_bytes()))
+        Self(stable_hash_key_value_128(PACKAGE_ID_DOMAIN, key.as_bytes()))
     }
 
     /// Get the raw id value.
-    pub fn raw(&self) -> u64 {
+    pub fn raw(&self) -> u128 {
         self.0
     }
 }

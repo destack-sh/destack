@@ -715,7 +715,7 @@ fn file_edit_key(file_edit: &FileEdit) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u64, String) {
+fn edit_key(edit: &Edit) -> (u32, u32, u128, String) {
     // extract span coordinates and replacement text
     let span_file = edit.span.file.0;
     let start = edit.span.start;
