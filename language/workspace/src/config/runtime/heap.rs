@@ -1,7 +1,8 @@
 use destack_heap::{
     DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES,
     DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
-    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES,
+    DEFAULT_YOUNG_BYTES,
 };
 use serde::{Deserialize, Serialize};
 
@@ -118,6 +119,10 @@ pub struct HeapLayoutOptions {
     pub heap_span_bytes: usize,
     /// The byte width for raw small-allocation spans.
     pub raw_span_bytes: usize,
+    /// The virtual byte capacity for managed heap space.
+    pub heap_space_bytes: usize,
+    /// The virtual byte capacity for raw heap space.
+    pub raw_space_bytes: usize,
     /// The byte width for heap pages and page-sized chunks.
     pub page_bytes: usize,
     /// The byte width for one allocator arena.
@@ -134,6 +139,8 @@ impl Default for HeapLayoutOptions {
             max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
             heap_span_bytes: DEFAULT_SMALL_BYTES,
             raw_span_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: DEFAULT_SPACE_BYTES,
+            raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
             arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
             small_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
@@ -167,6 +174,10 @@ pub struct HeapAllocatorOptionsJson {
     pub span_bytes: Option<usize>,
     /// The byte width for raw small-allocation spans.
     pub raw_span_bytes: Option<usize>,
+    /// The virtual byte capacity for managed heap space.
+    pub heap_space_bytes: Option<usize>,
+    /// The virtual byte capacity for raw heap space.
+    pub raw_space_bytes: Option<usize>,
     /// The byte width for heap pages and page-sized chunks.
     pub page_bytes: Option<usize>,
     /// The byte width for one allocator arena.
@@ -196,6 +207,14 @@ impl HeapAllocatorOptionsJson {
 
         if self.raw_span_bytes.is_none() {
             self.raw_span_bytes = parent.raw_span_bytes;
+        }
+
+        if self.heap_space_bytes.is_none() {
+            self.heap_space_bytes = parent.heap_space_bytes;
+        }
+
+        if self.raw_space_bytes.is_none() {
+            self.raw_space_bytes = parent.raw_space_bytes;
         }
 
         if self.page_bytes.is_none() {
@@ -231,6 +250,14 @@ impl HeapAllocatorOptionsJson {
 
         if let Some(raw_span_bytes) = self.raw_span_bytes {
             options.raw_span_bytes = raw_span_bytes;
+        }
+
+        if let Some(heap_space_bytes) = self.heap_space_bytes {
+            options.heap_space_bytes = heap_space_bytes;
+        }
+
+        if let Some(raw_space_bytes) = self.raw_space_bytes {
+            options.raw_space_bytes = raw_space_bytes;
         }
 
         if let Some(page_bytes) = self.page_bytes {

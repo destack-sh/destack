@@ -2554,6 +2554,24 @@
           "format": "uint",
           "minimum": 0
         },
+        "heapSpaceBytes": {
+          "description": "The virtual byte capacity for managed heap space.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "rawSpaceBytes": {
+          "description": "The virtual byte capacity for raw heap space.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
         "pageBytes": {
           "description": "The byte width for heap pages and page-sized chunks.",
           "type": [
