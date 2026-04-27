@@ -73,23 +73,29 @@ where
             .unwrap_or(element_span.end);
         let following_start =
             list_element_following_start(f.context(), source_separator, next_following_start);
-        let gap_comments =
+        let gap_comment_nodes =
             gap_comments_after_element(f.context(), element_anchor_end, following_start);
         let element_tail_comments =
             element_tail_comments(f.context(), element_anchor_end, element_span);
+        let next_leading_comment_start =
+            next_leading_comment_start(f.context(), &gap_comment_nodes, self.next_element);
+        let gap_comments = next_leading_comment_start.map_or_else(
+            || gap_comment_nodes.as_slice(),
+            |index| &gap_comment_nodes[..index],
+        );
         let (comments_before_separator, comments_after_separator) =
             split_gap_comments_around_separator(&gap_comments, source_separator);
 
         if !gap_comments.is_empty() {
-            let leading_comments = if source_separator.is_some() {
+            let leading_comments: &[Comment] = if source_separator.is_some() {
                 comments_before_separator
             } else {
                 &[][..]
             };
-            let trailing_comments = if source_separator.is_some() {
+            let trailing_comments: &[Comment] = if source_separator.is_some() {
                 comments_after_separator
             } else {
-                gap_comments.as_slice()
+                gap_comments
             };
             let separator_trailing_comment_count =
                 separator_trailing_comment_count(f.context(), trailing_comments);
@@ -97,6 +103,23 @@ where
 
             if !leading_comments.is_empty() {
                 write_comment_slice(f, leading_comments)?;
+            }
+
+            if self.is_last
+                && source_separator.is_some()
+                && comments_after_separator
+                    .first()
+                    .is_some_and(|comment| comment.preceded_by_newline())
+            {
+                write_immediate_trailing_separator(
+                    f,
+                    self.separator,
+                    self.trailing_separator,
+                    self.group_id,
+                )?;
+                write_comment_slice(f, comments_after_separator)?;
+
+                return Ok(());
             }
 
             let separator_precedes_trailing_comments = source_separator.is_some()
@@ -168,6 +191,38 @@ where
 
         Ok(())
     }
+}
+
+impl<T> FormatSeparatedElement<T>
+where
+    T: Node + Clone,
+{
+    /// Return the element node.
+    #[inline]
+    pub(crate) fn element(&self) -> LocalNodeId<T> {
+        self.element
+    }
+}
+
+/// Return the first comment index that belongs to the next list element.
+fn next_leading_comment_start<T: Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    comments: &[Comment],
+    next_element: Option<LocalNodeId<T>>,
+) -> Option<usize>
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let next_element = next_element?;
+    let next_element_span = context.span(next_element);
+    let next_token_start = context
+        .first_non_trivia_token_in_span(next_element_span)
+        .map_or(next_element_span.start, |token| token.span.start);
+
+    comments.iter().position(|comment| {
+        (comment.is_leading() || comment.preceded_by_newline())
+            && comment.span.end <= next_token_start
+    })
 }
 
 /// Return the next non-trivia start after one list element's separator, when present.
