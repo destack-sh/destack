@@ -263,22 +263,10 @@ impl SharedHeapSpace {
             let released_bytes = self.free_reference(reference)?;
 
             // freed totals
-            let freed_allocations = self.gc.freed_allocations.fetch_add(1, Ordering::AcqRel);
-            if freed_allocations == usize::MAX {
-                return Err(HeapError::InvariantOverflow {
-                    context: "shared gc freed allocation count",
-                });
-            }
-
-            let freed_bytes = self
-                .gc
+            self.gc.freed_allocations.fetch_add(1, Ordering::AcqRel);
+            self.gc
                 .freed_bytes
                 .fetch_add(released_bytes, Ordering::AcqRel);
-            if freed_bytes > u64::MAX - released_bytes {
-                return Err(HeapError::InvariantOverflow {
-                    context: "shared gc freed bytes",
-                });
-            }
         }
 
         // end of sweep
@@ -337,12 +325,7 @@ impl SharedHeapSpace {
         self.queue_references(worker, edge_buffer)?;
 
         // continue this large allocation on a later step
-        let next_start = start
-            .checked_add(range_len)
-            .ok_or(HeapError::TraceOffsetOverflow {
-                start,
-                width: range_len,
-            })?;
+        let next_start = start + range_len;
 
         if next_start < location.byte_len {
             self.gc.trace_queue.push(
@@ -417,7 +400,12 @@ impl SharedHeapSpace {
                         span.class.size_class,
                         span.class.size_class,
                     );
-                    scan_slots.push((slot_offset, span.pages.clone(), reference_map));
+                    scan_slots.push((
+                        span.first_offset,
+                        slot_offset,
+                        span.pages.len(),
+                        reference_map,
+                    ));
                 }
 
                 scan_slots
@@ -427,20 +415,21 @@ impl SharedHeapSpace {
             let mut edge_buffer = Vec::new();
 
             // shared small-span scan
-            for (slot_offset, pages, reference_map) in scan_slots {
+            for (span_offset, slot_offset, page_count, reference_map) in scan_slots {
                 // noscan slots cost one claimed unit only
                 if !reference_map.has_shared_reference() {
                     continue;
                 }
 
                 // payload scan
-                let span_bytes = pages.len() * self.allocator.page_bytes();
+                let span_bytes = page_count * self.allocator.page_bytes();
                 let trace_result = visit_shared_references_in_reader(
                     &reference_map,
                     |start, buffer| {
                         let read_offset = checked_place_offset(slot_offset, start, span_bytes)?;
+                        let store = self.state.read();
 
-                        self.allocator.fill_bytes_from(&pages, read_offset, buffer)
+                        store.mapping.read(span_offset + read_offset, buffer)
                     },
                     |reference: SharedHeapReference| {
                         if !reference.is_null() {
@@ -484,7 +473,7 @@ impl SharedHeapSpace {
                         allocation_id: allocation_id.id(),
                     });
                 };
-                let pages = {
+                let (first_offset, pages) = {
                     let mut allocation = allocation.write();
                     if !allocation.is_live {
                         return Err(HeapError::MissingLargeAllocation {
@@ -492,20 +481,21 @@ impl SharedHeapSpace {
                         });
                     }
 
-                    let pages = allocation.pages.clone();
+                    let first_offset = allocation.first_offset;
+                    let pages = allocation.pages;
                     allocation.retire();
 
-                    pages
+                    (first_offset, pages)
                 };
 
                 store
                     .large
                     .free_large_allocation_ids
                     .push(allocation_id.id());
-                self.unmap_page_view(&mut store, &pages)?;
+                self.unmap_page_run(&mut store, first_offset, &pages);
                 store
                     .page_run_cache
-                    .release_page_view(&self.allocator, pages)?;
+                    .release_page_run(&self.allocator, pages)?;
             }
         }
 
@@ -520,7 +510,7 @@ impl SharedHeapSpace {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
         let mut store = self.state.write();
-        let active_bytes = self.live_mapped_bytes(&store);
+        let retained_bytes = self.live_retained_bytes(&store);
 
         // cycle stats
         let stats = GcStats {
@@ -528,7 +518,7 @@ impl SharedHeapSpace {
             live_allocations: self.usage.allocation_count(),
             freed_bytes: self.gc.freed_bytes.load(Ordering::Acquire),
             allocated_bytes: self.usage.allocated_bytes(),
-            active_bytes,
+            retained_bytes,
         };
 
         // cycle reset
@@ -542,7 +532,7 @@ impl SharedHeapSpace {
         self.gc.trace_queue.clear();
 
         // cycle summary
-        store.gc.record_cycle(GcKind::Full, stats)?;
+        store.gc.record_cycle(GcKind::Full, stats);
 
         // idle publication
         self.gc.set_phase(SharedGcPhase::Idle);
@@ -610,13 +600,8 @@ impl SharedHeapSpace {
             byte_offset,
             bytes.len(),
             |start, buffer| {
-                let local_start = start.saturating_sub(byte_offset);
-                let Some(local_end) = local_start.checked_add(buffer.len()) else {
-                    return Err(HeapError::TraceOffsetOverflow {
-                        start: local_start,
-                        width: buffer.len(),
-                    });
-                };
+                let local_start = start - byte_offset;
+                let local_end = local_start + buffer.len();
                 let Some(window) = bytes.get(local_start..local_end) else {
                     return Err(HeapError::TruncatedReferenceReaderWindow {
                         start: local_start,

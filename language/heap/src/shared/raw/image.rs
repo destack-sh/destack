@@ -4,18 +4,20 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{SharedRawAllocation, SharedRawSpace};
-use crate::allocator::PageRunCache;
-use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageView};
+use crate::allocator::{AddressSpace, PageRunCache};
+use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageRun};
 
 /// One frozen shared raw-space allocation root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRawAllocationImage {
     /// Whether this allocation is live.
     pub is_live: bool,
+    /// The first byte offset inside shared raw space.
+    pub first_offset: usize,
     /// The logical byte length of this allocation.
     pub len: usize,
-    /// The page view for this allocation.
-    pub pages: PageView,
+    /// The page run for this allocation.
+    pub pages: PageRun,
 }
 
 /// One frozen shared raw-space root.
@@ -28,6 +30,10 @@ pub struct SharedRawSpaceImage {
     allocated_count: usize,
     /// The number of allocated shared raw-space bytes.
     allocated_bytes: u64,
+    /// The reserved virtual byte capacity for shared raw space.
+    space_bytes: usize,
+    /// The next unused byte offset in shared raw space.
+    next_offset: usize,
 }
 
 impl SharedRawSpaceImage {
@@ -36,11 +42,15 @@ impl SharedRawSpaceImage {
         allocations: Box<[SharedRawAllocationImage]>,
         allocated_count: usize,
         allocated_bytes: u64,
+        space_bytes: usize,
+        next_offset: usize,
     ) -> Self {
         Self {
             allocations,
             allocated_count,
             allocated_bytes,
+            space_bytes,
+            next_offset,
         }
     }
 
@@ -64,6 +74,16 @@ impl SharedRawSpaceImage {
         self.allocated_bytes
     }
 
+    /// Return the reserved virtual byte capacity for shared raw space.
+    pub const fn space_bytes(&self) -> usize {
+        self.space_bytes
+    }
+
+    /// Return the next unused byte offset in shared raw space.
+    pub const fn next_offset(&self) -> usize {
+        self.next_offset
+    }
+
     /// Return every allocator page reachable from this shared raw-space image.
     pub fn page_ids(&self) -> Vec<PageId> {
         let mut pages = Vec::new();
@@ -76,11 +96,11 @@ impl SharedRawSpaceImage {
         pages
     }
 
-    /// Return every live allocator page view captured by this image.
-    pub fn page_views(&self) -> Vec<PageView> {
+    /// Return every live allocator page run captured by this image.
+    pub fn page_runs(&self) -> Vec<PageRun> {
         self.allocations
             .iter()
-            .filter_map(|allocation| allocation.is_live.then_some(allocation.pages.clone()))
+            .filter_map(|allocation| allocation.is_live.then_some(allocation.pages))
             .collect()
     }
 }
@@ -89,34 +109,43 @@ impl SharedRawSpace {
     /// Fork one shared raw-space root over the same shared allocator.
     pub fn fork(&self) -> HeapResult<Self> {
         let allocations = self.allocations.read();
-        let _retained_page_views = self.allocator.retain_page_views(
-            allocations
-                .iter()
-                .map(|allocation| allocation.read().pages.clone()),
-        )?;
-
         let state = self.state.lock();
+        let mapping = self.mapping.write().fork()?;
+
         let forked = Self {
             allocator: self.allocator.clone(),
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(self.allocator.pages_per_arena()),
+                page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
                 usage: state.usage,
+                next_offset: state.next_offset,
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
             allocations: parking_lot::RwLock::new(
                 allocations
                     .iter()
-                    .map(|allocation: &Arc<RwLock<SharedRawAllocation>>| {
-                        Arc::new(RwLock::new(allocation.read().clone()))
-                    })
-                    .collect(),
+                    .map(
+                        |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
+                            let allocation = allocation.read();
+                            let pages = if allocation.is_vacant() {
+                                crate::PageRun::empty()
+                            } else {
+                                self.allocator.share_page_run(allocation.pages)?
+                            };
+                            let mut allocation = allocation.clone();
+                            allocation.pages = pages;
+
+                            Ok(Arc::new(RwLock::new(allocation)))
+                        },
+                    )
+                    .collect::<HeapResult<Vec<_>>>()?,
             ),
+            mapping: parking_lot::RwLock::new(mapping),
         };
 
         drop(state);
         drop(allocations);
 
-        rebuild_page_map(&forked)?;
+        rebuild_page_map(&forked);
 
         Ok(forked)
     }
@@ -126,64 +155,87 @@ impl SharedRawSpace {
         allocator: Arc<Allocator>,
         image: &SharedRawSpaceImage,
     ) -> HeapResult<Self> {
-        let _retained_page_views = allocator.retain_page_views(
-            image
-                .allocations()
-                .iter()
-                .map(|allocation| allocation.pages.clone()),
-        )?;
+        let mapping = AddressSpace::reserve(image.space_bytes(), allocator.page_bytes())?;
 
         let allocations = image
             .allocations()
             .iter()
-            .map(|allocation| {
-                if allocation.is_live {
+            .map(|allocation| -> HeapResult<_> {
+                let allocation = if allocation.is_live {
+                    let byte_len = allocation.pages.len() * allocator.page_bytes();
+                    let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, byte_len)?;
+                    let pages = allocator.allocate_pages(byte_len)?;
+
+                    mapping.write(allocation.first_offset, &bytes[..allocation.len])?;
+
                     Arc::new(RwLock::new(SharedRawAllocation::new(
+                        allocation.first_offset,
                         allocation.len,
-                        allocation.pages.clone(),
+                        pages,
                     )))
                 } else {
                     Arc::new(RwLock::new(SharedRawAllocation::vacant()))
-                }
+                };
+
+                Ok(allocation)
             })
-            .collect();
+            .collect::<HeapResult<Vec<_>>>()?;
         let restored = Self {
             allocator: allocator.clone(),
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(allocator.pages_per_arena()),
+                page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
                 usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+                next_offset: image.next_offset(),
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
             allocations: parking_lot::RwLock::new(allocations),
+            mapping: parking_lot::RwLock::new(mapping),
         };
 
-        rebuild_page_map(&restored)?;
+        rebuild_page_map(&restored);
 
         Ok(restored)
     }
 
     /// Return one frozen shared raw-space root.
-    pub fn image(&self) -> SharedRawSpaceImage {
+    pub fn image(&self) -> HeapResult<SharedRawSpaceImage> {
         let allocations = self.allocations.read();
         let state = self.state.lock();
 
-        SharedRawSpaceImage::new(
+        Ok(SharedRawSpaceImage::new(
             allocations
                 .iter()
-                .map(|allocation: &Arc<RwLock<SharedRawAllocation>>| {
-                    let allocation = allocation.read();
+                .map(
+                    |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
+                        let allocation = allocation.read();
+                        let pages = if allocation.is_vacant() {
+                            crate::PageRun::empty()
+                        } else {
+                            let byte_len = allocation.pages.len() * self.allocator.page_bytes();
+                            let bytes = self
+                                .mapping
+                                .read()
+                                .bytes(allocation.first_offset, byte_len)?;
 
-                    SharedRawAllocationImage {
-                        is_live: !allocation.is_vacant(),
-                        len: allocation.len,
-                        pages: allocation.pages.clone(),
-                    }
-                })
-                .collect::<Vec<_>>()
+                            // images own the captured bytes
+                            self.allocator.allocate_bytes(&bytes)?
+                        };
+
+                        Ok(SharedRawAllocationImage {
+                            is_live: !allocation.is_vacant(),
+                            first_offset: allocation.first_offset,
+                            len: allocation.len,
+                            pages,
+                        })
+                    },
+                )
+                .collect::<HeapResult<Vec<_>>>()?
                 .into_boxed_slice(),
             state.usage.allocation_count(),
             state.usage.allocated_bytes(),
-        )
+            self.mapping.read().byte_len(),
+            state.next_offset,
+        ))
     }
 
     /// Return every allocator page reachable from this live shared raw space.
@@ -201,8 +253,8 @@ impl SharedRawSpace {
     }
 }
 
-/// Rebuild the page map entries for one shared raw-space root.
-fn rebuild_page_map(raw: &SharedRawSpace) -> HeapResult<()> {
+/// Rebuild the address space entries for one shared raw-space root.
+fn rebuild_page_map(raw: &SharedRawSpace) {
     let allocations = raw.allocations.read();
 
     for (allocation_index, allocation) in allocations.iter().enumerate() {
@@ -212,8 +264,6 @@ fn rebuild_page_map(raw: &SharedRawSpace) -> HeapResult<()> {
             continue;
         }
 
-        raw.map_page_view(&allocation.pages, allocation_index)?;
+        raw.map_page_run(allocation.first_offset, &allocation.pages, allocation_index);
     }
-
-    Ok(())
 }

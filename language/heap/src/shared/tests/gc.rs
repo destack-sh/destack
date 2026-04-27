@@ -23,7 +23,7 @@ fn test_shared_heap(
     let layouts = test_layouts(layouts);
 
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let heap = SharedHeap::with_allocator_limits_and_options(
@@ -270,7 +270,7 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
 fn test_collect_shared_rejects_invalid_root() {
     let options = HeapOptions::shared();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
@@ -297,7 +297,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
     let layout = test_layout(8, ReferenceMap::empty());
     let options = HeapOptions::shared();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
@@ -331,7 +331,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
     let layout = test_layout(8, ReferenceMap::empty());
     let options = HeapOptions::shared();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
@@ -603,7 +603,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 fn test_shared_gc_step_stays_idle_without_request() {
     let options = HeapOptions::shared();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
