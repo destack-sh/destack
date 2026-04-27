@@ -1,5 +1,5 @@
 mod file;
-mod hash;
+mod id;
 mod language;
 mod module;
 mod package;
@@ -9,7 +9,6 @@ mod target;
 mod r#type;
 
 pub use file::*;
-pub use hash::*;
 pub use language::*;
 pub use module::*;
 pub use package::*;

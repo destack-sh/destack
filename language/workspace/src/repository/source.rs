@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_source::{FileId, fnv1a_64};
+use destack_source::FileId;
 
 use crate::repository::{FileOrigin, Repository, SyntheticFileKind};
 
@@ -92,7 +92,7 @@ impl Repository {
     /// Build one file id for one explicit file origin.
     pub fn file_id_for_origin(&self, origin: &FileOrigin) -> FileId {
         let bytes = self.file_id_bytes_for_origin(origin);
-        FileId::new(fnv1a_64(&bytes))
+        FileId::from_origin_bytes(&bytes)
     }
 
     /// Build one file id for one workspace file path.

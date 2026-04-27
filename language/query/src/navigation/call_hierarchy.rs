@@ -244,7 +244,7 @@ pub fn outgoing_calls(
 }
 
 /// Build a stable ordering key for a call hierarchy item.
-fn call_item_key(item: &CallHierarchyItem) -> (u64, u32, u32, u32, u32, u8, &str) {
+fn call_item_key(item: &CallHierarchyItem) -> (u128, u32, u32, u32, u32, u8, &str) {
     (
         item.file.0,
         item.range.start,

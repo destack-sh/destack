@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
 use destack_query as query;
@@ -10,9 +10,17 @@ use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 /// Build a placeholder symbol id for conversion tests.
 fn test_symbol_id() -> GlobalSymbolId {
     GlobalSymbolId::new(
-        ModuleId::new(PackageId::new(1), 1),
+        ModuleId::from_relative_path(
+            PackageId::from_synthetic_path(Path::new("lsp-navigation")),
+            Path::new("symbol.ds"),
+        ),
         LocalSymbolId::new_typed(1, SymbolType::Function),
     )
+}
+
+/// Return a logical missing file id for conversion tests.
+fn missing_file_id() -> FileId {
+    FileId::from_logical_str("missing/lsp-navigation.ds")
 }
 
 /// Return none for workspace symbols with unknown file ids.
@@ -23,8 +31,8 @@ fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
     let symbol = query::WorkspaceSymbol {
         name: "foo".to_string(),
         kind: query::SymbolKind::Function,
-        file: FileId::new(u64::MAX),
-        range: Span::new(FileId::new(u64::MAX), 0, 0),
+        file: missing_file_id(),
+        range: Span::new(missing_file_id(), 0, 0),
         container: None,
     };
 
@@ -63,7 +71,7 @@ fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
     };
     let call = query::CallHierarchyOutgoingCall {
         to: item,
-        from_ranges: vec![Span::new(FileId::new(u64::MAX), 0, 1)],
+        from_ranges: vec![Span::new(missing_file_id(), 0, 1)],
     };
 
     // ensure conversion succeeds and drops unresolved ranges

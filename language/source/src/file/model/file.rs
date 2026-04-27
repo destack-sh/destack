@@ -1,9 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use destack_core::{stable_hash_key_value_128, stable_nonzero_hash_key_value};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{FileType, Span, Uri, fnv1a_64};
+use super::id;
+use crate::{FileType, Span, Uri};
+
+const FILE_ID_DOMAIN: &[u8] = b"file";
+const FILE_ORIGIN_ID_DOMAIN: &[u8] = b"file_origin";
 
 fn normalize_logical_path(value: &str) -> String {
     value.replace('\\', "/")
@@ -11,8 +16,26 @@ fn normalize_logical_path(value: &str) -> String {
 
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct FileId(pub u64);
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FileId(pub u128);
+
+impl Serialize for FileId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        id::serialize_u128(self.0, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for FileId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        id::deserialize_u128(deserializer).map(Self)
+    }
+}
 
 impl std::fmt::Debug for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,8 +53,8 @@ impl FileId {
     /// Well-known ID for ephemeral files.
     pub const EPHEMERAL: Self = Self(0);
 
-    /// Turn a u64 into a FileId.
-    pub fn new(id: u64) -> Self {
+    /// Turn a raw id into a FileId.
+    pub const fn new(id: u128) -> Self {
         Self(id)
     }
 
@@ -41,12 +64,17 @@ impl FileId {
     /// or one explicit namespaced synthetic path for virtual files.
     pub fn from_logical_str(path: &str) -> Self {
         let path = normalize_logical_path(path);
-        Self(fnv1a_64(path.as_bytes()))
+        Self(stable_hash_key_value_128(FILE_ID_DOMAIN, path.as_bytes()))
     }
 
     /// Create a file id from one logical source path.
     pub fn from_logical_path(path: &Path) -> Self {
         Self::from_logical_str(&path.to_string_lossy())
+    }
+
+    /// Create a file id from one explicit source origin payload.
+    pub fn from_origin_bytes(bytes: &[u8]) -> Self {
+        Self(stable_nonzero_hash_key_value(FILE_ORIGIN_ID_DOMAIN, bytes))
     }
 }
 
@@ -128,7 +156,7 @@ impl File {
     /// Create an empty source in some format.
     pub fn empty_text(ty: FileType) -> Self {
         Self::from_text(
-            FileId::new(0),
+            FileId::EPHEMERAL,
             "<empty>".to_string(),
             Uri::from_string("<empty>"),
             None,
