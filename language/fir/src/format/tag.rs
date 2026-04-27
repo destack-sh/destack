@@ -15,14 +15,14 @@ pub enum FormatTag {
     /// Variant of [`TagKind::Indent`] that indents content by a number of spaces.
     /// For example, `Align(2)` indents any content following a line break by an additional two spaces.
     ///
-    /// Nesting (Aligns)[`TagKind::Align`] has the effect that all except the most inner align are handled as (Indent)[`TagKind::Indent`].
+    /// Nested aligns add their space widths together.
     StartAlign(u8),
     EndAlign,
 
     /// Reduces the indentation of the specified content either by one level or to the root, depending on the mode.
     /// Reverse operation of `Indent` and can be used to *undo* an `Align` for nested content.
     StartDedent(DedentMode),
-    EndDedent,
+    EndDedent(DedentMode),
 
     /// Creates a logical group where its content is either consistently printed:
     /// - on a single line: Omitting `LineMode::Soft` line breaks and printing spaces for `LineMode::SoftOrSpace`
@@ -51,7 +51,7 @@ pub enum FormatTag {
     /// Optimized version of [`Tag::StartConditionalContent`] for the case where some content
     /// should be indented if the specified group breaks.
     StartIndentIfGroupBreaks(GroupId),
-    EndIndentIfGroupBreaks,
+    EndIndentIfGroupBreaks(GroupId),
 
     /// Concatenates multiple nodes together with a given separator printed in either
     /// flat or expanded mode to fill the print width.
@@ -119,11 +119,11 @@ impl FormatTag {
         match self {
             StartIndent | EndIndent => FormatTagKind::Indent,
             StartAlign(_) | EndAlign => FormatTagKind::Align,
-            StartDedent(_) | EndDedent => FormatTagKind::Dedent,
+            StartDedent(_) | EndDedent(_) => FormatTagKind::Dedent,
             StartGroup(_) | EndGroup => FormatTagKind::Group,
             StartConditionalGroup(_) | EndConditionalGroup => FormatTagKind::ConditionalGroup,
             StartConditionalContent(_) | EndConditionalContent => FormatTagKind::ConditionalContent,
-            StartIndentIfGroupBreaks(_) | EndIndentIfGroupBreaks => {
+            StartIndentIfGroupBreaks(_) | EndIndentIfGroupBreaks(_) => {
                 FormatTagKind::IndentIfGroupBreaks
             }
             StartFill | EndFill => FormatTagKind::Fill,

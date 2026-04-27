@@ -26,17 +26,13 @@ pub(crate) struct StackFrame {
 /// Such structures should be stored on the [`PrinterState`] instead.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct PrintNodeArgs {
-    indent: Indentation,
     mode: PrintMode,
     measure_mode: MeasureMode,
 }
 
 impl PrintNodeArgs {
-    pub(crate) fn new(indent: Indentation) -> Self {
-        Self {
-            indent,
-            ..Self::default()
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn mode(self) -> PrintMode {
@@ -45,30 +41,6 @@ impl PrintNodeArgs {
 
     pub(crate) fn measure_mode(self) -> MeasureMode {
         self.measure_mode
-    }
-
-    pub(crate) fn indentation(self) -> Indentation {
-        self.indent
-    }
-
-    pub(crate) fn increment_indent_level(mut self, indent_style: IndentStyle) -> Self {
-        self.indent = self.indent.increment_level(indent_style);
-        self
-    }
-
-    pub(crate) fn decrement_indent(mut self) -> Self {
-        self.indent = self.indent.decrement();
-        self
-    }
-
-    pub(crate) fn reset_indent(mut self) -> Self {
-        self.indent = Indentation::default();
-        self
-    }
-
-    pub(crate) fn set_indent_align(mut self, count: u8) -> Self {
-        self.indent = self.indent.set_align(count);
-        self
     }
 
     pub(crate) fn with_print_mode(mut self, mode: PrintMode) -> Self {
@@ -85,7 +57,6 @@ impl PrintNodeArgs {
 impl Default for PrintNodeArgs {
     fn default() -> Self {
         Self {
-            indent: Indentation::Level(0),
             mode: PrintMode::Expanded,
             measure_mode: MeasureMode::FirstLine,
         }
@@ -190,6 +161,78 @@ pub(crate) trait CallStack {
     }
 }
 
+/// Indentation stack shared by printing and fit measuring.
+pub(crate) trait IndentStack {
+    /// The active indentation stack.
+    type Stack: Stack<Indentation> + Debug;
+    /// Temporarily removed indentation frames.
+    type HistoryStack: Stack<Indentation> + Debug;
+
+    /// Return the active indentation stack.
+    fn current_stack(&self) -> &Self::Stack;
+
+    /// Return the mutable active indentation stack.
+    fn current_stack_mut(&mut self) -> &mut Self::Stack;
+
+    /// Return the mutable history indentation stack.
+    fn history_stack_mut(&mut self) -> &mut Self::HistoryStack;
+
+    /// Temporarily remove the current indentation frame.
+    fn start_dedent(&mut self) {
+        if let Some(indent) = self.current_stack_mut().pop() {
+            self.history_stack_mut().push(indent);
+        }
+    }
+
+    /// Restore the last temporarily removed indentation frame.
+    fn end_dedent(&mut self) {
+        if let Some(indent) = self.history_stack_mut().pop() {
+            self.current_stack_mut().push(indent);
+        }
+    }
+
+    /// Pop the current indentation frame.
+    fn pop(&mut self) {
+        self.current_stack_mut().pop();
+    }
+
+    /// Return the current indentation.
+    fn indentation(&self) -> Indentation {
+        self.current_stack().top().copied().unwrap_or_default()
+    }
+
+    /// Reset indentation to the root indentation.
+    fn reset_indent(&mut self) {
+        self.current_stack_mut().push(Indentation::default());
+    }
+
+    /// Push one normal indentation frame.
+    fn indent(&mut self, indent_style: IndentStyle) {
+        let next_indent = self.indentation().increment_level(indent_style);
+        self.current_stack_mut().push(next_indent);
+    }
+
+    /// Push one aligned indentation frame.
+    fn align(&mut self, count: u8) {
+        let next_indent = self.indentation().set_align(count);
+        self.current_stack_mut().push(next_indent);
+    }
+}
+
+/// Stack for line suffix indentation frames.
+pub(crate) trait SuffixStack {
+    /// The suffix indentation stack.
+    type SuffixStack: Stack<Indentation> + Debug;
+
+    /// Return the mutable suffix indentation stack.
+    fn suffix_stack_mut(&mut self) -> &mut Self::SuffixStack;
+
+    /// Push one suffix indentation frame.
+    fn push_suffix(&mut self, indentation: Indentation) {
+        self.suffix_stack_mut().push(indentation);
+    }
+}
+
 /// Call stack used for printing the [`FormatNode`]s.
 #[derive(Debug, Clone)]
 pub(crate) struct PrintCallStack(Vec<StackFrame>);
@@ -212,6 +255,56 @@ impl CallStack for PrintCallStack {
 
     fn stack_mut(&mut self) -> &mut Self::Stack {
         &mut self.0
+    }
+}
+
+/// Indentation stack used for printing format nodes.
+#[derive(Debug, Clone)]
+pub(crate) struct PrintIndentStack {
+    indentations: Vec<Indentation>,
+    history_indentations: Vec<Indentation>,
+    suffix_indentations: Vec<Indentation>,
+}
+
+impl PrintIndentStack {
+    /// Create one print indentation stack.
+    pub(crate) fn new(indentation: Indentation) -> Self {
+        Self {
+            indentations: vec![indentation],
+            history_indentations: Vec::new(),
+            suffix_indentations: Vec::new(),
+        }
+    }
+
+    /// Restore suffix indentation frames before flushing suffix nodes.
+    pub(crate) fn flush_suffixes(&mut self) {
+        self.indentations
+            .extend(self.suffix_indentations.drain(..).rev());
+    }
+}
+
+impl IndentStack for PrintIndentStack {
+    type HistoryStack = Vec<Indentation>;
+    type Stack = Vec<Indentation>;
+
+    fn current_stack(&self) -> &Self::Stack {
+        &self.indentations
+    }
+
+    fn current_stack_mut(&mut self) -> &mut Self::Stack {
+        &mut self.indentations
+    }
+
+    fn history_stack_mut(&mut self) -> &mut Self::HistoryStack {
+        &mut self.history_indentations
+    }
+}
+
+impl SuffixStack for PrintIndentStack {
+    type SuffixStack = Vec<Indentation>;
+
+    fn suffix_stack_mut(&mut self) -> &mut Self::SuffixStack {
+        &mut self.suffix_indentations
     }
 }
 
@@ -244,5 +337,54 @@ impl<'a> CallStack for FitsCallStack<'a> {
 
     fn stack_mut(&mut self) -> &mut Self::Stack {
         &mut self.stack
+    }
+}
+
+/// Indentation stack used for measuring if nodes fit on the line.
+pub(crate) struct FitsIndentStack<'print> {
+    indentations: StackedStack<'print, Indentation>,
+    history_indentations: StackedStack<'print, Indentation>,
+}
+
+impl<'print> FitsIndentStack<'print> {
+    /// Create one fit indentation stack on top of the print indentation stack.
+    pub(crate) fn new(
+        print: &'print PrintIndentStack,
+        saved_indentations: Vec<Indentation>,
+        saved_history_indentations: Vec<Indentation>,
+    ) -> Self {
+        let indentations = StackedStack::with_vec(&print.indentations, saved_indentations);
+        let history_indentations =
+            StackedStack::with_vec(&print.history_indentations, saved_history_indentations);
+
+        Self {
+            indentations,
+            history_indentations,
+        }
+    }
+
+    /// Return owned temporary fit stacks.
+    pub(crate) fn finish(self) -> (Vec<Indentation>, Vec<Indentation>) {
+        (
+            self.indentations.into_vec(),
+            self.history_indentations.into_vec(),
+        )
+    }
+}
+
+impl<'a> IndentStack for FitsIndentStack<'a> {
+    type HistoryStack = StackedStack<'a, Indentation>;
+    type Stack = StackedStack<'a, Indentation>;
+
+    fn current_stack(&self) -> &Self::Stack {
+        &self.indentations
+    }
+
+    fn current_stack_mut(&mut self) -> &mut Self::Stack {
+        &mut self.indentations
+    }
+
+    fn history_stack_mut(&mut self) -> &mut Self::HistoryStack {
+        &mut self.history_indentations
     }
 }
