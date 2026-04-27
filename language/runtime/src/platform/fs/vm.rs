@@ -42,10 +42,10 @@ struct VmMappingEntry {
     is_shared: bool,
 }
 
-/// Runtime-owned mutable state for vm mmap lanes.
+/// Runtime-owned mutable state for vm mmap mappings.
 #[derive(Debug, Default)]
 pub(crate) struct VmMmapRuntimeState {
-    /// Mapping metadata keyed by vm pointer id.
+    /// Mapping metadata keyed by VM raw-pointer offset.
     mappings: Mutex<HashMap<u64, VmMappingEntry>>,
 }
 
@@ -62,7 +62,7 @@ fn vm_mmap_runtime_state(binding: &BindingCallContext) -> Arc<VmMmapRuntimeState
 fn vm_mapping_key(mapping: VmSlice<u8>) -> u64 {
     let data = mapping.data.as_raw_pointer();
 
-    data.address() as u64
+    data.offset() as u64
 }
 
 /// Validate common mmap flags.
