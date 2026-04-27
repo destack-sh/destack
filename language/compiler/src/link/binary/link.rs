@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use crate::link::TargetLocation;
 
 use super::BinaryLinker;
+use super::output::link_binary_artifact_files;
 
 impl<'a> BinaryLinker<'a> {
     /// Link one discovered binary target.
@@ -110,7 +111,7 @@ impl<'a> BinaryLinker<'a> {
             };
 
             let module = self.context.module(*module_id);
-            let binary_files = crate::emit::emit_binary_artifact_files(
+            let binary_files = link_binary_artifact_files(
                 module.as_ref(),
                 binary,
                 self.target,

@@ -3,6 +3,7 @@ mod document;
 mod link;
 mod linker;
 mod manifest;
+mod output;
 mod plan;
 mod script;
 mod style;

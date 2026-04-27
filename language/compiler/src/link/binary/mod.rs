@@ -1,5 +1,7 @@
 mod link;
 mod linker;
+mod output;
+
 #[cfg(test)]
 mod tests;
 
