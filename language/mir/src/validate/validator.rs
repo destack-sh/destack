@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     AttributeArgs, AttributeIdentifier, AttributeValue, Block, BlockReference, Function,
     FunctionReference, Global, GlobalReference, IntegerReference, Local, LocalNodeId,
-    LocalNodeIdAny, LocalReference, NodeTree, NodeType, Type, TypeReference, Value, ValueReference,
+    LocalNodeIdAny, LocalReference, NodeType, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult};
@@ -12,13 +12,13 @@ use super::{ValidateAnchor, ValidateError, ValidateResult};
 #[derive(Debug)]
 pub struct Validator<'a> {
     /// The MIR tree to validate.
-    pub(super) tree: &'a NodeTree,
+    pub(super) tree: &'a Tree,
 }
 
 #[allow(clippy::type_complexity)]
 impl<'a> Validator<'a> {
     /// Create a new validator for a tree.
-    pub fn new(tree: &'a NodeTree) -> Self {
+    pub fn new(tree: &'a Tree) -> Self {
         Self { tree }
     }
 
@@ -29,12 +29,7 @@ impl<'a> Validator<'a> {
         self.validate_attributes()?;
 
         // function bodies
-        for (global_id, node_type) in self.tree.node_type_by_node_id.iter().enumerate() {
-            if *node_type != NodeType::Function {
-                continue;
-            }
-
-            let function_id = LocalNodeId::<Function>::new(global_id as u32);
+        for (function_id, _) in self.tree.iter_nodes::<Function>() {
             self.validate_function(function_id)?;
         }
 
@@ -79,20 +74,13 @@ impl<'a> Validator<'a> {
 
     /// Validate the raw node and side-table structure.
     fn validate_structure(&self) -> ValidateResult<()> {
-        let node_count = self.tree.node_type_by_node_id.len();
+        let node_count = self.tree.node_count();
         let anchor = self.module_anchor();
 
         if self.tree.next_global_id as usize != node_count {
             return Err(
                 self.metadata_error(anchor, "next_global_id does not match node table length")
             );
-        }
-
-        if self.tree.local_id_by_node_id.len() != node_count {
-            return Err(self.metadata_error(
-                anchor,
-                "local_id_by_node_id length does not match node table length",
-            ));
         }
 
         if self.tree.metadata.provenance.provenance_by_node_id.len() != node_count {
@@ -115,16 +103,15 @@ impl<'a> Validator<'a> {
 
     /// Return one generic module anchor for metadata validation.
     pub(super) fn module_anchor(&self) -> ValidateAnchor {
-        self.tree
-            .node_type_by_node_id
-            .first()
-            .copied()
-            .map(|ty| ValidateAnchor {
-                node: LocalNodeIdAny::new(0, ty),
-            })
-            .unwrap_or(ValidateAnchor {
+        if self.tree.node_count() == 0 {
+            return ValidateAnchor {
                 node: LocalNodeIdAny::new(0, NodeType::Type),
-            })
+            };
+        }
+
+        ValidateAnchor {
+            node: LocalNodeIdAny::new(0, self.tree.get_node_type(0)),
+        }
     }
 
     /// Build one metadata invariant violation.
@@ -342,11 +329,9 @@ impl<'a> Validator<'a> {
         node_id: u32,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        let found = self
-            .tree
-            .node_type_by_node_id
-            .get(node_id as usize)
-            .copied();
+        let found = (node_id as usize)
+            .lt(&self.tree.node_count())
+            .then(|| self.tree.get_node_type(node_id));
 
         if found != Some(expected) {
             return Err(ValidateError::InvalidNodeReference {

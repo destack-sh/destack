@@ -20,19 +20,81 @@ fn empty_source_span() -> Span {
     Span::empty(FileId::new(0))
 }
 
-/// MIR node tree for a single module.
+/// Dense metadata for one MIR node id.
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub(crate) struct NodeIndexEntry {
+    /// The packed local id and node type.
+    packed: u32,
+}
+
+impl NodeIndexEntry {
+    const NODE_TYPE_SHIFT: u32 = 24;
+    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
+
+    /// Pack one local id and node type into a dense entry.
+    #[inline]
+    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
+        debug_assert!(
+            local_id < Self::LOCAL_ID_MASK,
+            "MIR node local id exceeds packed index capacity: {local_id}"
+        );
+
+        Self {
+            packed: local_id | (Self::node_type_tag(node_type) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Return the local arena id for this entry.
+    #[inline]
+    pub(crate) fn local_id(self) -> u32 {
+        self.packed & Self::LOCAL_ID_MASK
+    }
+
+    /// Return the concrete node type for this entry.
+    #[inline]
+    pub(crate) fn node_type(self) -> NodeType {
+        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
+            0 => NodeType::Function,
+            1 => NodeType::Block,
+            2 => NodeType::Instruction,
+            3 => NodeType::Terminator,
+            4 => NodeType::Local,
+            5 => NodeType::Type,
+            6 => NodeType::TypeAlias,
+            7 => NodeType::Field,
+            8 => NodeType::Global,
+            _ => unreachable!("invalid MIR node type tag in packed node index"),
+        }
+    }
+
+    /// Return the stable packed tag for one node type.
+    #[inline]
+    fn node_type_tag(node_type: NodeType) -> u32 {
+        match node_type {
+            NodeType::Function => 0,
+            NodeType::Block => 1,
+            NodeType::Instruction => 2,
+            NodeType::Terminator => 3,
+            NodeType::Local => 4,
+            NodeType::Type => 5,
+            NodeType::TypeAlias => 6,
+            NodeType::Field => 7,
+            NodeType::Global => 8,
+        }
+    }
+}
+
+/// MIR tree for a single module.
 ///
 /// This is the main storage for all MIR nodes in a module. All nodes
 /// (functions, blocks, instructions, locals, types) are stored in arenas
 /// and referenced by `LocalNodeId<T>`.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct NodeTree {
+pub struct Tree {
     /// The next global node id to allocate.
     pub(crate) next_global_id: u32,
-    /// Maps global node id → local arena index.
-    pub(crate) local_id_by_node_id: Vec<u32>,
-    /// Maps global node id → node type.
-    pub(crate) node_type_by_node_id: Vec<NodeType>,
+    /// Dense local id and node type metadata by node id.
+    pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
     /// Source spans for parsed MIR node ownership.
@@ -78,9 +140,9 @@ pub struct NodeTree {
     pub metadata: Metadata,
 }
 
-impl Debug for NodeTree {
+impl Debug for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree")
+        f.debug_struct("Tree")
             .field("functions", &self.functions.len())
             .field("blocks", &self.blocks.len())
             .field("instructions", &self.instructions.len())
@@ -95,24 +157,23 @@ impl Debug for NodeTree {
     }
 }
 
-impl Default for NodeTree {
+impl Default for Tree {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NodeTree {
-    /// Create a new empty node tree.
+impl Tree {
+    /// Create a new empty tree.
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
 
-    /// Create a new node tree with the given capacity.
+    /// Create a new tree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             next_global_id: 0,
-            local_id_by_node_id: Vec::with_capacity(capacity),
-            node_type_by_node_id: Vec::with_capacity(capacity),
+            node_index_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
             source_map: NodeSourceMap::with_capacity(capacity),
             source_text: String::new(),
@@ -140,7 +201,7 @@ impl NodeTree {
         }
     }
 
-    /// Create a new node tree with parsed source data.
+    /// Create a new tree with parsed source data.
     pub(crate) fn with_parsed_source(source_text: String, tokens: Vec<Token>) -> Self {
         let mut tree = Self::new();
         tree.source_text = source_text;
@@ -153,14 +214,14 @@ impl NodeTree {
     pub fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id += 1;
 
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
-        self.local_id_by_node_id.push(local_id);
-        self.node_type_by_node_id.push(T::TYPE);
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_map.append(empty_source_span());
         self.metadata.provenance.provenance_by_node_id.push(None);
 
@@ -171,14 +232,14 @@ impl NodeTree {
     pub fn insert_from<T>(&mut self, node: T, source_dir_id: u32) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id += 1;
 
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
-        self.local_id_by_node_id.push(local_id);
-        self.node_type_by_node_id.push(T::TYPE);
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_map.append(empty_source_span());
         let origin_id = self.create_direct_provenance(source_dir_id);
 
@@ -517,10 +578,10 @@ impl NodeTree {
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get(self, local_id)
+        let local_id = self.local_id_for_node_id(id.id);
+        <Self as TreeImpl<T>>::get(self, local_id)
     }
 
     /// Find the first type id matching a predicate.
@@ -537,16 +598,28 @@ impl NodeTree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
+        let local_id = self.local_id_for_node_id(id.id);
+        <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
     /// Get the node type of a node by its raw id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_type_by_node_id[id as usize]
+        self.node_index_by_node_id[id as usize].node_type()
+    }
+
+    /// Return the number of nodes stored in this tree.
+    #[inline]
+    pub fn node_count(&self) -> usize {
+        self.node_index_by_node_id.len()
+    }
+
+    /// Return the local arena id for one untyped node id.
+    #[inline]
+    pub(crate) fn local_id_for_node_id(&self, id: u32) -> u32 {
+        self.node_index_by_node_id[id as usize].local_id()
     }
 
     /// Get the source DIR node id for a MIR node, if available.
@@ -997,15 +1070,16 @@ impl NodeTree {
     pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        self.local_id_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .filter_map(|(global_id, &local_id)| {
-                if self.node_type_by_node_id[global_id] == T::TYPE {
+            .filter_map(|(global_id, &entry)| {
+                if entry.node_type() == T::TYPE {
                     let id = LocalNodeId::new(global_id as u32);
-                    let node = <Self as NodeTreeImpl<T>>::get(self, local_id);
+                    let local_id = entry.local_id();
+                    let node = <Self as TreeImpl<T>>::get(self, local_id);
                     Some((id, node))
                 } else {
                     None
@@ -1042,7 +1116,7 @@ impl NodeTree {
     pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         // get original node and its origin
         let original = self.get(id).clone();
@@ -1064,42 +1138,42 @@ impl NodeTree {
 }
 
 /// Trait for mapping node types to arenas.
-pub trait NodeTreeImpl<T: Node> {
+pub trait TreeImpl<T: Node> {
     /// Allocate a node in the arena and return its local index.
-    fn allocate(tree: &mut NodeTree, node: T) -> u32;
+    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the arena by local index.
-    fn get(tree: &NodeTree, idx: u32) -> &T;
+    fn get(tree: &Tree, idx: u32) -> &T;
     /// Get a mutable node from the arena by local index.
-    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
+    fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
 
-macro_rules! impl_node_tree {
+macro_rules! impl_tree {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeImpl<$ty> for NodeTree {
+        impl TreeImpl<$ty> for Tree {
             #[inline]
-            fn allocate(tree: &mut NodeTree, node: $ty) -> u32 {
+            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &NodeTree, idx: u32) -> &$ty {
+            fn get(tree: &Tree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
             }
 
             #[inline]
-            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
+            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
                 tree.$field.get_mut(idx)
             }
         }
     };
 }
 
-impl_node_tree!(Function, functions);
-impl_node_tree!(Block, blocks);
-impl_node_tree!(Instruction, instructions);
-impl_node_tree!(Terminator, terminators);
-impl_node_tree!(Local, locals);
-impl_node_tree!(Type, types);
-impl_node_tree!(TypeAlias, type_aliases);
-impl_node_tree!(Field, fields);
-impl_node_tree!(Global, globals);
+impl_tree!(Function, functions);
+impl_tree!(Block, blocks);
+impl_tree!(Instruction, instructions);
+impl_tree!(Terminator, terminators);
+impl_tree!(Local, locals);
+impl_tree!(Type, types);
+impl_tree!(TypeAlias, type_aliases);
+impl_tree!(Field, fields);
+impl_tree!(Global, globals);

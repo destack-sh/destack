@@ -22,19 +22,88 @@ pub struct Documentation {
     pub text: StringId,
 }
 
-/// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
+/// Dense metadata for one global DIR node id.
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, AdaptImage)]
+pub(crate) struct NodeIndexEntry {
+    /// The packed local id and node type.
+    packed: u32,
+}
+
+impl NodeIndexEntry {
+    const NODE_TYPE_SHIFT: u32 = 24;
+    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
+
+    /// Pack one local id and node type into a dense entry.
+    #[inline]
+    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
+        debug_assert!(
+            local_id < Self::LOCAL_ID_MASK,
+            "DIR node local id exceeds packed index capacity: {local_id}"
+        );
+
+        Self {
+            packed: local_id | ((node_type as u32) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Create one placeholder entry for a reserved node slot.
+    #[inline]
+    pub(crate) fn placeholder(node_type: NodeType) -> Self {
+        Self {
+            packed: Self::LOCAL_ID_MASK | ((node_type as u32) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Return the local arena id for this entry.
+    #[inline]
+    pub(crate) fn local_id(self) -> u32 {
+        self.packed & Self::LOCAL_ID_MASK
+    }
+
+    /// Return the concrete node type for this entry.
+    #[inline]
+    pub(crate) fn node_type(self) -> NodeType {
+        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
+            0 => NodeType::Expression,
+            1 => NodeType::TypeExpression,
+            2 => NodeType::Block,
+            3 => NodeType::Declaration,
+            4 => NodeType::Declarator,
+            5 => NodeType::Property,
+            6 => NodeType::TypeMember,
+            7 => NodeType::Member,
+            8 => NodeType::EnumField,
+            9 => NodeType::WhereClause,
+            10 => NodeType::DependencyItem,
+            11 => NodeType::GenericParameter,
+            12 => NodeType::Parameter,
+            13 => NodeType::GenericArgument,
+            14 => NodeType::TupleElement,
+            15 => NodeType::Argument,
+            16 => NodeType::MatchCase,
+            17 => NodeType::Pattern,
+            18 => NodeType::PatternField,
+            19 => NodeType::AssignPattern,
+            20 => NodeType::AssignPatternField,
+            21 => NodeType::Decorator,
+            _ => unreachable!("invalid DIR node type tag in packed node index"),
+        }
+    }
+}
+
+/// Mutable DIR tree across a set of related source units.
 #[derive(Clone, Serialize, Deserialize, AdaptImage)]
-pub struct NodeTree {
-    /// The module id of the node tree.
+pub struct Tree {
+    /// The module id of the tree.
     pub module_id: ModuleId,
 
     // node index
+    /// The first global node id stored in this tree.
+    pub(crate) first_global_id: u32,
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
-    /// The local ids of all nodes. Index is the global node id.
-    pub(crate) local_id_by_node_id: Vec<u32>,
-    /// The types of all nodes. Index is the global node id.
-    pub(crate) node_type_by_node_id: Vec<NodeType>,
+    /// Dense local id and node type metadata by global node id.
+    pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
@@ -81,28 +150,28 @@ pub struct NodeTree {
     inactive_node_ids: HashSet<u32>,
 }
 
-impl Debug for NodeTree {
+impl Debug for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree")
-            .field("len", &self.local_id_by_node_id.len())
+        f.debug_struct("Tree")
+            .field("len", &self.node_index_by_node_id.len())
             .finish()
     }
 }
 
-impl NodeTree {
-    /// Create a new NodeTree.
+impl Tree {
+    /// Create a new Tree.
     pub fn new(module_id: ModuleId) -> Self {
         Self::with_capacity(module_id, 0)
     }
 
-    /// Create a new NodeTree with the given capacity.
+    /// Create a new Tree with the given capacity.
     pub fn with_capacity(module_id: ModuleId, capacity: usize) -> Self {
         Self {
             module_id,
 
+            first_global_id: 0,
             next_global_id: 0,
-            local_id_by_node_id: Vec::with_capacity(capacity),
-            node_type_by_node_id: Vec::with_capacity(capacity),
+            node_index_by_node_id: Vec::with_capacity(capacity),
 
             expressions: Arena::new(),
             type_expressions: Arena::new(),
@@ -140,6 +209,58 @@ impl NodeTree {
             inactive_node_ids: HashSet::new(),
         }
     }
+
+    /// Create a new tree with the given first global node id.
+    pub fn with_first_global_id(
+        module_id: ModuleId,
+        first_global_id: u32,
+        capacity: usize,
+    ) -> Self {
+        let mut tree = Self::with_capacity(module_id, capacity);
+        tree.first_global_id = first_global_id;
+        tree.next_global_id = first_global_id;
+
+        tree
+    }
+
+    /// Return the first global node id stored in this tree.
+    #[inline]
+    pub fn first_global_id(&self) -> u32 {
+        self.first_global_id
+    }
+
+    /// Return the next global node id this tree will allocate.
+    #[inline]
+    pub fn next_global_id(&self) -> u32 {
+        self.next_global_id
+    }
+
+    /// Return the number of nodes stored in this tree.
+    #[inline]
+    pub fn node_count(&self) -> usize {
+        self.node_index_by_node_id.len()
+    }
+
+    /// Return the local metadata index for one global node id.
+    #[inline]
+    pub(crate) fn node_index(&self, node_id: u32) -> usize {
+        let index = node_id
+            .checked_sub(self.first_global_id)
+            .unwrap_or_else(|| panic!("DIR node id {node_id} is before this tree"));
+        let index = index as usize;
+        assert!(
+            index < self.node_index_by_node_id.len(),
+            "DIR node id {node_id} is outside this tree"
+        );
+
+        index
+    }
+
+    /// Return the local arena id for one global node id.
+    #[inline]
+    pub(crate) fn local_id_for_node_id(&self, node_id: u32) -> u32 {
+        self.node_index_by_node_id[self.node_index(node_id)].local_id()
+    }
     /// Mark a node id as inactive.
     pub fn mark_inactive(&mut self, node_id: LocalNodeIdAny) {
         self.inactive_node_ids.insert(node_id.id);
@@ -161,8 +282,8 @@ impl NodeTree {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
 
-        self.node_type_by_node_id.push(node_type);
-        self.local_id_by_node_id.push(u32::MAX); // placeholder, filled by insert
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::placeholder(node_type));
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
@@ -186,12 +307,13 @@ impl NodeTree {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
 
-        self.node_type_by_node_id.push(node_type);
-        self.local_id_by_node_id.push(u32::MAX); // placeholder, filled by insert
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::placeholder(node_type));
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        let parent_provenance = self.provenance.provenance_by_node_id[dir_node_id.id as usize];
+        let parent_provenance =
+            self.provenance.provenance_by_node_id[self.node_index(dir_node_id.id)];
         let source_id = self.provenance.source_id(parent_provenance);
         let provenance_id = self
             .provenance
@@ -207,10 +329,12 @@ impl NodeTree {
     pub fn insert<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
-        self.local_id_by_node_id[node_id.id as usize] = local_id;
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
+        let index = self.node_index(node_id.id);
+        self.node_index_by_node_id[index] = NodeIndexEntry::new(local_id, T::TYPE);
+
         LocalNodeId::new(node_id.id)
     }
 
@@ -218,7 +342,7 @@ impl NodeTree {
     pub fn insert_as_owner<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let node_id = self.insert(node_id, node);
         self.adopt_direct_children(LocalNodeIdAny::new(node_id.id, T::TYPE));
@@ -230,7 +354,7 @@ impl NodeTree {
     pub fn alias_from_source<T>(&mut self, ast_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.alias_node_id_by_source_id.insert(ast_id, alias.id);
     }
@@ -239,7 +363,7 @@ impl NodeTree {
     pub fn alias_from<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.alias_node_id_by_node_id.insert(dir_id, alias.id);
     }
@@ -252,7 +376,10 @@ impl NodeTree {
             .get(&node_id)
             .copied()
             .map(|alias_id| {
-                LocalNodeIdAny::new(alias_id, self.node_type_by_node_id[alias_id as usize])
+                LocalNodeIdAny::new(
+                    alias_id,
+                    self.node_index_by_node_id[self.node_index(alias_id)].node_type(),
+                )
             })
     }
 
@@ -264,13 +391,16 @@ impl NodeTree {
         while let Some(alias_id) = self.alias_node_id_by_node_id.get(&current) {
             current = *alias_id;
         }
-        LocalNodeIdAny::new(current, self.node_type_by_node_id[current as usize])
+        LocalNodeIdAny::new(
+            current,
+            self.node_index_by_node_id[self.node_index(current)].node_type(),
+        )
     }
 
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_type_by_node_id[id as usize]
+        self.node_index_by_node_id[self.node_index(id)].node_type()
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -278,10 +408,10 @@ impl NodeTree {
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get(self, local_id)
+        let local_id = self.node_index_by_node_id[self.node_index(id.id)].local_id();
+        <Self as TreeImpl<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
@@ -289,10 +419,10 @@ impl NodeTree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
+        let local_id = self.node_index_by_node_id[self.node_index(id.id)].local_id();
+        <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
     /// Replace a node in-place, preserving the original at a new ID:
@@ -304,7 +434,7 @@ impl NodeTree {
     pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let scope = self.get_scope(id);
         let original = self.get(id).clone();
@@ -336,7 +466,7 @@ impl NodeTree {
     ) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let replacement = self.get(source_id).clone();
         let preserved_id = self.replace(id, replacement);
@@ -351,15 +481,15 @@ impl NodeTree {
     pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        self.local_id_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .filter_map(|(global_index, &local_index)| {
-                if self.node_type_by_node_id[global_index] == T::TYPE {
-                    let node_id = LocalNodeId::new(global_index as u32);
-                    let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
+            .filter_map(|(index, entry)| {
+                if entry.node_type() == T::TYPE {
+                    let node_id = LocalNodeId::new(self.first_global_id + index as u32);
+                    let node = <Self as TreeImpl<T>>::get(self, entry.local_id());
                     Some((node_id, node))
                 } else {
                     None
@@ -369,24 +499,26 @@ impl NodeTree {
 
     /// Iterate over all nodes ids.
     pub fn iter_node_ids(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
-        self.node_type_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .map(|(global_index, &type_id)| LocalNodeIdAny::new(global_index as u32, type_id))
+            .map(|(index, entry)| {
+                LocalNodeIdAny::new(self.first_global_id + index as u32, entry.node_type())
+            })
     }
 
     /// Iterate over all nodes ids of a given type.
     pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        self.local_id_by_node_id
+        self.node_index_by_node_id
             .iter()
             .enumerate()
-            .filter_map(|(global_index, _)| {
-                if self.node_type_by_node_id[global_index] == T::TYPE {
-                    let node_id = LocalNodeId::new(global_index as u32);
+            .filter_map(|(index, entry)| {
+                if entry.node_type() == T::TYPE {
+                    let node_id = LocalNodeId::new(self.first_global_id + index as u32);
                     Some(node_id)
                 } else {
                     None
@@ -398,15 +530,18 @@ impl NodeTree {
     /// Get the parent node id for a node id.
     #[inline]
     pub fn get_parent_id(&self, node_id: u32) -> Option<u32> {
-        self.parent_id_by_node_id[node_id as usize]
+        self.parent_id_by_node_id[self.node_index(node_id)]
     }
 
     /// Get the parent node id for a node id.
     #[inline]
     pub fn get_parent(&self, node_id: u32) -> Option<LocalNodeIdAny> {
-        let parent_id = self.parent_id_by_node_id[node_id as usize];
+        let parent_id = self.parent_id_by_node_id[self.node_index(node_id)];
         parent_id.map(|parent_id| {
-            LocalNodeIdAny::new(parent_id, self.node_type_by_node_id[parent_id as usize])
+            LocalNodeIdAny::new(
+                parent_id,
+                self.node_index_by_node_id[self.node_index(parent_id)].node_type(),
+            )
         })
     }
 
@@ -519,7 +654,7 @@ impl NodeTree {
 
             fn visit_expression(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Expression>,
                 expression: &Expression,
             ) {
@@ -528,7 +663,7 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
-            fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
+            fn visit_block(&mut self, tree: &Tree, id: LocalNodeId<Block>, block: &Block) {
                 self.push_node(id.into_any());
                 crate::walk_block(self, tree, id, block);
                 self.parent_stack.pop();
@@ -536,7 +671,7 @@ impl NodeTree {
 
             fn visit_declaration(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Declaration>,
                 declaration: &Declaration,
             ) {
@@ -547,7 +682,7 @@ impl NodeTree {
 
             fn visit_declarator(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Declarator>,
                 declarator: &Declarator,
             ) {
@@ -558,7 +693,7 @@ impl NodeTree {
 
             fn visit_property(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Property>,
                 property: &Property,
             ) {
@@ -569,7 +704,7 @@ impl NodeTree {
 
             fn visit_type_member(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<TypeMember>,
                 type_member: &TypeMember,
             ) {
@@ -578,7 +713,7 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
-            fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+            fn visit_member(&mut self, tree: &Tree, id: LocalNodeId<Member>, member: &Member) {
                 self.push_node(id.into_any());
                 crate::walk_member(self, tree, id, member);
                 self.parent_stack.pop();
@@ -586,7 +721,7 @@ impl NodeTree {
 
             fn visit_enum_field(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<EnumField>,
                 enum_field: &EnumField,
             ) {
@@ -597,7 +732,7 @@ impl NodeTree {
 
             fn visit_where_clause(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<WhereClause>,
                 where_clause: &WhereClause,
             ) {
@@ -608,7 +743,7 @@ impl NodeTree {
 
             fn visit_dependency_item(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<DependencyItem>,
                 dependency_item: &DependencyItem,
             ) {
@@ -619,7 +754,7 @@ impl NodeTree {
 
             fn visit_generic_parameter(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<GenericParameter>,
                 generic_parameter: &GenericParameter,
             ) {
@@ -630,7 +765,7 @@ impl NodeTree {
 
             fn visit_parameter(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Parameter>,
                 parameter: &Parameter,
             ) {
@@ -641,7 +776,7 @@ impl NodeTree {
 
             fn visit_argument(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Argument>,
                 argument: &Argument,
             ) {
@@ -652,7 +787,7 @@ impl NodeTree {
 
             fn visit_generic_argument(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<GenericArgument>,
                 generic_argument: &GenericArgument,
             ) {
@@ -663,7 +798,7 @@ impl NodeTree {
 
             fn visit_tuple_element(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<TupleElement>,
                 tuple_element: &TupleElement,
             ) {
@@ -674,7 +809,7 @@ impl NodeTree {
 
             fn visit_type_expression(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<TypeExpression>,
                 type_expression: &TypeExpression,
             ) {
@@ -685,7 +820,7 @@ impl NodeTree {
 
             fn visit_match_case(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<MatchCase>,
                 match_case: &MatchCase,
             ) {
@@ -694,12 +829,7 @@ impl NodeTree {
                 self.parent_stack.pop();
             }
 
-            fn visit_pattern(
-                &mut self,
-                tree: &NodeTree,
-                id: LocalNodeId<Pattern>,
-                pattern: &Pattern,
-            ) {
+            fn visit_pattern(&mut self, tree: &Tree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
                 self.push_node(id.into_any());
                 crate::walk_pattern(self, tree, id, pattern);
                 self.parent_stack.pop();
@@ -707,7 +837,7 @@ impl NodeTree {
 
             fn visit_pattern_field(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<PatternField>,
                 pattern_field: &PatternField,
             ) {
@@ -718,7 +848,7 @@ impl NodeTree {
 
             fn visit_decorator(
                 &mut self,
-                tree: &NodeTree,
+                tree: &Tree,
                 id: LocalNodeId<Decorator>,
                 decorator: &Decorator,
             ) {
@@ -757,7 +887,8 @@ impl NodeTree {
     /// Set the parent node id for one node.
     #[inline]
     fn set_parent(&mut self, node_id: LocalNodeIdAny, parent_id: Option<LocalNodeIdAny>) {
-        if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(node_id.id as usize) {
+        let index = self.node_index(node_id.id);
+        if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(index) {
             *parent_slot = parent_id.map(|parent_id| parent_id.id);
         }
     }
@@ -765,7 +896,7 @@ impl NodeTree {
     /// Assert that walked child ownership matches cached parent links.
     #[cfg(debug_assertions)]
     pub fn debug_assert_valid_parents(&self) {
-        fn node_summary(tree: &NodeTree, node_id: LocalNodeIdAny) -> String {
+        fn node_summary(tree: &Tree, node_id: LocalNodeIdAny) -> String {
             match node_id.ty {
                 NodeType::Expression => {
                     let node_id = LocalNodeId::<Expression>::new(node_id.id);
@@ -786,7 +917,7 @@ impl NodeTree {
         }
 
         impl DebugParentValidator {
-            fn push_node(&mut self, tree: &NodeTree, node_id: LocalNodeIdAny) {
+            fn push_node(&mut self, tree: &Tree, node_id: LocalNodeIdAny) {
                 if let Some(expected_parent) = self.parent_stack.last().copied() {
                     let actual_parent = tree.get_parent(node_id.id);
                     assert_eq!(
@@ -818,7 +949,7 @@ impl NodeTree {
 
         macro_rules! validate_visit {
             ($method:ident, $ty:ty, $node_type:expr, $walk:path) => {
-                fn $method(&mut self, tree: &NodeTree, id: LocalNodeId<$ty>, node: &$ty) {
+                fn $method(&mut self, tree: &Tree, id: LocalNodeId<$ty>, node: &$ty) {
                     self.push_node(tree, id.into_any());
                     $walk(self, tree, id, node);
                     self.pop_node();
@@ -1142,20 +1273,21 @@ impl NodeTree {
     /// Get the AST id of a node by its DIR node id.
     #[inline]
     pub fn get_source(&self, node_id: u32) -> u32 {
-        let provenance_id = self.provenance.provenance_by_node_id[node_id as usize];
+        let provenance_id = self.provenance.provenance_by_node_id[self.node_index(node_id)];
         self.provenance.source_id(provenance_id)
     }
 
     /// Get the provenance id of one node by its DIR node id.
     #[inline]
     pub fn get_provenance(&self, node_id: u32) -> ProvenanceId {
-        self.provenance.provenance_by_node_id[node_id as usize]
+        self.provenance.provenance_by_node_id[self.node_index(node_id)]
     }
 
     /// Return true when the node id exists in this tree.
     #[inline]
     pub fn has_node_id(&self, node_id: u32) -> bool {
-        (node_id as usize) < self.provenance.provenance_by_node_id.len()
+        node_id >= self.first_global_id
+            && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
     /// Get the DIR node id by its AST id.
@@ -1165,14 +1297,23 @@ impl NodeTree {
             .get(&ast_id)
             .copied()
             .map(|node_id| {
-                LocalNodeIdAny::new(node_id, self.node_type_by_node_id[node_id as usize])
+                LocalNodeIdAny::new(
+                    node_id,
+                    self.node_index_by_node_id[self.node_index(node_id)].node_type(),
+                )
             })
     }
 
     /// Get the scope for a node id.
     #[inline]
     pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> (LocalScopeId, LocalScopeMark) {
-        self.scopes_by_node_id[node_id.id as usize]
+        self.scopes_by_node_id[self.node_index(node_id.id)]
+    }
+
+    /// Get the scope for an erased node id.
+    #[inline]
+    pub fn get_scope_any(&self, node_id: LocalNodeIdAny) -> (LocalScopeId, LocalScopeMark) {
+        self.scopes_by_node_id[self.node_index(node_id.id)]
     }
 
     /// Append a decorator to a node by its global id.
@@ -1189,10 +1330,11 @@ impl NodeTree {
             .push(decorator);
 
         // attach the decorator to its target for parent lookups
-        if decorator.id != target_id.id
-            && let Some(parent_slot) = self.parent_id_by_node_id.get_mut(decorator.id as usize)
-        {
-            *parent_slot = Some(target_id.id);
+        if decorator.id != target_id.id {
+            let index = self.node_index(decorator.id);
+            if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(index) {
+                *parent_slot = Some(target_id.id);
+            }
         }
     }
 
@@ -1231,44 +1373,44 @@ impl NodeTree {
 }
 
 /// Map node types to arenas.
-pub trait NodeTreeImpl<T: Node> {
+pub trait TreeImpl<T: Node> {
     /// Allocate a node into the relevant arena.
-    fn allocate(tree: &mut NodeTree, node: T) -> u32;
+    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the relevant arena.
-    fn get(tree: &NodeTree, idx: u32) -> &T;
+    fn get(tree: &Tree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
-    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
+    fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
 
-macro_rules! impl_node_tree_store {
+macro_rules! impl_tree_store {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeImpl<$ty> for NodeTree {
+        impl TreeImpl<$ty> for Tree {
             #[inline]
-            fn allocate(tree: &mut NodeTree, node: $ty) -> u32 {
+            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &NodeTree, idx: u32) -> &$ty {
+            fn get(tree: &Tree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
             }
 
             #[inline]
-            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
+            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
                 tree.$field.get_mut(idx)
             }
         }
     };
 }
 
-macro_rules! impl_node_tree_stores {
+macro_rules! impl_tree_stores {
     ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
-        $( impl_node_tree_store!($ty, $field); )*
+        $( impl_tree_store!($ty, $field); )*
     };
 }
 
 // usage
-impl_node_tree_stores! {
+impl_tree_stores! {
     Expression => expressions,
     Block => blocks,
     Declaration => declarations,

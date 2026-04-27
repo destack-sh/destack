@@ -1,16 +1,16 @@
 use crate::{
-    Attribute, Content, Doctype, Document, Fragment, LocalNodeId, LocalNodeIdAny, NodeTree,
-    NodeType, NodeVisitor,
+    Attribute, Content, Doctype, Document, Fragment, LocalNodeId, LocalNodeIdAny, NodeType,
+    NodeVisitor, Tree,
 };
 
 /// Walk one arbitrary HTML node id.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node_id[node_id as usize];
+    let local_idx = tree.local_id_for_node_id(node_id);
 
     match node_type {
         NodeType::Document => {
@@ -37,7 +37,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk one HTML root node.
-pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root: &LocalNodeIdAny) {
+pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &LocalNodeIdAny) {
     match root.ty {
         NodeType::Document => {
             let document_id = LocalNodeId::<Document>::new(root.id);
@@ -68,11 +68,7 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
 }
 
 /// Walk one HTML root list through the visitor entry points.
-pub fn walk_roots<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    roots: &[LocalNodeIdAny],
-) {
+pub fn walk_roots<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, roots: &[LocalNodeIdAny]) {
     for root in roots {
         walk_root(visitor, tree, root);
     }
@@ -81,7 +77,7 @@ pub fn walk_roots<V: NodeVisitor + ?Sized>(
 /// Walk one document node.
 pub fn walk_document<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Document>,
     document: &Document,
 ) {
@@ -103,7 +99,7 @@ pub fn walk_document<V: NodeVisitor + ?Sized>(
 /// Walk one doctype node.
 pub fn walk_doctype<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Doctype>,
     _doctype: &Doctype,
 ) {
@@ -113,7 +109,7 @@ pub fn walk_doctype<V: NodeVisitor + ?Sized>(
 /// Walk one fragment node.
 pub fn walk_fragment<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Fragment>,
     fragment: &Fragment,
 ) {
@@ -129,7 +125,7 @@ pub fn walk_fragment<V: NodeVisitor + ?Sized>(
 /// Walk one HTML node.
 pub fn walk_node<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Content>,
     node: &Content,
 ) {
@@ -162,7 +158,7 @@ pub fn walk_node<V: NodeVisitor + ?Sized>(
 /// Walk one attribute node.
 pub fn walk_attribute<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Attribute>,
     _attribute: &Attribute,
 ) {
