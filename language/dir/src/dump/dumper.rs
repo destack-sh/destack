@@ -1678,6 +1678,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 key,
                 signature,
                 body: _,
+                is_optional,
                 visibility,
                 ambient,
                 is_abstract,
@@ -1690,6 +1691,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Member::Method", id.id)
                     .field_optional("key", key)
                     .field("signature", signature)
+                    .field("is_optional", is_optional)
                     .field_optional("visibility", visibility)
                     .field("ambient", ambient)
                     .field("is_abstract", is_abstract)
