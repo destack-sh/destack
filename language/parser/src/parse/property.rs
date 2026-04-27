@@ -163,7 +163,11 @@ impl Parser {
 
     /// Eat one method mode.
     #[inline]
-    fn eat_method_mode_maybe(&mut self) -> Option<FunctionMode> {
+    fn eat_method_mode_maybe(
+        &mut self,
+        allow_constructor_mode: bool,
+        allow_new_mode: bool,
+    ) -> Option<FunctionMode> {
         if self.is_keyword(Keyword::Get)
             && self.next_token_starts_member_name()
             && self.next_token_type() != TokenType::OpenParenthesis
@@ -176,7 +180,8 @@ impl Parser {
         {
             self.bump(); // eat set keyword
             Some(FunctionMode::Setter)
-        } else if self.is_keyword(Keyword::Constructor)
+        } else if allow_constructor_mode
+            && self.is_keyword(Keyword::Constructor)
             && (self.lookahead(|parser| {
                 parser.bump();
                 parser.peek_is(TokenType::LessThan)
@@ -187,7 +192,8 @@ impl Parser {
         {
             self.bump(); // eat constructor keyword
             Some(FunctionMode::Constructor)
-        } else if self.is_keyword(Keyword::New)
+        } else if allow_new_mode
+            && self.is_keyword(Keyword::New)
             && (self.lookahead(|parser| {
                 parser.bump();
                 parser.peek_is(TokenType::LessThan)
@@ -465,13 +471,15 @@ impl Parser {
     fn eat_property_member_head(
         &mut self,
         mut modifiers: Option<BindingModifiers>,
+        allow_constructor_mode: bool,
+        allow_new_mode: bool,
     ) -> ParseResult<ParsedPropertyMemberHead> {
         // async and late abstraction modifiers
         let is_async = self.eat_method_async_maybe();
         modifiers = self.eat_method_late_modifiers_maybe(modifiers, is_async);
 
         // mode and accessor marker
-        let mode = self.eat_method_mode_maybe();
+        let mode = self.eat_method_mode_maybe(allow_constructor_mode, allow_new_mode);
 
         // generator and key
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
@@ -779,7 +787,7 @@ impl Parser {
             is_generator,
             is_method,
             associated_comptime_name,
-        } = self.eat_property_member_head(modifiers)?;
+        } = self.eat_property_member_head(modifiers, false, false)?;
 
         // object fields cannot start with an unkeyed call signature
         if !self.options.is_in_type()
@@ -1117,7 +1125,7 @@ impl Parser {
         };
 
         // mode
-        let mode = self.eat_method_mode_maybe();
+        let mode = self.eat_method_mode_maybe(false, true);
 
         // index signature
         if self.type_member_starts_index_signature() {
@@ -1509,6 +1517,7 @@ impl Parser {
         }
 
         // head
+        let allow_constructor_mode = !modifiers.is_some_and(|modifiers| modifiers.is_static);
         let ParsedPropertyMemberHead {
             modifiers,
             key,
@@ -1518,7 +1527,7 @@ impl Parser {
             is_generator,
             is_method,
             associated_comptime_name,
-        } = self.eat_property_member_head(modifiers)?;
+        } = self.eat_property_member_head(modifiers, allow_constructor_mode, false)?;
 
         // getters and setters require method form
         if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
@@ -1570,6 +1579,7 @@ impl Parser {
                 key,
                 signature,
                 body,
+                is_optional: modifiers.is_some_and(|modifiers| modifiers.is_optional),
                 visibility: modifiers.and_then(|modifiers| modifiers.visibility),
                 ambient: self.ambientness_for_modifiers(modifiers.as_ref()),
                 is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
@@ -2477,14 +2487,15 @@ foo(): string;"#,
     }
 
     #[test]
-    fn test_parse_property_method_constructor() {
+    fn test_parse_object_property_constructor_method_as_key() {
         let mut test = TestParser::new("constructor(x: int32);");
         let mut parser = test.prepare();
 
         let property_id = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
+        assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
             // constructor
-            assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+            assert_string!(parser, *name, "constructor");
+            assert!(signature.mode.is_none());
             assert!(signature.generic_parameters.is_empty());
             // x: int32
             assert_eq!(signature.parameters.len(), 1);
@@ -2521,7 +2532,8 @@ foo(): string;"#,
         parser.options.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, .. } => {
+        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, is_optional, .. } => {
+            assert!(*is_optional);
             assert_expression_path!(parser, parser.tree.get(*key), "EventEmitter.captureRejectionSymbol");
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
@@ -2612,6 +2624,36 @@ foo(): string;"#,
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, .. } => {
                 assert_string!(parser, *name, "U");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_static_new_method_as_key() {
+        let mut test = TestParser::new("static new<T>(): Set<T> { undefined! }");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+
+        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
+            assert_string!(parser, name.string(), "new");
+            assert!(*is_static);
+            assert!(signature.mode.is_none());
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert!(signature.return_type.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_member_static_constructor_method_as_key() {
+        let mut test = TestParser::new("static constructor<T>(): Set<T> { undefined! }");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+
+        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
+            assert_string!(parser, name.string(), "constructor");
+            assert!(*is_static);
+            assert!(signature.mode.is_none());
+            assert_eq!(signature.generic_parameters.len(), 1);
+            assert!(signature.return_type.is_some());
         });
     }
 
