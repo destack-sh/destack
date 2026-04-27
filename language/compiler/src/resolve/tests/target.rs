@@ -1,6 +1,6 @@
 use crate::{TestProgram, run_to_completion};
 use destack_artifact::{DirPrepared, EmitFormat, ImportedModuleTable, ModuleEdgeRelation, Runtime};
-use destack_dir::{DependencyKind, DependencySource, Expression, ModuleTarget, StaticKey};
+use destack_dir::{DependencyKind, Expression, ImportSource, ModuleTarget, StaticKey};
 use destack_source::DiagnosticSeverity;
 use std::time::Duration;
 
@@ -1196,7 +1196,7 @@ export * from "react";
                 &mut imported_modules,
                 profile_id,
                 anchor,
-                DependencySource::ExportStatement,
+                ImportSource::ExportStatement,
                 target,
                 DependencyKind::Value,
             )
@@ -1317,7 +1317,7 @@ export const featurePromise = import("./feature.ts");
             matches!(
                 expression,
                 Expression::Import {
-                    source: DependencySource::ImportCall,
+                    source: ImportSource::ImportCall,
                     ..
                 }
             )
@@ -1336,7 +1336,7 @@ export const featurePromise = import("./feature.ts");
         panic!("expected resolved dynamic import expression");
     };
 
-    assert_eq!(*source, DependencySource::ImportCall);
+    assert_eq!(*source, ImportSource::ImportCall);
     assert_eq!(test.program.strings.get(*target), "./feature.ts");
     assert_eq!(*target_module, ModuleTarget::Module(feature_module_id));
 

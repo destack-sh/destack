@@ -15,10 +15,9 @@ use destack_artifact::{
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
 use destack_dir::{
-    Annotation, Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator,
-    DumperOptions, DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable,
-    TypeTable,
+    Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator, DumperOptions,
+    Expression, FunctionKind, GlobalSymbolId, Key, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_engine::Value;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -32,7 +31,7 @@ use destack_source::{
 };
 use destack_vm::{
     Allocator, Heap, HeapLimits, HeapOptions, Isolate, IsolateId, IsolateOptions, SharedHeap,
-    SharedHeapLimits, StaticSpace,
+    SharedHeapLimits, StaticSpace, Word,
 };
 use destack_workspace::{
     AmbientSnapshot, BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change,
@@ -42,9 +41,7 @@ use destack_workspace::{
 };
 use serde_json::{Value as JsonValue, json};
 
-use crate::{
-    AnalyzeOptions, CompilePhase, Compiler, CompilerContext, CompilerOptions, default_workers,
-};
+use crate::{CompilePhase, Compiler, CompilerContext, CompilerOptions, default_workers};
 
 use super::provide_artifacts_to_completion;
 use super::tracing::init_tracing;
@@ -501,13 +498,15 @@ impl TestIsolate {
         &mut self,
         function: &str,
         arguments: &[Value],
-    ) -> destack_vm::RuntimeResult<destack_vm::RunOutput> {
+    ) -> destack_vm::RuntimeResult<destack_vm::Output> {
+        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+
         self.isolate.run_function_by_name(
             &mut self.statics,
             &mut self.heap,
             &self.shared,
             function,
-            arguments,
+            &arguments,
         )
     }
 
@@ -772,18 +771,17 @@ impl TestProgram {
         self.artifact_dir(module_id, profile)
     }
 
-    /// Return one cloned test DIR with its stable source id and analyze options.
+    /// Return one cloned test DIR with its stable source id.
     pub(crate) fn artifact_dir_context(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> (Arc<Module>, TestDir, LocalNodeIdAny, AnalyzeOptions) {
+    ) -> (Arc<Module>, TestDir, LocalNodeIdAny) {
         let module = self.program.module_descriptor(module_id);
         let dir = self.artifact_dir(module_id, profile);
         let source_id = dir.roots[0].into_any();
-        let options = self.analyze_context_options_for_module(module.id);
 
-        (module, dir, source_id, options)
+        (module, dir, source_id)
     }
 
     /// Clone the latest published DIR tree for one module and profile.
@@ -1554,11 +1552,6 @@ impl TestProgram {
         self.compiler
             .current_execution_revision()
             .unwrap_or_else(|| self.program.current_revision())
-    }
-
-    /// Resolve analyze options for one module in the current workspace revision.
-    pub fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
-        self.context().analyze_context_options_for_module(module_id)
     }
 
     /// Return one profile value for the current revision.
@@ -2647,23 +2640,12 @@ impl TestProgram {
         let tree = self.artifact_tree(module.id, profile);
         let symbols = self.artifact_symbols(module.id, profile);
         let roots = self.artifact_roots(module.id, profile);
-        let anchor_node = self.artifact_anchor_node(module.id, profile);
+        let types = self.artifact_types(module.id, profile);
 
         // unbind DIR to AST
-        let fallback_node = roots
-            .first()
-            .copied()
-            .map(LocalNodeId::into_any)
-            .unwrap_or(anchor_node);
-        let unbound = self.compiler.unbind_module_from_parts(
-            self.program.current_revision(),
-            module,
-            &tree,
-            &symbols,
-            &roots,
-            fallback_node,
-            profile,
-        );
+        let unbound = self
+            .compiler
+            .unbind_module_from_parts(module, &tree, &symbols, &types, &roots);
 
         // create a synthetic file for formatting (no real source)
         let file = File::from_text(
@@ -2960,16 +2942,16 @@ impl TestProgram {
 
             // select the declaration expression if present
             let declaration_id = match expression {
-                Expression::Declaration { declaration } => Some(*declaration),
+                Expression::Declaration(declaration) => Some(*declaration),
                 _ => None,
             };
 
             // return the first matching function declaration
             if let Some(declaration_id) = declaration_id {
                 let declaration = tree.get(declaration_id);
-                if let Declaration::Function { descriptor, .. } = declaration {
+                if let Declaration::Function(declaration) = declaration {
                     if current_index == index {
-                        return descriptor.symbol.into_global(module_id);
+                        return declaration.symbol.into_global(module_id);
                     }
                     current_index += 1;
                 }
@@ -3042,7 +3024,7 @@ impl TestProgram {
             .into_local_typed::<Declaration>();
         let declaration = tree.get(interface_declaration_id);
         let members = match declaration {
-            Declaration::Interface { members, .. } => members,
+            Declaration::Interface(declaration) => &declaration.members,
             _ => panic!("expected interface declaration"),
         };
 
@@ -3050,13 +3032,11 @@ impl TestProgram {
         for member_id in members {
             let member = tree.get(*member_id);
             let member_name_id = member.key().and_then(|key| match key {
-                DynamicKey::Name(name) => Some(name),
-                DynamicKey::Number(name) => Some(name),
-                DynamicKey::Private(_) => None,
-                DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                Key::Name(name) => Some(name.string()),
+                Key::Private(_) | Key::Expression(_) => None,
             });
 
-            if member_name_id.is_some_and(|name| *name == member_name) {
+            if member_name_id.is_some_and(|name| name == member_name) {
                 return member.symbol().into_global(module_id);
             }
         }
@@ -3072,18 +3052,13 @@ impl TestProgram {
         // scan for the requested lambda declaration
         let mut current_index = 0;
         for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            let Declaration::Function {
-                descriptor,
-                signature,
-                ..
-            } = declaration
-            else {
+            let Declaration::Function(declaration) = declaration else {
                 continue;
             };
 
-            if signature.kind == FunctionKind::Lambda {
+            if declaration.signature.kind == FunctionKind::Lambda {
                 if current_index == index {
-                    return descriptor.symbol.into_global(module_id);
+                    return declaration.symbol.into_global(module_id);
                 }
                 current_index += 1;
             }
@@ -3210,31 +3185,28 @@ impl TestProgram {
         };
 
         // locate the decorator annotation
-        let mut annotations = tree.get_annotations(declaration.local_id.id);
-        if annotations.is_empty() {
+        let mut decorators = tree.get_decorators(declaration.local_id.id);
+        if decorators.is_empty() {
             let wrapper_id = tree
                 .iter_nodes_of_type::<Expression>()
                 .find_map(|(expression_id, expression)| match expression {
-                    Expression::Declaration { declaration: inner }
-                        if inner.id == declaration.local_id.id =>
-                    {
+                    Expression::Declaration(inner) if inner.id == declaration.local_id.id => {
                         Some(expression_id)
                     }
                     _ => None,
                 })
                 .unwrap_or_else(|| panic!("expected declaration wrapper for {name}"));
-            annotations = tree.get_annotations(wrapper_id.id);
+            decorators = tree.get_decorators(wrapper_id.id);
         }
-        let decorator_id = annotations
+        let decorator_id = decorators
             .iter()
-            .find(|annotation_id| matches!(tree.get(**annotation_id), Annotation::Decorator { .. }))
             .copied()
+            .next()
             .unwrap_or_else(|| panic!("expected decorator annotation for {name}"));
 
         // resolve decorator metadata
-        let Annotation::Decorator { expression, .. } = tree.get(decorator_id);
-
-        let call = self.compiler.decorator_call(&tree, *expression);
+        let decorator = tree.get(decorator_id);
+        let call = self.compiler.decorator_call(&tree, decorator.expression);
 
         // resolve the decorator target symbol
         let target_symbol = match tree.get(call.callee) {

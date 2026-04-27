@@ -142,11 +142,7 @@ impl TestModuleBuilder {
     ) -> js::LocalNodeId<js::Expression> {
         let name = self.strings.intern(name);
 
-        self.expression(js::Expression::Member {
-            left,
-            name,
-            generic_arguments: vec![],
-        })
+        self.expression(js::Expression::Member { left, name })
     }
 
     /// Insert one index expression.
