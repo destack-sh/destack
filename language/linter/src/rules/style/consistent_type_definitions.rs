@@ -112,7 +112,7 @@ fn interface_to_type_fix(
 ) -> Option<LintFix> {
     // keep plain structural interfaces only
     let name = declaration.name?;
-    if !declaration.generic_parameters.is_empty() || !declaration.extends_types.is_empty() {
+    if !declaration.generic_parameters.is_empty() || !declaration.extends.is_empty() {
         return None;
     }
 
