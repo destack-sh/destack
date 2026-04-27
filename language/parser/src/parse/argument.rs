@@ -713,17 +713,7 @@ impl Parser {
         };
 
         // pattern/name
-        let (pattern, name, name_span) =
-            if is_variadic && (self.options.is_in_type() || self.options.is_in_variant()) {
-                // variadic tuple labels in type positions: ...[name]: T
-                if let Some((name, span)) = self.try_eat_variadic_tuple_label_name_with_span()? {
-                    (None, Some(name), Some(span))
-                } else {
-                    self.eat_parameter_pattern_or_name()?
-                }
-            } else {
-                self.eat_parameter_pattern_or_name()?
-            };
+        let (pattern, name, name_span) = self.eat_parameter_pattern_or_name()?;
         // ? maybe
         if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat maybe
@@ -898,40 +888,6 @@ impl Parser {
         Ok((None, Some(name), Some(span)))
     }
 
-    /// Try to eat a variadic tuple label name in the shape `...[name]: T`.
-    fn try_eat_variadic_tuple_label_name_with_span(
-        &mut self,
-    ) -> ParseResult<Option<(StringId, Span)>> {
-        if !self.peek_is(TokenType::OpenBracket) {
-            return Ok(None);
-        }
-
-        // reject quickly when the tuple label head shape does not match `[name]:`
-        let has_tuple_label_head = self.lookahead(|parser| {
-            parser.bump();
-            if !parser.peek_is(TokenType::Identifier) {
-                return Ok(false);
-            }
-
-            parser.bump();
-            if !parser.peek_is(TokenType::CloseBracket) {
-                return Ok(false);
-            }
-
-            parser.bump();
-            Ok(parser.peek_is(TokenType::Colon))
-        })?;
-        if !has_tuple_label_head {
-            return Ok(None);
-        }
-
-        self.bump(); // eat [
-        let (name, span) = self.eat_binding_identifier_with_span()?;
-        self.bump(); // eat ]
-
-        Ok(Some((name, span)))
-    }
-
     /// Eat one parameter list.
     /// Parameters may be comma or newline separated.
     ///
@@ -1058,6 +1014,7 @@ impl Parser {
 
         // generic parameters accept only the dedicated generic modifiers
         let mut variance = None;
+        let mut is_const = false;
         let mut is_comptime = false;
 
         loop {
@@ -1087,8 +1044,14 @@ impl Parser {
                 continue;
             }
 
-            if self.is_keyword(Keyword::Comptime) || self.is_keyword(Keyword::Const) {
-                self.bump(); // eat comptime or const
+            if self.is_keyword(Keyword::Const) {
+                self.bump(); // eat const
+                is_const = true;
+                continue;
+            }
+
+            if self.is_keyword(Keyword::Comptime) {
+                self.bump(); // eat comptime
                 is_comptime = true;
                 continue;
             }
@@ -1167,6 +1130,7 @@ impl Parser {
         } else {
             GenericParameter::Type {
                 name,
+                is_const,
                 variance,
                 constraint: declared_type,
                 default: default.1,
@@ -2270,16 +2234,24 @@ mod tests {
         });
     }
 
-    /// Parse variadic tuple parameter names.
+    /// Parse bracketed rest parameters in type position as array patterns.
     #[test]
     fn test_parse_parameter_variadic_tuple_name() {
         let mut test = TestParser::new("...[value]: [] | [TNext]");
         let mut parser = test.prepare();
         parser.options.set_in_type(true);
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, declared_type, .. } => {
-            assert_string!(parser, *name, "value");
-            assert!(declared_type.is_some());
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type } => {
+            assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                assert_eq!(fields.len(), 1);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
+                    assert_name!(parser, *name, "value");
+                });
+            });
+
+            assert_node!(parser.tree, declared_type.expect("expected type annotation"), TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+            });
         });
     }
 
