@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::{
     LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, SmallSpan,
 };
-use crate::allocator::{Allocator, PageId, PageRunCache, PageView, SizeClassTable};
+use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawSpaceUsage};
 
 /// The first non-null raw large-allocation id.
@@ -50,6 +50,10 @@ pub struct RawSpace {
     pub(crate) large: LargeSpace,
     /// The owning raw metadata for each visible allocator page.
     pub(crate) page_map: Vec<Option<RawPageMapEntry>>,
+    /// The next unused byte offset in raw space.
+    pub(crate) next_offset: usize,
+    /// The fixed virtual mapping for live raw bytes.
+    pub(crate) mapping: AddressSpace,
 
     /// The exact live raw usage.
     pub(crate) usage: AllocationUsage,
@@ -63,7 +67,9 @@ impl RawSpace {
     ) -> Result<Self, HeapError> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
-        let page_run_cache = PageRunCache::new(allocator.pages_per_arena());
+        let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
+        let next_offset = allocator.page_bytes();
+        let mapping = AddressSpace::reserve(options.raw_space_bytes, options.page_bytes)?;
 
         Ok(Self {
             allocator,
@@ -81,6 +87,8 @@ impl RawSpace {
                 next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
             page_map: Vec::new(),
+            next_offset,
+            mapping,
             usage: AllocationUsage::default(),
         })
     }
@@ -95,14 +103,9 @@ impl RawSpace {
         self.usage.allocation_count()
     }
 
-    /// Return the exact retained raw bytes.
-    pub fn active_bytes(&self) -> u64 {
-        self.mapped_bytes()
-    }
-
-    /// Return the exact mapped raw page bytes.
-    pub fn mapped_bytes(&self) -> u64 {
-        self.allocator.mapped_bytes_for_page_views(
+    /// Return the exact retained raw allocator-page bytes.
+    pub fn retained_bytes(&self) -> u64 {
+        self.allocator.retained_bytes_for_page_runs(
             self.small.spans.iter().map(|span| &span.pages).chain(
                 self.large
                     .allocations
@@ -114,37 +117,25 @@ impl RawSpace {
             .cached_bytes(self.allocator.page_bytes())
     }
 
-    /// Return the exact borrowed raw bytes.
-    pub fn borrowed_bytes(&self) -> u64 {
-        0
-    }
-
     /// Return the exact live usage for this raw space.
     pub fn usage(&self) -> RawSpaceUsage {
         RawSpaceUsage {
             allocation_count: self.usage.allocation_count(),
             allocated_bytes: self.usage.allocated_bytes(),
-            active_bytes: self.active_bytes(),
-            mapped_bytes: self.mapped_bytes(),
-            borrowed_bytes: self.borrowed_bytes(),
+            retained_bytes: self.retained_bytes(),
         }
     }
 
-    /// Allocate one zeroed page view through the local page-run cache.
-    pub(crate) fn allocate_page_view_zeroed(&mut self, byte_len: usize) -> HeapResult<PageView> {
+    /// Allocate one zeroed page run through the local page-run cache.
+    pub(crate) fn allocate_page_run_zeroed(&mut self, byte_len: usize) -> HeapResult<PageRun> {
         self.page_run_cache
-            .allocate_zeroed(&self.allocator, byte_len)
+            .allocate_pages(&self.allocator, byte_len)
     }
 
-    /// Allocate one initialized page view through the local page-run cache.
-    pub(crate) fn allocate_page_view_bytes(&mut self, bytes: &[u8]) -> HeapResult<PageView> {
-        self.page_run_cache.allocate_bytes(&self.allocator, bytes)
-    }
-
-    /// Release one page view through the local page-run cache.
-    pub(crate) fn release_page_view(&mut self, page_view: PageView) -> HeapResult<()> {
+    /// Release one page run through the local page-run cache.
+    pub(crate) fn release_page_run(&mut self, page_run: PageRun) -> HeapResult<()> {
         self.page_run_cache
-            .release_page_view(&self.allocator, page_view)
+            .release_page_run(&self.allocator, page_run)
     }
 
     /// Flush transient cache state before one exact branch boundary.
@@ -192,24 +183,22 @@ impl RawSpace {
         self.small.spans.get_mut(span_index)
     }
 
-    /// Return the page map entry for one physical page.
-    pub(crate) fn page_entry(&self, page_id: PageId) -> Option<RawPageMapEntry> {
-        self.page_map.get(page_id.index()).copied().flatten()
+    /// Return the page-map entry for one logical page.
+    pub(crate) fn page_entry(&self, page_index: usize) -> Option<RawPageMapEntry> {
+        self.page_map.get(page_index).copied().flatten()
     }
 
-    /// Record one page map entry for every page in one logical page view.
-    pub(crate) fn map_page_view(
+    /// Record one page-map entry for every page in one logical page run.
+    pub(crate) fn map_page_run(
         &mut self,
-        page_view: &PageView,
+        first_offset: usize,
+        page_run: &PageRun,
         mut entry: impl FnMut(usize) -> RawPageMapEntry,
-    ) -> HeapResult<()> {
-        for logical_page_index in 0..page_view.len() {
-            let Some(page_id) = page_view.page(logical_page_index) else {
-                return Err(HeapError::MissingLogicalPage {
-                    page_index: logical_page_index,
-                });
-            };
-            let page_index = page_id.index();
+    ) {
+        let first_page_index = first_offset / self.allocator.page_bytes();
+
+        for logical_page_index in 0..page_run.len() {
+            let page_index = first_page_index + logical_page_index;
 
             if self.page_map.len() <= page_index {
                 self.page_map.resize(page_index + 1, None);
@@ -217,31 +206,27 @@ impl RawSpace {
 
             self.page_map[page_index] = Some(entry(logical_page_index));
         }
-
-        Ok(())
     }
 
-    /// Clear every page map entry for one logical page view.
-    pub(crate) fn unmap_page_view(&mut self, page_view: &PageView) -> HeapResult<()> {
-        for logical_page_index in 0..page_view.len() {
-            let Some(page_id) = page_view.page(logical_page_index) else {
-                return Err(HeapError::MissingLogicalPage {
-                    page_index: logical_page_index,
-                });
-            };
+    /// Clear every page-map entry for one logical page run.
+    pub(crate) fn unmap_page_run(&mut self, first_offset: usize, page_run: &PageRun) {
+        let first_page_index = first_offset / self.allocator.page_bytes();
 
-            if let Some(entry) = self.page_map.get_mut(page_id.index()) {
+        for logical_page_index in 0..page_run.len() {
+            let page_index = first_page_index + logical_page_index;
+
+            if let Some(entry) = self.page_map.get_mut(page_index) {
                 *entry = None;
             }
         }
-
-        Ok(())
     }
 
     /// Return the resolved location for one live raw pointer.
     pub(crate) fn resolve_location(&self, pointer: crate::RawPointer) -> Option<RawLocation> {
-        let (page_id, page_offset) = self.allocator.address_page_position(pointer.address())?;
-        let entry = self.page_entry(page_id)?;
+        let page_bytes = self.allocator.page_bytes();
+        let page_index = pointer.offset() / page_bytes;
+        let page_offset = pointer.offset() % page_bytes;
+        let entry = self.page_entry(page_index)?;
 
         match entry {
             RawPageMapEntry::Small {
@@ -249,9 +234,8 @@ impl RawSpace {
                 logical_page_index,
             } => {
                 let span = self.span(span_index)?;
-                let logical_byte_offset = logical_page_index
-                    .checked_mul(self.allocator.page_bytes())?
-                    .checked_add(page_offset)?;
+                let logical_byte_offset =
+                    logical_page_index * self.allocator.page_bytes() + page_offset;
                 let slot_index = logical_byte_offset / span.class.size_class;
                 let slot_offset = logical_byte_offset % span.class.size_class;
                 if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
@@ -267,16 +251,13 @@ impl RawSpace {
                     return None;
                 }
 
-                let slot_base_offset = slot_index.checked_mul(span.class.size_class)?;
-                let base_address = self
-                    .allocator
-                    .page_view_ptr(&span.pages, slot_base_offset)
-                    .ok()? as usize;
+                let slot_base_offset = slot_index * span.class.size_class;
+                let base_offset = span.first_offset + slot_base_offset;
                 let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
 
                 Some(RawLocation {
                     place: RawPlace::Small(slot),
-                    base: crate::RawPointer::new(base_address),
+                    base: crate::RawPointer::new(base_offset),
                     byte_offset: slot_offset,
                     byte_len,
                 })
@@ -286,9 +267,8 @@ impl RawSpace {
                 logical_page_index,
             } => {
                 let allocation = self.large_allocation(allocation_id)?;
-                let logical_byte_offset = logical_page_index
-                    .checked_mul(self.allocator.page_bytes())?
-                    .checked_add(page_offset)?;
+                let logical_byte_offset =
+                    logical_page_index * self.allocator.page_bytes() + page_offset;
                 if allocation.len == 0 {
                     if logical_byte_offset != 0 {
                         return None;
@@ -297,12 +277,9 @@ impl RawSpace {
                     return None;
                 }
 
-                let base_address =
-                    self.allocator.page_view_ptr(&allocation.pages, 0).ok()? as usize;
-
                 Some(RawLocation {
                     place: RawPlace::Large(allocation_id),
-                    base: crate::RawPointer::new(base_address),
+                    base: crate::RawPointer::new(allocation.first_offset),
                     byte_offset: logical_byte_offset,
                     byte_len: allocation.len,
                 })
@@ -312,20 +289,16 @@ impl RawSpace {
 
     /// Return the base pointer for one raw place.
     pub(crate) fn base_pointer(&self, place: RawPlace) -> HeapResult<crate::RawPointer> {
-        let base_address = match place {
+        let base_offset = match place {
             RawPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
                     });
                 };
-                let slot_offset = span.class.size_class.checked_mul(slot.slot_index()).ok_or(
-                    HeapError::InvariantOverflow {
-                        context: "raw slot base offset",
-                    },
-                )?;
+                let slot_offset = span.class.size_class * slot.slot_index();
 
-                self.allocator.page_view_ptr(&span.pages, slot_offset)? as usize
+                span.first_offset + slot_offset
             }
             RawPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -334,36 +307,56 @@ impl RawSpace {
                     });
                 };
 
-                self.allocator.page_view_ptr(&allocation.pages, 0)? as usize
+                allocation.first_offset
             }
         };
 
-        Ok(crate::RawPointer::new(base_address))
+        Ok(crate::RawPointer::new(base_offset))
     }
 
-    /// Return the page views reachable from this live raw space.
-    pub(crate) fn live_page_views(&self) -> Vec<PageView> {
-        let mut page_views = Vec::new();
+    /// Reserve one logical raw-space byte range.
+    pub(crate) fn reserve_space_range(&mut self, byte_len: usize) -> HeapResult<usize> {
+        debug_assert!(self.next_offset <= self.mapping.byte_len());
+
+        let first_offset = align_up(self.next_offset, self.allocator.page_bytes());
+        let next_offset = first_offset + byte_len;
+        if next_offset > self.mapping.byte_len() {
+            return Err(HeapError::InvalidByteRange {
+                start: first_offset,
+                len: byte_len,
+                capacity: self.mapping.byte_len(),
+            });
+        }
+
+        self.next_offset = next_offset;
+        self.mapping.zero(first_offset, byte_len)?;
+
+        Ok(first_offset)
+    }
+
+    /// Return the page runs reachable from this live raw space.
+    pub(crate) fn live_page_runs(&self) -> Vec<PageRun> {
+        let mut page_runs = Vec::new();
 
         // collect raw span roots first
-        page_views.extend(self.small.spans.iter().map(|span| span.pages.clone()));
+        page_runs.extend(self.small.spans.iter().map(|span| span.pages));
 
         // collect live large-allocation roots next
-        page_views.extend(
+        page_runs.extend(
             self.large
                 .allocations
                 .iter()
                 .filter(|allocation| allocation.is_live)
-                .map(|allocation| allocation.pages.clone()),
+                .map(|allocation| allocation.pages),
         );
 
-        page_views
+        page_runs
     }
 
     /// Release allocator roots owned by this raw space.
     fn close(&mut self) -> HeapResult<()> {
-        for page_view in self.live_page_views() {
-            self.release_page_view(page_view)?;
+        for page_run in self.live_page_runs() {
+            self.release_page_run(page_run)?;
         }
 
         self.page_run_cache.flush(&self.allocator)
@@ -374,4 +367,11 @@ impl Drop for RawSpace {
     fn drop(&mut self) {
         let _ = self.close();
     }
+}
+
+/// Return the offset rounded up to one allocation boundary.
+fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
+    let alignment_bytes = alignment_bytes.max(1);
+
+    byte_len.div_ceil(alignment_bytes) * alignment_bytes
 }

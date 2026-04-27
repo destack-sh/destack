@@ -95,7 +95,7 @@ impl Heap {
 
     /// Check the configured heap hard limits against current usage.
     pub fn check_limits(&self) -> HeapResult<()> {
-        self.check_mapped_byte_delta(0, 0)
+        self.check_retained_byte_delta(0, 0)
     }
 
     /// Return the currently live heap references.
@@ -244,9 +244,9 @@ impl Heap {
         let base_budget = heap_spans.max(span_slots);
         let assist_steps = self
             .gc_pacer
-            .take_assist_work(base_budget.saturating_mul(page_bytes), page_bytes);
+            .take_assist_work(base_budget * page_bytes, page_bytes);
 
-        base_budget.saturating_add(assist_steps)
+        base_budget + assist_steps
     }
 
     /// Allocate one managed heap allocation.
@@ -255,10 +255,10 @@ impl Heap {
         layout: AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
-        let mapped_byte_delta = self.heap.mapped_byte_delta(layout)?;
+        let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
 
-        // check the projected heap mapped-byte delta first
-        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
+        // check the projected heap retained-byte delta first
+        self.check_retained_byte_delta(retained_byte_delta, 0)?;
 
         // then allocate through heap space
         let reference = self.heap.allocate(layout, allocation)?;
@@ -274,10 +274,10 @@ impl Heap {
         byte_len: usize,
         allocation: Payload<'_>,
     ) -> HeapResult<RawPointer> {
-        let mapped_byte_delta = self.raw.alloc_mapped_byte_delta(byte_len);
+        let retained_byte_delta = self.raw.alloc_retained_byte_delta(byte_len);
 
-        // check the projected raw mapped-byte delta first
-        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
+        // check the projected raw retained-byte delta first
+        self.check_retained_byte_delta(0, retained_byte_delta)?;
 
         // then allocate through raw space
         self.raw.allocate(byte_len, allocation)
@@ -308,6 +308,26 @@ impl Heap {
         self.heap.read_bytes_into(reference, start, target)
     }
 
+    /// Return one checked address for a managed heap byte range.
+    pub fn heap_address(
+        &self,
+        reference: HeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.heap.address(reference, start, byte_len)
+    }
+
+    /// Return one checked writable address for a managed heap byte range.
+    pub fn heap_address_mut(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.heap.address_mut(reference, start, byte_len)
+    }
+
     /// Return the heap scan metadata for one heap allocation.
     pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
         self.heap.scan(reference)
@@ -320,12 +340,6 @@ impl Heap {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let mapped_byte_delta = self
-            .heap
-            .write_mapped_byte_delta(reference, start, bytes.len())?;
-
-        self.check_mapped_byte_delta(mapped_byte_delta, 0)?;
-
         self.heap.write_bytes(reference, start, bytes)
     }
 
@@ -359,6 +373,26 @@ impl Heap {
         self.raw.read_bytes_into(pointer, start, target)
     }
 
+    /// Return one checked address for a raw byte range.
+    pub fn raw_address(
+        &self,
+        pointer: RawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.raw.address(pointer, start, byte_len)
+    }
+
+    /// Return one checked writable address for a raw byte range.
+    pub fn raw_address_mut(
+        &mut self,
+        pointer: RawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.raw.address_mut(pointer, start, byte_len)
+    }
+
     /// Return one raw byte by offset.
     pub fn raw_byte_at(&self, pointer: RawPointer, index: usize) -> Option<u8> {
         self.raw.byte_at(pointer, index)
@@ -370,30 +404,31 @@ impl Heap {
         pointer: RawPointer,
         bytes: &[u8],
     ) -> HeapResult<RawPointer> {
-        // check the projected replacement mapped-byte delta next
-        self.check_raw_replace_mapped_byte_delta(pointer, bytes.len())?;
+        // check the projected replacement retained-byte delta next
+        self.check_raw_replace_retained_byte_delta(pointer, bytes.len())?;
 
         // then replace the raw payload
         self.raw.replace_bytes(pointer, bytes)
     }
 
     /// Overwrite one raw byte range.
-    pub fn set_raw_bytes(
+    pub fn write_raw_bytes(
         &mut self,
         pointer: RawPointer,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let mapped_byte_delta = self
-            .raw
-            .write_mapped_byte_delta(pointer, start, bytes.len())?;
-        self.check_mapped_byte_delta(0, mapped_byte_delta)?;
-        self.raw.set_bytes(pointer, start, bytes)
+        self.raw.write_bytes(pointer, start, bytes)
     }
 
     /// Overwrite one raw byte.
-    pub fn set_raw_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> HeapResult<()> {
-        self.set_raw_bytes(pointer, index, &[byte])
+    pub fn write_raw_byte(
+        &mut self,
+        pointer: RawPointer,
+        index: usize,
+        byte: u8,
+    ) -> HeapResult<()> {
+        self.write_raw_bytes(pointer, index, &[byte])
     }
 
     /// Free one raw allocation.
@@ -401,28 +436,28 @@ impl Heap {
         self.raw.free(pointer)
     }
 
-    /// Check the projected mapped-byte delta for one raw replacement.
-    fn check_raw_replace_mapped_byte_delta(
+    /// Check the projected retained-byte delta for one raw replacement.
+    fn check_raw_replace_retained_byte_delta(
         &self,
         pointer: RawPointer,
         next_len: usize,
     ) -> HeapResult<()> {
-        let mapped_byte_delta = self.raw.replace_mapped_byte_delta(pointer, next_len)?;
+        let retained_byte_delta = self.raw.replace_retained_byte_delta(pointer, next_len)?;
 
-        self.check_mapped_byte_delta(0, mapped_byte_delta)
+        self.check_retained_byte_delta(0, retained_byte_delta)
     }
 
-    /// Check heap limits after one requested mapped-byte delta.
-    fn check_mapped_byte_delta(
+    /// Check heap limits after one requested retained-byte delta.
+    fn check_retained_byte_delta(
         &self,
-        heap_mapped_byte_delta: i64,
-        raw_mapped_byte_delta: i64,
+        heap_retained_byte_delta: i64,
+        raw_retained_byte_delta: i64,
     ) -> HeapResult<()> {
-        self.limits.check_mapped_byte_delta(
-            self.heap.active_bytes(),
-            self.raw.active_bytes(),
-            heap_mapped_byte_delta,
-            raw_mapped_byte_delta,
+        self.limits.check_retained_byte_delta(
+            self.heap.retained_bytes(),
+            self.raw.retained_bytes(),
+            heap_retained_byte_delta,
+            raw_retained_byte_delta,
         )
     }
 

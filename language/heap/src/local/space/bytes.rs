@@ -1,21 +1,9 @@
 use destack_mir::ReferenceMap;
 
-use super::{HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace};
+use super::{HeapLocation, HeapPlace, HeapSpace};
 use crate::{HeapError, HeapReference, HeapResult};
 
 impl HeapSpace {
-    /// Return the projected mapped-byte delta for one heap write.
-    pub fn write_mapped_byte_delta(
-        &self,
-        reference: HeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<i64> {
-        self.checked_location_range(reference, start, byte_len)?;
-
-        Ok(0)
-    }
-
     /// Fill one caller-provided buffer from one heap allocation at one offset.
     pub(crate) fn read_bytes_into(
         &self,
@@ -56,6 +44,32 @@ impl HeapSpace {
         };
 
         checked_remaining_byte_len(location.byte_offset, location.byte_len)
+    }
+
+    /// Return one checked address for a live heap byte range.
+    pub(crate) fn address(
+        &self,
+        reference: HeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        let (location, byte_offset) = self.checked_location_range(reference, start, byte_len)?;
+        let mapping_offset = self.location_mapping_offset(location, byte_offset)?;
+
+        self.mapping.address(mapping_offset, byte_len)
+    }
+
+    /// Return one checked mutable address for a live heap byte range.
+    pub(crate) fn address_mut(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        let (location, byte_offset) = self.checked_location_range(reference, start, byte_len)?;
+        let mapping_offset = self.location_mapping_offset(location, byte_offset)?;
+
+        self.mapping.address(mapping_offset, byte_len)
     }
 
     /// Overwrite one heap byte range.
@@ -154,7 +168,6 @@ impl HeapSpace {
         // write through the owning place
         match location.place {
             HeapPlace::Young { first_offset } => {
-                let previous_pages = self.young.pages.clone();
                 let Some((_allocation_index, allocation)) =
                     self.young_range_by_offset(first_offset)
                 else {
@@ -166,31 +179,20 @@ impl HeapSpace {
                     byte_offset,
                     self.young.capacity_bytes,
                 )?;
-                let allocator = self.allocator().clone();
 
-                allocator.set_bytes(&mut self.young.pages, read_offset, bytes)?;
-
-                if self.young.pages != previous_pages {
-                    let next_pages = self.young.pages.clone();
-
-                    self.unmap_page_view(&previous_pages)?;
-                    self.map_page_view(&next_pages, |logical_page_index| {
-                        HeapPageMapEntry::Young { logical_page_index }
-                    })?;
-                }
+                self.mapping.write(read_offset, bytes)?;
 
                 Ok(())
             }
             HeapPlace::Small(slot) => {
-                let allocator = self.allocator().clone();
-                let (previous_pages, next_pages) = {
+                let page_bytes = self.allocator().page_bytes();
+                let mapping_offset = {
                     let Some(span) = self.span_mut(slot.span_index()) else {
                         return Err(HeapError::MissingSpan {
                             span_index: slot.span_index(),
                         });
                     };
-                    let previous_pages = span.pages.clone();
-                    let span_byte_len = span.pages.len() * allocator.page_bytes();
+                    let span_byte_len = span.pages.len() * page_bytes;
                     let slot_offset = checked_slot_offset(
                         slot.span_index(),
                         span.class.size_class,
@@ -199,49 +201,75 @@ impl HeapSpace {
                     let write_offset =
                         checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
-                    allocator.set_bytes(&mut span.pages, write_offset, bytes)?;
-
-                    (previous_pages, span.pages.clone())
+                    span.first_offset + write_offset
                 };
 
-                if next_pages != previous_pages {
-                    self.unmap_page_view(&previous_pages)?;
-                    self.map_page_view(&next_pages, |logical_page_index| {
-                        super::HeapPageMapEntry::Small {
-                            span_index: slot.span_index(),
-                            logical_page_index,
-                        }
-                    })?;
-                }
+                self.mapping.write(mapping_offset, bytes)?;
 
                 Ok(())
             }
             HeapPlace::Large(allocation_id) => {
-                let allocator = self.allocator().clone();
-                let (previous_pages, next_pages) = {
+                let mapping_offset = {
                     let Some(allocation) = self.large_allocation_mut(allocation_id) else {
                         return Err(HeapError::MissingLargeAllocation {
                             allocation_id: allocation_id.id(),
                         });
                     };
-                    let previous_pages = allocation.pages.clone();
 
-                    allocator.set_bytes(&mut allocation.pages, byte_offset, bytes)?;
-
-                    (previous_pages, allocation.pages.clone())
+                    allocation.first_offset + byte_offset
                 };
 
-                if next_pages != previous_pages {
-                    self.unmap_page_view(&previous_pages)?;
-                    self.map_page_view(&next_pages, |logical_page_index| {
-                        super::HeapPageMapEntry::Large {
-                            allocation_id,
-                            logical_page_index,
-                        }
-                    })?;
-                }
+                self.mapping.write(mapping_offset, bytes)?;
 
                 Ok(())
+            }
+        }
+    }
+
+    /// Return the mapping offset for one live heap location.
+    fn location_mapping_offset(
+        &self,
+        location: HeapLocation,
+        byte_offset: usize,
+    ) -> HeapResult<usize> {
+        match location.place {
+            HeapPlace::Young { first_offset } => {
+                let Some((_allocation_index, allocation)) =
+                    self.young_range_by_offset(first_offset)
+                else {
+                    return Err(HeapError::MissingYoungRange { first_offset });
+                };
+
+                checked_place_offset(
+                    self.young_range_offset(allocation),
+                    byte_offset,
+                    self.young.capacity_bytes,
+                )
+            }
+            HeapPlace::Small(slot) => {
+                let Some(span) = self.span(slot.span_index()) else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: slot.span_index(),
+                    });
+                };
+                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
+                let slot_offset = checked_slot_offset(
+                    slot.span_index(),
+                    span.class.size_class,
+                    slot.slot_index(),
+                )?;
+                let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
+
+                Ok(span.first_offset + read_offset)
+            }
+            HeapPlace::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+
+                Ok(allocation.first_offset + byte_offset)
             }
         }
     }
@@ -287,8 +315,7 @@ impl HeapSpace {
                     self.young.capacity_bytes,
                 )?;
 
-                self.allocator()
-                    .bytes_to_vec_from(&self.young.pages, read_offset, byte_len)
+                self.mapping.bytes(read_offset, byte_len)
             }
             HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -304,8 +331,8 @@ impl HeapSpace {
                 )?;
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
-                self.allocator()
-                    .bytes_to_vec_from(&span.pages, read_offset, byte_len)
+                self.mapping
+                    .bytes(span.first_offset + read_offset, byte_len)
             }
             HeapPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -314,8 +341,8 @@ impl HeapSpace {
                     });
                 };
 
-                self.allocator()
-                    .bytes_to_vec_from(&allocation.pages, byte_offset, byte_len)
+                self.mapping
+                    .bytes(allocation.first_offset + byte_offset, byte_len)
             }
         }
     }
@@ -341,8 +368,7 @@ impl HeapSpace {
                     self.young.capacity_bytes,
                 )?;
 
-                self.allocator()
-                    .fill_bytes_from(&self.young.pages, read_offset, target)
+                self.mapping.read(read_offset, target)
             }
             HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -358,8 +384,7 @@ impl HeapSpace {
                 )?;
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
-                self.allocator()
-                    .fill_bytes_from(&span.pages, read_offset, target)
+                self.mapping.read(span.first_offset + read_offset, target)
             }
             HeapPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -368,8 +393,8 @@ impl HeapSpace {
                     });
                 };
 
-                self.allocator()
-                    .fill_bytes_from(&allocation.pages, byte_offset, target)
+                self.mapping
+                    .read(allocation.first_offset + byte_offset, target)
             }
         }
     }
@@ -382,28 +407,15 @@ fn checked_byte_range(
     len: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    let byte_offset = base_offset
-        .checked_add(start)
-        .ok_or(HeapError::InvalidByteRange {
-            start: base_offset,
-            len: start,
-            capacity,
-        })?;
-    let end = byte_offset
-        .checked_add(len)
-        .ok_or(HeapError::InvalidByteRange {
-            start: byte_offset,
-            len,
-            capacity,
-        })?;
-
-    if end > capacity {
+    if start > capacity || len > capacity - start {
         return Err(HeapError::InvalidByteRange {
-            start: byte_offset,
+            start,
             len,
             capacity,
         });
     }
+
+    let byte_offset = base_offset + start;
 
     Ok(byte_offset)
 }
@@ -427,21 +439,15 @@ fn checked_place_offset(
     byte_offset: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    let offset = base_offset
-        .checked_add(byte_offset)
-        .ok_or(HeapError::InvalidByteRange {
-            start: base_offset,
-            len: byte_offset,
-            capacity,
-        })?;
-
-    if offset > capacity {
+    if byte_offset > capacity {
         return Err(HeapError::InvalidByteRange {
-            start: offset,
+            start: byte_offset,
             len: 0,
             capacity,
         });
     }
+
+    let offset = base_offset + byte_offset;
 
     Ok(offset)
 }
@@ -452,10 +458,7 @@ fn checked_slot_offset(
     size_class: usize,
     slot_index: usize,
 ) -> HeapResult<usize> {
-    size_class
-        .checked_mul(slot_index)
-        .ok_or(HeapError::InvalidSmallSlot {
-            span_index,
-            slot_index,
-        })
+    let _ = span_index;
+
+    Ok(size_class * slot_index)
 }

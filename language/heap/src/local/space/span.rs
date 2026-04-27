@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use super::CardSet;
 use crate::SmallSpanClass;
-use crate::allocator::{Bitmap, PageView};
+use crate::allocator::{Bitmap, PageRun};
 
 /// One frozen heap span root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct SmallSpanImage {
+    /// The first byte offset inside heap space.
+    pub first_offset: usize,
     /// The homogeneous payload class for this span.
     pub class: SmallSpanClass,
     /// The number of slots in this span.
@@ -18,12 +20,14 @@ pub(crate) struct SmallSpanImage {
     /// The exact shared-reference bits for each occupied slot.
     pub shared_reference_bits: Bitmap,
     /// The allocator pages for this span.
-    pub pages: PageView,
+    pub pages: PageRun,
 }
 
 /// One live heap span.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SmallSpan {
+    /// The first byte offset inside heap space.
+    pub(crate) first_offset: usize,
     /// The homogeneous payload class for this span.
     pub(crate) class: SmallSpanClass,
     /// The number of slots in this span.
@@ -41,7 +45,7 @@ pub(crate) struct SmallSpan {
     /// The marked slots in this span.
     pub(crate) marked: Bitmap,
     /// The allocator pages for this span.
-    pub(crate) pages: PageView,
+    pub(crate) pages: PageRun,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
     /// Whether this span is already queued for dirty-card scanning.

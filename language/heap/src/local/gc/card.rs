@@ -31,13 +31,12 @@ impl CardSet {
             return;
         }
 
-        let end = start.saturating_add(len).min(self.byte_len);
+        let end = (start + len).min(self.byte_len);
         let start_card = start / self.card_bytes;
         let end_card = end.div_ceil(self.card_bytes);
 
         // mark the covered card run in one bitmap update
-        self.dirty
-            .set_range(start_card, end_card.saturating_sub(start_card));
+        self.dirty.set_range(start_card, end_card - start_card);
     }
 
     /// Clear every dirty card.
@@ -49,13 +48,10 @@ impl CardSet {
     pub(crate) fn visit_dirty_ranges(&self, mut callback: impl FnMut(usize, usize)) {
         // walk each contiguous dirty card run in order
         self.dirty.visit_set_ranges(|start_card, card_count| {
-            let start = start_card.saturating_mul(self.card_bytes);
-            let end = start_card
-                .saturating_add(card_count)
-                .saturating_mul(self.card_bytes)
-                .min(self.byte_len);
+            let start = start_card * self.card_bytes;
+            let end = ((start_card + card_count) * self.card_bytes).min(self.byte_len);
 
-            callback(start, end.saturating_sub(start));
+            callback(start, end - start);
         });
     }
 }

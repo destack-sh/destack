@@ -1,20 +1,7 @@
 use super::{RawLocation, RawPlace, RawSpace};
-use crate::allocator::SpanSlot;
-use crate::{AccountingRegion, HeapError, HeapResult, RawPointer};
+use crate::{AccountingRegion, HeapError, HeapResult, Payload, RawPointer};
 
 impl RawSpace {
-    /// Return the projected mapped-byte delta for one raw write.
-    pub fn write_mapped_byte_delta(
-        &self,
-        pointer: RawPointer,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<i64> {
-        self.checked_location_range(pointer, start, byte_len)?;
-
-        Ok(0)
-    }
-
     /// Fill one caller-provided buffer from one raw allocation at one offset.
     pub(crate) fn read_bytes_into(
         &self,
@@ -25,6 +12,32 @@ impl RawSpace {
         let (location, byte_offset) = self.checked_location_range(pointer, start, target.len())?;
 
         self.fill_location_bytes(location, byte_offset, target)
+    }
+
+    /// Return one checked address for a live raw byte range.
+    pub(crate) fn address(
+        &self,
+        pointer: RawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        let (location, byte_offset) = self.checked_location_range(pointer, start, byte_len)?;
+        let offset = location.base.offset() + byte_offset;
+
+        self.mapping.address(offset, byte_len)
+    }
+
+    /// Return one checked mutable address for a live raw byte range.
+    pub(crate) fn address_mut(
+        &mut self,
+        pointer: RawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        let (location, byte_offset) = self.checked_location_range(pointer, start, byte_len)?;
+        let offset = location.base.offset() + byte_offset;
+
+        self.mapping.address(offset, byte_len)
     }
 
     /// Return whether one raw pointer currently refers to one live allocation.
@@ -50,36 +63,9 @@ impl RawSpace {
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<Vec<u8>> {
-        // read through the owning place
-        match location.place {
-            RawPlace::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
-                let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
+        let offset = location.base.offset() + byte_offset;
 
-                self.allocator()
-                    .bytes_to_vec_from(&span.pages, read_offset, byte_len)
-            }
-            RawPlace::Large(allocation_id) => {
-                let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-
-                self.allocator()
-                    .bytes_to_vec_from(&allocation.pages, byte_offset, byte_len)
-            }
-        }
+        self.mapping.bytes(offset, byte_len)
     }
 
     /// Return the remaining byte length for one raw allocation.
@@ -98,43 +84,21 @@ impl RawSpace {
         byte_offset: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        // read through the owning place
-        match location.place {
-            RawPlace::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
-                let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
+        let offset = location.base.offset() + byte_offset;
 
-                self.allocator()
-                    .fill_bytes_from(&span.pages, read_offset, target)
-            }
-            RawPlace::Large(allocation_id) => {
-                let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-
-                self.allocator()
-                    .fill_bytes_from(&allocation.pages, byte_offset, target)
-            }
-        }
+        self.mapping.read(offset, target)
     }
 
     /// Overwrite one raw byte range.
-    pub fn set_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> HeapResult<()> {
+    pub fn write_bytes(
+        &mut self,
+        pointer: RawPointer,
+        start: usize,
+        bytes: &[u8],
+    ) -> HeapResult<()> {
         let (location, byte_offset) = self.checked_location_range(pointer, start, bytes.len())?;
 
-        self.set_location_bytes(location, byte_offset, bytes)
+        self.write_location_bytes(location, byte_offset, bytes)
     }
 
     /// Return one checked live location and byte offset for one raw range.
@@ -154,50 +118,20 @@ impl RawSpace {
     }
 
     /// Overwrite one byte range for one live raw location.
-    fn set_location_bytes(
+    fn write_location_bytes(
         &mut self,
         location: RawLocation,
         byte_offset: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        // write through the owning place
-        match location.place {
-            RawPlace::Small(slot) => {
-                let allocator = self.allocator().clone();
-                let Some(span) = self.span_mut(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let span_byte_len = span.pages.len() * allocator.page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
-                let write_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
+        let offset = location.base.offset() + byte_offset;
 
-                allocator.set_bytes_unique(&span.pages, write_offset, bytes)?;
-
-                Ok(())
-            }
-            RawPlace::Large(allocation_id) => {
-                let allocator = self.allocator().clone();
-                let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-                allocator.set_bytes_unique(&allocation.pages, byte_offset, bytes)?;
-
-                Ok(())
-            }
-        }
+        self.mapping.write(offset, bytes)
     }
 
     /// Overwrite one raw byte.
-    pub fn set_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> HeapResult<()> {
-        self.set_bytes(pointer, index, &[byte])
+    pub fn write_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> HeapResult<()> {
+        self.write_bytes(pointer, index, &[byte])
     }
 
     /// Replace the entire raw allocation payload.
@@ -229,7 +163,19 @@ impl RawSpace {
 
                 // rewrite in place when the payload still fits
                 if bytes.len() == class.byte_len {
-                    self.replace_small_location_bytes(slot, bytes)?;
+                    let Some(span) = self.span(slot.span_index()) else {
+                        return Err(HeapError::MissingSpan {
+                            span_index: slot.span_index(),
+                        });
+                    };
+                    let slot_offset = checked_slot_offset(
+                        slot.span_index(),
+                        span.class.size_class,
+                        slot.slot_index(),
+                    )?;
+                    let offset = span.first_offset + slot_offset;
+
+                    self.mapping.write(offset, bytes)?;
 
                     self.usage
                         .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
@@ -241,8 +187,32 @@ impl RawSpace {
                 let new_location = match self.allocate_small_bytes(bytes)? {
                     Some(new_slot) => RawPlace::Small(new_slot),
                     None => {
-                        let pages = self.allocate_page_view_bytes(bytes)?;
+                        let pages = self.allocate_page_run_zeroed(bytes.len())?;
                         let allocation_id = self.insert_large_allocation(bytes.len(), pages)?;
+                        let Some(allocation) = self.large_allocation(allocation_id) else {
+                            return Err(HeapError::MissingLargeAllocation {
+                                allocation_id: allocation_id.id(),
+                            });
+                        };
+                        let first_offset = allocation.first_offset;
+
+                        if let Err(error) = self.mapping.write(first_offset, bytes) {
+                            let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+                                return Err(HeapError::MissingLargeAllocation {
+                                    allocation_id: allocation_id.id(),
+                                });
+                            };
+                            let pages = allocation.pages;
+
+                            allocation.retire();
+                            self.large
+                                .free_large_allocation_ids
+                                .push(allocation_id.id());
+                            self.unmap_page_run(first_offset, &pages);
+                            self.release_page_run(pages)?;
+
+                            return Err(error);
+                        }
 
                         RawPlace::Large(allocation_id)
                     }
@@ -250,7 +220,6 @@ impl RawSpace {
 
                 // release the previous slot before retargeting the pointer
                 self.release_small_slot(slot)?;
-                let _new_location = new_location;
 
                 self.usage
                     .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
@@ -258,110 +227,53 @@ impl RawSpace {
                 self.base_pointer(new_location)
             }
             RawPlace::Large(allocation_id) => {
-                let next_pointer = self.replace_large_location_bytes(allocation_id, bytes)?;
+                let new_location = self.allocate_place(bytes.len(), Payload::Bytes(bytes))?;
+
+                let Some(allocation) = self.large_allocation(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+                let first_offset = allocation.first_offset;
+                let pages = allocation.pages;
+
+                let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+
+                // retire the previous large allocation after replacement succeeds
+                allocation.retire();
+                self.large
+                    .free_large_allocation_ids
+                    .push(allocation_id.id());
+                self.unmap_page_run(first_offset, &pages);
+                self.release_page_run(pages)?;
 
                 self.usage
                     .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
 
-                Ok(next_pointer)
+                self.base_pointer(new_location)
             }
         }
-    }
-
-    /// Replace one small raw allocation in place inside its current span.
-    fn replace_small_location_bytes(&mut self, slot: SpanSlot, bytes: &[u8]) -> HeapResult<()> {
-        let allocator = self.allocator().clone();
-        let slot_index = slot.slot_index();
-        {
-            let Some(span) = self.span_mut(slot.span_index()) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: slot.span_index(),
-                });
-            };
-
-            // rewrite the slot payload in place
-            let slot_offset =
-                checked_slot_offset(slot.span_index(), span.class.size_class, slot_index)?;
-
-            allocator.set_bytes_unique(&span.pages, slot_offset, bytes)?;
-        }
-
-        Ok(())
-    }
-
-    /// Replace one large raw allocation by rebuilding its page view.
-    fn replace_large_location_bytes(
-        &mut self,
-        allocation_id: super::LargeAllocationId,
-        bytes: &[u8],
-    ) -> HeapResult<RawPointer> {
-        let Some(previous_allocation) = self.large_allocation(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
-        };
-        let previous_pages = previous_allocation.pages.clone();
-        let next_pages = self.allocate_page_view_bytes(bytes)?;
-
-        let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
-        };
-
-        // commit the new page view before releasing the old one
-        allocation.pages = next_pages.clone();
-
-        // update the recorded payload lengths
-        allocation.len = bytes.len();
-
-        // release the previous page view after the replacement is committed
-        self.unmap_page_view(&previous_pages)?;
-        self.map_page_view(&next_pages, |logical_page_index| {
-            super::RawPageMapEntry::Large {
-                allocation_id,
-                logical_page_index,
-            }
-        })?;
-        self.release_page_view(previous_pages)?;
-
-        let base_address = self.allocator().page_view_ptr(&next_pages, 0)? as usize;
-
-        Ok(RawPointer::new(base_address))
     }
 
     /// Return one raw byte by offset without materializing the full payload.
     pub(crate) fn byte_at(&self, pointer: RawPointer, index: usize) -> Option<u8> {
         let location = self.resolve_location(pointer)?;
-        let byte_offset = location.byte_offset.checked_add(index)?;
+        let byte_offset = location.byte_offset + index;
 
         if byte_offset >= location.byte_len {
             return None;
         }
 
-        match location.place {
-            RawPlace::Small(slot) => {
-                let span = self.span(slot.span_index())?;
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )
-                .ok()?;
-                let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let read_offset =
-                    checked_place_offset(slot_offset, byte_offset, span_byte_len).ok()?;
+        let offset = location.base.offset() + byte_offset;
+        let mut byte = [0];
 
-                self.allocator()
-                    .byte_at(&span.pages, span_byte_len, read_offset)
-            }
-            RawPlace::Large(allocation_id) => {
-                let allocation = self.large_allocation(allocation_id)?;
+        self.mapping.read(offset, &mut byte).ok()?;
 
-                self.allocator()
-                    .byte_at(&allocation.pages, location.byte_len, byte_offset)
-            }
-        }
+        Some(byte[0])
     }
 }
 
@@ -372,28 +284,15 @@ fn checked_byte_range(
     len: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    let byte_offset = base_offset
-        .checked_add(start)
-        .ok_or(HeapError::InvalidByteRange {
-            start: base_offset,
-            len: start,
-            capacity,
-        })?;
-    let end = byte_offset
-        .checked_add(len)
-        .ok_or(HeapError::InvalidByteRange {
-            start: byte_offset,
-            len,
-            capacity,
-        })?;
-
-    if end > capacity {
+    if start > capacity || len > capacity - start {
         return Err(HeapError::InvalidByteRange {
-            start: byte_offset,
+            start,
             len,
             capacity,
         });
     }
+
+    let byte_offset = base_offset + start;
 
     Ok(byte_offset)
 }
@@ -411,41 +310,13 @@ fn checked_remaining_byte_len(byte_offset: usize, capacity: usize) -> HeapResult
     Ok(capacity - byte_offset)
 }
 
-/// Return one checked place-local offset.
-fn checked_place_offset(
-    base_offset: usize,
-    byte_offset: usize,
-    capacity: usize,
-) -> HeapResult<usize> {
-    let offset = base_offset
-        .checked_add(byte_offset)
-        .ok_or(HeapError::InvalidByteRange {
-            start: base_offset,
-            len: byte_offset,
-            capacity,
-        })?;
-
-    if offset > capacity {
-        return Err(HeapError::InvalidByteRange {
-            start: offset,
-            len: 0,
-            capacity,
-        });
-    }
-
-    Ok(offset)
-}
-
 /// Return one checked small-slot base offset.
 fn checked_slot_offset(
     span_index: usize,
     size_class: usize,
     slot_index: usize,
 ) -> HeapResult<usize> {
-    size_class
-        .checked_mul(slot_index)
-        .ok_or(HeapError::InvalidSmallSlot {
-            span_index,
-            slot_index,
-        })
+    let _ = span_index;
+
+    Ok(size_class * slot_index)
 }

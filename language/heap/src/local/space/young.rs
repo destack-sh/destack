@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::HeapResult;
-use crate::allocator::{Allocator, Bitmap, PageRunCache, PageView};
+use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache};
 
 /// One live byte range in young space.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub(crate) struct YoungImage {
     /// The required alignment for young allocation bases.
     allocation_alignment_bytes: usize,
     /// The allocator pages backing this young space.
-    pages: PageView,
+    pages: PageRun,
     /// The captured young-space ranges.
     ranges: Box<[YoungRange]>,
     /// The live young-space boundary bits.
@@ -51,7 +51,7 @@ pub(crate) struct YoungSpace {
     /// The required alignment for young allocation bases.
     pub(crate) allocation_alignment_bytes: usize,
     /// The allocator pages backing this young space.
-    pub(crate) pages: PageView,
+    pub(crate) pages: PageRun,
     /// The live young-space ranges.
     pub(crate) ranges: Vec<YoungRange>,
     /// The live young-space boundary bits.
@@ -65,6 +65,11 @@ pub(crate) struct YoungSpace {
 }
 
 impl YoungSpace {
+    /// Return the first valid young-space allocation offset.
+    pub(crate) const fn first_allocation_offset(allocation_alignment_bytes: usize) -> usize {
+        allocation_alignment_bytes
+    }
+
     /// Create one empty young space with its full page run.
     pub(crate) fn new(
         allocator: &Allocator,
@@ -79,9 +84,9 @@ impl YoungSpace {
             generation: 0,
             capacity_bytes,
             page_bytes,
-            next_offset: 0,
+            next_offset: Self::first_allocation_offset(allocation_alignment_bytes),
             allocation_alignment_bytes,
-            pages: cache.allocate_zeroed(allocator, capacity_bytes)?,
+            pages: cache.allocate_pages(allocator, capacity_bytes)?,
             ranges: Vec::new(),
             live: Bitmap::with_capacity(0),
             marked: Bitmap::with_capacity(0),
@@ -99,7 +104,7 @@ impl YoungImage {
         page_bytes: usize,
         next_offset: usize,
         allocation_alignment_bytes: usize,
-        pages: PageView,
+        pages: PageRun,
         ranges: Box<[YoungRange]>,
         live: Bitmap,
         local_reference_bits: Bitmap,
@@ -145,7 +150,7 @@ impl YoungImage {
     }
 
     /// Return the allocator pages for this young root.
-    pub(crate) fn pages(&self) -> &PageView {
+    pub(crate) fn pages(&self) -> &PageRun {
         &self.pages
     }
 
