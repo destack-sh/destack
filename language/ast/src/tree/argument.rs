@@ -14,6 +14,7 @@ pub enum GenericParameter {
         variance: Option<VarianceModifier>,
         constraint: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<TypeExpression>>,
+        is_const: bool,
     },
     /// Value parameter.
     Value {
