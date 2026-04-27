@@ -16,8 +16,6 @@ To enable truly universal progrmaming with TypeScript, even in high performance 
 Invariably, when starting with an existing language as feature rich as modern TypeScript, any _new_ additions risk becoming unpredictably combinatorial in their complexity (hello C++).
 We tried hard to keep the actual net new concepts to the minimal set required to express all the missing things we needed, while also filling some gaps we experienced in the language that TypeScript cannot address directly (mostly due to its commitment to type-free emit).
 
-See [COMPATIBILITY](COMPATIBILITY.md) for interoperability details.
-
 ## "TypeScript++"
 
 We're very early in software.
