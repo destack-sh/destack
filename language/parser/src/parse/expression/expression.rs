@@ -302,8 +302,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let _identifier_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
-
         // static space always lowers to qualified references
         if self.flags.is_in_static() {
             return self.eat_static_identifier_expression_path(start);
@@ -351,8 +349,6 @@ impl Parser {
             return self.eat_expression_inner_with_stack_guard();
         }
 
-        self.stats.record_with_flags_call();
-
         let old_flags = self.swap_flags(flags);
         let result = self.eat_expression_inner_with_stack_guard();
         self.restore_flags(old_flags);
@@ -389,15 +385,12 @@ impl Parser {
         }
 
         let context = self.flags.not_in_statement_position();
-        self.stats.record_with_flags_call();
         self.eat_expression(self.flags.with_expression_context(context))
     }
 
     /// Eat an expression with stack growth checks.
     #[inline(always)]
     fn eat_expression_inner_with_stack_guard(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
-
         // stack depth
         let depth = self.state.expression_stack_depth;
         self.state.expression_stack_depth = depth + 1;
@@ -428,8 +421,6 @@ impl Parser {
     pub(crate) fn eat_type_expression_inner_with_stack_guard(
         &mut self,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
-
         // stack depth
         let depth = self.state.expression_stack_depth;
         self.state.expression_stack_depth = depth + 1;
@@ -550,8 +541,6 @@ impl Parser {
         let Ok(type_literal) = self.peek_type_literal() else {
             return Ok(None);
         };
-
-        let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
         let type_literal = self.eat_type_literal(Some(type_literal))?;
         let type_expression_id = self.insert_node(
             TypeExpression::Literal {
@@ -955,7 +944,6 @@ impl Parser {
 
         // keyword expressions and declaration starters
         if let Some(keyword) = lookahead.keyword {
-            let _keyword_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
             if let Some(expression_id) = self.eat_keyword_expression(
                 start,
                 header,
@@ -1046,7 +1034,6 @@ impl Parser {
 
         // direct type keyword forms
         if let Some(keyword) = lookahead.keyword {
-            let _keyword_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
             if let Some(type_expression_id) = self.eat_type_keyword_expression(
                 start,
                 header,
@@ -1459,11 +1446,8 @@ impl Parser {
             && group.follow_token_type.is_none();
 
         // plain groups
-        self.stats.record_parenthesized_expression_plain_call();
         if can_parse_plain_group_directly {
-            self.stats.record_parenthesized_expression_plain_hit();
         } else {
-            self.stats.record_parenthesized_expression_plain_miss();
         }
 
         if !can_parse_plain_group_directly
@@ -1597,7 +1581,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<ParsedExpression> {
-        let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
         let group = self.parenthesized_group_shape()?;
         self.eat_parenthesized_primary_from_group(start, group)
     }
@@ -1615,7 +1598,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
         let group = self.parenthesized_group_shape()?;
 
         // parse function types before consuming the grouped body
@@ -2113,7 +2095,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<ParsedExpression> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
         let token_type = self.peek_token_type();
 
         match token_type {
@@ -2158,7 +2139,6 @@ impl Parser {
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.is_template_literal_start() =>
             {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let template_literal = self.eat_template_literal()?;
 
                 Ok(ParsedExpression::plain(self.insert_node(
@@ -2169,7 +2149,6 @@ impl Parser {
                 )))
             }
             TokenType::Divide | TokenType::DivideAssign => {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let scalar_literal = self.eat_regex_literal()?;
 
                 Ok(ParsedExpression::plain(self.insert_node(
@@ -2178,7 +2157,6 @@ impl Parser {
                 )))
             }
             TokenType::Literal if self.is_scalar_literal_start() => {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let scalar_literal = self.eat_scalar_literal()?;
 
                 Ok(ParsedExpression::plain(self.insert_node(
@@ -2189,7 +2167,6 @@ impl Parser {
 
             // contextual literals and private identifiers
             TokenType::Not if self.peek_type_literal().is_ok() => {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let type_literal = self.eat_type_literal(None)?;
                 let type_expression_id = self.insert_node(
                     TypeExpression::Literal {
@@ -2258,7 +2235,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
         let token_type = self.peek_token_type();
 
         match token_type {
@@ -2302,11 +2278,9 @@ impl Parser {
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.is_template_literal_start() =>
             {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 self.eat_type_template_literal_expression()
             }
             TokenType::Literal if self.is_scalar_literal_start() => {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let scalar_literal = self.eat_scalar_literal()?;
 
                 Ok(self.insert_node(
@@ -2317,7 +2291,6 @@ impl Parser {
                 ))
             }
             TokenType::Not if self.peek_type_literal().is_ok() => {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
                 let type_literal = self.eat_type_literal(None)?;
 
                 Ok(self.insert_node(

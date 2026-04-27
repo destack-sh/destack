@@ -10,21 +10,11 @@ use destack_source::{
     NodeSpanBoundary, NodeSpanType, Span,
 };
 use std::fmt::Debug;
-#[cfg(feature = "timings")]
-use std::ptr::NonNull;
-#[cfg(feature = "timings")]
-use std::rc::Rc;
 use std::sync::Arc;
 
-#[cfg(feature = "timings")]
-use crate::parse::timing::ParserTimings;
-use crate::parse::timing::{ParserTimingEntry, ParserTimingScope, ParserTimingTag, tags};
 use crate::{ParseError, ParseResult};
 
 use super::state::ParserState;
-#[cfg(feature = "timings")]
-use super::stats::ParserSpeculationStats;
-use super::stats::ParserStats;
 
 const ESTIMATED_TOKEN_BYTES: usize = 6;
 const ESTIMATED_STRING_COUNT_DENOMINATOR: usize = 16;
@@ -991,11 +981,6 @@ pub struct Parser {
     pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
-    /// Optional parser timing collector.
-    #[cfg(feature = "timings")]
-    pub(crate) timings: Option<Rc<ParserTimings>>,
-    /// Optional parser stats.
-    pub(crate) stats: ParserStats,
     /// Semantic parser bookkeeping.
     pub(crate) state: ParserState,
 }
@@ -1079,9 +1064,6 @@ impl Parser {
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
-            #[cfg(feature = "timings")]
-            timings: timings_from_env(),
-            stats: ParserStats::new(speculation_stats_enabled_from_env()),
             state: ParserState::new(type_literal_identifiers),
         }
     }
@@ -1133,14 +1115,6 @@ impl Parser {
             );
         }
     }
-
-    /// Enable or disable parser speculation counters.
-    #[inline]
-    #[cfg(feature = "timings")]
-    pub fn set_collect_speculation_stats(&mut self, enabled: bool) {
-        self.stats.set_collect_speculation_stats(enabled);
-    }
-
     /// Get the span of all side annotations.
     #[inline]
     pub fn compute_side_span(&self) -> MultiSpan {
@@ -1163,7 +1137,6 @@ impl Parser {
         );
         self.flags = flags;
         self.errors.clear();
-        self.stats.reset();
         self.state.reset();
 
         self.read_next_token();
@@ -1172,371 +1145,6 @@ impl Parser {
             token: Token::end(),
             span: Span::new(self.file_id, 0, 0),
         };
-    }
-
-    /// Start a parser timing scope.
-    pub(crate) fn timing_scope(&self, tag: ParserTimingTag) -> ParserTimingScope {
-        #[cfg(not(feature = "timings"))]
-        {
-            let _ = tag;
-            ParserTimingScope::disabled()
-        }
-
-        #[cfg(feature = "timings")]
-        {
-            let Some(timings) = self.timings.as_ref() else {
-                return ParserTimingScope::disabled();
-            };
-            let timings_ptr = NonNull::from(timings.as_ref());
-            ParserTimingScope::new(Some(timings_ptr), tag)
-        }
-    }
-
-    /// Snapshot timing entries recorded by the parser.
-    pub fn timing_snapshot(&self) -> Option<Vec<ParserTimingEntry>> {
-        #[cfg(not(feature = "timings"))]
-        {
-            None
-        }
-
-        #[cfg(feature = "timings")]
-        {
-            self.timings.as_ref().map(|timings| timings.snapshot())
-        }
-    }
-
-    /// Snapshot speculative parser dispatch counters.
-    #[cfg(feature = "timings")]
-    pub fn speculation_snapshot(&self) -> Option<ParserSpeculationStats> {
-        self.stats.speculation_snapshot()
-    }
-
-    /// Return the current semantic tokens.
-    #[inline]
-    pub(crate) fn tokens(&self) -> &[TokenSpan] {
-        self.lexer.tokens()
-    }
-
-    /// Return the innermost expression after skipping parenthesized wrappers.
-    #[inline]
-    pub(crate) fn without_parentheses_expression(
-        &self,
-        mut expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        while let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
-            expression_id = *expression;
-        }
-
-        expression_id
-    }
-
-    /// Return true when tree literal lexing is enabled.
-    #[inline]
-    pub(crate) fn allow_tree_literals(&self) -> bool {
-        self.lexer.allow_tree_literals()
-    }
-
-    /// Set whether tree literal lexing is enabled.
-    #[inline]
-    pub(crate) fn set_allow_tree_literals(&mut self, allow: bool) {
-        self.lexer.set_allow_tree_literals(allow);
-    }
-
-    /// Eat a tree opening `<`.
-    #[inline]
-    pub(crate) fn eat_tree_opening_angle(&mut self) -> ParseResult<()> {
-        if !self.peek_is(TokenType::LessThan) {
-            return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
-        }
-
-        self.bump();
-        Ok(())
-    }
-
-    /// Enable or disable tree attribute value lexing for the next token.
-    #[inline]
-    pub(crate) fn set_tree_attribute_value(&mut self, enabled: bool) {
-        self.lexer.set_tree_attribute_value(enabled);
-    }
-
-    /// Re-lex the current token as a generic `<`.
-    #[inline]
-    pub(crate) fn re_lex_generic_l_angle(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
-        if token_type == TokenType::LessThan {
-            return true;
-        }
-
-        if !matches!(
-            token_type,
-            TokenType::ShiftLeft | TokenType::LessThanOrEqual | TokenType::ShiftLeftAssign
-        ) {
-            return false;
-        }
-
-        let token = self.lexer.re_lex_as_typed_l_angle(self.current_token);
-        self.lexer.replace_current_token(token);
-        self.current_token = token;
-        true
-    }
-
-    /// Re-lex the current token as one `>`.
-    #[inline]
-    pub(crate) fn re_lex_r_angle(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
-        if token_type == TokenType::GreaterThan {
-            return true;
-        }
-
-        if !matches!(
-            token_type,
-            TokenType::ShiftRight
-                | TokenType::UnsignedShiftRight
-                | TokenType::GreaterThanOrEqual
-                | TokenType::ShiftRightAssign
-                | TokenType::UnsignedShiftRightAssign
-        ) {
-            return false;
-        }
-
-        let token = self.lexer.re_lex_as_r_angle(self.current_token);
-        self.lexer.replace_current_token(token);
-        self.current_token = token;
-        true
-    }
-
-    /// Re-lex the current `/` or `/=` token as a regex literal
-    #[inline]
-    pub(crate) fn re_lex_regex(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
-        if token_type == TokenType::Literal
-            && matches!(
-                self.current_token.token.literal,
-                Some(destack_ast::LiteralType::RegexString { .. })
-            )
-        {
-            return true;
-        }
-
-        if !matches!(token_type, TokenType::Divide | TokenType::DivideAssign) {
-            return false;
-        }
-
-        let token = self.lexer.re_lex_as_regex(self.current_token);
-        self.lexer.replace_current_token(token);
-        self.current_token = token;
-        true
-    }
-
-    /// Eat one typed angle-close token.
-    #[inline]
-    pub(crate) fn eat_type_angle_close(&mut self) -> ParseResult<()> {
-        if !self.re_lex_r_angle() {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        self.bump();
-        Ok(())
-    }
-
-    /// Eat one expression-position typed angle-close token.
-    #[inline]
-    pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParseResult<()> {
-        if !Self::starts_expression_type_angle_close(self.peek_token_type()) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        self.eat_type_angle_close()
-    }
-
-    /// Return true when one token can begin a type-angle close sequence.
-    #[inline]
-    pub(crate) const fn starts_type_angle_close(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::GreaterThan
-                | TokenType::ShiftRight
-                | TokenType::UnsignedShiftRight
-                | TokenType::GreaterThanOrEqual
-                | TokenType::ShiftRightAssign
-                | TokenType::UnsignedShiftRightAssign
-        )
-    }
-
-    /// Return true when one token can begin an expression-position type-angle close.
-    #[inline]
-    pub(crate) const fn starts_expression_type_angle_close(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::GreaterThan | TokenType::ShiftRight | TokenType::UnsignedShiftRight
-        )
-    }
-
-    /// Return true when the current token can begin a type-angle close sequence.
-    #[inline]
-    pub(crate) fn peek_starts_type_angle_close(&mut self) -> bool {
-        Self::starts_type_angle_close(self.peek_token_type())
-    }
-
-    /// Return true when the current token can begin an expression-position type-angle close.
-    #[inline]
-    pub(crate) fn peek_starts_expression_type_angle_close(&mut self) -> bool {
-        Self::starts_expression_type_angle_close(self.peek_token_type())
-    }
-
-    /// Return true when the current token can begin one `>` in tree tag syntax.
-    #[inline]
-    pub(crate) fn peek_starts_tree_tag_close(&mut self) -> bool {
-        Self::starts_type_angle_close(self.peek_token_type())
-    }
-
-    /// Return owned token buffers after lexing to EOF.
-    pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
-        self.lexer.take_tokens()
-    }
-
-    /// Return the EOF span without forcing a full lex.
-    #[inline]
-    pub(crate) fn eof_span(&self) -> Span {
-        Span::new(self.file_id, self.file.len, self.file.len)
-    }
-
-    /// Read the next token from the lexer cursor.
-    #[inline]
-    fn read_next_token(&mut self) {
-        self.current_token = self.lexer.next_token();
-    }
-
-    /// Parse everything as an implicit namespace with optional trivia attachment.
-    fn parse_root_expressions(&mut self, attach_trivia: bool) -> Vec<LocalNodeId<Expression>> {
-        // parse leading triple-slash reference path directives
-        let (mut expressions, consumed_to_end) =
-            self.parse_leading_triple_slash_reference_imports();
-
-        // parse the root block body with recovery when source has non-directive content
-        if !consumed_to_end {
-            let start = self.span_start();
-            let mut body_expressions = self.with_token_recovery(
-                &start,
-                |parser| parser.eat_block_body(BlockFormat::Implicit),
-                Vec::new(),
-                TokenType::End,
-            );
-            expressions.append(&mut body_expressions);
-        }
-
-        // ensure one stable owner for trivia only files
-        self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
-
-        // attach comments only in the full parse pipeline
-        if attach_trivia {
-            self.attach_comments();
-            self.is_finished = true;
-        }
-
-        expressions
-    }
-
-    /// Parse everything as an implicit namespace.
-    #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
-    pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        self.parse_root_expressions(true)
-    }
-
-    /// Return whether the parser finished one full parse pipeline.
-    pub const fn is_finished(&self) -> bool {
-        self.is_finished
-    }
-
-    /// Parse everything as an implicit namespace without attaching trivia.
-    pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
-        self.parse_root_expressions(false)
-    }
-
-    /// Ensure one stable owner for comment trivia in comment only files.
-    fn ensure_trivia_anchor_maybe(
-        &mut self,
-        expressions: &mut Vec<LocalNodeId<Expression>>,
-        consumed_to_end: bool,
-    ) {
-        if !self.lexer.retains_trivia_tokens() {
-            return;
-        }
-
-        // most files already have parsed body expressions and never need a trivia anchor
-        if !consumed_to_end && !expressions.is_empty() {
-            return;
-        }
-
-        // materialize the full stream before trivia ownership checks
-        self.lexer.lex_to_end();
-
-        // skip files without retained comments
-        if !self.lexer.has_comment_tokens() {
-            return;
-        }
-
-        let stub_span = self.eof_span();
-
-        // comment only files need one returned expression owner
-        if expressions.is_empty() {
-            let stub = self.insert_node(Expression::Stub, stub_span);
-            expressions.push(stub);
-            return;
-        }
-
-        // only directive only files need an internal trivia owner
-        if !consumed_to_end {
-            return;
-        }
-
-        // directive only files with attachable semantic tokens already have stable owners
-        if self.lexer.has_attachable_semantic_tokens() {
-            return;
-        }
-
-        // insert one internal anchor so trivia can attach without parse errors
-        let _ = self.insert_node(Expression::Stub, stub_span);
-    }
-
-    /// Attach retained comments after parsing when needed.
-    pub fn attach_comments(&mut self) {
-        // skip comment output when trivia retention is disabled
-        if !self.lexer.retains_trivia_tokens() {
-            return;
-        }
-
-        let _timing = self.timing_scope(tags::PARSE_COMMENTS);
-
-        // materialize the stream so comment state is complete
-        self.lexer.lex_to_end();
-
-        if !self.lexer.has_comment_tokens() {
-            return;
-        }
-
-        // avoid copying comments twice when direct entrypoints attach manually
-        if !self.tree.comments().is_empty() {
-            return;
-        }
-
-        // finalize raw comments in parse order
-        let comments = self.lexer.take_trivia_comments();
-        self.tree.comments_mut().extend(comments);
-    }
-
-    /// Swap parser flags and return the previous value.
-    #[inline(always)]
-    pub(crate) fn swap_flags(&mut self, flags: ParserFlags) -> ParserFlags {
-        let old_flags = self.flags;
-        self.flags = flags;
-        old_flags
-    }
-
-    /// Restore parser flags from a previous swap.
-    #[inline(always)]
-    pub(crate) fn restore_flags(&mut self, old_flags: ParserFlags) {
-        self.flags = old_flags;
     }
 
     /// Execute a function with new parser flags.
@@ -1550,8 +1158,6 @@ impl Parser {
         if self.flags == flags {
             return func(self);
         }
-
-        self.stats.record_with_flags_call();
 
         let old_flags = self.swap_flags(flags);
         let result = func(self);
@@ -1573,8 +1179,6 @@ impl Parser {
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
     #[inline(always)]
     pub fn checkpoint(&mut self) -> ParserCheckpoint {
-        let _timing = self.timing_scope(tags::PARSE_ALLOC_MARK);
-
         ParserCheckpoint {
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
@@ -1607,7 +1211,6 @@ impl Parser {
 
     /// Rewind the parser cursor to one cursor checkpoint.
     pub fn rewind(&mut self, checkpoint: ParserCursorCheckpoint) {
-        self.stats.record_rewind();
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
@@ -1616,9 +1219,6 @@ impl Parser {
 
     /// Restore the parser and tree to one full checkpoint.
     pub fn restore(&mut self, checkpoint: ParserCheckpoint, idx: u32) {
-        let _timing = self.timing_scope(tags::PARSE_ALLOC_RESTORE);
-
-        self.stats.record_restore();
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
@@ -1671,7 +1271,6 @@ impl Parser {
         T: Node,
         Tree: TreeImpl<T>,
     {
-        let _timing = self.timing_scope(tags::PARSE_ALLOC_NODE);
         self.tree.insert_during_parse(node, span)
     }
 
@@ -2498,46 +2097,6 @@ impl Parser {
     pub fn is_same_line(&self, left: Span, right: Span) -> bool {
         self.file.is_same_line(left.start, right.end)
     }
-}
-
-#[cfg(feature = "timings")]
-fn timings_enabled_from_env() -> bool {
-    std::env::var("DESTACK_PARSER_TIMINGS")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .or_else(|| {
-            std::env::var("DESTACK_TIMINGS")
-                .ok()
-                .and_then(|value| value.parse::<u8>().ok())
-                .map(|value| value > 0)
-        })
-        .unwrap_or(false)
-}
-
-#[cfg(feature = "timings")]
-fn timings_from_env() -> Option<Rc<ParserTimings>> {
-    timings_enabled_from_env().then(|| Rc::new(ParserTimings::default()))
-}
-
-#[cfg(feature = "timings")]
-fn speculation_stats_enabled_from_env() -> bool {
-    std::env::var("DESTACK_PARSER_SPECULATION_STATS")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .or_else(|| {
-            std::env::var("DESTACK_PARSER_DISPATCH_STATS")
-                .ok()
-                .and_then(|value| value.parse::<u8>().ok())
-                .map(|value| value > 0)
-        })
-        .unwrap_or(false)
-}
-
-#[cfg(not(feature = "timings"))]
-fn speculation_stats_enabled_from_env() -> bool {
-    false
 }
 /// Full parser checkpoint for speculative parses that allocate nodes.
 #[derive(Debug, Clone)]

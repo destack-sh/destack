@@ -40,8 +40,6 @@ impl Parser {
             && !self.flags.is_in_type()
             && !self.flags.is_in_arrow_return_type();
         if can_use_follow_token {
-            self.stats.record_parenthesized_follow_token_call();
-
             if let Some(close_span) = self.find_matching_close_for_parenthesized_group() {
                 let follow_token_type = self.lookahead(|parser| {
                     while parser.current_token().span.start <= close_span.start {
@@ -51,8 +49,6 @@ impl Parser {
                     parser.peek_token_type()
                 });
                 if follow_token_type != TokenType::End {
-                    self.stats.record_parenthesized_follow_token_hit();
-
                     if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
                         return Ok(ParenthesizedGroupShape {
                             close_span: Some(close_span),
@@ -69,13 +65,9 @@ impl Parser {
         }
 
         // try the cheap follow-token fast path first
-        self.stats.record_delimiter_analysis_lookup();
 
         // tree literal lexing can mutate lexer state during lookahead
         let needs_snapshot = self.allow_tree_literals() && !self.flags.is_in_type();
-        if needs_snapshot {
-            self.stats.record_delimiter_analysis_snapshot_lookup();
-        }
 
         // compute the full grouped shape with snapshotting when needed
         let group_shape = if needs_snapshot {
@@ -93,7 +85,6 @@ impl Parser {
     /// Compute parenthesized group shape metadata for the current opening token.
     fn compute_parenthesized_group_shape(&mut self) -> ParseResult<ParenthesizedGroupShape> {
         // record the full grouped scan path
-        self.stats.record_delimiter_analysis_scan();
 
         // require one opening parenthesis at the current cursor
         if !self.peek_is(TokenType::OpenParenthesis) {

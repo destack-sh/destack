@@ -1,4 +1,3 @@
-use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
@@ -206,7 +205,6 @@ impl Parser {
         header: DeclarationHeader,
         keyword: Keyword,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_LET);
         let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) else {
             return Err(ParseError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
@@ -290,7 +288,6 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_LET);
         let (kind, mutability) = self.eat_let_kind()?;
         self.eat_let_after_keyword(start, header, kind, mutability)
     }
@@ -309,7 +306,6 @@ impl Parser {
         header: DeclarationHeader,
         asynchrony: Asynchrony,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_USING);
         // optional await
         if asynchrony == Asynchrony::Async {
             self.eat_keyword(Keyword::Await)?;
@@ -359,7 +355,6 @@ impl Parser {
         require_value: bool,
         allow_match_pattern: bool,
     ) -> ParseResult<LocalNodeId<Declarator>> {
-        let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
         let start = self.span_start();
         let pattern_flags = self
             .flags

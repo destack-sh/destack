@@ -47,7 +47,6 @@ impl Parser {
         header: DeclarationHeader,
         allow_anonymous_class: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let _timing = self.timing_scope(tags::PARSE_STRUCT);
         // keyword
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])

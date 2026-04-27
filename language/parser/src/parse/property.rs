@@ -10,7 +10,6 @@ use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 use super::PendingDecorators;
 use crate::parse::argument::BindingModifiers;
-use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 /// The keywords that can appear before a binding.
@@ -789,7 +788,6 @@ impl Parser {
     /// private static foo(): void
     /// ```
     pub fn eat_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
-        let _timing = self.timing_scope(tags::PARSE_PROPERTY);
         let start = self.span_start();
 
         // spread property

@@ -217,8 +217,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        self.stats.record_statement_keyword_dispatch_call();
-
         // parse labelled statements before keyword and expression dispatch
         if let Some(expression_id) = self.try_parse_labelled_statement_expression(start)? {
             return Ok(Some(expression_id));
@@ -229,8 +227,6 @@ impl Parser {
             if let Some(expression_id) =
                 self.try_eat_direct_statement_keyword_expression(start, keyword)?
             {
-                self.stats.record_statement_keyword_dispatch_direct_hit();
-
                 let expression = self.tree.get(expression_id);
                 let is_terminal_statement = expression.is_statement_boundary();
                 if is_terminal_statement {
@@ -241,8 +237,6 @@ impl Parser {
                     self.eat_expression_continuation(start, expression_id, false)?;
                 return Ok(Some(continuation_id));
             }
-
-            self.stats.record_statement_keyword_dispatch_direct_miss();
 
             // contextual declaration keywords become plain identifier expressions here
             if matches!(
@@ -266,9 +260,6 @@ impl Parser {
 
             return Ok(None);
         }
-
-        self.stats
-            .record_statement_keyword_dispatch_keyword_reject();
 
         // parse plain identifier paths after keyword dispatch already rejected
         if let Some(expression_id) = self.try_parse_plain_identifier_expression(start)? {
@@ -298,9 +289,6 @@ impl Parser {
         if token_type == TokenType::Identifier {
             return self.try_dispatch_identifier_statement_expression(start);
         }
-
-        self.stats
-            .record_statement_keyword_dispatch_prefilter_reject();
 
         Ok(None)
     }
@@ -578,15 +566,11 @@ impl Parser {
         Vec<LocalNodeId<Expression>>,
         Option<LocalNodeId<Expression>>,
     )> {
-        let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
-
         // keep statement flags for the whole body to avoid per statement flag churn
         let (ambient_context, expression_context) = self.statement_position_contexts();
         if self.flags == ambient_context && self.flags == expression_context {
             return self.eat_block_body_parts_in_statement_position(format, block_context);
         }
-
-        self.stats.record_with_flags_call();
         self.with_flags(
             self.flags
                 .with_ambient_context(ambient_context)

@@ -8,7 +8,6 @@ use rayon::prelude::*;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{env, fs};
 
 /// Return whether a file type is supported by the parser bench.
@@ -31,158 +30,6 @@ fn parser_bench_worker_count() -> usize {
     physical_cores.max(1)
 }
 
-static PARSER_TIMINGS_PRINTED: AtomicBool = AtomicBool::new(false);
-#[cfg(feature = "timings")]
-static PARSER_SPECULATION_PRINTED: AtomicBool = AtomicBool::new(false);
-
-/// Return whether parser timing snapshots should be printed.
-fn parser_timing_print_enabled_from_env() -> bool {
-    env::var("DESTACK_PARSE_PRINT_TIMINGS")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .or_else(|| {
-            env::var("DESTACK_PARSER_TIMINGS_PRINT")
-                .ok()
-                .and_then(|value| value.parse::<u8>().ok())
-                .map(|value| value > 0)
-        })
-        .unwrap_or(false)
-}
-
-/// Return whether parser speculation counters should be printed.
-#[cfg(feature = "timings")]
-fn parser_speculation_print_enabled_from_env() -> bool {
-    env::var("DESTACK_PARSE_PRINT_SPECULATION")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .or_else(|| {
-            env::var("DESTACK_PARSER_SPECULATION_PRINT")
-                .ok()
-                .and_then(|value| value.parse::<u8>().ok())
-                .map(|value| value > 0)
-        })
-        .unwrap_or(false)
-}
-
-/// Print one parser timing snapshot with flat and inclusive time.
-fn print_parser_timing_snapshot_once(parser: &Parser, label: &str) {
-    if !parser_timing_print_enabled_from_env() {
-        return;
-    }
-
-    if PARSER_TIMINGS_PRINTED.swap(true, Ordering::Relaxed) {
-        return;
-    }
-
-    let Some(mut entries) = parser.timing_snapshot() else {
-        return;
-    };
-    if entries.is_empty() {
-        return;
-    }
-
-    entries.sort_by(|left, right| {
-        right
-            .self_duration
-            .cmp(&left.self_duration)
-            .then(right.duration.cmp(&left.duration))
-            .then(left.name.cmp(right.name))
-    });
-
-    let total_self_seconds: f64 = entries
-        .iter()
-        .map(|entry| entry.self_duration.as_secs_f64())
-        .sum();
-    let total_inclusive_seconds: f64 = entries
-        .iter()
-        .map(|entry| entry.duration.as_secs_f64())
-        .sum();
-
-    eprintln!("parser timing snapshot: {label}");
-    eprintln!(
-        "  total self: {:>9.3} ms  total inclusive: {:>9.3} ms",
-        total_self_seconds * 1000.0,
-        total_inclusive_seconds * 1000.0
-    );
-    eprintln!("  self %      self ms   incl ms    count  tag");
-
-    for entry in entries {
-        let self_seconds = entry.self_duration.as_secs_f64();
-        let inclusive_seconds = entry.duration.as_secs_f64();
-        let self_share = if total_self_seconds > 0.0 {
-            100.0 * self_seconds / total_self_seconds
-        } else {
-            0.0
-        };
-
-        eprintln!(
-            "  {:>6.2}%  {:>10.3} {:>9.3}  {:>7}  {}",
-            self_share,
-            self_seconds * 1000.0,
-            inclusive_seconds * 1000.0,
-            entry.count,
-            entry.name,
-        );
-    }
-}
-
-/// Print one parser speculation snapshot.
-#[cfg(feature = "timings")]
-fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
-    if !parser_speculation_print_enabled_from_env() {
-        return;
-    }
-
-    if PARSER_SPECULATION_PRINTED.swap(true, Ordering::Relaxed) {
-        return;
-    }
-
-    let Some(stats) = parser.speculation_snapshot() else {
-        return;
-    };
-
-    eprintln!("parser speculation snapshot: {label}");
-    eprintln!(
-        "  with_flags={} rewind={} restore={}",
-        stats.with_flags_calls, stats.rewind_calls, stats.restore_calls
-    );
-    eprintln!(
-        "  statement dispatch: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={}",
-        stats.statement_keyword_dispatch_calls,
-        stats.statement_keyword_dispatch_prefilter_rejects,
-        stats.statement_keyword_dispatch_keyword_rejects,
-        stats.statement_keyword_dispatch_direct_hits,
-        stats.statement_keyword_dispatch_direct_misses,
-    );
-    eprintln!(
-        "  parenthesized plain: calls={} hits={} misses={}",
-        stats.parenthesized_expression_plain_calls,
-        stats.parenthesized_expression_plain_hits,
-        stats.parenthesized_expression_plain_misses,
-    );
-    eprintln!(
-        "  lambda plain: paren calls={} hits={} misses={} identifier calls={} hits={} misses={}",
-        stats.parenthesized_lambda_plain_calls,
-        stats.parenthesized_lambda_plain_hits,
-        stats.parenthesized_lambda_plain_misses,
-        stats.identifier_lambda_plain_calls,
-        stats.identifier_lambda_plain_hits,
-        stats.identifier_lambda_plain_misses,
-    );
-    eprintln!(
-        "  async speculative: attempts={} successes={} rollbacks={}",
-        stats.async_keyword_speculative_attempts,
-        stats.async_keyword_speculative_successes,
-        stats.async_keyword_speculative_rollbacks,
-    );
-}
-
-/// Print one parser speculation snapshot.
-#[cfg(not(feature = "timings"))]
-fn print_parser_speculation_snapshot_once(_parser: &Parser, _label: &str) {}
-
 /// Parse one file through the full parser pipeline.
 fn parse_file(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
@@ -204,8 +51,7 @@ fn parse_file(file: Arc<File>) -> Parser {
     } else {
         parser.parse_without_trivia();
     }
-    print_parser_timing_snapshot_once(&parser, "parse-total");
-    print_parser_speculation_snapshot_once(&parser, "parse-total");
+
     parser
 }
 
@@ -399,7 +245,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         },
     );
 
-    // oxc style: no drop parse timing
+    // oxc style: no drop parse
     group.bench_with_input(
         BenchmarkId::new("parse", "no-drop"),
         &file,
@@ -441,13 +287,12 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 let parser = parse_file(file.clone());
-                print_parser_timing_snapshot_once(&parser, "parse-main-only");
                 black_box(parser);
             });
         },
     );
 
-    // parse main alias: no drop timing
+    // parse main alias: no drop
     group.bench_with_input(
         BenchmarkId::new("main", "no-drop"),
         &file,

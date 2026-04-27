@@ -1,5 +1,4 @@
 // parse use and where declarations
-use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
@@ -38,7 +37,6 @@ impl Parser {
     /// )
     /// ```
     pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
-        let _timing = self.timing_scope(tags::PARSE_WHERE);
         self.eat_keyword(Keyword::Where)?;
         let body_flags = self.flags.in_before_block();
         let clauses = self.with_flags(body_flags, |parser| parser.eat_where_body())?;

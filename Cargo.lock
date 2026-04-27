@@ -1629,6 +1629,7 @@ dependencies = [
 name = "destack_core"
 version = "0.55.4"
 dependencies = [
+ "blake3",
  "parking_lot",
  "rustc-hash 2.1.2",
  "serde",

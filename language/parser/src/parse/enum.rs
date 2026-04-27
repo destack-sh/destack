@@ -55,7 +55,6 @@ impl Parser {
         kind: EnumKind,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let _timing = self.timing_scope(tags::PARSE_ENUM);
         // keyword
         self.eat_keyword(Keyword::Enum)?;
 
