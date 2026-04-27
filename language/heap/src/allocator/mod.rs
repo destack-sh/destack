@@ -1,25 +1,26 @@
 mod allocator;
-mod arena;
 mod bitmap;
 mod bytes;
 mod cache;
+mod chunk;
 mod class;
 mod constants;
-mod cow;
 mod image;
 mod page;
+mod platform;
 mod run;
+mod space;
 mod span;
 
 pub use allocator::*;
 pub use bitmap::*;
 pub(crate) use cache::*;
 pub use class::*;
-pub(crate) use constants::{ALLOCATOR_ADDRESS_BITS, ARENA_TABLE_CHUNK_LEN};
-pub use constants::{DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_PAGE_BYTES};
+pub use constants::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES};
 pub use image::*;
 pub use page::*;
 pub(crate) use run::*;
+pub(crate) use space::*;
 pub use span::*;
 
 pub(crate) mod test;

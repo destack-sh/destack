@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::allocator::Allocator;
-use super::{PageId, PageView};
+use super::{PageId, PageRun};
 use crate::{HeapError, HeapResult};
 
 /// One serialized allocator page.
@@ -19,8 +19,8 @@ pub struct AllocatorPageImage {
 pub struct AllocatorImage {
     /// The fixed page size for the image.
     pub page_bytes: u32,
-    /// The fixed arena size for the image.
-    pub arena_bytes: u32,
+    /// The fixed chunk size for the image.
+    pub chunk_bytes: u32,
 
     /// The serialized page leaves reachable from one frozen root.
     pub pages: Box<[AllocatorPageImage]>,
@@ -29,24 +29,18 @@ pub struct AllocatorImage {
 impl Allocator {
     /// Restore one allocator directly from one serialized image.
     pub fn from_image(image: &AllocatorImage) -> HeapResult<Self> {
-        let allocator = Self::try_new(image.page_bytes as usize, image.arena_bytes as usize)?;
+        let allocator = Self::try_new(image.page_bytes as usize, image.chunk_bytes as usize)?;
         let page_bytes = allocator.page_bytes();
-        let mut arena_high_watermarks = BTreeMap::<usize, usize>::new();
+        let mut chunk_high_watermarks = BTreeMap::<usize, usize>::new();
         let mut page_count = 0;
 
         // resolve the reachable page range up front
         for page in &image.pages {
-            let next_page_count =
-                page.id
-                    .index()
-                    .checked_add(1)
-                    .ok_or(HeapError::InvalidPageId {
-                        index: page.id.index(),
-                    })?;
+            let next_page_count = page.id.index() + 1;
             page_count = page_count.max(next_page_count);
         }
 
-        // grow enough arena capacity first
+        // grow enough chunk capacity first
         allocator.grow_to_page_count(page_count)?;
 
         // materialize every serialized page into the allocator
@@ -66,44 +60,37 @@ impl Allocator {
 
             target_page.copy_from_slice(&page.bytes);
 
-            let (arena_index, arena_page_index) = allocator.page_position(page.id);
-            let arena_high_watermark = arena_high_watermarks.entry(arena_index).or_default();
-            let next_unused_page =
-                arena_page_index
-                    .checked_add(1)
-                    .ok_or(HeapError::InvalidPageId {
-                        index: page.id.index(),
-                    })?;
-            *arena_high_watermark = (*arena_high_watermark).max(next_unused_page);
+            let (chunk_index, chunk_page_index) = allocator.chunk_position(page.id);
+            let chunk_high_watermark = chunk_high_watermarks.entry(chunk_index).or_default();
+            let next_unused_page = chunk_page_index + 1;
+            *chunk_high_watermark = (*chunk_high_watermark).max(next_unused_page);
         }
 
-        // restore the per-arena allocation cursors
-        for (arena_index, high_watermark) in arena_high_watermarks {
-            if !allocator.has_arena(arena_index) {
-                let first_page_index = arena_index
-                    .checked_mul(allocator.pages_per_arena())
-                    .ok_or(HeapError::InvalidPageId { index: arena_index })?;
+        // restore the per-chunk allocation cursors
+        for (chunk_index, high_watermark) in chunk_high_watermarks {
+            if !allocator.has_chunk(chunk_index) {
+                let first_page_index = chunk_index * allocator.pages_per_chunk();
 
                 return Err(HeapError::ImageMissingPage {
                     page_id: PageId::new(first_page_index)?,
                 });
             }
 
-            allocator.raise_arena_high_watermark(arena_index, high_watermark)?;
+            allocator.raise_chunk_high_watermark(chunk_index, high_watermark)?;
         }
 
         Ok(allocator)
     }
 
-    /// Capture one page view into serialized allocator pages.
-    pub fn capture_page_view_pages(
+    /// Capture one page run into serialized allocator pages.
+    pub fn capture_page_run_pages(
         &self,
-        page_view: &PageView,
+        page_run: &PageRun,
     ) -> HeapResult<Box<[AllocatorPageImage]>> {
-        let mut pages = Vec::with_capacity(page_view.len());
+        let mut pages = Vec::with_capacity(page_run.len());
 
         // capture the exact bytes for each reachable allocator page
-        for page in page_view.page_ids() {
+        for page in page_run.page_ids() {
             let bytes = self
                 .page_slice(page)
                 .map_err(|_| HeapError::ImageMissingPage { page_id: page })?
@@ -133,17 +120,17 @@ impl Allocator {
 
         Ok(AllocatorImage {
             page_bytes: self.page_bytes() as u32,
-            arena_bytes: self.arena_bytes() as u32,
+            chunk_bytes: self.chunk_bytes() as u32,
             pages: image_pages.into_boxed_slice(),
         })
     }
 
-    /// Return one serialized allocator image for one reachable page view.
-    pub fn image(&self, page_view: &PageView) -> HeapResult<AllocatorImage> {
+    /// Return one serialized allocator image for one reachable page run.
+    pub fn image(&self, page_run: &PageRun) -> HeapResult<AllocatorImage> {
         Ok(AllocatorImage {
             page_bytes: self.page_bytes() as u32,
-            arena_bytes: self.arena_bytes() as u32,
-            pages: self.capture_page_view_pages(page_view)?,
+            chunk_bytes: self.chunk_bytes() as u32,
+            pages: self.capture_page_run_pages(page_run)?,
         })
     }
 }

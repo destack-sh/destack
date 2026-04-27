@@ -25,14 +25,26 @@ pub enum HeapError {
     InvalidGcTriggerPercent { percent: u32 },
     /// The configured heap page width is unsupported.
     InvalidPageBytes { bytes: usize },
-    /// The configured allocator arena width is unsupported.
-    InvalidAllocatorArenaBytes { bytes: usize },
-    /// The configured allocator arena width is not aligned to the page width.
-    MisalignedAllocatorArenaBytes {
+    /// The configured allocator chunk width is unsupported.
+    InvalidAllocatorChunkBytes { bytes: usize },
+    /// The configured virtual heap-space width is unsupported.
+    InvalidSpaceBytes {
+        /// The configured virtual heap-space width in bytes.
+        bytes: usize,
+    },
+    /// The configured allocator chunk width is not aligned to the page width.
+    MisalignedAllocatorChunkBytes {
         /// The configured page width in bytes.
         page_bytes: usize,
-        /// The configured allocator arena width in bytes.
-        arena_bytes: usize,
+        /// The configured allocator chunk width in bytes.
+        chunk_bytes: usize,
+    },
+    /// The configured virtual heap-space width is not aligned to the page width.
+    MisalignedSpaceBytes {
+        /// The configured page width in bytes.
+        page_bytes: usize,
+        /// The configured virtual heap-space width in bytes.
+        space_bytes: usize,
     },
     /// The explicit allocator does not match the configured heap page width.
     AllocatorPageBytesMismatch {
@@ -41,12 +53,12 @@ pub enum HeapError {
         /// The actual page width of the explicit allocator.
         allocator_page_bytes: usize,
     },
-    /// The explicit allocator does not match the configured heap arena width.
-    AllocatorArenaBytesMismatch {
-        /// The arena width configured through heap options.
-        option_arena_bytes: usize,
-        /// The actual arena width of the explicit allocator.
-        allocator_arena_bytes: usize,
+    /// The explicit allocator does not match the configured heap chunk width.
+    AllocatorChunkBytesMismatch {
+        /// The chunk width configured through heap options.
+        option_chunk_bytes: usize,
+        /// The actual chunk width of the explicit allocator.
+        allocator_chunk_bytes: usize,
     },
     /// The configured heap young-allocation threshold exceeds young-space capacity.
     HeapYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
@@ -101,21 +113,26 @@ pub enum HeapError {
         /// The largest configured size class in bytes.
         class_bytes: usize,
     },
-    /// The allocator arena count cannot grow far enough for one allocation.
-    AllocatorArenaLimitExceeded {
-        /// The required arena count.
-        required_arenas: usize,
-        /// The maximum configured arena count.
-        max_arenas: usize,
+    /// The allocator chunk count cannot grow far enough for one allocation.
+    AllocatorChunkLimitExceeded {
+        /// The required chunk count.
+        required_chunks: usize,
+        /// The maximum configured chunk count.
+        max_chunks: usize,
     },
-    /// One allocator arena allocation failed.
-    AllocatorArenaAllocationFailed {
-        /// The requested arena byte length.
+    /// One allocator chunk allocation failed.
+    AllocatorChunkAllocationFailed {
+        /// The requested chunk byte length.
         byte_len: usize,
     },
-    /// One allocator address was outside the supported arena map.
+    /// One address-space operation failed.
+    AddressSpaceFailed {
+        /// The requested address space byte length.
+        byte_len: usize,
+    },
+    /// One allocator address was outside the supported chunk map.
     AllocatorAddressUnsupported {
-        /// The mapped arena address.
+        /// The mapped chunk address.
         address: usize,
     },
     /// One heap-space hard limit was exceeded.
@@ -144,29 +161,10 @@ pub enum HeapError {
     SharedCollectionActive,
     /// One shared heap mark operation was requested while shared mark was inactive.
     SharedCollectionNotMarking,
-    /// One heap pin count could not represent one additional scoped pin.
-    HeapPinCountOverflow {
-        /// The pinned heap reference.
-        reference: HeapReference,
-        /// The current pin count before the failed increment.
-        count: u32,
-    },
-    /// One heap pin set could not represent one additional active scoped pin.
-    HeapPinActiveCountOverflow {
-        /// The current active pin count before the failed increment.
-        active_count: usize,
-    },
     /// One heap reference was unpinned without one active scoped pin.
     HeapPinMissing {
         /// The unpinned heap reference.
         reference: HeapReference,
-    },
-    /// One heap pin set lost its active-count invariant while unpinning.
-    HeapPinActiveCountUnderflow {
-        /// The unpinned heap reference.
-        reference: HeapReference,
-        /// The current active pin count before the failed decrement.
-        active_count: usize,
     },
     /// One heap byte range was outside the logical allocation.
     InvalidByteRange {
@@ -219,11 +217,6 @@ pub enum HeapError {
     InvalidRawPointer {
         /// The invalid raw pointer.
         pointer: RawPointer,
-    },
-    /// One direct page-view write expected unique allocator pages.
-    BorrowedPageWrite {
-        /// The first borrowed logical page index in the write window.
-        page_index: usize,
     },
     /// One shared heap reference did not resolve to one live allocation.
     InvalidSharedHeapReference {
@@ -315,14 +308,7 @@ pub enum HeapError {
         /// The invalid slot index.
         slot_index: usize,
     },
-    /// One patched run violated the single-page patch invariant.
-    InvalidPatchedRun {
-        /// The patched page index.
-        page_index: usize,
-        /// The patched run page count.
-        page_count: usize,
-    },
-    /// One dense copy on write table entry was missing unexpectedly.
+    /// One dense copy-on-write table entry was missing unexpectedly.
     MissingTableEntry {
         /// The missing dense entry index.
         index: usize,
@@ -383,19 +369,34 @@ impl Display for HeapError {
                     "invalid heap page width for heap options: {bytes}"
                 )
             }
-            Self::InvalidAllocatorArenaBytes { bytes } => {
+            Self::InvalidAllocatorChunkBytes { bytes } => {
                 write!(
                     formatter,
-                    "invalid allocator arena width for heap options: {bytes}"
+                    "invalid allocator chunk width for heap options: {bytes}"
                 )
             }
-            Self::MisalignedAllocatorArenaBytes {
+            Self::InvalidSpaceBytes { bytes } => {
+                write!(
+                    formatter,
+                    "invalid virtual heap-space width for heap options: {bytes}"
+                )
+            }
+            Self::MisalignedAllocatorChunkBytes {
                 page_bytes,
-                arena_bytes,
+                chunk_bytes,
             } => {
                 write!(
                     formatter,
-                    "allocator arena width violates heap page alignment: {arena_bytes} is not a multiple of {page_bytes}"
+                    "allocator chunk width violates heap page alignment: {chunk_bytes} is not a multiple of {page_bytes}"
+                )
+            }
+            Self::MisalignedSpaceBytes {
+                page_bytes,
+                space_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "virtual heap-space width violates heap page alignment: {space_bytes} is not a multiple of {page_bytes}"
                 )
             }
             Self::AllocatorPageBytesMismatch {
@@ -407,13 +408,13 @@ impl Display for HeapError {
                     "explicit allocator page width does not match heap options: options {option_page_bytes}, allocator {allocator_page_bytes}"
                 )
             }
-            Self::AllocatorArenaBytesMismatch {
-                option_arena_bytes,
-                allocator_arena_bytes,
+            Self::AllocatorChunkBytesMismatch {
+                option_chunk_bytes,
+                allocator_chunk_bytes,
             } => {
                 write!(
                     formatter,
-                    "explicit allocator arena width does not match heap options: options {option_arena_bytes}, allocator {allocator_arena_bytes}"
+                    "explicit allocator chunk width does not match heap options: options {option_chunk_bytes}, allocator {allocator_chunk_bytes}"
                 )
             }
             Self::HeapYoungThresholdExceedsCapacity {
@@ -497,25 +498,31 @@ impl Display for HeapError {
                     "small span is smaller than the largest size class: {span_bytes} < {class_bytes}"
                 )
             }
-            Self::AllocatorArenaLimitExceeded {
-                required_arenas,
-                max_arenas,
+            Self::AllocatorChunkLimitExceeded {
+                required_chunks,
+                max_chunks,
             } => {
                 write!(
                     formatter,
-                    "allocator arena limit exceeded: required {required_arenas} arenas with maximum {max_arenas}"
+                    "allocator chunk limit exceeded: required {required_chunks} chunks with maximum {max_chunks}"
                 )
             }
-            Self::AllocatorArenaAllocationFailed { byte_len } => {
+            Self::AllocatorChunkAllocationFailed { byte_len } => {
                 write!(
                     formatter,
-                    "allocator arena allocation failed: {byte_len} bytes"
+                    "allocator chunk allocation failed: {byte_len} bytes"
+                )
+            }
+            Self::AddressSpaceFailed { byte_len } => {
+                write!(
+                    formatter,
+                    "address space operation failed: {byte_len} bytes"
                 )
             }
             Self::AllocatorAddressUnsupported { address } => {
                 write!(
                     formatter,
-                    "allocator arena address is outside the supported arena map: {address:#x}"
+                    "allocator chunk address is outside the supported chunk map: {address:#x}"
                 )
             }
             Self::LimitExceeded {
@@ -554,31 +561,10 @@ impl Display for HeapError {
             Self::SharedCollectionNotMarking => {
                 write!(formatter, "shared heap is not currently marking")
             }
-            Self::HeapPinCountOverflow { reference, count } => {
-                write!(
-                    formatter,
-                    "heap pin count overflow for reference {reference:?} at count {count}"
-                )
-            }
-            Self::HeapPinActiveCountOverflow { active_count } => {
-                write!(
-                    formatter,
-                    "heap active pin count overflow at count {active_count}"
-                )
-            }
             Self::HeapPinMissing { reference } => {
                 write!(
                     formatter,
                     "heap reference {reference:?} is not currently pinned"
-                )
-            }
-            Self::HeapPinActiveCountUnderflow {
-                reference,
-                active_count,
-            } => {
-                write!(
-                    formatter,
-                    "heap active pin count underflow while unpinning reference {reference:?} at count {active_count}"
                 )
             }
             Self::InvalidByteRange {
@@ -640,12 +626,6 @@ impl Display for HeapError {
             }
             Self::InvalidRawPointer { pointer } => {
                 write!(formatter, "invalid raw pointer: {pointer:?}")
-            }
-            Self::BorrowedPageWrite { page_index } => {
-                write!(
-                    formatter,
-                    "direct page-view write requires unique pages: page {page_index} is still borrowed"
-                )
             }
             Self::InvalidSharedHeapReference { reference } => {
                 write!(formatter, "invalid shared heap reference: {reference:?}")
@@ -727,15 +707,6 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "span slot exceeds encoded slot range: span {span_index}, slot {slot_index}"
-                )
-            }
-            Self::InvalidPatchedRun {
-                page_index,
-                page_count,
-            } => {
-                write!(
-                    formatter,
-                    "heap patched run at page index {page_index} has invalid page count {page_count}"
                 )
             }
             Self::MissingTableEntry { index } => {

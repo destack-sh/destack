@@ -67,7 +67,7 @@ impl Bitmap {
             return;
         }
 
-        let end = start.saturating_add(len).min(self.capacity);
+        let end = (start + len).min(self.capacity);
         let start_word_index = start / BITMAP_WORD_BITS;
         let end_word_index = (end - 1) / BITMAP_WORD_BITS;
         let start_bit_offset = start % BITMAP_WORD_BITS;
@@ -122,7 +122,7 @@ impl Bitmap {
             return;
         }
 
-        let end = start.saturating_add(len).min(self.capacity);
+        let end = (start + len).min(self.capacity);
         let start_word_index = start / BITMAP_WORD_BITS;
         let end_word_index = (end - 1) / BITMAP_WORD_BITS;
         let start_bit_offset = start % BITMAP_WORD_BITS;
@@ -175,9 +175,7 @@ impl Bitmap {
             let available_bits = !word;
             if available_bits != 0 {
                 let first_bit = available_bits.trailing_zeros() as usize;
-                let index = word_index
-                    .saturating_mul(BITMAP_WORD_BITS)
-                    .saturating_add(first_bit);
+                let index = word_index * BITMAP_WORD_BITS + first_bit;
 
                 if index < self.capacity {
                     return Some(index);
@@ -186,7 +184,7 @@ impl Bitmap {
                 return None;
             }
 
-            word_index = word_index.saturating_add(1);
+            word_index += 1;
             if word_index >= self.words.len() {
                 return None;
             }
@@ -208,9 +206,7 @@ impl Bitmap {
         loop {
             if word != 0 {
                 let first_bit = word.trailing_zeros() as usize;
-                let index = word_index
-                    .saturating_mul(BITMAP_WORD_BITS)
-                    .saturating_add(first_bit);
+                let index = word_index * BITMAP_WORD_BITS + first_bit;
 
                 if index < self.capacity {
                     return Some(index);
@@ -219,7 +215,7 @@ impl Bitmap {
                 return None;
             }
 
-            word_index = word_index.saturating_add(1);
+            word_index += 1;
             if word_index >= self.words.len() {
                 return None;
             }
@@ -241,7 +237,7 @@ impl Bitmap {
         while let Some(range_start) = self.first_set_from(start) {
             let range_end = self.first_clear_from(range_start).unwrap_or(self.capacity);
 
-            callback(range_start, range_end.saturating_sub(range_start));
+            callback(range_start, range_end - range_start);
             start = range_end;
         }
     }

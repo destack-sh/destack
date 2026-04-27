@@ -38,7 +38,7 @@ pub struct SmallSpanClass {
 impl SmallSpanClass {
     /// Return the number of reusable small-span buckets for one size-class table.
     pub(crate) fn bucket_count(size_classes: &SizeClassTable) -> usize {
-        size_classes.classes.len().saturating_mul(2)
+        size_classes.classes.len() * 2
     }
 
     /// Return the reusable-span bucket index for this class.
@@ -55,7 +55,7 @@ impl SmallSpanClass {
             });
         }
 
-        Ok(class_index.saturating_mul(2) + self.is_noscan as usize)
+        Ok(class_index * 2 + self.is_noscan as usize)
     }
 }
 

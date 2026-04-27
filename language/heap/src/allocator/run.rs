@@ -14,10 +14,10 @@ pub(crate) struct PageRunSet {
 }
 
 impl PageRunSet {
-    /// Create one free-run set with small buckets up to one arena.
-    pub(crate) fn new(pages_per_arena: usize) -> Self {
-        let mut small_runs = Vec::with_capacity(pages_per_arena + 1);
-        small_runs.resize_with(pages_per_arena + 1, Vec::new);
+    /// Create one free-run set with small buckets up to one chunk.
+    pub(crate) fn new(pages_per_chunk: usize) -> Self {
+        let mut small_runs = Vec::with_capacity(pages_per_chunk + 1);
+        small_runs.resize_with(pages_per_chunk + 1, Vec::new);
 
         Self {
             small_runs,
@@ -28,7 +28,7 @@ impl PageRunSet {
 
     /// Allocate one free run large enough for the requested size.
     pub(crate) fn allocate(&mut self, page_count: usize) -> Option<PageRun> {
-        let small_limit = self.small_runs.len().saturating_sub(1);
+        let small_limit = self.small_runs.len() - 1;
 
         // prefer small buckets first
         if page_count <= small_limit {
@@ -48,13 +48,10 @@ impl PageRunSet {
         }
 
         // then fall back to larger ordered runs
-        let Some((run_len, run)) = self
+        let (run_len, run) = self
             .large_runs
             .range_mut(page_count..)
-            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))
-        else {
-            return None;
-        };
+            .find_map(|(&run_len, runs)| runs.pop().map(|run| (run_len, run)))?;
 
         self.runs_by_start.remove(&run.first_page.index());
 
@@ -139,6 +136,6 @@ impl PageRunSet {
     fn merged(left: PageRun, right: PageRun) -> PageRun {
         debug_assert!(left.is_immediately_before(right));
 
-        PageRun::from_raw_parts(left.first_page, left.page_count + right.page_count)
+        PageRun::from_raw(left.first_page, left.page_count + right.page_count)
     }
 }
