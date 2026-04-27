@@ -222,7 +222,7 @@ array.forEach(item => { console.log(item) })
 
 ```ds expected
 array.forEach((item) => {
-    console.log(item);
+    console.log(item)
 });
 ```
 
@@ -350,7 +350,7 @@ IIFEs wrap and immediately invoke the arrow function.
 
 ```ds expected
 (() => {
-    console.log("hello");
+    console.log("hello")
 })();
 ```
 

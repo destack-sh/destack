@@ -56,14 +56,14 @@ type Requirements = [...PlatformCapability[]];
 
 ### bracket tuple labeled rest payload
 
-Labeled tuple rest payloads keep the spread marker on the payload type.
+Labeled tuple rest elements keep the spread marker before the label.
 
 ```ts:main.ts
-type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
+type RedisArgs = [...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"]
 ```
 
 ```ts expected
-type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"];
+type RedisArgs = [...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"];
 ```
 
 ### bracket tuple optional label

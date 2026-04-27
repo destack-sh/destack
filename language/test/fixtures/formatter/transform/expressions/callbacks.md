@@ -14,7 +14,7 @@ fetchData(url, options, (response) => { process(response) })
 
 ```ds expected
 fetchData(url, options, (response) => {
-    process(response);
+    process(response)
 });
 ```
 
@@ -28,7 +28,7 @@ array.forEach((item) => { console.log(item) })
 
 ```ds expected
 array.forEach((item) => {
-    console.log(item);
+    console.log(item)
 });
 ```
 
