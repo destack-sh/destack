@@ -19,7 +19,7 @@ use crate::file::{
 use destack_ast::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionKind,
     FunctionMode, IfCondition, IfKind, LocalNodeId, Member, NodeTree, NodeType, Property,
-    TokenSpan, TypeExpression,
+    TokenSpan,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
@@ -839,7 +839,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
                         )
                     })
                 } else {
-                    (prev_was_import && !is_import_expr) || source_has_blank_line_between
+                    source_has_blank_line_between
                 };
 
                 if needs_blank {
@@ -882,7 +882,10 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             write_expression_gap_comments(f, gap_start, expression_id)?;
         }
 
-        let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
+        let is_expression_context_tail = allow_value_tail
+            && block
+                .tail_expression
+                .is_some_and(|tail| tail == expression_id);
         let prefix_after_offset = if previous_expression_id.is_none() {
             leading_prefix_comment_start
         } else {
@@ -1036,7 +1039,7 @@ fn format_program_statement_sequence<'ast>(
                         )
                     })
                 } else {
-                    (prev_was_import && !is_import_expr) || source_has_blank_line_between
+                    source_has_blank_line_between
                 };
 
                 if needs_blank {
@@ -1259,10 +1262,10 @@ fn expression_is_in_statement_position_inside_parent_block(
         return true;
     }
 
-    let is_last_expression = parent_block
-        .last_expression()
-        .is_some_and(|last_expression_id| last_expression_id == expression_id);
-    if !is_last_expression {
+    let is_tail_expression = parent_block
+        .tail_expression
+        .is_some_and(|tail_expression_id| tail_expression_id == expression_id);
+    if !is_tail_expression {
         return true;
     }
 
@@ -1284,7 +1287,6 @@ fn expression_is_in_statement_position_inside_parent_declaration(
             }
 
             function_body_is_statement_position(function.signature.mode)
-                && !function_has_self_return_type(context, function.signature.return_type)
         }),
         Declaration::Global(global) => global.expressions.contains(&expression_id),
         Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
@@ -1329,34 +1331,5 @@ fn expression_is_in_statement_position_inside_parent_property(
 
 /// Return true when one function-like body should be statement-position.
 fn function_body_is_statement_position(mode: Option<FunctionMode>) -> bool {
-    if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter)) {
-        return true;
-    }
-
-    true
-}
-
-/// Return true when one function return type is exactly `Self`.
-fn function_has_self_return_type(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<TypeExpression>>,
-) -> bool {
-    let Some(return_type_id) = return_type else {
-        return false;
-    };
-
-    type_expression_is_self_type_path(context, return_type_id)
-}
-
-/// Return true when one type expression is a simple `Self` type path.
-fn type_expression_is_self_type_path(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<TypeExpression>,
-) -> bool {
-    match context.tree.get(expression_id) {
-        TypeExpression::Reference { path, .. } => {
-            path.segments.len() == 1 && context.strings.get(path.segments[0]) == "Self"
-        }
-        _ => false,
-    }
+    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter))
 }

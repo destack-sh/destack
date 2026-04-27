@@ -45,6 +45,110 @@ fn test_format_block_insert_semicolon() {
     );
 }
 
+/// Tagged struct literal statements should not need object-literal disambiguation.
+#[test]
+fn test_format_block_tagged_struct_literal_statement() {
+    assert_format_program!(
+        r#"struct OsPathBytes { kind: "bytes"; bytes: PathBytes; }
+function writePath(data: PathBytes) {
+    OsPathBytes {
+        kind: "bytes",
+        bytes: data,
+    }
+    done();
+}
+"#,
+        r#"struct OsPathBytes {
+    kind: "bytes";
+    bytes: PathBytes;
+}
+function writePath(data: PathBytes) {
+    OsPathBytes {
+        kind: "bytes",
+        bytes: data,
+    };
+    done();
+}
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Tagged struct literal tail expressions should remain expression-valued.
+#[test]
+fn test_format_block_tagged_struct_literal_tail_expression() {
+    assert_format_program!(
+        r#"struct OsPathBytes { kind: "bytes"; bytes: PathBytes; }
+function osPathBytes(data: PathBytes): OsPath {
+    OsPathBytes {
+        kind: "bytes",
+        bytes: data,
+    }
+}
+"#,
+        r#"struct OsPathBytes {
+    kind: "bytes";
+    bytes: PathBytes;
+}
+function osPathBytes(data: PathBytes): OsPath {
+    OsPathBytes {
+        kind: "bytes",
+        bytes: data,
+    }
+}
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Final semicolons in value-capable blocks should preserve statement position.
+#[test]
+fn test_format_block_preserves_terminal_statement_semicolon() {
+    assert_format_program!(
+        r#"function run(): void {
+    done();
+}
+
+const visit = () => {
+    consume();
+}
+"#,
+        r#"function run(): void {
+    done();
+}
+
+const visit = () => {
+    consume();
+};
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Final expressions in value-capable blocks should stay semicolonless.
+#[test]
+fn test_format_block_preserves_terminal_expression_without_semicolon() {
+    assert_format_program!(
+        r#"function run(): Status {
+    done()
+}
+
+const visit = () => {
+    consume()
+}
+"#,
+        r#"function run(): Status {
+    done()
+}
+
+const visit = () => {
+    consume()
+};
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Inline blocks should stay inline when used as expressions.
 #[test]
 fn test_format_block_inline() {
@@ -113,6 +217,94 @@ const mode = runCli();
 const mode = runCli();
 "#,
         FileType::TypeScript,
+    );
+}
+
+/// Adjacent declaration doc comments should stay with the following declaration.
+#[test]
+fn test_format_program_keeps_adjacent_doc_comments_leading() {
+    assert_format_program!(
+        r#"/**
+ * Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
+ *
+ * @example
+ * ```ts
+ * const value = sessionStorage.getItem("key");
+ * console.log(value); // Output: "value"
+ * ```
+ */
+declare var sessionStorage: Storage;
+/** @category Cache */
+/**
+ * Provides access to the Cache API.
+ */
+declare var caches: CacheStorage;
+"#,
+        r#"/**
+ * Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
+ *
+ * @example
+ * ```ts
+ * const value = sessionStorage.getItem("key");
+ * console.log(value); // Output: "value"
+ * ```
+ */
+declare var sessionStorage: Storage;
+/** @category Cache */
+/**
+ * Provides access to the Cache API.
+ */
+declare var caches: CacheStorage;
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
+/// Declaration comments without delayed semicolons should stay leading.
+#[test]
+fn test_format_program_keeps_next_declaration_doc_comment_leading() {
+    assert_format_program!(
+        r#"declare const first: string
+/** doc */
+declare const second: string
+"#,
+        r#"declare const first: string;
+/** doc */
+declare const second: string;
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
+/// Nested global blocks should preserve the explicit `declare` spelling.
+#[test]
+fn test_format_nested_global_preserves_declare_spelling() {
+    assert_format_program!(
+        r#"declare module "buffer" {
+    global {
+        var Buffer: BufferConstructor;
+    }
+}
+"#,
+        r#"declare module "buffer" {
+    global {
+        var Buffer: BufferConstructor;
+    }
+}
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+
+    assert_format_program!(
+        r#"declare global {
+    var Buffer: BufferConstructor;
+}
+"#,
+        r#"declare global {
+    var Buffer: BufferConstructor;
+}
+"#,
+        FileType::TypeScriptDeclaration,
     );
 }
 

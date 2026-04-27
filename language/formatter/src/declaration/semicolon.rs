@@ -23,7 +23,7 @@ fn statement_terminator_comments_after(
     let source = context.source_text();
 
     for (index, comment) in comments.iter().copied().enumerate() {
-        if comment.is_leading() && comment.preceded_by_newline() {
+        if comment.preceded_by_newline() {
             let gap = Span::new(comment.span.file, anchor_end, comment.span.start);
             let is_eof_trailing_comment = !context.has_blank_line(gap)
                 && source.all_bytes_match(anchor_end, comment.span.start, |byte| {
@@ -62,6 +62,7 @@ fn statement_terminator_comments_between(
     context: &DestackFormatContext<'_>,
     anchor_end: u32,
     following_span_start: u32,
+    allow_own_line_comments: bool,
 ) -> Vec<Comment> {
     let comments = context.comments();
     let comments_before_following = comments.comments_before(following_span_start);
@@ -69,18 +70,6 @@ fn statement_terminator_comments_between(
     let mut collected = Vec::new();
 
     for comment in comments_before_following.iter().copied() {
-        let own_line_comment_before_source_semicolon = comment.preceded_by_newline()
-            && context
-                .source_text()
-                .bytes_contain(comment.span.end, following_span_start, b';');
-
-        if comment.is_leading()
-            && comment.preceded_by_newline()
-            && !own_line_comment_before_source_semicolon
-        {
-            break;
-        }
-
         if comment.span.start < anchor_end {
             continue;
         }
@@ -89,10 +78,14 @@ fn statement_terminator_comments_between(
             break;
         }
 
-        // blank-line-separated comments belong to the following statement
+        // blank line comments belong to the following statement
         if cursor < comment.span.start
             && context.has_blank_line(Span::new(comment.span.file, cursor, comment.span.start))
         {
+            break;
+        }
+
+        if comment.preceded_by_newline() && !allow_own_line_comments {
             break;
         }
 
@@ -116,6 +109,35 @@ fn statement_terminator_comments_between(
     collected
 }
 
+/// Return whether one variable declaration owns comments before its source semicolon.
+fn variable_statement_has_delayed_semicolon_comments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    following_span_start: u32,
+) -> bool {
+    let Expression::Let { declarators, .. } = context.tree.get(expression_id) else {
+        return false;
+    };
+    let [declarator_id] = declarators.as_slice() else {
+        return false;
+    };
+    if context.tree.get(*declarator_id).value.is_some() {
+        return false;
+    }
+
+    let declarator_span = context.span(*declarator_id);
+    let comments = context
+        .comments()
+        .comments_in_range(declarator_span.end, following_span_start);
+    let Some(first_comment) = comments.first() else {
+        return false;
+    };
+
+    context
+        .source_text()
+        .bytes_contain(first_comment.span.end, following_span_start, b';')
+}
+
 /// Write one statement terminator after one explicit source anchor.
 pub(crate) fn write_statement_terminator_after_anchor<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -134,14 +156,23 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
 /// Write one statement terminator with one explicit following sibling start.
 pub(crate) fn write_statement_terminator_with_following_start<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
     anchor_end: u32,
     following_span_start: u32,
 ) -> FormatResult<()> {
     write!(f, [token(";")])?;
 
-    let comments =
-        statement_terminator_comments_between(f.context(), anchor_end, following_span_start);
+    let allow_own_line_comments = variable_statement_has_delayed_semicolon_comments(
+        f.context(),
+        expression_id,
+        following_span_start,
+    );
+    let comments = statement_terminator_comments_between(
+        f.context(),
+        anchor_end,
+        following_span_start,
+        allow_own_line_comments,
+    );
     if comments.is_empty() {
         return Ok(());
     }

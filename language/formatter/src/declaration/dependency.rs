@@ -663,7 +663,7 @@ fn dependency_items_have_annotations(
     items.iter().any(|item| ctx.has_annotation(*item))
 }
 
-/// Return whether one dependency item list has separator comments or preserved line breaks.
+/// Return whether one dependency item list has separator comments.
 fn dependency_items_have_separator_signal(
     ctx: &DestackFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
@@ -672,16 +672,9 @@ fn dependency_items_have_separator_signal(
         let left_span = ctx.span(item_pair[0]);
         let right_span = ctx.span(item_pair[1]);
 
-        if !ctx
-            .comments()
+        !ctx.comments()
             .comments_in_range(left_span.end, right_span.start)
             .is_empty()
-        {
-            return true;
-        }
-
-        let gap_span = Span::new(left_span.file, left_span.end, right_span.start);
-        ctx.has_newline(gap_span)
     })
 }
 
@@ -804,9 +797,7 @@ fn dependency_item_collection_has_interior_signal(
         open_brace.span.end,
         first_item_span.start,
     );
-    if dependency_gap_has_comments(context, leading_span.start, leading_span.end)
-        || context.has_newline(leading_span)
-    {
+    if dependency_gap_has_comments(context, leading_span.start, leading_span.end) {
         return true;
     }
 
@@ -824,7 +815,6 @@ fn dependency_item_collection_has_interior_signal(
     );
 
     dependency_gap_has_comments(context, trailing_span.start, trailing_span.end)
-        || context.has_newline(trailing_span)
 }
 
 /// Return dependency items in output order with optional organize-imports sorting.
@@ -856,7 +846,9 @@ fn write_dependency_item_entries<'ast>(
             && let Some(open_brace) = open_brace
         {
             let item_start = dependency_item_prefix_start(f.context(), item_id);
-            if open_brace.span.end >= item_start {
+            if open_brace.span.end >= item_start
+                || !dependency_gap_has_comments(f.context(), open_brace.span.end, item_start)
+            {
                 if f.context().options.bracket_spacing {
                     write!(f, [if_group_fits_on_line(&space())])?;
                 }
@@ -881,7 +873,11 @@ fn write_dependency_item_entries<'ast>(
             .filter(|token| token.token.ty == TokenType::Comma && token.span.end <= next_item_start)
             .map_or(item_span.end, |token| token.span.end);
 
-        write_dependency_gap(f, gap_start, next_item_start, true)?;
+        if dependency_gap_has_comments(f.context(), gap_start, next_item_start) {
+            write_dependency_gap(f, gap_start, next_item_start, true)?;
+        } else {
+            write!(f, [soft_line_break_or_space()])?;
+        }
     }
 
     // trailing separator
@@ -977,7 +973,13 @@ fn write_dependency_item_collection<'ast>(
                                 last_item_end
                             };
 
-                            if trailing_start >= close_brace.span.start {
+                            if trailing_start >= close_brace.span.start
+                                || !dependency_gap_has_comments(
+                                    f.context(),
+                                    trailing_start,
+                                    close_brace.span.start,
+                                )
+                            {
                                 if f.context().options.bracket_spacing {
                                     write!(f, [if_group_fits_on_line(&space())])?;
                                 }

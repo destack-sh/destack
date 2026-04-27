@@ -83,6 +83,11 @@ where
 
         // ignored range passthrough
         if let Some(range_span) = ignore_ranges.get(&node_id.id) {
+            let comments = f.context().comments().comments_before(range_span.start);
+            if !comments.is_empty() {
+                write!(f, [FormatLeadingComments::Comments(comments)])?;
+            }
+
             write_ignored_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             continue;
