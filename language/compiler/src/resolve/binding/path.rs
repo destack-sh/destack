@@ -5,7 +5,7 @@ use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
     Declaration, Expression, GenericArgument, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
     LocalScopeId, LocalScopeMark, LocalSymbolId, Node, NodeTree, NodeType, Path, Scope, ScopeKind,
-    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeExpression,
+    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::Revision;
@@ -517,20 +517,36 @@ impl Compiler {
 
             let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
             let declaration = tree.get(declaration_id);
-            let heritage_types: Vec<LocalNodeId<TypeExpression>> = match declaration {
+            let heritage_symbols: Vec<GlobalSymbolId> = match declaration {
                 Declaration::Struct(declaration) => declaration
                     .implements_types
                     .iter()
                     .chain(declaration.embedded_types.iter())
-                    .copied()
+                    .filter_map(|type_id| tree.get(*type_id).target_symbol())
                     .collect(),
-                Declaration::Class(declaration) => declaration.implements_types.clone(),
-                Declaration::Enum(declaration) => declaration.implements_types.clone(),
-                Declaration::Interface(declaration) => declaration.extends_types.clone(),
-                Declaration::Extension(declaration) => declaration.implements_types.clone(),
+                Declaration::Class(declaration) => declaration
+                    .implements_types
+                    .iter()
+                    .filter_map(|type_id| tree.get(*type_id).target_symbol())
+                    .collect(),
+                Declaration::Enum(declaration) => declaration
+                    .implements_types
+                    .iter()
+                    .filter_map(|type_id| tree.get(*type_id).target_symbol())
+                    .collect(),
+                Declaration::Interface(declaration) => declaration
+                    .extends
+                    .iter()
+                    .filter_map(|heritage| tree.get(heritage.expression).target_symbol())
+                    .collect(),
+                Declaration::Extension(declaration) => declaration
+                    .implements_types
+                    .iter()
+                    .filter_map(|type_id| tree.get(*type_id).target_symbol())
+                    .collect(),
                 _ => Vec::new(),
             };
-            if heritage_types.is_empty() {
+            if heritage_symbols.is_empty() {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
@@ -543,12 +559,7 @@ impl Compiler {
             }
 
             // try heritage targets in declaration order
-            for heritage_expression_id in &heritage_types {
-                let heritage_expression = tree.get(*heritage_expression_id);
-                let Some(heritage_symbol) = heritage_expression.target_symbol() else {
-                    continue;
-                };
-
+            for heritage_symbol in &heritage_symbols {
                 let module = self
                     .cache_module_snapshot(pass.revision, pass.module.id)
                     .map_err(|error| ResolveError::Internal {
@@ -560,7 +571,7 @@ impl Compiler {
                     module,
                     pass.profile_id,
                     expression_id,
-                    heritage_symbol,
+                    *heritage_symbol,
                     member_key,
                     tree,
                     pass.symbols,

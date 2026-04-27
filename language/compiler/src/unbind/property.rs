@@ -357,6 +357,7 @@ impl Compiler {
                 key,
                 signature,
                 body,
+                is_optional,
                 visibility,
                 ambient,
                 is_abstract,
@@ -405,6 +406,7 @@ impl Compiler {
                     key,
                     signature,
                     body,
+                    is_optional: *is_optional,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
                     ambient: self.unbind_ambientness(*ambient, context),

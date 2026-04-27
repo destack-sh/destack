@@ -57,36 +57,58 @@ impl Compiler {
         None
     }
 
-    /// Return the inherited type expressions for one declaration.
-    fn inherited_type_expressions(
+    /// Return inherited nominal symbols for one declaration.
+    fn inherited_heritage_symbols(
         &self,
+        tree: &NodeTree,
         declaration: &Declaration,
-    ) -> Vec<LocalNodeId<TypeExpression>> {
+    ) -> Vec<GlobalSymbolId> {
         // struct heritage
         if let Declaration::Struct(declaration) = declaration {
-            let mut inherited = declaration.implements_types.clone();
-            inherited.extend(declaration.embedded_types.iter().copied());
-            return inherited;
+            return declaration
+                .implements_types
+                .iter()
+                .chain(declaration.embedded_types.iter())
+                .filter_map(|type_id| self.nominal_owner_symbol_for_type_expression(tree, *type_id))
+                .collect();
         }
 
         // class heritage
         if let Declaration::Class(declaration) = declaration {
-            return declaration.implements_types.clone();
+            return declaration
+                .implements_types
+                .iter()
+                .filter_map(|type_id| self.nominal_owner_symbol_for_type_expression(tree, *type_id))
+                .collect();
         }
 
         // enum heritage
         if let Declaration::Enum(declaration) = declaration {
-            return declaration.implements_types.clone();
+            return declaration
+                .implements_types
+                .iter()
+                .filter_map(|type_id| self.nominal_owner_symbol_for_type_expression(tree, *type_id))
+                .collect();
         }
 
         // interface heritage
         if let Declaration::Interface(declaration) = declaration {
-            return declaration.extends_types.clone();
+            return declaration
+                .extends
+                .iter()
+                .filter_map(|heritage| {
+                    self.nominal_owner_symbol_for_expression(tree, heritage.expression)
+                })
+                .collect();
         }
 
         // extension heritage
         if let Declaration::Extension(declaration) = declaration {
-            return declaration.implements_types.clone();
+            return declaration
+                .implements_types
+                .iter()
+                .filter_map(|type_id| self.nominal_owner_symbol_for_type_expression(tree, *type_id))
+                .collect();
         }
 
         Vec::new()
@@ -216,7 +238,7 @@ impl Compiler {
                 _ => continue,
             };
 
-            let inherited_types = self.inherited_type_expressions(declaration);
+            let inherited_symbols = self.inherited_heritage_symbols(tree, declaration);
 
             if let Some(enum_fields) = enum_fields
                 && let Some(symbol) = self.resolve_static_member_symbol_in_enum_fields(
@@ -278,12 +300,12 @@ impl Compiler {
                 }
             }
 
-            if !inherited_types.is_empty()
+            if !inherited_symbols.is_empty()
                 && let Some(symbol) = self.query_static_member_symbol_in_heritage(
                     revision,
                     module,
                     profile,
-                    &inherited_types,
+                    &inherited_symbols,
                     member_key,
                     tree,
                     symbols,
@@ -323,12 +345,17 @@ impl Compiler {
                 return Some(symbol);
             }
 
-            // then check the inherited types for the extension
+            // then check inherited symbols for the extension
+            let inherited_symbols = declaration
+                .implements_types
+                .iter()
+                .filter_map(|type_id| self.nominal_owner_symbol_for_type_expression(tree, *type_id))
+                .collect::<Vec<_>>();
             if let Some(symbol) = self.query_static_member_symbol_in_heritage(
                 revision,
                 module,
                 profile,
-                &declaration.implements_types,
+                &inherited_symbols,
                 member_key,
                 tree,
                 symbols,
@@ -448,20 +475,15 @@ impl Compiler {
         revision: Revision,
         module: &Module,
         profile: ProfileId,
-        inherited_types: &[LocalNodeId<TypeExpression>],
+        heritage_symbols: &[GlobalSymbolId],
         member_key: StaticKey,
         tree: &NodeTree,
         symbols: &SymbolTable,
         visited_targets: &mut HashSet<GlobalSymbolId>,
     ) -> Option<GlobalSymbolId> {
-        for heritage_expression_id in inherited_types {
-            let heritage_symbol =
-                self.nominal_owner_symbol_for_type_expression(tree, *heritage_expression_id);
-            let Some(heritage_symbol) = heritage_symbol else {
-                continue;
-            };
+        for heritage_symbol in heritage_symbols {
             let canonical_symbol =
-                self.canonical_symbol_in_tables(module, profile, heritage_symbol, symbols);
+                self.canonical_symbol_in_tables(module, profile, *heritage_symbol, symbols);
 
             if canonical_symbol.module_id == module.id {
                 if let Some(symbol) = self.query_static_member_symbol_inner(

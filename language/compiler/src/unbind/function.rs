@@ -27,6 +27,7 @@ impl Compiler {
         let ast_parameter = match parameter {
             dir::GenericParameter::Type {
                 name,
+                is_const,
                 variance,
                 constraint,
                 default,
@@ -65,6 +66,7 @@ impl Compiler {
 
                 ast::GenericParameter::Type {
                     name,
+                    is_const: *is_const,
                     variance,
                     constraint,
                     default,

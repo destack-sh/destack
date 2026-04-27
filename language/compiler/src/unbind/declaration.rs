@@ -659,20 +659,41 @@ impl Compiler {
                     .collect();
 
                 // relations and body
-                let extends_types = declaration
-                    .extends_types
+                let extends = declaration
+                    .extends
                     .iter()
-                    .map(|ty| {
-                        self.unbind_type_expression(
+                    .map(|heritage| {
+                        let expression = self.unbind_expression(
                             module,
-                            *ty,
+                            heritage.expression,
                             tree,
                             symbols,
                             types,
                             ast_tree,
                             ast_strings,
                             context,
-                        )
+                        );
+                        let generic_arguments = heritage
+                            .generic_arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_generic_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    types,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect();
+
+                        ast::InterfaceHeritage {
+                            expression,
+                            generic_arguments,
+                        }
                     })
                     .collect();
                 let members = declaration
@@ -699,7 +720,7 @@ impl Compiler {
                     is_nominal: declaration.is_nominal,
                     generic_parameters,
                     where_clauses,
-                    extends_types,
+                    extends,
                     members,
                 })
             }
