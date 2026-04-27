@@ -1286,6 +1286,7 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
     match generic_parameter {
         GenericParameter::Type {
             name: _,
+            is_const: _,
             variance: _,
             constraint,
             default,
@@ -1474,9 +1475,14 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let where_clause = tree.get(*where_clause_id);
                 visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
-            for expression_id in &declaration.extends_types {
-                let expression = tree.get(*expression_id);
-                visitor.visit_type_expression(tree, *expression_id, expression);
+            for heritage in &declaration.extends {
+                let expression = tree.get(heritage.expression);
+                visitor.visit_expression(tree, heritage.expression, expression);
+
+                for argument_id in &heritage.generic_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_generic_argument(tree, *argument_id, argument);
+                }
             }
             for member_id in &declaration.members {
                 let member = tree.get(*member_id);
@@ -1656,6 +1662,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             key,
             signature,
             body,
+            is_optional: _,
             visibility: _,
             ambient: _,
             is_abstract: _,

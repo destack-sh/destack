@@ -168,6 +168,15 @@ pub struct EnumDeclaration {
     pub members: Vec<LocalNodeId<Member>>,
 }
 
+/// One interface heritage clause item.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InterfaceHeritage {
+    /// The extended interface expression.
+    pub expression: LocalNodeId<Expression>,
+    /// The generic arguments applied to the extended interface expression.
+    pub generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+}
+
 /// An interface declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InterfaceDeclaration {
@@ -184,7 +193,7 @@ pub struct InterfaceDeclaration {
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The extended interfaces.
-    pub extends_types: Vec<LocalNodeId<TypeExpression>>,
+    pub extends: Vec<InterfaceHeritage>,
     /// The interface members.
     pub members: Vec<LocalNodeId<TypeMember>>,
 }

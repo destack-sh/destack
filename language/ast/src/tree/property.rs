@@ -149,6 +149,7 @@ pub enum Member {
         body: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
         ambient: Ambientness,
+        is_optional: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
