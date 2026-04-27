@@ -82,6 +82,15 @@ pub struct ClassDeclaration {
     pub members: Vec<LocalNodeId<Member>>,
 }
 
+/// One interface heritage clause item.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InterfaceHeritage {
+    /// The extended interface expression.
+    pub expression: LocalNodeId<Expression>,
+    /// The type arguments applied to the extended interface expression.
+    pub type_arguments: Vec<LocalNodeId<TypeExpression>>,
+}
+
 /// An interface declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDeclaration {
@@ -89,8 +98,8 @@ pub struct InterfaceDeclaration {
     pub descriptor: DeclarationDescriptor,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
-    /// The extended interface types.
-    pub extends_types: Vec<LocalNodeId<TypeExpression>>,
+    /// The extended interfaces.
+    pub extends: Vec<InterfaceHeritage>,
     /// The interface members.
     pub members: Vec<LocalNodeId<TypeMember>>,
 }

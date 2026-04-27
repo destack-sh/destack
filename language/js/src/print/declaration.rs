@@ -100,7 +100,7 @@ impl<'a> Printer<'a> {
             Declaration::Interface(interface) => {
                 let descriptor = &interface.descriptor;
                 let generic_parameters = &interface.generic_parameters;
-                let extends_types = &interface.extends_types;
+                let extends = &interface.extends;
                 let members = &interface.members;
 
                 self.print_class_like_prefix(Keyword::Interface, descriptor);
@@ -111,9 +111,21 @@ impl<'a> Printer<'a> {
                     self.write_punct(">");
                 }
 
-                if !extends_types.is_empty() {
+                if !extends.is_empty() {
                     self.write_keyword(Keyword::Extends);
-                    self.print_type_list(extends_types)?;
+
+                    for (index, heritage) in extends.iter().enumerate() {
+                        if index > 0 {
+                            self.write_punct(",");
+                        }
+
+                        let expression = self.tree.get(heritage.expression);
+                        self.print_expression(heritage.expression, expression, Precedence::Lowest)?;
+
+                        if !heritage.type_arguments.is_empty() {
+                            self.print_type_arguments(&heritage.type_arguments)?;
+                        }
+                    }
                 }
 
                 self.write_punct("{");
