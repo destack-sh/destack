@@ -3229,7 +3229,7 @@ fn create_test_heaps() -> (Heap, SharedHeap) {
     let allocator = Arc::new(
         Allocator::try_new(
             local_options.page_bytes,
-            local_options.allocator_arena_bytes,
+            local_options.allocator_chunk_bytes,
         )
         .expect("test allocator should build"),
     );

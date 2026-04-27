@@ -98,7 +98,7 @@ fn resolve_local_heap_policy(
         heap_space_bytes: layout.heap_space_bytes,
         raw_space_bytes: layout.raw_space_bytes,
         page_bytes: layout.page_bytes,
-        allocator_arena_bytes: layout.arena_bytes,
+        allocator_chunk_bytes: layout.chunk_bytes,
         small_allocation_alignment_bytes: layout.small_alignment_bytes,
     };
 
@@ -130,7 +130,7 @@ fn resolve_shared_heap_policy(
         heap_space_bytes: layout.heap_space_bytes,
         raw_space_bytes: layout.raw_space_bytes,
         page_bytes: layout.page_bytes,
-        allocator_arena_bytes: layout.arena_bytes,
+        allocator_chunk_bytes: layout.chunk_bytes,
         small_allocation_alignment_bytes: layout.small_alignment_bytes,
     };
 

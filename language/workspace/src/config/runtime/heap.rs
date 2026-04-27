@@ -1,5 +1,5 @@
 use destack_heap::{
-    DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES,
+    DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES,
     DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
     DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES,
     DEFAULT_YOUNG_BYTES,
@@ -125,8 +125,8 @@ pub struct HeapLayoutOptions {
     pub raw_space_bytes: usize,
     /// The byte width for heap pages and page-sized chunks.
     pub page_bytes: usize,
-    /// The byte width for one allocator arena.
-    pub arena_bytes: usize,
+    /// The byte width for one allocator chunk.
+    pub chunk_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_alignment_bytes: usize,
 }
@@ -142,7 +142,7 @@ impl Default for HeapLayoutOptions {
             heap_space_bytes: DEFAULT_SPACE_BYTES,
             raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
             small_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
@@ -180,8 +180,8 @@ pub struct HeapAllocatorOptionsJson {
     pub raw_space_bytes: Option<usize>,
     /// The byte width for heap pages and page-sized chunks.
     pub page_bytes: Option<usize>,
-    /// The byte width for one allocator arena.
-    pub arena_bytes: Option<usize>,
+    /// The byte width for one allocator chunk.
+    pub chunk_bytes: Option<usize>,
     /// The required alignment for configured small-allocation classes.
     pub small_alignment_bytes: Option<usize>,
 }
@@ -221,8 +221,8 @@ impl HeapAllocatorOptionsJson {
             self.page_bytes = parent.page_bytes;
         }
 
-        if self.arena_bytes.is_none() {
-            self.arena_bytes = parent.arena_bytes;
+        if self.chunk_bytes.is_none() {
+            self.chunk_bytes = parent.chunk_bytes;
         }
 
         if self.small_alignment_bytes.is_none() {
@@ -264,8 +264,8 @@ impl HeapAllocatorOptionsJson {
             options.page_bytes = page_bytes;
         }
 
-        if let Some(arena_bytes) = self.arena_bytes {
-            options.arena_bytes = arena_bytes;
+        if let Some(chunk_bytes) = self.chunk_bytes {
+            options.chunk_bytes = chunk_bytes;
         }
 
         if let Some(small_alignment_bytes) = self.small_alignment_bytes {

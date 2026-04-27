@@ -311,7 +311,7 @@ impl RuntimeDescriptorCodec {
         })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: worker.heap.allocated_bytes()?,
+            heap_bytes: worker.heap.allocated_bytes(),
             page_count,
             gc_cycles: worker.heap.gc_state().completed_cycles,
         })

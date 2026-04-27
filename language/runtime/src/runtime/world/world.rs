@@ -283,7 +283,7 @@ impl World {
         let allocator = Arc::new(
             heap::Allocator::try_new(
                 options.heap.layout.page_bytes,
-                options.heap.layout.arena_bytes,
+                options.heap.layout.chunk_bytes,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
