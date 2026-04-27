@@ -50,6 +50,25 @@ impl ModuleLowerer<'_> {
         }
     }
 
+    /// Lower one interface heritage item from DIR into JS AST.
+    pub(crate) fn lower_interface_heritage(
+        &mut self,
+        heritage: &dir::InterfaceHeritage,
+    ) -> CodegenJsResult<js::InterfaceHeritage> {
+        let expression = self
+            .lower_expression(heritage.expression)
+            .expect_node::<js::Expression>(
+                heritage.expression.into_global_any(self.module.id),
+                self,
+            )?;
+        let type_arguments = self.lower_static_type_arguments(&heritage.generic_arguments)?;
+
+        Ok(js::InterfaceHeritage {
+            expression,
+            type_arguments,
+        })
+    }
+
     /// Lower a declaration from DIR into JS AST.
     pub fn lower_declaration(
         &mut self,
@@ -241,8 +260,11 @@ impl ModuleLowerer<'_> {
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
 
                 // extends
-                let extends_types =
-                    self.lower_type_annotation_expressions(&declaration.extends_types)?;
+                let extends = declaration
+                    .extends
+                    .iter()
+                    .map(|heritage| self.lower_interface_heritage(heritage))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 // members
                 let members = declaration
@@ -254,7 +276,7 @@ impl ModuleLowerer<'_> {
                 let declaration = js::InterfaceDeclaration {
                     descriptor,
                     generic_parameters,
-                    extends_types,
+                    extends,
                     members,
                 };
 
