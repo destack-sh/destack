@@ -19,6 +19,7 @@ Arenas grow in fixed-size chunks, so existing references remain valid as new ele
 
 Global string interning.
 All identifiers, string literals, and other repeated strings are interned to `StringId` for cheap equality checks and reduced memory usage.
+`StringId` values are content-addressed, so they are stable across pools and persisted artifacts.
 
 ```ds
 const id: StringId = pool.intern("foo")
