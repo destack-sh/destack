@@ -1,6 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_ast::{
+    Expression, InterfaceHeritage, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression,
+};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
@@ -108,6 +110,30 @@ impl Parser {
         }
 
         self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+    }
+
+    /// Eat one optional interface extends clause.
+    #[inline]
+    pub fn eat_interface_extends_maybe(&mut self) -> ParseResult<Option<Vec<InterfaceHeritage>>> {
+        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
+            return Ok(None);
+        }
+
+        let options = self
+            .options
+            .not_in_position()
+            .in_super_type()
+            .not_in_new_receiver()
+            .not_in_type();
+        let extends = self.with_options(options, |parser| {
+            parser.eat_interface_heritage_list(&[
+                Keyword::Implements,
+                Keyword::With,
+                Keyword::Where,
+            ])
+        })?;
+
+        Ok(Some(extends))
     }
 
     /// Eat one optional extends expression clause.
@@ -240,7 +266,7 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         self.eat_super_list(
             terminators,
-            |parser| parser.eat_expression(parser.options.in_before_block()),
+            |parser| parser.eat_heritage_expression(),
             |parser, ty, super_type_span, item_starts_with_parenthesis| {
                 parser.tree.set_side_span(
                     *ty,
@@ -257,6 +283,69 @@ impl Parser {
                 Ok(())
             },
         )
+    }
+
+    /// Eat interface heritage entries.
+    fn eat_interface_heritage_list(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParseResult<Vec<InterfaceHeritage>> {
+        self.eat_super_list(
+            terminators,
+            |parser| {
+                let expression = parser.eat_heritage_expression()?;
+
+                Ok(parser.interface_heritage_from_expression(expression))
+            },
+            |parser, heritage, heritage_span, item_starts_with_parenthesis| {
+                parser.tree.set_side_span(
+                    heritage.expression,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    heritage_span,
+                );
+
+                if !item_starts_with_parenthesis
+                    && parser.super_type_has_invalid_unparenthesized_head(heritage.expression)
+                {
+                    return Err(ParseError::unexpected(
+                        parser.tree.get_span(heritage.expression),
+                    ));
+                }
+
+                Ok(())
+            },
+        )
+    }
+
+    /// Eat one heritage expression head.
+    fn eat_heritage_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let options = self
+            .options
+            .in_before_block()
+            .in_left_precedence(u16::MAX)
+            .not_in_sequence_expression();
+
+        self.eat_expression(options)
+    }
+
+    /// Convert one parsed heritage expression into its target and type arguments.
+    fn interface_heritage_from_expression(
+        &self,
+        expression: LocalNodeId<Expression>,
+    ) -> InterfaceHeritage {
+        match self.tree.get(expression) {
+            Expression::Instantiation {
+                left,
+                generic_arguments,
+            } => InterfaceHeritage {
+                expression: *left,
+                generic_arguments: generic_arguments.clone(),
+            },
+            _ => InterfaceHeritage {
+                expression,
+                generic_arguments: Vec::new(),
+            },
+        }
     }
 
     /// Return true when a heritage expression starts with an invalid unparenthesized head.
