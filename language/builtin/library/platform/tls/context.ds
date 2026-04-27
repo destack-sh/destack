@@ -83,7 +83,9 @@ declare namespace tls {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>;
+    export function contextOpen(
+        options: TlsContextOptions,
+    ): Result<TlsContextHandle, PlatformError>;
 
     /// Close one tls context object.
     ///
@@ -342,5 +344,4 @@ declare namespace tls {
         handle: TlsContextHandle,
         mode: TlsSessionResumptionMode,
     ): Result<void, PlatformError>;
-
 }

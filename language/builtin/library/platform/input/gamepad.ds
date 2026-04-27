@@ -173,7 +173,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function gamepadState(handle: InputDeviceHandle): Result<InputGamepadState, PlatformError>;
+    export function gamepadState(
+        handle: InputDeviceHandle,
+    ): Result<InputGamepadState, PlatformError>;
 
     /// Set one gamepad player index.
     ///

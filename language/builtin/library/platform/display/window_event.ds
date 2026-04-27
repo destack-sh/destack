@@ -1,8 +1,6 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
-import {
-    DisplayDragTransfer,
-} from "./drag.ds";
+import { DisplayDragTransfer } from "./drag.ds";
 import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
 import {
     DisplayBackend,
@@ -535,13 +533,17 @@ export const WINDOW_EVENT_KIND_POSITION_CHANGED: WindowEventKindMask = WindowEve
 /// Event kind bit for `sizeChanged`.
 export const WINDOW_EVENT_KIND_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80);
 /// Event kind bit for `contentRectChanged`.
-export const WINDOW_EVENT_KIND_CONTENT_RECT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100);
+export const WINDOW_EVENT_KIND_CONTENT_RECT_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x100);
 /// Event kind bit for `framebufferSizeChanged`.
-export const WINDOW_EVENT_KIND_FRAMEBUFFER_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200);
+export const WINDOW_EVENT_KIND_FRAMEBUFFER_SIZE_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x200);
 /// Event kind bit for `scaleFactorChanged`.
-export const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400);
+export const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x400);
 /// Event kind bit for `renderStateChanged`.
-export const WINDOW_EVENT_KIND_RENDER_STATE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800);
+export const WINDOW_EVENT_KIND_RENDER_STATE_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x800);
 /// Event kind bit for `modeChanged`.
 export const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x1000);
 /// Event kind bit for `displayChanged`.
@@ -551,21 +553,26 @@ export const WINDOW_EVENT_KIND_THEME_CHANGED: WindowEventKindMask = WindowEventK
 /// Event kind bit for `chromeChanged`.
 export const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x8000);
 /// Event kind bit for `taskbarVisibilityChanged`.
-export const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x10000);
+export const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x10000);
 /// Event kind bit for `safeAreaChanged`.
-export const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask = WindowEventKindMask(0x20000);
+export const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x20000);
 /// Event kind bit for `opacityChanged`.
 export const WINDOW_EVENT_KIND_OPACITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40000);
 /// Event kind bit for `parentChanged`.
 export const WINDOW_EVENT_KIND_PARENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80000);
 /// Event kind bit for `transientChanged`.
-export const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100000);
+export const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x100000);
 /// Event kind bit for `modalChanged`.
 export const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200000);
 /// Event kind bit for `mousePassthroughChanged`.
-export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400000);
+export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x400000);
 /// Event kind bit for `aspectRatioChanged`.
-export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800000);
+export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(0x800000);
 /// Event kind bit for `dragEntered`.
 export const WINDOW_EVENT_KIND_DRAG_ENTERED: WindowEventKindMask = WindowEventKindMask(0x1000000);
 /// Event kind bit for `dragUpdated`.
@@ -626,7 +633,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>;
+    export function windowEventOpen(
+        options: WindowEventOpenOptions,
+    ): Result<WindowEventHandle, PlatformError>;
 
     /// Close a global window-event stream.
     ///
@@ -714,7 +723,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>;
+    export function windowEventTryRead(
+        handle: WindowEventHandle,
+    ): Result<WindowEvent, PlatformError>;
 
     /// Wait for a batch of window events.
     ///

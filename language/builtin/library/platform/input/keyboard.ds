@@ -110,7 +110,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function keyboardState(handle: InputDeviceHandle): Result<InputKeyboardState, PlatformError>;
+    export function keyboardState(
+        handle: InputDeviceHandle,
+    ): Result<InputKeyboardState, PlatformError>;
 
     /// Query keyboard layout metadata.
     ///
@@ -137,5 +139,7 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function keyboardLayout(handle: InputDeviceHandle): Result<InputKeyboardLayoutInfo, PlatformError>;
+    export function keyboardLayout(
+        handle: InputDeviceHandle,
+    ): Result<InputKeyboardLayoutInfo, PlatformError>;
 }

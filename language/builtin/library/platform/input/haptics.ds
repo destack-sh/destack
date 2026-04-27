@@ -62,7 +62,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function hapticsEffects(handle: InputDeviceHandle): Result<Array<InputHapticEffectType>, PlatformError>;
+    export function hapticsEffects(
+        handle: InputDeviceHandle,
+    ): Result<Array<InputHapticEffectType>, PlatformError>;
 
     /// Play one haptic effect.
     ///

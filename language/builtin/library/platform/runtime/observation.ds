@@ -1,10 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import {
-    ObservationHandle,
-    ObservationOptions,
-    ObservationRecord,
-    WorldHandle,
-} from "./types.ds";
+import { ObservationHandle, ObservationOptions, ObservationRecord, WorldHandle } from "./types.ds";
 
 /// Low-level runtime observation bindings.
 export declare namespace runtime {

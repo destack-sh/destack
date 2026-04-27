@@ -531,7 +531,9 @@ declare namespace net {
         blocking: "never",
         affinity: "any",
     })
-    export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>;
+    export function getTimestamping(
+        handle: SocketHandle,
+    ): Result<SocketTimestampingMode, PlatformError>;
 
     /// Set socket packet mark.
     ///

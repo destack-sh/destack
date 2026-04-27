@@ -653,7 +653,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>;
+    export function usbDescriptor(
+        handle: UsbDeviceHandle,
+    ): Result<UsbDeviceDescriptor, PlatformError>;
 
     /// List USB string-descriptor language identifiers.
     ///
@@ -682,7 +684,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function usbStringLanguageList(handle: UsbDeviceHandle): Result<Slice<uint16>, PlatformError>;
+    export function usbStringLanguageList(
+        handle: UsbDeviceHandle,
+    ): Result<Slice<uint16>, PlatformError>;
 
     /// Read USB string descriptors.
     ///
@@ -743,7 +747,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function usbBosCapabilityList(handle: UsbDeviceHandle): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>;
+    export function usbBosCapabilityList(
+        handle: UsbDeviceHandle,
+    ): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>;
 
     /// List USB configurations.
     ///
@@ -772,7 +778,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function usbConfigurationList(handle: UsbDeviceHandle): Result<Slice<UsbConfigurationDescriptor>, PlatformError>;
+    export function usbConfigurationList(
+        handle: UsbDeviceHandle,
+    ): Result<Slice<UsbConfigurationDescriptor>, PlatformError>;
 
     /// Read active USB configuration value.
     ///

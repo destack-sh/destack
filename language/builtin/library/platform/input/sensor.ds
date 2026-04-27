@@ -111,7 +111,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorDescriptor>, PlatformError>;
+    export function sensorList(
+        handle: InputDeviceHandle,
+    ): Result<Array<InputSensorDescriptor>, PlatformError>;
 
     /// Configure one sensor stream.
     ///

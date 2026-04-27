@@ -424,7 +424,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialWatchTryRead(handle: SerialWatchHandle): Result<SerialWatchEvent, PlatformError>;
+    export function serialWatchTryRead(
+        handle: SerialWatchHandle,
+    ): Result<SerialWatchEvent, PlatformError>;
 
     /// Open a serial endpoint.
     ///
@@ -514,7 +516,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function serialDescriptor(handle: SerialPortHandle): Result<SerialPortDescriptor, PlatformError>;
+    export function serialDescriptor(
+        handle: SerialPortHandle,
+    ): Result<SerialPortDescriptor, PlatformError>;
 
     /// Read serial endpoint configuration.
     ///
@@ -789,7 +793,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialGetSignals(handle: SerialPortHandle): Result<SerialInputSignals, PlatformError>;
+    export function serialGetSignals(
+        handle: SerialPortHandle,
+    ): Result<SerialInputSignals, PlatformError>;
 
     /// Update serial output signal state.
     ///
@@ -882,5 +888,7 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialTryReadEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>;
+    export function serialTryReadEvent(
+        handle: SerialPortHandle,
+    ): Result<SerialEvent, PlatformError>;
 }

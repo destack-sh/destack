@@ -268,7 +268,9 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>;
+    export function certificateDescriptor(
+        handle: CryptoCertificateHandle,
+    ): Result<CryptoCertificateDescriptor, PlatformError>;
 
     /// Verify one certificate chain against one trust policy.
     ///
@@ -297,7 +299,9 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>;
+    export function certificateVerify(
+        request: CryptoCertificateVerifyRequest,
+    ): Result<CryptoCertificateVerifyResult, PlatformError>;
 
     /// Delete one certificate from one store when allowed.
     ///

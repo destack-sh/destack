@@ -32,7 +32,7 @@ export function osPathBytes(data: PathBytes): OsPath {
     OsPathBytes {
         kind: "bytes",
         bytes: data,
-    };
+    }
 }
 
 /// Build an `OsPath` from UTF-16 code units.
@@ -40,7 +40,7 @@ export function osPathUtf16(units: PathUtf16): OsPath {
     OsPathUtf16 {
         kind: "utf16",
         utf16: units,
-    };
+    }
 }
 
 /// Symlink target type hint.

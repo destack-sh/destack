@@ -55,22 +55,28 @@ export struct MidiBackendDescriptor {
 }
 
 /// Backend supports topology notifications.
-export const MIDI_BACKEND_CAP_TOPOLOGY_EVENTS: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x1);
+export const MIDI_BACKEND_CAP_TOPOLOGY_EVENTS: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x1);
 
 /// Backend supports virtual input endpoints.
-export const MIDI_BACKEND_CAP_VIRTUAL_INPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x2);
+export const MIDI_BACKEND_CAP_VIRTUAL_INPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x2);
 
 /// Backend supports virtual output endpoints.
-export const MIDI_BACKEND_CAP_VIRTUAL_OUTPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x4);
+export const MIDI_BACKEND_CAP_VIRTUAL_OUTPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x4);
 
 /// Backend supports scheduled outbound delivery timestamps.
-export const MIDI_BACKEND_CAP_SCHEDULED_OUTPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x8);
+export const MIDI_BACKEND_CAP_SCHEDULED_OUTPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x8);
 
 /// Backend reports host receive timestamps.
-export const MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x10);
+export const MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x10);
 
 /// Backend exposes native notification feeds instead of synthesized polling.
-export const MIDI_BACKEND_CAP_NATIVE_EVENT_FEED: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x20);
+export const MIDI_BACKEND_CAP_NATIVE_EVENT_FEED: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(0x20);
 
 /// Backend supports Universal MIDI Packet transport.
 export const MIDI_BACKEND_CAP_UMP: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x40);
@@ -78,31 +84,31 @@ export const MIDI_BACKEND_CAP_UMP: MidiBackendCapabilityFlags = MidiBackendCapab
 /// MIDI backend bindings.
 declare namespace device {
     export namespace midi {
-    /// List host MIDI backends.
-    ///
-    /// Enumerate backend selectors, support state, and backend-level feature flags.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.device.midi.backend.list", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix", "ios"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
+        /// List host MIDI backends.
+        ///
+        /// Enumerate backend selectors, support state, and backend-level feature flags.
+        ///
+        /// # Platform
+        /// Android, Unix, Windows, and iOS.
+        ///
+        /// # Errors
+        /// Returns ioNotFound, ioInvalidData, notSupported.
+        ///
+        /// # Security
+        /// Requires `device.midi.port`.
+        ///
+        /// # Replay
+        /// External, recordable.
+        @binding("destack.device.midi.backend.list", {
+            effect: "external",
+            replay: "recordable",
+            capabilities: ["device.midi.port"],
+            platforms: ["android", "windows", "unix", "ios"],
+            simulation: "stub",
+            scope: "host",
+            blocking: "sometimes",
+            affinity: "any",
+        })
         export function backendList(): Result<Slice<MidiBackendDescriptor>, PlatformError>;
     }
 }

@@ -6,6 +6,6 @@ import type { PlatformError } from "../error/index.ds";
 export namespace process {
     /// Return the process arguments.
     export function args(): Result<Slice<string>, PlatformError> {
-        platform.process.args()
+        platform.process.args();
     }
 }

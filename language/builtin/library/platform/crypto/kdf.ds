@@ -172,5 +172,7 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>;
+    export function kdfArgon2id(
+        request: CryptoArgon2idRequest,
+    ): Result<Slice<uint8>, PlatformError>;
 }

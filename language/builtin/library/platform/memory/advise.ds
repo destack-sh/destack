@@ -64,5 +64,4 @@ declare namespace memory {
         affinity: "any",
     })
     export function discard(address: uint64, length: uint64): Result<void, PlatformError>;
-
 }

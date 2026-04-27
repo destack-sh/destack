@@ -319,5 +319,7 @@ declare namespace input {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>;
+    export function capabilities(
+        handle: InputDeviceHandle,
+    ): Result<InputDeviceCapabilities, PlatformError>;
 }

@@ -1,11 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import {
-    ImageId,
-    SnapshotDescriptor,
-    SnapshotFormat,
-    SnapshotId,
-    WorldHandle,
-} from "./types.ds";
+import { ImageId, SnapshotDescriptor, SnapshotFormat, SnapshotId, WorldHandle } from "./types.ds";
 
 /// Low-level image and snapshot bindings.
 declare namespace runtime {
@@ -198,10 +192,7 @@ declare namespace runtime {
         blocking: "sometimes",
         affinity: "owner",
     })
-    export function restoreImage(
-        world: WorldHandle,
-        imageId: ImageId,
-    ): Result<void, PlatformError>;
+    export function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, PlatformError>;
 
     /// Restore one world from one snapshot.
     ///

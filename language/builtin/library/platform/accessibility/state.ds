@@ -90,19 +90,24 @@ export enum AccessibilitySortDirection {
 export newtype AccessibilityRelevantFlags = uint32;
 
 /// No `aria-relevant` tokens.
-export const ACCESSIBILITY_RELEVANT_NONE: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x0);
+export const ACCESSIBILITY_RELEVANT_NONE: AccessibilityRelevantFlags =
+    AccessibilityRelevantFlags(0x0);
 
 /// `additions`.
-export const ACCESSIBILITY_RELEVANT_ADDITIONS: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x1);
+export const ACCESSIBILITY_RELEVANT_ADDITIONS: AccessibilityRelevantFlags =
+    AccessibilityRelevantFlags(0x1);
 
 /// `removals`.
-export const ACCESSIBILITY_RELEVANT_REMOVALS: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x2);
+export const ACCESSIBILITY_RELEVANT_REMOVALS: AccessibilityRelevantFlags =
+    AccessibilityRelevantFlags(0x2);
 
 /// `text`.
-export const ACCESSIBILITY_RELEVANT_TEXT: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x4);
+export const ACCESSIBILITY_RELEVANT_TEXT: AccessibilityRelevantFlags =
+    AccessibilityRelevantFlags(0x4);
 
 /// `all`.
-export const ACCESSIBILITY_RELEVANT_ALL: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x7);
+export const ACCESSIBILITY_RELEVANT_ALL: AccessibilityRelevantFlags =
+    AccessibilityRelevantFlags(0x7);
 
 /// Numeric range value for widgets such as sliders, meters, and spin buttons.
 export struct AccessibilityRangeValue {

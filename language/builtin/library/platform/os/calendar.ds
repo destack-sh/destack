@@ -292,7 +292,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function calendarEventList(query: CalendarEventQuery): Result<Array<CalendarEvent>, PlatformError>;
+    export function calendarEventList(
+        query: CalendarEventQuery,
+    ): Result<Array<CalendarEvent>, PlatformError>;
 
     /// Read one host calendar event.
     ///

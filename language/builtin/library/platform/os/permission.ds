@@ -112,7 +112,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function permissionStateMany(permissions: Array<Permission>): Result<Array<PermissionEntry>, PlatformError>;
+    export function permissionStateMany(
+        permissions: Array<Permission>,
+    ): Result<Array<PermissionEntry>, PlatformError>;
 
     /// Open one permission-request transaction.
     ///
@@ -140,7 +142,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function permissionRequestOpen(permission: Permission): Result<PermissionRequestHandle, PlatformError>;
+    export function permissionRequestOpen(
+        permission: Permission,
+    ): Result<PermissionRequestHandle, PlatformError>;
 
     /// Open one multi-permission request transaction.
     ///
@@ -198,7 +202,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function permissionRequestClose(handle: PermissionRequestHandle): Result<void, PlatformError>;
+    export function permissionRequestClose(
+        handle: PermissionRequestHandle,
+    ): Result<void, PlatformError>;
 
     /// Wait for one permission-request result.
     ///
@@ -257,7 +263,9 @@ declare namespace os {
         blocking: "never",
         affinity: "any",
     })
-    export function permissionRequestTryRead(handle: PermissionRequestHandle): Result<Array<PermissionEntry>, PlatformError>;
+    export function permissionRequestTryRead(
+        handle: PermissionRequestHandle,
+    ): Result<Array<PermissionEntry>, PlatformError>;
 
     /// Open host settings for runtime permissions.
     ///

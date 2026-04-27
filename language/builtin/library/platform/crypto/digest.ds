@@ -58,7 +58,9 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>;
+    export function digestOpen(
+        algorithm: CryptoDigestAlgorithm,
+    ): Result<CryptoDigestHandle, PlatformError>;
 
     /// Update one streaming digest context.
     ///

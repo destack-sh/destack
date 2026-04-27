@@ -271,7 +271,9 @@ declare namespace audio {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function eventOpen(options: AudioEventSubscriptionOptions): Result<AudioEventHandle, PlatformError>;
+    export function eventOpen(
+        options: AudioEventSubscriptionOptions,
+    ): Result<AudioEventHandle, PlatformError>;
 
     /// Close one audio event subscription.
     ///
@@ -431,16 +433,23 @@ declare namespace audio {
 }
 
 /// Subscribe to device hotplug add and remove events.
-export const AUDIO_EVENT_SUBSCRIBE_DEVICE_HOTPLUG: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x1);
+export const AUDIO_EVENT_SUBSCRIBE_DEVICE_HOTPLUG: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x1);
 /// Subscribe to default-route change events.
-export const AUDIO_EVENT_SUBSCRIBE_DEFAULT_ROUTE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x2);
+export const AUDIO_EVENT_SUBSCRIBE_DEFAULT_ROUTE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x2);
 /// Subscribe to format-change events.
-export const AUDIO_EVENT_SUBSCRIBE_FORMAT_CHANGE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x4);
+export const AUDIO_EVENT_SUBSCRIBE_FORMAT_CHANGE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x4);
 /// Subscribe to reroute events.
-export const AUDIO_EVENT_SUBSCRIBE_REROUTE: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x8);
+export const AUDIO_EVENT_SUBSCRIBE_REROUTE: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x8);
 /// Subscribe to interruption begin and end events.
-export const AUDIO_EVENT_SUBSCRIBE_INTERRUPTION: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x10);
+export const AUDIO_EVENT_SUBSCRIBE_INTERRUPTION: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x10);
 /// Subscribe to backend disconnect and reset events.
-export const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x20);
+export const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x20);
 /// Subscribe to stream xrun, state, and device-change events.
-export const AUDIO_EVENT_SUBSCRIBE_STREAM: AudioEventSubscriptionFlags = AudioEventSubscriptionFlags(0x40);
+export const AUDIO_EVENT_SUBSCRIBE_STREAM: AudioEventSubscriptionFlags =
+    AudioEventSubscriptionFlags(0x40);

@@ -99,5 +99,7 @@ declare namespace debug {
         blocking: "never",
         affinity: "any",
     })
-    export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>;
+    export function inspectorEndpoint(
+        handle: InspectorHandle,
+    ): Result<InspectorEndpoint, PlatformError>;
 }

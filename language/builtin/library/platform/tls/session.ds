@@ -83,7 +83,9 @@ declare namespace tls {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function sessionHandshake(handle: TlsSessionHandle): Result<TlsHandshakeStatus, PlatformError>;
+    export function sessionHandshake(
+        handle: TlsSessionHandle,
+    ): Result<TlsHandshakeStatus, PlatformError>;
 
     /// Read decrypted application bytes from one tls session.
     ///
@@ -234,7 +236,9 @@ declare namespace tls {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
+    export function sessionNegotiatedAlpn(
+        handle: TlsSessionHandle,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Return the peer certificate chain bytes in pem encoding.
     ///
@@ -263,7 +267,9 @@ declare namespace tls {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
+    export function sessionPeerCertificatesPem(
+        handle: TlsSessionHandle,
+    ): Result<Slice<uint8>, PlatformError>;
 
     /// Export keying material bytes for one tls session.
     ///
@@ -327,5 +333,7 @@ declare namespace tls {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function sessionResumptionState(handle: TlsSessionHandle): Result<TlsSessionResumptionState, PlatformError>;
+    export function sessionResumptionState(
+        handle: TlsSessionHandle,
+    ): Result<TlsSessionResumptionState, PlatformError>;
 }

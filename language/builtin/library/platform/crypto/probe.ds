@@ -159,7 +159,10 @@ declare namespace crypto {
         blocking: "never",
         affinity: "any",
     })
-    export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>;
+    export function probeSignatureAlgorithms(): Result<
+        Slice<CryptoSignatureAlgorithm>,
+        PlatformError
+    >;
 
     /// List supported cipher algorithms.
     ///
@@ -275,7 +278,10 @@ declare namespace crypto {
         blocking: "never",
         affinity: "any",
     })
-    export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>;
+    export function probeAgreementAlgorithms(): Result<
+        Slice<CryptoKeyAgreementAlgorithm>,
+        PlatformError
+    >;
 
     /// List supported key-wrap algorithms.
     ///

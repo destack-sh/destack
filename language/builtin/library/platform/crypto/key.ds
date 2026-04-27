@@ -969,7 +969,9 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>;
+    export function keyDescriptor(
+        handle: CryptoKeyHandle,
+    ): Result<CryptoKeyDescriptor, PlatformError>;
 
     /// Sign one payload.
     ///
