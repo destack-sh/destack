@@ -1,4 +1,4 @@
-use super::{Allocator, PageRun, PageView};
+use super::{Allocator, PageRun};
 use crate::HeapResult;
 
 /// One bounded cache of contiguous page runs.
@@ -28,60 +28,40 @@ impl PageRunCache {
         }
     }
 
-    /// Allocate one zeroed page view through this cache.
-    pub(crate) fn allocate_zeroed(
+    /// Allocate one page run through this cache.
+    pub(crate) fn allocate_pages(
         &mut self,
         allocator: &Allocator,
         byte_len: usize,
-    ) -> HeapResult<PageView> {
+    ) -> HeapResult<PageRun> {
         let page_count = allocator.page_count(byte_len);
         if page_count == 0 {
-            return Ok(PageView::empty());
+            return Ok(PageRun::empty());
         }
 
         // reuse one cached run when possible
         if let Some(run) = self.allocate(page_count) {
-            allocator.zero_run(run)?;
-
-            return Ok(PageView::from_run(run));
+            return Ok(run);
         }
 
-        allocator.allocate_zeroed(byte_len)
+        allocator.allocate_pages(byte_len)
     }
 
-    /// Allocate one initialized page view through this cache.
-    pub(crate) fn allocate_bytes(
+    /// Release one page run through this cache.
+    pub(crate) fn release_page_run(
         &mut self,
         allocator: &Allocator,
-        bytes: &[u8],
-    ) -> HeapResult<PageView> {
-        let mut page_view = self.allocate_zeroed(allocator, bytes.len())?;
-
-        // initialize the new logical page range
-        allocator.set_bytes(&mut page_view, 0, bytes)?;
-
-        Ok(page_view)
-    }
-
-    /// Release one page view through this cache.
-    pub(crate) fn release_page_view(
-        &mut self,
-        allocator: &Allocator,
-        page_view: PageView,
+        page_run: PageRun,
     ) -> HeapResult<()> {
-        let Some(run) = page_view.as_run() else {
-            return allocator.release_page_view(&page_view);
-        };
-
-        if !allocator.run_is_unique(run)? {
-            return allocator.release_page_view(&page_view);
+        if !allocator.is_run_unique(page_run)? {
+            return allocator.release_page_run(&page_run);
         }
 
-        if self.cache(run) {
+        if self.cache(page_run) {
             return Ok(());
         }
 
-        allocator.free_cached_run(run)?;
+        allocator.recycle_cached_run(page_run)?;
 
         Ok(())
     }
@@ -89,7 +69,7 @@ impl PageRunCache {
     /// Flush this cache back into the allocator free runs.
     pub(crate) fn flush(&mut self, allocator: &Allocator) -> HeapResult<()> {
         for run in self.drain() {
-            allocator.free_cached_run(run)?;
+            allocator.recycle_cached_run(run)?;
         }
 
         Ok(())
@@ -107,9 +87,7 @@ impl PageRunCache {
         }
 
         // prefer the most recently released run first
-        let Some(run_index) = self.runs.iter().rposition(|run| run.len() >= page_count) else {
-            return None;
-        };
+        let run_index = self.runs.iter().rposition(|run| run.len() >= page_count)?;
         let run = self.runs.swap_remove(run_index);
         self.cached_pages -= run.len();
         if run.len() == page_count {
@@ -134,10 +112,7 @@ impl PageRunCache {
             return false;
         }
 
-        let Some(next_cached_pages) = self.cached_pages.checked_add(run.len()) else {
-            return false;
-        };
-
+        let next_cached_pages = self.cached_pages + run.len();
         if next_cached_pages > self.page_capacity {
             return false;
         }
@@ -186,6 +161,6 @@ impl PageRunCache {
     fn merged_run(left: PageRun, right: PageRun) -> PageRun {
         debug_assert!(left.is_immediately_before(right));
 
-        PageRun::from_raw_parts(left.first_page, left.page_count + right.page_count)
+        PageRun::from_raw(left.first_page, left.page_count + right.page_count)
     }
 }

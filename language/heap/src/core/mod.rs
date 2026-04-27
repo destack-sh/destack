@@ -1,4 +1,3 @@
-mod cow;
 mod edge;
 mod error;
 mod gc;
@@ -6,9 +5,9 @@ mod layout;
 mod mark;
 mod payload;
 mod root;
+mod table;
 mod usage;
 
-pub(crate) use cow::*;
 pub use edge::visit_heap_references;
 pub(crate) use edge::{
     allocation_reference_map, clear_allocation_reference_bits, clear_slot_reference_bits,
@@ -24,6 +23,7 @@ pub use layout::{AllocationLayout, repeated_layout};
 pub(crate) use mark::*;
 pub use payload::Payload;
 pub use root::*;
+pub(crate) use table::*;
 pub use usage::*;
 
 #[cfg(test)]

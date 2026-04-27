@@ -1752,6 +1752,7 @@ dependencies = [
  "libc",
  "parking_lot",
  "serde",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

@@ -1,7 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use super::{HeapError, HeapResult};
-
 /// One allocation accounting region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountingRegion {
@@ -103,18 +101,13 @@ impl AllocationUsage {
 }
 
 /// Apply one signed byte delta to one current byte count.
-pub(crate) fn apply_byte_delta(current: u64, delta: i64) -> HeapResult<u64> {
+pub(crate) fn apply_byte_delta(current: u64, delta: i64) -> u64 {
     if delta >= 0 {
-        return current
-            .checked_add(delta as u64)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "byte delta",
-            });
+        return current + delta as u64;
     }
 
-    current
-        .checked_sub(delta.unsigned_abs())
-        .ok_or(HeapError::InvariantOverflow {
-            context: "byte delta",
-        })
+    let delta = delta.unsigned_abs();
+    debug_assert!(current >= delta);
+
+    current - delta
 }

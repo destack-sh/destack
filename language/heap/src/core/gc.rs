@@ -72,14 +72,15 @@ impl GcPacer {
     /// Refresh pacing targets from one collector config and live heap size.
     pub fn update(&mut self, options: GcOptions, live_bytes: u64) {
         let min_bytes = options.minimum_heap_bytes.unwrap_or(0);
-        let growth = live_bytes.saturating_mul(u64::from(options.growth_percent)) / 100;
-        let mut goal_bytes = live_bytes.saturating_add(growth).max(min_bytes);
+        let growth = live_bytes * u64::from(options.growth_percent) / 100;
+        let mut goal_bytes = (live_bytes + growth).max(min_bytes);
 
+        // apply the configured soft ceiling after normal growth pacing
         if let Some(soft_limit_bytes) = options.soft_limit_bytes {
             goal_bytes = goal_bytes.min(soft_limit_bytes);
         }
 
-        let trigger_bytes = goal_bytes.saturating_mul(u64::from(options.trigger_percent)) / 100;
+        let trigger_bytes = goal_bytes * u64::from(options.trigger_percent) / 100;
 
         self.live_bytes = live_bytes;
         self.goal_bytes = goal_bytes;
@@ -88,7 +89,7 @@ impl GcPacer {
 
     /// Add pending collector assist debt.
     pub fn add_assist_debt(&mut self, byte_len: usize) {
-        self.assist_debt_bytes = self.assist_debt_bytes.saturating_add(byte_len as u64);
+        self.assist_debt_bytes += byte_len as u64;
     }
 
     /// Consume pending collector assist debt as collector steps.
@@ -136,8 +137,8 @@ pub struct GcStats {
     pub freed_bytes: u64,
     /// Number of live allocated bytes after the collection.
     pub allocated_bytes: u64,
-    /// Total active allocator bytes after the collection.
-    pub active_bytes: u64,
+    /// Total retained allocator bytes after the collection.
+    pub retained_bytes: u64,
 }
 
 /// Result of one bounded collector increment.
@@ -180,16 +181,9 @@ pub struct GcState {
 
 impl GcState {
     /// Record one completed GC cycle.
-    pub fn record_cycle(&mut self, kind: GcKind, stats: GcStats) -> HeapResult<()> {
-        self.completed_cycles =
-            self.completed_cycles
-                .checked_add(1)
-                .ok_or(HeapError::InvariantOverflow {
-                    context: "gc cycle count",
-                })?;
+    pub fn record_cycle(&mut self, kind: GcKind, stats: GcStats) {
+        self.completed_cycles += 1;
         self.last_kind = Some(kind);
         self.last_stats = Some(stats);
-
-        Ok(())
     }
 }

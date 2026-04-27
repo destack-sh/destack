@@ -2,10 +2,10 @@ use destack_core::CowBuffer;
 
 use super::{HeapError, HeapResult};
 
-/// The entry count per copy on write metadata chunk.
+/// The entry count per copy-on-write table chunk.
 const COW_TABLE_CHUNK_LEN: usize = 256;
 
-/// One dense copy on write table for ordered heap metadata entries.
+/// One dense table backed by copy-on-write chunks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CowTable<T> {
     /// The number of live entries stored in this table.
@@ -21,7 +21,7 @@ impl<T> Default for CowTable<T> {
 }
 
 impl<T> CowTable<T> {
-    /// Create one empty copy on write table.
+    /// Create one empty table.
     pub(crate) fn new() -> Self {
         Self {
             len: 0,
@@ -29,14 +29,14 @@ impl<T> CowTable<T> {
         }
     }
 
-    /// Build one copy on write table from one dense vector.
-    pub(crate) fn from_vec(values: Vec<T>) -> HeapResult<Self>
+    /// Build one table from one dense vector.
+    pub(crate) fn from_vec(values: Vec<T>) -> Self
     where
         T: Clone,
     {
         // keep one empty table empty
         if values.is_empty() {
-            return Ok(Self::new());
+            return Self::new();
         }
 
         let len = values.len();
@@ -45,7 +45,7 @@ impl<T> CowTable<T> {
             .map(|chunk| CowBuffer::from_vec(chunk.to_vec()))
             .collect();
 
-        Ok(Self { len, chunks })
+        Self { len, chunks }
     }
 
     /// Return the number of stored entries.
@@ -85,7 +85,7 @@ impl<T> CowTable<T> {
     }
 
     /// Append one new entry at the dense tail.
-    pub(crate) fn push(&mut self, value: T) -> HeapResult<()>
+    pub(crate) fn push(&mut self, value: T)
     where
         T: Clone,
     {
@@ -96,21 +96,10 @@ impl<T> CowTable<T> {
         }
 
         // append into the current tail chunk
-        let last_chunk_index = self
-            .chunks
-            .len()
-            .checked_sub(1)
-            .ok_or(HeapError::MissingTableEntry { index: self.len })?;
+        let last_chunk_index = self.chunks.len() - 1;
         let last_chunk = &mut self.chunks[last_chunk_index];
         last_chunk.make_mut().push(value);
-        self.len = self
-            .len
-            .checked_add(1)
-            .ok_or(HeapError::InvariantOverflow {
-                context: "copy on write table length",
-            })?;
-
-        Ok(())
+        self.len += 1;
     }
 
     /// Set one existing dense entry by index.
@@ -133,7 +122,7 @@ impl<T> CowTable<T> {
         T: Clone,
     {
         if index == self.len() {
-            self.push(value)?;
+            self.push(value);
 
             return Ok(());
         }

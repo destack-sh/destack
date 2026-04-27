@@ -77,12 +77,12 @@ impl SizeClassPolicy {
         classes.push(bytes);
 
         while bytes < max_bytes {
-            let previous_boundary = bytes.saturating_add(1);
-            let waste_step = previous_boundary.saturating_mul(self.max_waste_numerator)
-                / self.max_waste_denominator;
+            let previous_boundary = bytes + 1;
+            let waste_step =
+                previous_boundary * self.max_waste_numerator / self.max_waste_denominator;
             let step = waste_step.max(self.alignment_bytes);
             let step = align_down(step, self.alignment_bytes).max(self.alignment_bytes);
-            let next_bytes = align_up(bytes.saturating_add(step), self.alignment_bytes);
+            let next_bytes = align_up(bytes + step, self.alignment_bytes);
 
             bytes = next_bytes.min(max_bytes);
             classes.push(bytes);
@@ -126,7 +126,7 @@ impl SizeClassPolicy {
 pub struct SizeClass {
     /// The slot payload size in bytes.
     pub bytes: usize,
-    /// The span width in allocator pages, or zero for the configured fallback span size.
+    /// The span width in allocator pages, or zero for the default span size.
     pub span_pages: usize,
 }
 
@@ -145,9 +145,9 @@ impl SizeClass {
     }
 
     /// Return the span byte width for this size class.
-    pub const fn span_bytes(self, page_bytes: usize, fallback_span_bytes: usize) -> usize {
+    pub const fn span_bytes(self, page_bytes: usize, default_span_bytes: usize) -> usize {
         if self.span_pages == 0 {
-            fallback_span_bytes
+            default_span_bytes
         } else {
             self.span_pages * page_bytes
         }
@@ -246,5 +246,5 @@ fn align_down(bytes: usize, alignment_bytes: usize) -> usize {
 
 /// Return the offset rounded up to the nearest alignment boundary.
 fn align_up(bytes: usize, alignment_bytes: usize) -> usize {
-    bytes.saturating_add(alignment_bytes.saturating_sub(1)) / alignment_bytes * alignment_bytes
+    bytes.div_ceil(alignment_bytes) * alignment_bytes
 }

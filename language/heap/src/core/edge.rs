@@ -235,17 +235,8 @@ impl<'a> EdgeCursor<'a> {
                     };
                     self.offset_index += 1;
 
-                    let base = self.element_index.checked_mul(stride as usize).ok_or(
-                        HeapError::InvariantOverflow {
-                            context: "edge cursor repeated base",
-                        },
-                    )?;
-                    let offset = base.checked_add(offset as usize).ok_or(
-                        HeapError::TraceOffsetOverflow {
-                            start: base,
-                            width: offset as usize,
-                        },
-                    )?;
+                    let base = self.element_index * stride as usize;
+                    let offset = base + offset as usize;
 
                     return Ok(Some(offset));
                 }
@@ -277,15 +268,15 @@ pub(crate) fn slot_reference_map(
 ) -> ReferenceMap {
     let word_bytes = std::mem::size_of::<usize>();
     let word_count = size_class.div_ceil(word_bytes);
-    let bit_start = slot_index.saturating_mul(word_count);
+    let bit_start = slot_index * word_count;
     let mut local_offsets = Vec::new();
     let mut shared_offsets = Vec::new();
 
     // decode one direct reference map from the span-local slot bits
     for word_index in 0..word_count {
-        let bit_index = bit_start.saturating_add(word_index);
-        let byte_offset = word_index.saturating_mul(word_bytes);
-        let byte_end = byte_offset.saturating_add(word_bytes);
+        let bit_index = bit_start + word_index;
+        let byte_offset = word_index * word_bytes;
+        let byte_end = byte_offset + word_bytes;
         if byte_end > byte_len {
             break;
         }
@@ -346,9 +337,9 @@ pub(crate) fn allocation_reference_map(
 
     // decode direct reference bits relative to the allocation base
     for word_index in 0..word_count {
-        let bit_index = bit_start.saturating_add(word_index);
-        let local_byte_offset = word_index.saturating_mul(word_bytes);
-        let local_byte_end = local_byte_offset.saturating_add(word_bytes);
+        let bit_index = bit_start + word_index;
+        let local_byte_offset = word_index * word_bytes;
+        let local_byte_end = local_byte_offset + word_bytes;
         if local_byte_end > byte_len {
             break;
         }
@@ -453,7 +444,7 @@ pub(crate) fn clear_slot_reference_bits(
     size_class: usize,
 ) {
     let bit_len = size_class.div_ceil(std::mem::size_of::<usize>());
-    let bit_start = slot_index.saturating_mul(bit_len);
+    let bit_start = slot_index * bit_len;
 
     local_reference_bits.clear_range(bit_start, bit_len);
     shared_reference_bits.clear_range(bit_start, bit_len);
@@ -643,11 +634,11 @@ fn set_slot_edge_bits(
 ) -> HeapResult<()> {
     let word_bytes = std::mem::size_of::<usize>();
     let word_count = size_class.div_ceil(word_bytes);
-    let bit_start = slot_index.saturating_mul(word_count);
+    let bit_start = slot_index * word_count;
 
     while let Some(offset) = cursor.next_offset()? {
         let word_index = offset / word_bytes;
-        let bit_index = bit_start.saturating_add(word_index);
+        let bit_index = bit_start + word_index;
 
         reference_bits.set(bit_index);
     }
@@ -664,7 +655,7 @@ fn set_allocation_edge_bits(
     let word_bytes = std::mem::size_of::<usize>();
 
     while let Some(offset) = cursor.next_offset()? {
-        let absolute_offset = byte_offset.saturating_add(offset);
+        let absolute_offset = byte_offset + offset;
         let bit_index = absolute_offset / word_bytes;
 
         reference_bits.set(bit_index);
