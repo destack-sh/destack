@@ -4,7 +4,7 @@ use destack_dir as dir;
 pub fn declaration_has_extends_heritage(declaration: &dir::Declaration) -> bool {
     match declaration {
         dir::Declaration::Class(declaration) => declaration.extends_expression.is_some(),
-        dir::Declaration::Interface(declaration) => !declaration.extends_types.is_empty(),
+        dir::Declaration::Interface(declaration) => !declaration.extends.is_empty(),
         _ => false,
     }
 }

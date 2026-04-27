@@ -251,6 +251,7 @@ fn callable_boundary_asynchrony(
                 key: _,
                 signature,
                 body: _,
+                is_optional: _,
                 visibility: _,
                 ambient: _,
                 is_abstract: _,

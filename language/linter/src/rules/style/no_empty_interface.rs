@@ -1,5 +1,6 @@
 use destack_ast::{self as ast};
 use destack_dir as dir;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::local_symbol_has_class_merge;
@@ -69,7 +70,7 @@ impl LintRule for NoEmptyInterface {
             }
 
             // report plain empty interfaces first
-            let extends_count = declaration.extends_types.len();
+            let extends_count = declaration.extends.len();
             let span = ctx.get_span(declaration_id);
             if extends_count == 0 {
                 ctx.report(
@@ -133,8 +134,15 @@ fn no_empty_interface_single_extends_fix(
     }
 
     // build the replacement alias from the source declaration text
-    let parent_id = *declaration.extends_types.first()?;
-    let parent_text = ctx.get_span_text(ctx.ast.get_span(parent_id));
+    let parent = declaration.extends.first()?;
+    let parent_span = ctx
+        .ast
+        .get_side_span(
+            parent.expression,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+        )
+        .unwrap_or_else(|| ctx.ast.get_span(parent.expression));
+    let parent_text = ctx.get_span_text(parent_span);
     let interface_name = ctx.repository.strings.get(interface_name_id);
     let generic_text = generic_parameters_text(ctx, &declaration.generic_parameters);
     let replacement = format!(
