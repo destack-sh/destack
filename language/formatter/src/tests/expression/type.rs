@@ -17,7 +17,293 @@ fn test_format_type_conditional_with_constrained_infer() {
     );
 }
 
-/// Function-type return annotations should follow Oxfmt's arrow-function parenthesis rule.
+/// Conditional type trailing comments should stay on the branch they trail.
+#[test]
+fn test_format_type_conditional_trailing_branch_comments() {
+    assert_format_program!(
+        r#"type Awaited<T> = T extends null | undefined
+  ? T // special case for null
+  : T extends object
+    ? F extends (value: infer V) => any // if callable
+      ? Awaited<V> // recursively unwrap
+      : never // not callable
+    : T; // non-object
+"#,
+        r#"type Awaited<T> = T extends null | undefined
+    ? T // special case for null
+    : T extends object
+      ? F extends (value: infer V) => any // if callable
+          ? Awaited<V> // recursively unwrap
+          : never // not callable
+      : T; // non-object
+"#,
+        FileType::TypeScriptDeclaration
+    );
+}
+
+/// Conditional type alternate comments should stay on the `:` branch.
+#[test]
+fn test_format_type_conditional_alternate_line_comment() {
+    assert_format_program!(
+        r#"type A = typeof globalThis extends {
+    onmessage: any;
+    ReportingObserver: any;
+    CompressionStream: infer T;
+} ? T
+    // TS 4.8, 4.9, 5.0
+    : typeof globalThis extends { onmessage: any; TransformStream: { prototype: infer T } } ? {
+            prototype: T;
+            new(format: "deflate" | "deflate-raw" | "gzip"): T;
+        }
+    : typeof import("stream/web").CompressionStream;
+"#,
+        r#"type A = typeof globalThis extends {
+    onmessage: any;
+    ReportingObserver: any;
+    CompressionStream: infer T;
+}
+    ? T
+    : // TS 4.8, 4.9, 5.0
+      typeof globalThis extends { onmessage: any; TransformStream: { prototype: infer T } }
+      ? {
+            prototype: T;
+            new (format: "deflate" | "deflate-raw" | "gzip"): T;
+        }
+      : typeof import("stream/web").CompressionStream;
+"#,
+        FileType::TypeScriptDeclaration
+    );
+}
+
+/// Empty object type literals should stay compact.
+#[test]
+fn test_format_type_empty_object_literal() {
+    assert_format_program!(
+        r#"type A = typeof globalThis extends { onmessage: any } ? {} : AbortController
+type B = T | {}
+"#,
+        r#"type A = typeof globalThis extends { onmessage: any } ? {} : AbortController;
+type B = T | {};
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Construct signatures should keep a space before parameters.
+#[test]
+fn test_format_type_construct_signature_spacing() {
+    assert_format_program!(
+        r#"type B = { new(): Foo; new(...args: any): Bar }
+type C = F extends abstract new(...args: any) => infer T ? T : never
+"#,
+        r#"type B = { new (): Foo; new (...args: any): Bar };
+type C = F extends abstract new (...args: any) => infer T ? T : never;
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// TypeScript generic const parameters should keep their source keyword.
+#[test]
+fn test_format_type_const_generic_parameter() {
+    assert_format_program!(
+        r#"type Fn = <const T>(value: T) => T
+"#,
+        r#"type Fn = <const T>(value: T) => T;
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// TypeScript labeled tuple rest elements should use rest-first spelling.
+#[test]
+fn test_format_type_labeled_tuple_rest() {
+    assert_format_program!(
+        r#"type AnyRest = [...args: any[]]
+"#,
+        r#"type AnyRest = [...args: any[]];
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Type member doc comments should stay before the member, not before generated terminators.
+#[test]
+fn test_format_type_member_doc_comment_after_missing_terminator() {
+    assert_format_program!(
+        r#"interface WebidlErrors {
+  /**
+   * @description Instantiate an error
+   */
+  exception (opts: { header: string, message: string }): TypeError
+  /**
+   * @description Instantiate an error when conversion from one type to another has failed
+   */
+  conversionFailed (opts: { prefix: string, argument: string, types: string[] }): TypeError
+}
+"#,
+        r#"interface WebidlErrors {
+    /**
+     * @description Instantiate an error
+     */
+    exception(opts: { header: string; message: string }): TypeError;
+    /**
+     * @description Instantiate an error when conversion from one type to another has failed
+     */
+    conversionFailed(opts: { prefix: string; argument: string; types: string[] }): TypeError;
+}
+"#,
+        FileType::TypeScriptDeclaration
+    );
+}
+
+/// Comment-only type members should stay visible before the closing brace.
+#[test]
+fn test_format_type_member_comment_only_tail() {
+    assert_format_program!(
+        r#"interface BlobPropertyBag {
+  /** Set a default "type". Not yet implemented. */
+  type?: string;
+  /** Not implemented in Bun yet. */
+  // endings?: "transparent" | "native";
+}
+"#,
+        r#"interface BlobPropertyBag {
+    /** Set a default "type". Not yet implemented. */
+    type?: string;
+    /** Not implemented in Bun yet. */
+    // endings?: "transparent" | "native";
+}
+"#,
+        FileType::TypeScriptDeclaration
+    );
+}
+
+/// Type member doc comments should preserve source blank lines.
+#[test]
+fn test_format_type_member_blank_line_before_doc_comment() {
+    assert_format_program!(
+        r#"interface A {
+  method(options: {
+    source: string;
+
+    /**
+     * Library names to link against
+     */
+    library?: string[] | string;
+  }): void;
+}
+"#,
+        r#"interface A {
+    method(options: {
+        source: string;
+
+        /**
+         * Library names to link against
+         */
+        library?: string[] | string;
+    }): void;
+}
+"#,
+        FileType::TypeScriptDeclaration
+    );
+}
+
+/// Readonly array types should not capture surrounding union arms.
+#[test]
+fn test_format_type_readonly_array_union() {
+    assert_format_program!(
+        r#"type Args = readonly string[] | undefined | null
+"#,
+        r#"type Args = readonly string[] | undefined | null;
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Class method trailing comments should stay with the terminated member.
+#[test]
+fn test_format_class_method_trailing_line_comment() {
+    assert_format_program!(
+        r#"declare namespace cluster {
+  export class Worker extends EventEmitter {
+  /**
+   * events.EventEmitter
+   *   1. disconnect
+   *   2. error
+   *   3. exit
+   *   4. listening
+   *   5. message
+   *   6. online
+   */
+  addListener(event: string, listener: (...args: any[]) => void): this;
+  addListener(event: "disconnect", listener: () => void): this;
+  addListener(event: "error", listener: (error: Error) => void): this;
+  addListener(event: "exit", listener: (code: number, signal: string) => void): this;
+  addListener(event: "listening", listener: (address: Address) => void): this;
+  addListener(event: "message", listener: (message: any, handle: net.Socket | net.Server) => void): this; // the handle is a net.Socket or net.Server object, or undefined.
+  addListener(event: "online", listener: () => void): this;
+  on(event: string, listener: (...args: any[]) => void): this;
+  on(event: "message", listener: (message: any, handle: net.Socket | net.Server) => void): this; // the handle is a net.Socket or net.Server object, or undefined.
+  on(event: "online", listener: () => void): this;
+  }
+}
+"#,
+        r#"declare namespace cluster {
+    export class Worker extends EventEmitter {
+        /**
+         * events.EventEmitter
+         *   1. disconnect
+         *   2. error
+         *   3. exit
+         *   4. listening
+         *   5. message
+         *   6. online
+         */
+        addListener(event: string, listener: (...args: any[]) => void): this;
+        addListener(event: "disconnect", listener: () => void): this;
+        addListener(event: "error", listener: (error: Error) => void): this;
+        addListener(event: "exit", listener: (code: number, signal: string) => void): this;
+        addListener(event: "listening", listener: (address: Address) => void): this;
+        addListener(
+            event: "message",
+            listener: (message: any, handle: net.Socket | net.Server) => void,
+        ): this; // the handle is a net.Socket or net.Server object, or undefined.
+        addListener(event: "online", listener: () => void): this;
+        on(event: string, listener: (...args: any[]) => void): this;
+        on(
+            event: "message",
+            listener: (message: any, handle: net.Socket | net.Server) => void,
+        ): this; // the handle is a net.Socket or net.Server object, or undefined.
+        on(event: "online", listener: () => void): this;
+    }
+}
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Optional computed class methods should keep the optional marker before generics.
+#[test]
+fn test_format_class_method_optional_computed_key() {
+    assert_format_program!(
+        r#"class EventEmitter<T> {
+  [EventEmitter.captureRejectionSymbol]?<K>(error: Error, event: Key<K, T>, ...args: Args<K, T>): void;
+}
+"#,
+        r#"class EventEmitter<T> {
+    [EventEmitter.captureRejectionSymbol]?<K>(
+        error: Error,
+        event: Key<K, T>,
+        ...args: Args<K, T>
+    ): void;
+}
+"#,
+        FileType::TypeScript
+    );
+}
+
+/// Function-type return annotations should use arrow-function parenthesis rules.
 #[test]
 fn test_format_function_type_return_parentheses() {
     assert_format_program!(

@@ -134,7 +134,7 @@ fn is_complex_generic_arguments<'ast>(
         GenericArgument::Value { value } => {
             let value = transparent_inner_expression(f.context(), *value);
 
-            // destack-only value arguments use the same threshold as complex type arguments
+            // value arguments use the same threshold as complex type arguments
             if matches!(
                 f.context().tree.get(value),
                 Expression::Binary {
@@ -154,17 +154,12 @@ fn is_complex_generic_arguments<'ast>(
         GenericArgument::Error => return Ok(false),
     }
 
-    // fall back to one speculative render for the remaining cases
-    let start = generic_arguments
-        .first()
-        .map(|argument_id| f.context().span(*argument_id))
-        .and_then(|argument_span| {
-            f.context()
-                .previous_non_trivia_token_before_span(argument_span)
-                .map(|token| token.span.start)
-                .or(Some(argument_span.start))
-        })
-        .unwrap_or(0);
+    // measure remaining cases with one speculative render
+    let argument_span = f.context().span(argument_id);
+    let start = f
+        .context()
+        .previous_non_trivia_token_before_span(argument_span)
+        .map_or(argument_span.start, |token| token.span.start);
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         super::r#type::format_generic_argument_list(f, generic_arguments)
     });
@@ -793,11 +788,10 @@ fn declaration_has_generic_heritage(
             .iter()
             .copied()
             .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
-        Declaration::Interface(declaration) => declaration
-            .extends_types
-            .iter()
-            .copied()
-            .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
+        Declaration::Interface(declaration) => declaration.extends.iter().any(|heritage| {
+            !heritage.generic_arguments.is_empty()
+                || expression_has_generic_arguments(context, heritage.expression)
+        }),
         Declaration::Extension(declaration) => {
             declaration_type_expression_has_generic_arguments(context, declaration.target_type)
                 || declaration.implements_types.iter().copied().any(|type_id| {

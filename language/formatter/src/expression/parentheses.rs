@@ -702,13 +702,14 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
                 true
             }
-            Expression::ObjectExpression { .. } => {
-                is_match_case_body
-                    || expression_is_in_statement_position(context, node_id)
-                    || expression_is_type_relation_left_chain_in_statement_position(
-                        context, node_id,
-                    )
-                    || expression_is_lambda_body_position(context, node_id)
+            Expression::ObjectExpression { ty, .. } => {
+                ty.is_none()
+                    && (is_match_case_body
+                        || expression_is_in_statement_position(context, node_id)
+                        || expression_is_type_relation_left_chain_in_statement_position(
+                            context, node_id,
+                        )
+                        || expression_is_lambda_body_position(context, node_id))
             }
             Expression::Declaration(_)
                 if expression_is_class_or_function_declaration(context, node_id) =>
@@ -745,6 +746,14 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             Expression::Assign { .. } => false,
             Expression::Parenthesized { .. } => false,
             Expression::Index { .. } => false,
+            Expression::For {
+                initialization,
+                increment,
+                ..
+            } => {
+                !initialization.is_some_and(|child_id| child_id.id == node_id.id)
+                    && !increment.is_some_and(|child_id| child_id.id == node_id.id)
+            }
             _ => true,
         };
     }
@@ -851,7 +860,7 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     if expression_is_in_statement_position(context, node_id)
         && matches!(
             context.tree.get(expression_id),
-            Expression::ObjectExpression { .. }
+            Expression::ObjectExpression { ty: None, .. }
         )
     {
         return true;

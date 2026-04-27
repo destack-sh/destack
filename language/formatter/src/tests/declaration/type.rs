@@ -57,6 +57,38 @@ fn test_format_enum_with_generic_parameters() {
     );
 }
 
+/// Enum member blank lines before doc comments should follow source spacing.
+#[test]
+fn test_format_enum_member_blank_lines() {
+    assert_format_program!(
+        r#"enum FFIType {
+  /**
+   * 8-bit signed integer
+   */
+  i8 = 1,
+
+  /**
+   * 8-bit unsigned integer
+   */
+  u8 = 2,
+}
+"#,
+        r#"enum FFIType {
+    /**
+     * 8-bit signed integer
+     */
+    i8 = 1,
+
+    /**
+     * 8-bit unsigned integer
+     */
+    u8 = 2,
+}
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
 /// Class extends sequence expressions should keep required parentheses.
 #[test]
 fn test_format_class_extends_sequence_expression_parentheses() {
@@ -66,6 +98,94 @@ fn test_format_class_extends_sequence_expression_parentheses() {
         r#"class A extends (a, b) {}
 "#,
         FileType::TypeScript,
+    );
+}
+
+/// Class member comments after an extends clause should stay on their members.
+#[test]
+fn test_format_class_extends_member_comments() {
+    assert_format_program!(
+        r#"export class Client extends Dispatcher {
+  constructor(url: string | URL, options?: Client.Options);
+  /** Property to get and set the pipelining factor. */
+  pipelining: number;
+  /** `true` after `client.close()` has been called. */
+  closed: boolean;
+}
+"#,
+        r#"export class Client extends Dispatcher {
+    constructor(url: string | URL, options?: Client.Options);
+    /** Property to get and set the pipelining factor. */
+    pipelining: number;
+    /** `true` after `client.close()` has been called. */
+    closed: boolean;
+}
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
+/// Empty namespace body comments should stay as dangling body comments.
+#[test]
+fn test_format_namespace_empty_body_comment() {
+    assert_format_program!(
+        r#"declare namespace Intl {
+  // Empty
+}
+"#,
+        r#"declare namespace Intl {
+    // Empty
+}
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
+/// Namespace body tail comments should stay before the closing brace.
+#[test]
+fn test_format_namespace_tail_comment() {
+    assert_format_program!(
+        r#"declare namespace RedisClient {
+  type KeyLike = string;
+  type StringPubSubListener = (message: string, channel: string) => void;
+
+  // Buffer subscriptions are not yet implemented
+  // type BufferPubSubListener = (message: Uint8Array<ArrayBuffer>, channel: string) => void;
+}
+"#,
+        r#"declare namespace RedisClient {
+    type KeyLike = string;
+    type StringPubSubListener = (message: string, channel: string) => void;
+
+    // Buffer subscriptions are not yet implemented
+    // type BufferPubSubListener = (message: Uint8Array<ArrayBuffer>, channel: string) => void;
+}
+"#,
+        FileType::TypeScriptDeclaration,
+    );
+}
+
+/// Ignored members should keep leading documentation outside the raw ignored range.
+#[test]
+fn test_format_ignored_member_leading_doc_comment() {
+    assert_format_program!(
+        r#"interface RedisClient {
+  /**
+   * Get hash field values with expiration options
+   */
+  //prettier-ignore
+  hgetex(key: KeyLike, fieldsKeyword: "FIELDS", numfields: number, ...fields: KeyLike[]): Promise<Array<string | null>>;
+}
+"#,
+        r#"interface RedisClient {
+    /**
+     * Get hash field values with expiration options
+     */
+    //prettier-ignore
+    hgetex(key: KeyLike, fieldsKeyword: "FIELDS", numfields: number, ...fields: KeyLike[]): Promise<Array<string | null>>;
+}
+"#,
+        FileType::TypeScriptDeclaration,
     );
 }
 

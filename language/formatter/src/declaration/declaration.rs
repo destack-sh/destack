@@ -1,5 +1,6 @@
 use crate::annotation::{
-    format_comment, infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
+    DanglingIndentMode, FormatDanglingComments, format_comment, infix_or_postfix_annotations,
+    postfix_annotations, prefix_annotations,
 };
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::member::format_block_of_members;
@@ -8,7 +9,7 @@ use crate::declaration::function::format_function_declaration;
 use crate::declaration::sequence::format_block_statement_sequence;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
-    write_generic_parameter_list,
+    function_grouping_generic_parameter_is_plain, write_generic_parameter_list,
 };
 use crate::declaration::r#type::{
     format_class_declaration, format_enum_declaration, format_interface_declaration,
@@ -36,7 +37,7 @@ use destack_fir::format::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
 
@@ -332,6 +333,21 @@ fn type_declaration_should_break_after_operator(
     }
 }
 
+/// Return whether one type alias has a complex generic head.
+fn type_declaration_has_complex_generic_head(
+    context: &DestackFormatContext<'_>,
+    declaration: &TypeDeclaration,
+) -> bool {
+    declaration.generic_parameters.len() > 1
+        && declaration
+            .generic_parameters
+            .iter()
+            .copied()
+            .any(|parameter_id| {
+                !function_grouping_generic_parameter_is_plain(context, parameter_id)
+            })
+}
+
 /// Return one assignment-like layout for one type declaration.
 fn type_declaration_layout(
     context: &DestackFormatContext<'_>,
@@ -341,6 +357,10 @@ fn type_declaration_layout(
 ) -> AssignmentLikeLayout {
     if type_declaration_should_break_after_operator(context, declaration) {
         return AssignmentLikeLayout::BreakAfterOperator;
+    }
+
+    if type_declaration_has_complex_generic_head(context, declaration) {
+        return AssignmentLikeLayout::BreakLeftHandSide;
     }
 
     if !left_may_break && is_left_short {
@@ -379,6 +399,24 @@ fn write_expression_declaration_body<'ast>(
 ) -> FormatResult<()> {
     // empty body
     if expressions.is_empty() {
+        let span = f.context().span(node_id);
+        let comments = f.context().comments().comments_before(span.end);
+        if !comments.is_empty() {
+            write!(
+                f,
+                [
+                    space(),
+                    token("{"),
+                    FormatDanglingComments::Comments {
+                        comments,
+                        indent: DanglingIndentMode::Block,
+                    },
+                    token("}")
+                ]
+            )?;
+            return Ok(());
+        }
+
         write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
         return Ok(());
     }
@@ -388,7 +426,34 @@ fn write_expression_declaration_body<'ast>(
     write!(
         f,
         [group(&block_indent(&format_with(move |f| {
-            format_block_statement_sequence(f, expressions, false)
+            format_block_statement_sequence(f, expressions, false)?;
+
+            let comments = f
+                .context()
+                .comments()
+                .comments_before(f.context().span(node_id).end);
+            if let Some(first_comment) = comments.first() {
+                let lines_before = f
+                    .context()
+                    .source_text()
+                    .get_lines_before(first_comment.span, f.context().comments());
+
+                if lines_before > 1 {
+                    write!(f, [empty_line()])?;
+                } else {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                write!(
+                    f,
+                    [FormatDanglingComments::Comments {
+                        comments,
+                        indent: DanglingIndentMode::None,
+                    }]
+                )?;
+            }
+
+            Ok(())
         })))]
     )?;
     write!(f, [hard_line_break(), token("}")])
@@ -652,7 +717,13 @@ fn format_global_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, None)?;
-    write_ambient_prefix(f, declaration.ambient)?;
+    if f.context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Prelude))
+        .is_some()
+    {
+        write_ambient_prefix(f, declaration.ambient)?;
+    }
 
     // head
     write!(f, [token("global")])?;

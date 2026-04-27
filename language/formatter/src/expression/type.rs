@@ -4,16 +4,19 @@ use crate::annotation::{
     infix_or_postfix_annotations, prefix_annotations, prefix_annotations_without_comments,
 };
 use crate::collection::literal::format_scalar_literal;
-use crate::collection::{TrailingSeparator, separated_entries};
+use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
+use crate::context::{MemoizeFormatExt, MemoizedFormat};
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     parameter_is_variadic, should_hug_function_parameters, write_function_abstraction_prefix,
-    write_function_header_prefix, write_generic_parameter_list, write_signature_hug_parameter_list,
+    write_function_header_prefix, write_generic_parameter_list,
+    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list,
     write_signature_parameter_list, write_signature_return_type,
 };
 use crate::expression::format_type_template_literal;
 use crate::file::{
-    node_has_ignore_directive, node_has_trailing_line_ignore_directive, write_ignored_node,
+    ignore_ranges_for_nodes, node_has_ignore_directive, node_has_trailing_line_ignore_directive,
+    write_ignored_node, write_ignored_span,
 };
 use crate::operator::{
     format_generic_argument_list, write_colon_prefixed_type_annotation,
@@ -22,14 +25,14 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionKind, FunctionSignature,
-    FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
-    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, TokenType, TupleElement,
-    TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
-    WhereClause,
+    FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId, Member,
+    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property, TokenType,
+    TupleElement, TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject,
+    VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
-use destack_fir::{format_args, write};
+use destack_fir::{best_fitting, format_args, write};
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::TrailingComma;
 
@@ -61,6 +64,33 @@ fn type_needs_postfix_parentheses(
         TypeExpression::Intersection { elements } => elements.len() > 1,
         TypeExpression::Conditional { .. }
         | TypeExpression::Mapped { .. }
+        | TypeExpression::Readonly { .. }
+        | TypeExpression::KeyOf { .. }
+        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::Must { .. }
+        | TypeExpression::AsComptime { .. }
+        | TypeExpression::Not { .. }
+        | TypeExpression::ValueOf { .. }
+        | TypeExpression::ReferenceOf { .. }
+        | TypeExpression::PointerOf { .. }
+        | TypeExpression::Infer { .. }
+        | TypeExpression::Predicate { .. }
+        | TypeExpression::FunctionTypeDeclaration(_)
+        | TypeExpression::ConstructorTypeDeclaration(_) => true,
+        _ => false,
+    }
+}
+
+/// Return whether one indexed-access object type needs parentheses.
+fn type_needs_index_object_parentheses(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(expression_id) {
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            elements.len() > 1
+        }
+        TypeExpression::Conditional { .. }
         | TypeExpression::Readonly { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
@@ -221,22 +251,70 @@ fn type_expression_is_conditional(
     )
 }
 
+/// Return the source anchor for trailing comments after one type expression.
+fn type_expression_trailing_anchor_end(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<TypeExpression>,
+) -> u32 {
+    let span = context.span(expression_id);
+
+    context
+        .last_non_trivia_token_in_span(span)
+        .map_or(span.end, |token| token.span.end)
+}
+
+/// Return conditional comments that trail one branch before the next operator.
+fn type_conditional_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    mut start: u32,
+    end: u32,
+    operator: u8,
+) -> Vec<Comment> {
+    let comments = context.comments().unprinted_comments();
+    if comments.is_empty() {
+        return Vec::new();
+    }
+
+    let source = context.source_text();
+    let mut index_before_operator = None;
+    for (index, comment) in comments.iter().copied().enumerate() {
+        if comment.span.end > end {
+            let end = index_before_operator.unwrap_or(index);
+            return comments[..end].to_vec();
+        }
+
+        if source.contains_newline_between(start, comment.span.start) {
+            return comments[..index].to_vec();
+        } else if comment.is_line() || comment.followed_by_newline() {
+            return comments[..=index].to_vec();
+        } else if source.bytes_contain(start, comment.span.start, operator) {
+            index_before_operator = Some(index);
+        }
+
+        start = comment.span.end;
+    }
+
+    comments[..index_before_operator.unwrap_or(comments.len())].to_vec()
+}
+
 /// Write the test layout of one conditional type.
 fn write_type_conditional_test<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
     layout: ConditionalLayout,
     left: LocalNodeId<TypeExpression>,
     extends_type: LocalNodeId<TypeExpression>,
+    then_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write!(f, [left, space(), Keyword::Extends, space(), extends_type])?;
 
-        let trailing_comments = {
-            let comments = f.context().comments();
-            comments
-                .comments_before_character(f.context().span(extends_type).end, b'?')
-                .to_vec()
-        };
+        let trailing_comments = type_conditional_trailing_comments(
+            f.context(),
+            type_expression_trailing_anchor_end(f.context(), extends_type),
+            f.context().node_token_start(then_type),
+            b'?',
+        );
 
         if !trailing_comments.is_empty() {
             write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
@@ -246,6 +324,14 @@ fn write_type_conditional_test<'ast>(
     });
 
     if layout.is_nested_alternate() {
+        let comments = f
+            .context()
+            .comments()
+            .comments_before(f.context().span(node_id).start);
+        if !comments.is_empty() {
+            write!(f, [FormatLeadingComments::Comments(comments)])?;
+        }
+
         write!(f, [align(2, &format_test)])?;
     } else {
         write!(f, [format_test])?;
@@ -260,26 +346,23 @@ fn write_type_conditional_tail<'ast>(
     then_type: LocalNodeId<TypeExpression>,
     else_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    let then_leading_comments = f
-        .context()
-        .comments_after_previous_non_trivia_token_for(then_type);
-    let else_leading_comments = f
-        .context()
-        .comments_after_previous_non_trivia_token_for(else_type);
-
     let format_then_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let then_leading_comments = f
+            .context()
+            .comments_after_previous_non_trivia_token_for(then_type);
+
         if !then_leading_comments.is_empty() {
             write!(f, [FormatLeadingComments::Comments(&then_leading_comments)])?;
         }
 
         write_type_expression_without_prefix_annotations(f, then_type)?;
 
-        let trailing_comments = {
-            let comments = f.context().comments();
-            comments
-                .comments_before_character(f.context().span(then_type).end, b':')
-                .to_vec()
-        };
+        let trailing_comments = type_conditional_trailing_comments(
+            f.context(),
+            type_expression_trailing_anchor_end(f.context(), then_type),
+            f.context().node_token_start(else_type),
+            b':',
+        );
 
         if !trailing_comments.is_empty() {
             write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
@@ -316,8 +399,14 @@ fn write_type_conditional_tail<'ast>(
     });
 
     let format_else_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !else_leading_comments.is_empty() {
-            write!(f, [FormatLeadingComments::Comments(&else_leading_comments)])?;
+        if !type_expression_is_conditional(f.context(), else_type) {
+            let else_leading_comments = f
+                .context()
+                .comments_after_previous_non_trivia_token_for(else_type);
+
+            if !else_leading_comments.is_empty() {
+                write!(f, [FormatLeadingComments::Comments(&else_leading_comments)])?;
+            }
         }
 
         write_type_expression_without_prefix_annotations(f, else_type)
@@ -362,7 +451,7 @@ fn write_conditional_type<'ast>(
     let layout = type_conditional_layout(f.context(), node_id);
 
     let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_type_conditional_test(f, layout, left, extends_type)?;
+        write_type_conditional_test(f, node_id, layout, left, extends_type, then_type)?;
 
         let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_type_conditional_tail(f, then_type, else_type)
@@ -373,6 +462,7 @@ fn write_conditional_type<'ast>(
                 write!(f, [indent(&format_tail)])?;
             }
             ConditionalLayout::NestedConsequent => {
+                // remove the parent consequent alignment before applying one tab indent
                 write!(f, [dedent(&indent(&format_tail))])?;
             }
             ConditionalLayout::NestedAlternate => {
@@ -544,6 +634,160 @@ fn type_object_members_have_leading_newline(
         object_span.start,
         first_member_span.start,
     ))
+}
+
+/// Return whether one parameter directly owns a declared type.
+fn parameter_declared_type_is(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(parameter_id) {
+        Parameter::Named { declared_type, .. }
+        | Parameter::Pattern { declared_type, .. }
+        | Parameter::VariadicNamed { declared_type, .. }
+        | Parameter::VariadicPattern { declared_type, .. } => {
+            declared_type.is_some_and(|declared_type| declared_type.id == type_id.id)
+        }
+        Parameter::Error => false,
+    }
+}
+
+/// Return whether one parameter has a default expression.
+fn parameter_has_default_value(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    match context.tree.get(parameter_id) {
+        Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => default.is_some(),
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => {
+            false
+        }
+    }
+}
+
+/// Return whether one signature should hug a parameter-owned object type.
+fn signature_should_hug_parameter_type(
+    context: &DestackFormatContext<'_>,
+    signature: &FunctionSignature,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
+
+    if let Some(this_parameter) = signature.this_parameter {
+        parameters.push(this_parameter);
+    }
+
+    parameters.extend(signature.parameters.iter().copied());
+
+    parameters
+        .iter()
+        .any(|current| current.id == parameter_id.id)
+        && should_hug_function_parameters(context, &parameters, false)
+}
+
+/// Return whether one type callable should hug a parameter-owned object type.
+fn function_type_should_hug_parameter_type(
+    context: &DestackFormatContext<'_>,
+    function: &FunctionTypeDeclaration,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    let mut parameters = Vec::with_capacity(function.parameters.len() + 1);
+
+    if let Some(this_parameter) = function.this_parameter {
+        parameters.push(this_parameter);
+    }
+
+    parameters.extend(function.parameters.iter().copied());
+
+    parameters
+        .iter()
+        .any(|current| current.id == parameter_id.id)
+        && should_hug_function_parameters(context, &parameters, false)
+}
+
+/// Return whether one constructor type should hug a parameter-owned object type.
+fn constructor_type_should_hug_parameter_type(
+    context: &DestackFormatContext<'_>,
+    function: &ConstructorTypeDeclaration,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    function
+        .parameters
+        .iter()
+        .any(|current| current.id == parameter_id.id)
+        && should_hug_function_parameters(context, &function.parameters, false)
+}
+
+/// Return whether one object type should use parameter hugging layout.
+fn type_object_should_hug(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    let Some((parameter_parent_id, NodeType::Parameter)) = context.parent(node_id) else {
+        return false;
+    };
+    let parameter_id = LocalNodeId::<Parameter>::new(parameter_parent_id);
+    if !parameter_declared_type_is(context, parameter_id, node_id) {
+        return false;
+    }
+    if parameter_has_default_value(context, parameter_id) {
+        return false;
+    }
+
+    let Some((owner_id, owner_type)) = context.parent(parameter_id) else {
+        return false;
+    };
+
+    match owner_type {
+        NodeType::Declaration => {
+            match context.tree.get(LocalNodeId::<Declaration>::new(owner_id)) {
+                Declaration::Function(function) => {
+                    signature_should_hug_parameter_type(context, &function.signature, parameter_id)
+                }
+                _ => false,
+            }
+        }
+        NodeType::Property => match context.tree.get(LocalNodeId::<Property>::new(owner_id)) {
+            Property::Method { signature, .. } => {
+                signature_should_hug_parameter_type(context, signature, parameter_id)
+            }
+            _ => false,
+        },
+        NodeType::Member => match context.tree.get(LocalNodeId::<Member>::new(owner_id)) {
+            Member::Method { signature, .. } => {
+                signature_should_hug_parameter_type(context, signature, parameter_id)
+            }
+            _ => false,
+        },
+        NodeType::TypeExpression => {
+            match context
+                .tree
+                .get(LocalNodeId::<TypeExpression>::new(owner_id))
+            {
+                TypeExpression::FunctionTypeDeclaration(function) => {
+                    function_type_should_hug_parameter_type(context, function, parameter_id)
+                }
+                TypeExpression::ConstructorTypeDeclaration(function) => {
+                    constructor_type_should_hug_parameter_type(context, function, parameter_id)
+                }
+                _ => false,
+            }
+        }
+        NodeType::TypeMember => match context.tree.get(LocalNodeId::<TypeMember>::new(owner_id)) {
+            TypeMember::Method { signature, .. } => {
+                signature_should_hug_parameter_type(context, signature, parameter_id)
+            }
+            TypeMember::CallSignature { signature } => {
+                function_type_should_hug_parameter_type(context, signature, parameter_id)
+            }
+            TypeMember::ConstructSignature { signature } => {
+                constructor_type_should_hug_parameter_type(context, signature, parameter_id)
+            }
+            _ => false,
+        },
+        _ => false,
+    }
 }
 
 /// Return whether one union should stay inline when it fits.
@@ -1194,9 +1438,11 @@ fn type_parent_requires_parentheses(
     child_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(parent_id) {
-        // postfix and indexed object positions need explicit grouping
+        // postfix and indexed object positions need precedence grouping
         TypeExpression::Array { element } => *element == child_id,
-        TypeExpression::Index { left, .. } => *left == child_id,
+        TypeExpression::Index { left, .. } => {
+            *left == child_id && type_needs_index_object_parentheses(context, child_id)
+        }
 
         // unary type operators bind tighter than unions, intersections, and conditionals
         TypeExpression::Readonly { target_type } => *target_type == child_id,
@@ -1433,11 +1679,6 @@ fn write_type_parameters_from_parts<'ast>(
         return write!(f, [token("("), token(")")]);
     }
 
-    // simple rest parameters should stay grouped with the return type
-    if parameters.len() == 1 && parameter_is_variadic(f.context(), parameters[0]) {
-        return write_signature_hug_parameter_list(f, &parameters);
-    }
-
     // hugging
     if should_hug_function_parameters(f.context(), &parameters, false) {
         return write_signature_hug_parameter_list(f, &parameters);
@@ -1451,12 +1692,38 @@ fn write_type_parameters_from_parts<'ast>(
     write_signature_parameter_list(f, &parameters, disallow_trailing_parameter_separator)
 }
 
-/// Write one list of callable parameters in type position.
-fn write_type_parameters<'ast>(
+/// Write callable type parameters, value parameters, and return type.
+fn write_type_callable_parameters_with_return_type<'ast, H, R>(
     f: &mut DestackFormatter<'ast, '_>,
-    signature: &FunctionSignature,
-) -> FormatResult<()> {
-    write_type_parameters_from_parts(f, signature.this_parameter, &signature.parameters)
+    generic_parameters: &[LocalNodeId<GenericParameter>],
+    this_parameter: Option<LocalNodeId<Parameter>>,
+    parameters: &[LocalNodeId<Parameter>],
+    return_type: Option<LocalNodeId<TypeExpression>>,
+    format_parameter_head: &MemoizedFormat<H>,
+    format_return_type: &MemoizedFormat<R>,
+    should_group_return_type: bool,
+) -> FormatResult<()>
+where
+    H: Format<DestackFormatContext<'ast>>,
+    R: Format<DestackFormatContext<'ast>>,
+{
+    let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write_type_parameters_from_parts(f, this_parameter, parameters)
+    })
+    .memoized();
+
+    let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
+    write_grouped_parameters_with_return_type(
+        f,
+        generic_parameters,
+        parameter_count,
+        return_type,
+        format_parameter_head,
+        &format_parameters,
+        format_return_type,
+        false,
+        should_group_return_type,
+    )
 }
 
 /// Write generic parameters for one type-space callable.
@@ -1590,16 +1857,27 @@ fn write_function_type_declaration<'ast>(
     function: &FunctionTypeDeclaration,
 ) -> FormatResult<()> {
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // generic parameters
-        write_type_callable_generic_parameters(f, &function.generic_parameters, false)?;
+        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_generic_parameters(f, &function.generic_parameters, false)
+        })
+        .memoized();
 
-        // parameters
-        write_type_parameters_from_parts(f, function.this_parameter, &function.parameters)?;
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_arrow_return(f, _node_id, function.return_type)
+        })
+        .memoized();
 
-        // fat arrow
-        write_type_callable_arrow_return(f, _node_id, function.return_type)?;
+        write_type_callable_parameters_with_return_type(
+            f,
+            &function.generic_parameters,
+            function.this_parameter,
+            &function.parameters,
+            function.return_type,
+            &format_generic_parameters,
+            &format_return_type,
+            false,
+        )?;
 
-        // where clauses
         write_type_callable_where_clauses(f, &function.where_clauses)?;
 
         Ok(())
@@ -1619,21 +1897,32 @@ fn write_constructor_type_declaration<'ast>(
         write_function_abstraction_prefix(f, function.is_abstract, false)?;
         write!(f, [Keyword::New])?;
 
-        // generic parameters
-        write_type_callable_generic_parameters(f, &function.generic_parameters, true)?;
+        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_generic_parameters(f, &function.generic_parameters, true)?;
+            if function.generic_parameters.is_empty() {
+                write_constructor_type_parameter_boundary(f, _node_id)?;
+            }
 
-        // parameter prefix
-        if function.generic_parameters.is_empty() {
-            write_constructor_type_parameter_boundary(f, _node_id)?;
-        }
+            Ok(())
+        })
+        .memoized();
 
-        // parameters
-        write_type_parameters_from_parts(f, None, &function.parameters)?;
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_arrow_return(f, _node_id, function.return_type)
+        })
+        .memoized();
 
-        // fat arrow
-        write_type_callable_arrow_return(f, _node_id, function.return_type)?;
+        write_type_callable_parameters_with_return_type(
+            f,
+            &function.generic_parameters,
+            None,
+            &function.parameters,
+            function.return_type,
+            &format_generic_parameters,
+            &format_return_type,
+            false,
+        )?;
 
-        // where clauses
         write_type_callable_where_clauses(f, &function.where_clauses)?;
 
         Ok(())
@@ -1690,22 +1979,38 @@ fn write_type_signature<'ast>(
             }
         }
 
-        // generic parameters
-        if !signature.generic_parameters.is_empty() {
-            write_generic_parameter_list(
-                f,
-                &signature.generic_parameters,
-                default_generic_parameter_trailing_separator(f),
-            )?;
-        }
+        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if !signature.generic_parameters.is_empty() {
+                write_generic_parameter_list(
+                    f,
+                    &signature.generic_parameters,
+                    default_generic_parameter_trailing_separator(f),
+                )?;
+            }
 
-        // parameters
-        write_type_parameters(f, signature)?;
+            Ok(())
+        })
+        .memoized();
 
-        // return type
-        if let Some(return_type) = signature.return_type {
-            write_signature_return_type(f, node_id, return_type)?;
-        }
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(return_type) = signature.return_type {
+                write_signature_return_type(f, node_id, return_type)?;
+            }
+
+            Ok(())
+        })
+        .memoized();
+
+        write_type_callable_parameters_with_return_type(
+            f,
+            &signature.generic_parameters,
+            signature.this_parameter,
+            &signature.parameters,
+            signature.return_type,
+            &format_generic_parameters,
+            &format_return_type,
+            true,
+        )?;
 
         // where clauses
         if !signature.where_clauses.is_empty() {
@@ -1725,18 +2030,31 @@ fn write_call_signature<'ast>(
     signature: &FunctionTypeDeclaration,
 ) -> FormatResult<()> {
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // generic parameters
-        write_type_callable_generic_parameters(f, &signature.generic_parameters, false)?;
+        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
+        })
+        .memoized();
 
-        // parameters
-        write_type_parameters_from_parts(f, signature.this_parameter, &signature.parameters)?;
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(return_type) = signature.return_type {
+                write_signature_return_type(f, node_id, return_type)?;
+            }
 
-        // return type
-        if let Some(return_type) = signature.return_type {
-            write_signature_return_type(f, node_id, return_type)?;
-        }
+            Ok(())
+        })
+        .memoized();
 
-        // where clauses
+        write_type_callable_parameters_with_return_type(
+            f,
+            &signature.generic_parameters,
+            signature.this_parameter,
+            &signature.parameters,
+            signature.return_type,
+            &format_generic_parameters,
+            &format_return_type,
+            false,
+        )?;
+
         write_type_callable_where_clauses(f, &signature.where_clauses)?;
 
         Ok(())
@@ -1756,21 +2074,36 @@ fn write_construct_signature<'ast>(
         write_function_abstraction_prefix(f, signature.is_abstract, false)?;
         write!(f, [Keyword::New])?;
 
-        // generic parameters
-        write_type_callable_generic_parameters(f, &signature.generic_parameters, true)?;
-        if signature.generic_parameters.is_empty() {
-            write!(f, [space()])?;
-        }
+        let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write_type_callable_generic_parameters(f, &signature.generic_parameters, true)?;
+            if signature.generic_parameters.is_empty() {
+                write!(f, [space()])?;
+            }
 
-        // parameters
-        write_type_parameters_from_parts(f, None, &signature.parameters)?;
+            Ok(())
+        })
+        .memoized();
 
-        // return type
-        if let Some(return_type) = signature.return_type {
-            write_signature_return_type(f, node_id, return_type)?;
-        }
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(return_type) = signature.return_type {
+                write_signature_return_type(f, node_id, return_type)?;
+            }
 
-        // where clauses
+            Ok(())
+        })
+        .memoized();
+
+        write_type_callable_parameters_with_return_type(
+            f,
+            &signature.generic_parameters,
+            None,
+            &signature.parameters,
+            signature.return_type,
+            &format_generic_parameters,
+            &format_return_type,
+            false,
+        )?;
+
         write_type_callable_where_clauses(f, &signature.where_clauses)?;
 
         Ok(())
@@ -1891,15 +2224,84 @@ pub(crate) fn format_type_member_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<TypeMember>],
 ) -> FormatResult<()> {
-    write!(
-        f,
-        [separated_entries(
-            ";",
-            members,
-            TrailingSeparator::Allowed,
-            None
-        )]
-    )
+    let entries = FormatSeparatedIter::new(members.iter().copied(), ";")
+        .with_trailing_separator(TrailingSeparator::Allowed);
+
+    for (index, entry) in entries.enumerate() {
+        let member_id = entry.element();
+
+        if index > 0 {
+            if type_members_have_blank_line_between(f, member_id) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [soft_line_break_or_space()])?;
+            }
+        }
+
+        write!(f, [entry])?;
+    }
+
+    Ok(())
+}
+
+/// Return whether source preserves an empty line between two type members.
+fn type_members_have_blank_line_between(
+    f: &DestackFormatter<'_, '_>,
+    next_id: LocalNodeId<TypeMember>,
+) -> bool {
+    let next_span = f.context().span(next_id);
+    let source_text = f.context().source_text();
+    let comments = f.context().comments();
+
+    source_text.get_lines_before(next_span, comments) > 1
+}
+
+/// Format one expanded type-member block.
+pub(crate) fn format_type_member_block_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    members: &[LocalNodeId<TypeMember>],
+) -> FormatResult<()> {
+    let comment_tokens = f.context().comment_tokens();
+    let ignore_ranges = ignore_ranges_for_nodes(f.context(), members, comment_tokens);
+    let entries = FormatSeparatedIter::new(members.iter().copied(), ";")
+        .with_trailing_separator(TrailingSeparator::Allowed);
+    let mut skip_until = None;
+
+    for (index, entry) in entries.enumerate() {
+        let member_id = entry.element();
+        let member_span = f.context().span(member_id);
+
+        if let Some(skip_end) = skip_until {
+            if member_span.start < skip_end {
+                continue;
+            }
+
+            skip_until = None;
+        }
+
+        if index > 0 {
+            if type_members_have_blank_line_between(f, member_id) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
+        }
+
+        if let Some(range_span) = ignore_ranges.get(&member_id.id) {
+            let comments = f.context().comments().comments_before(range_span.start);
+            if !comments.is_empty() {
+                write!(f, [FormatLeadingComments::Comments(comments)])?;
+            }
+
+            write_ignored_span(f, *range_span)?;
+            skip_until = Some(range_span.end);
+            continue;
+        }
+
+        write!(f, [entry])?;
+    }
+
+    Ok(())
 }
 
 /// Return the optional trailing separator style for tuple types.
@@ -1971,39 +2373,46 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::Object { members } => {
             // empty body
             if members.is_empty() {
-                if f.context().options.bracket_spacing {
-                    write!(f, [token("{"), space(), token("}")])?;
-                } else {
-                    write!(f, [token("{}")])?;
-                }
+                write!(f, [token("{}")])?;
                 return Ok(());
             }
 
             // grouped body
             let should_expand =
                 type_object_members_have_leading_newline(f.context(), node_id, members);
+            let should_hug = type_object_should_hug(f.context(), node_id);
+            let inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                if f.context().options.bracket_spacing {
+                    write!(f, [if_group_fits_on_line(&space())])?;
+                }
 
-            write!(
-                f,
-                [group(&format_args![
-                    token("{"),
-                    soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        if f.context().options.bracket_spacing {
-                            write!(f, [if_group_fits_on_line(&space())])?;
-                        }
+                if should_hug {
+                    format_type_member_list(f, members)?;
+                } else if should_expand {
+                    format_type_member_block_list(f, members)?;
+                } else {
+                    format_type_member_list(f, members)?;
+                }
 
-                        format_type_member_list(f, members)?;
+                if f.context().options.bracket_spacing {
+                    write!(f, [if_group_fits_on_line(&space())])?;
+                }
 
-                        if f.context().options.bracket_spacing {
-                            write!(f, [if_group_fits_on_line(&space())])?;
-                        }
+                Ok(())
+            });
 
-                        Ok(())
-                    })),
-                    token("}")
-                ])
-                .should_expand(should_expand)]
-            )?;
+            write!(f, [token("{")])?;
+
+            if should_hug {
+                write!(f, [soft_block_indent(&inner)])?;
+            } else {
+                write!(
+                    f,
+                    [group(&soft_block_indent(&inner)).should_expand(should_expand)]
+                )?;
+            }
+
+            write!(f, [token("}")])?;
         }
         TypeExpression::Declaration { declaration } => {
             write!(f, [*declaration])?;
@@ -2048,11 +2457,17 @@ pub(crate) fn write_type_expression_body<'ast>(
             qualifier,
             generic_arguments,
         } => {
+            write!(f, [Keyword::Import, token("(")])?;
+
+            let has_comment = f
+                .context()
+                .comments()
+                .has_comment_before(f.context().span(*target).start);
             let format_arguments = format_with(|f| {
                 write!(f, [target])?;
 
                 if !arguments.is_empty() {
-                    write!(f, [token(","), space()])?;
+                    write!(f, [token(","), soft_line_break_or_space()])?;
                     write!(
                         f,
                         [separated_entries(
@@ -2067,17 +2482,21 @@ pub(crate) fn write_type_expression_body<'ast>(
                 Ok(())
             });
 
-            write!(
-                f,
-                [
-                    Keyword::Import,
-                    group(&format_args![
-                        token("("),
-                        soft_block_indent(&format_arguments),
-                        token(")")
-                    ])
-                ]
-            )?;
+            if has_comment {
+                write!(f, [soft_block_indent(&format_arguments)])?;
+            } else if !arguments.is_empty() {
+                write!(
+                    f,
+                    [best_fitting![
+                        format_arguments,
+                        soft_block_indent(&format_arguments)
+                    ]]
+                )?;
+            } else {
+                write!(f, [target])?;
+            }
+
+            write!(f, [token(")")])?;
 
             if let Some(qualifier) = qualifier {
                 write!(f, [token("."), qualifier])?;
@@ -2268,8 +2687,7 @@ pub(crate) fn write_type_expression_body<'ast>(
             )?;
         }
         TypeExpression::Index { left, index } => {
-            write_postfix_type_operand(f, *left)?;
-            write!(f, [token("["), index, token("]")])?;
+            write!(f, [left, token("["), index, token("]")])?;
         }
         TypeExpression::TemplateLiteral { strings, spans } => {
             format_type_template_literal(node_id, strings, spans, f)?;
@@ -2532,11 +2950,17 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
                 }
             }
             TupleElement::Spread { label, value } => {
-                if let Some(label) = label {
+                if let Some(label) = label
+                    && f.context().options.language_type.is_typescript()
+                {
+                    write!(f, [token("..."), *label, token(":"), space(), value])?;
+                } else if let Some(label) = label {
                     write!(f, [*label, token(":"), space()])?;
-                }
 
-                write!(f, [token("..."), value])?;
+                    write!(f, [token("..."), value])?;
+                } else {
+                    write!(f, [token("..."), value])?;
+                }
             }
             TupleElement::Error => {
                 write!(f, [token("/* ERROR */")])?;
