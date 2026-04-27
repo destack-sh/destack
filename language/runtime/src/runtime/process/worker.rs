@@ -304,7 +304,7 @@ impl Worker {
         let allocator = Arc::new(
             heap::Allocator::try_new(
                 heap_options.options.page_bytes,
-                heap_options.options.allocator_arena_bytes,
+                heap_options.options.allocator_chunk_bytes,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );

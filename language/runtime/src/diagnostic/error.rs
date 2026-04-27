@@ -523,10 +523,10 @@ impl From<heap::HeapError> for Box<RuntimeError> {
     fn from(error: heap::HeapError) -> Self {
         match error {
             heap::HeapError::InvalidPageBytes { .. }
-            | heap::HeapError::InvalidAllocatorArenaBytes { .. }
-            | heap::HeapError::MisalignedAllocatorArenaBytes { .. }
+            | heap::HeapError::InvalidAllocatorChunkBytes { .. }
+            | heap::HeapError::MisalignedAllocatorChunkBytes { .. }
             | heap::HeapError::AllocatorPageBytesMismatch { .. }
-            | heap::HeapError::AllocatorArenaBytesMismatch { .. }
+            | heap::HeapError::AllocatorChunkBytesMismatch { .. }
             | heap::HeapError::HeapYoungThresholdExceedsCapacity { .. }
             | heap::HeapError::InvalidSmallAllocationAlignmentBytes { .. }
             | heap::HeapError::InvalidSizeClass { .. }

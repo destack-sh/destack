@@ -2581,8 +2581,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "arenaBytes": {
-          "description": "The byte width for one allocator arena.",
+        "chunkBytes": {
+          "description": "The byte width for one allocator chunk.",
           "type": [
             "integer",
             "null"

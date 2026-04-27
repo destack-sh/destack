@@ -60,7 +60,7 @@ fn run_vm_random_call(
         std::sync::Arc::new(
             destack_vm::Allocator::try_new(
                 destack_vm::HeapOptions::local().page_bytes,
-                destack_vm::HeapOptions::local().allocator_arena_bytes,
+                destack_vm::HeapOptions::local().allocator_chunk_bytes,
             )
             .expect("test vm allocator should build"),
         ),
@@ -72,7 +72,7 @@ fn run_vm_random_call(
         std::sync::Arc::new(
             destack_vm::Allocator::try_new(
                 destack_vm::HeapOptions::shared().page_bytes,
-                destack_vm::HeapOptions::shared().allocator_arena_bytes,
+                destack_vm::HeapOptions::shared().allocator_chunk_bytes,
             )
             .expect("test shared allocator should build"),
         ),

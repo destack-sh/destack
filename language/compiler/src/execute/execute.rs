@@ -186,7 +186,7 @@ impl Compiler {
             let allocator = Arc::new(
                 Allocator::try_new(
                     local_options.page_bytes,
-                    local_options.allocator_arena_bytes,
+                    local_options.allocator_chunk_bytes,
                 )
                 .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,

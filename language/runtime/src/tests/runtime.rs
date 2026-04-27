@@ -149,7 +149,7 @@ impl TestRuntime {
             std::sync::Arc::new(
                 vm::Allocator::try_new(
                     vm::HeapOptions::local().page_bytes,
-                    vm::HeapOptions::local().allocator_arena_bytes,
+                    vm::HeapOptions::local().allocator_chunk_bytes,
                 )
                 .expect("test vm allocator should build"),
             ),
@@ -161,7 +161,7 @@ impl TestRuntime {
             std::sync::Arc::new(
                 vm::Allocator::try_new(
                     vm::HeapOptions::shared().page_bytes,
-                    vm::HeapOptions::shared().allocator_arena_bytes,
+                    vm::HeapOptions::shared().allocator_chunk_bytes,
                 )
                 .expect("test shared allocator should build"),
             ),
