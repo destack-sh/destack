@@ -407,11 +407,12 @@ impl Parser {
             self.error(&error);
         }
 
-        header.ambient = if is_declare && declare_has_target {
+        (header.ambient, header.declare_span) = if is_declare && declare_has_target {
+            let declare_span = self.peek()?.span;
             self.bump(); // eat declare
-            Ambientness::Ambient
+            (Ambientness::Ambient, Some(declare_span))
         } else {
-            Ambientness::Concrete
+            (Ambientness::Concrete, None)
         };
 
         // abstraction modifier

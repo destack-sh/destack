@@ -710,6 +710,7 @@ impl Parser {
         let operator = match keyword {
             Keyword::Typeof => TypeUnaryOperator::Typeof,
             Keyword::Keyof => TypeUnaryOperator::Keyof,
+            Keyword::Readonly => TypeUnaryOperator::Readonly,
             _ => unreachable!(),
         };
 
@@ -749,6 +750,16 @@ impl Parser {
 
                 TypeExpression::KeyOf { target_type }
             }
+            TypeUnaryOperator::Readonly => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.options
+                        .with_ambient_context(right_ambient_context)
+                        .with_expression_context(right_expression_context),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Readonly { target_type }
+            }
             _ => unreachable!(),
         };
 
@@ -770,7 +781,13 @@ impl Parser {
         // strict type-only keywords cannot enter through value parsing
         if matches!(
             keyword,
-            Some(Keyword::Infer | Keyword::Keyof | Keyword::Readonly | Keyword::Typeof)
+            Some(
+                Keyword::Import
+                    | Keyword::Infer
+                    | Keyword::Keyof
+                    | Keyword::Readonly
+                    | Keyword::Typeof
+            )
         ) {
             return true;
         }
@@ -861,8 +878,10 @@ impl Parser {
         // lookahead after the identifier head
         let lookahead = self.identifier_primary_lookahead();
         let is_unary_keyword = matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Void));
-        let is_type_unary_keyword =
-            matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Keyof));
+        let is_type_unary_keyword = matches!(
+            lookahead.keyword,
+            Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
+        );
 
         // shorthand lambda form
         if !self.options.is_in_match_case()
@@ -986,8 +1005,10 @@ impl Parser {
 
         // lookahead after the identifier head
         let lookahead = self.identifier_primary_lookahead();
-        let is_type_unary_keyword =
-            matches!(lookahead.keyword, Some(Keyword::Typeof | Keyword::Keyof));
+        let is_type_unary_keyword = matches!(
+            lookahead.keyword,
+            Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
+        );
 
         // plain identifier path or contextual literal
         if lookahead.keyword.is_none()
@@ -1876,6 +1897,16 @@ impl Parser {
                 )?;
 
                 TypeExpression::KeyOf { target_type }
+            }
+            TypeUnaryOperator::Readonly => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.options
+                        .with_type(true)
+                        .with_expression_context(right_options),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Readonly { target_type }
             }
             _ => unreachable!(),
         };

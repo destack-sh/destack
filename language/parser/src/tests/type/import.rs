@@ -33,6 +33,55 @@ fn test_parse_type_import_expression_with_generic_arguments() {
     });
 }
 
+#[test]
+fn test_parse_type_import_expression_with_qualified_default_name() {
+    let mut test =
+        TestParser::new("type T = import(\"./interceptors\").default.createRedirectInterceptor");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = import("./interceptors").default.createRedirectInterceptor
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Import { qualifier, generic_arguments, .. } => {
+                assert_path!(
+                    parser,
+                    qualifier.as_ref().expect("expected import type qualifier"),
+                    "default.createRedirectInterceptor"
+                );
+                assert!(generic_arguments.is_empty());
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typeof_import_expression_uses_import_type_operand() {
+    let mut test = TestParser::new(
+        "type T = typeof import(\"./interceptors\").default.createRedirectInterceptor",
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = typeof import("./interceptors").default.createRedirectInterceptor
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+                assert_node!(parser.tree, *value, Expression::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Import { qualifier, generic_arguments, .. } => {
+                        assert_path!(
+                            parser,
+                            qualifier.as_ref().expect("expected import type qualifier"),
+                            "default.createRedirectInterceptor"
+                        );
+                        assert!(generic_arguments.is_empty());
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Parse type import expressions with attributes.
 #[test]
 fn test_parse_type_import_expression_with_attributes() {

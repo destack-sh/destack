@@ -2112,6 +2112,42 @@ async function* foo() => int32 {
         });
     }
 
+    /// Parse anonymous function expression container spans.
+    #[test]
+    fn test_parse_function_expression_container_spans() {
+        let mut test = TestParser::new_with_options(
+            "bar(...items, function() { return 1; });",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // bar(...items, function() { return 1; })
+        assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 2);
+
+            // function() { return 1; }
+            assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    let parameter_span = parser
+                        .tree
+                        .get_side_span(
+                            *declaration_id,
+                            NodeSpanType::Region(NodeSpanRegion::Parameters),
+                        )
+                        .unwrap();
+                    assert_eq!(parser.get_span_str(parameter_span), "()");
+
+                    let body_span = parser
+                        .tree
+                        .get_side_span(*declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
+                        .unwrap();
+                    assert_eq!(parser.get_span_str(body_span), "{ return 1; }");
+                });
+            });
+        });
+    }
+
     /// Preserve the enclosing function when a call argument is missing before the block close.
     #[test]
     fn test_parse_function_body_preserves_declaration_for_missing_call_argument_before_block_close()

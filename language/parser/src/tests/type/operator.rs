@@ -75,6 +75,34 @@ fn test_parse_type_unary_prefix_operator_span() {
 }
 
 #[test]
+fn test_parse_readonly_type_operator_precedence() {
+    let mut test = TestParser::new_with_options(
+        "type T = readonly string[] | undefined",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_node!(parser.tree, elements[0], TypeExpression::Readonly { target_type } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Array { element } => {
+                        assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                            assert_eq!(*value, TypeLiteral::String);
+                        });
+                    });
+                });
+                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Undefined);
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_type_unary_postfix_operator_span() {
     let mut test = TestParser::new_with_options("Value as const", LanguageType::TypeScript);
     let mut parser = test.prepare();

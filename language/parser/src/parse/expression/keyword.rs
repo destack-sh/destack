@@ -4,7 +4,7 @@ use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     Asynchrony, Declaration, EnumKind, ExportMode, Expression, Keyword, LocalNodeId,
-    OperatorPrecedence, Path, ScalarLiteral, TokenType, TypeExpression, TypeKind,
+    OperatorPrecedence, Path, ScalarLiteral, TokenType, TypeExpression, TypeKind, TypeLiteral,
 };
 use smallvec::smallvec;
 
@@ -795,8 +795,8 @@ impl Parser {
                 self.bump(); // eat null
 
                 Ok(Some(self.insert_node(
-                    TypeExpression::ScalarLiteral {
-                        value: ScalarLiteral::Null,
+                    TypeExpression::Literal {
+                        value: TypeLiteral::Null,
                     },
                     self.get_span_from(start),
                 )))
