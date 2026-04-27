@@ -41,17 +41,14 @@ pub trait Analysis: 'static + Send + Sync + Sized {
 /// Function-scoped analysis.
 pub trait FunctionAnalysis: Analysis {
     /// Compute this analysis for a function.
-    fn compute(
-        function: &mir::Function,
-        tree: &mir::NodeTree,
-        analyses: &FunctionAnalyses<'_>,
-    ) -> Self;
+    fn compute(function: &mir::Function, tree: &mir::Tree, analyses: &FunctionAnalyses<'_>)
+    -> Self;
 }
 
 /// Module-scoped analysis.
 pub trait ModuleAnalysis: Analysis {
     /// Compute this analysis for the module.
-    fn compute(tree: &mir::NodeTree, analyses: &ModuleAnalyses<'_>) -> Self;
+    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses<'_>) -> Self;
 }
 
 /// Package scoped analysis.
@@ -98,7 +95,7 @@ fn register_analysis<A: Analysis>(graph: &mut DependencyGraph) {
 /// Stores function-scoped analyses with lazy computation and dependency tracking.
 pub struct FunctionAnalyses<'a> {
     function: &'a mir::Function,
-    tree: &'a mir::NodeTree,
+    tree: &'a mir::Tree,
     options: PipelineOptions,
     cache: RefCell<HashMap<AnalysisId, Arc<dyn Any + Send + Sync>>>,
     dependency_graph: DependencyGraph,
@@ -106,14 +103,14 @@ pub struct FunctionAnalyses<'a> {
 
 impl<'a> FunctionAnalyses<'a> {
     /// Create a new function analyses storage with default options.
-    pub fn new(function: &'a mir::Function, tree: &'a mir::NodeTree) -> Self {
+    pub fn new(function: &'a mir::Function, tree: &'a mir::Tree) -> Self {
         Self::with_options(function, tree, PipelineOptions::default())
     }
 
     /// Create a new function analyses storage with the given options.
     pub fn with_options(
         function: &'a mir::Function,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         options: PipelineOptions,
     ) -> Self {
         let mut dependency_graph = DependencyGraph::default();
@@ -154,8 +151,8 @@ impl<'a> FunctionAnalyses<'a> {
         self.function
     }
 
-    /// Get the node tree.
-    pub fn tree(&self) -> &mir::NodeTree {
+    /// Get the tree.
+    pub fn tree(&self) -> &mir::Tree {
         self.tree
     }
 
@@ -246,14 +243,14 @@ impl std::fmt::Debug for FunctionAnalyses<'_> {
 
 /// Stores module-scoped analyses with lazy computation.
 pub struct ModuleAnalyses<'a> {
-    tree: &'a mir::NodeTree,
+    tree: &'a mir::Tree,
     cache: RefCell<HashMap<AnalysisId, Arc<dyn Any + Send + Sync>>>,
     dependency_graph: DependencyGraph,
 }
 
 impl<'a> ModuleAnalyses<'a> {
     /// Create a new module analyses storage.
-    pub fn new(tree: &'a mir::NodeTree) -> Self {
+    pub fn new(tree: &'a mir::Tree) -> Self {
         let mut dependency_graph = DependencyGraph::default();
         Self::register_all(&mut dependency_graph);
 
@@ -271,8 +268,8 @@ impl<'a> ModuleAnalyses<'a> {
         register_analysis::<CallTargetAnalysis>(graph);
     }
 
-    /// Get the node tree.
-    pub fn tree(&self) -> &mir::NodeTree {
+    /// Get the tree.
+    pub fn tree(&self) -> &mir::Tree {
         self.tree
     }
 

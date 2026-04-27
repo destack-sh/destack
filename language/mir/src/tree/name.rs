@@ -1,10 +1,10 @@
 use destack_core::{StringId, StringPool};
 
-use crate::{Function, LocalNodeId, NodeTree, Value, ValueReference};
+use crate::{Function, LocalNodeId, Tree, Value, ValueReference};
 
 /// Finalize missing block and SSA value names for one function.
 pub(crate) fn finalize_function_names(
-    tree: &mut NodeTree,
+    tree: &mut Tree,
     strings: &mut StringPool,
     function_id: LocalNodeId<Function>,
 ) {

@@ -2,18 +2,18 @@ use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
     GenericParameter, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase,
-    MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, TemplateLiteral, TupleElement, TypeExpression, TypeMember, WhereClause,
+    MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
+    TemplateLiteral, Tree, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 
 /// Walk any node.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node_id[node_id as usize];
+    let local_idx = tree.local_id_for_node_id(node_id);
     match node_type {
         NodeType::Expression => {
             let expression = tree.expressions.get(local_idx);
@@ -114,7 +114,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 /// Walk the FunctionSignature.
 fn walk_function_signature<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     signature: &FunctionSignature,
 ) {
     for generic_parameter_id in &signature.generic_parameters {
@@ -142,7 +142,7 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
 /// Walk the GenericParameter.
 pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<GenericParameter>,
     generic_parameter: &GenericParameter,
 ) {
@@ -184,7 +184,7 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
 /// Walk the GenericArgument.
 pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<GenericArgument>,
     generic_argument: &GenericArgument,
 ) {
@@ -206,7 +206,7 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
 /// Walk the TupleElement.
 pub fn walk_tuple_element<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<TupleElement>,
     tuple_element: &TupleElement,
 ) {
@@ -224,7 +224,7 @@ pub fn walk_tuple_element<V: NodeVisitor + ?Sized>(
 /// Walk the TypeExpression.
 pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<TypeExpression>,
     type_expression: &TypeExpression,
 ) {
@@ -469,7 +469,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
 /// Walk the TypeMember.
 pub fn walk_type_member<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<TypeMember>,
     type_member: &TypeMember,
 ) {
@@ -630,7 +630,7 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
 /// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Expression>,
     expression: &Expression,
 ) {
@@ -1279,7 +1279,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 /// Walk the Block.
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Block>,
     block: &Block,
 ) {
@@ -1293,7 +1293,7 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 /// Walk the Declaration.
 pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Declaration>,
     declaration: &Declaration,
 ) {
@@ -1464,7 +1464,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 /// Walk the Declarator.
 pub fn walk_declarator<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Declarator>,
     declarator: &Declarator,
 ) {
@@ -1483,7 +1483,7 @@ pub fn walk_declarator<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Key.
-pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &Key) {
+pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, key: &Key) {
     match key {
         Key::Name(_) | Key::Private(_) => {}
         Key::Expression(expression) => {
@@ -1496,7 +1496,7 @@ pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: 
 /// Walk the Property.
 pub fn walk_property<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Property>,
     property: &Property,
 ) {
@@ -1540,7 +1540,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
 /// Walk the Member.
 pub fn walk_member<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Member>,
     member: &Member,
 ) {
@@ -1669,7 +1669,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
 /// Walk the EnumField.
 pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<EnumField>,
     enum_field: &EnumField,
 ) {
@@ -1683,7 +1683,7 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
 /// Walk the WhereClause.
 pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<WhereClause>,
     where_clause: &WhereClause,
 ) {
@@ -1695,7 +1695,7 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 /// Walk the DependencyItem.
 pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<DependencyItem>,
     dependency_item: &DependencyItem,
 ) {
@@ -1755,7 +1755,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 /// Walk the Parameter.
 pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Parameter>,
     parameter: &Parameter,
 ) {
@@ -1828,7 +1828,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
 /// Walk the Argument.
 pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Argument>,
     argument: &Argument,
 ) {
@@ -1852,7 +1852,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 /// Walk the Pattern.
 pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Pattern>,
     pattern: &Pattern,
 ) {
@@ -1951,7 +1951,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
 /// Walk the PatternField.
 pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<PatternField>,
     pattern_field: &PatternField,
 ) {
@@ -2001,7 +2001,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
 /// Walk the AssignPattern.
 pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<AssignPattern>,
     assign_pattern: &AssignPattern,
 ) {
@@ -2031,7 +2031,7 @@ pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
 /// Walk the AssignPatternField.
 pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<AssignPatternField>,
     assign_pattern_field: &AssignPatternField,
 ) {
@@ -2074,7 +2074,7 @@ pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
 /// Walk the MatchSelector.
 fn walk_match_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     selector: &MatchSelector,
 ) {
     match selector {
@@ -2093,7 +2093,7 @@ fn walk_match_selector<V: NodeVisitor + ?Sized>(
 /// Walk the MatchCase.
 pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<MatchCase>,
     match_case: &MatchCase,
 ) {
@@ -2123,7 +2123,7 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
 /// Walk the Decorator.
 pub fn walk_decorator<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Decorator>,
     decorator: &Decorator,
 ) {

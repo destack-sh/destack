@@ -69,7 +69,7 @@ impl FunctionPass for IfConvert {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -121,7 +121,7 @@ struct IfConvertCandidate {
 /// Run if conversion and return true when changes were made.
 fn run_if_convert(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // build control flow graph
@@ -156,7 +156,7 @@ fn run_if_convert(
 fn find_if_convert_candidate(
     header: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
 ) -> Option<IfConvertCandidate> {
     // read header terminator
@@ -246,7 +246,7 @@ fn find_if_convert_candidate(
 fn apply_if_convert(
     candidate: IfConvertCandidate,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // build value maps for each branch
@@ -430,7 +430,7 @@ fn branch_profile_counts(
 /// Build a remapping of block parameters and instruction destinations.
 fn build_value_map(
     function: &mut mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     block: &mir::Block,
     arguments: &[mir::ValueReference],
 ) -> Option<HashMap<mir::Value, mir::Value>> {
@@ -462,7 +462,7 @@ fn build_value_map(
 
 /// Clone a block's instructions into a header instruction list.
 fn clone_block_instructions(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block: &mir::Block,
     value_map: &HashMap<mir::Value, mir::Value>,
     target: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -480,7 +480,7 @@ fn clone_block_instructions(
 /// Check whether all instructions are speculatable.
 fn instructions_speculatable(
     instructions: &[mir::LocalNodeId<mir::Instruction>],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // scan instructions for unsafe operations
     for &instruction_id in instructions {

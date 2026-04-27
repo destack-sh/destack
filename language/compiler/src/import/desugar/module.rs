@@ -1,6 +1,6 @@
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, ImportResult};
-use destack_dir::{Expression, NodeTree};
+use destack_dir::{Expression, Tree};
 use destack_source::ModuleId;
 
 impl Compiler {
@@ -10,7 +10,7 @@ impl Compiler {
     pub(crate) fn import_module_desugar(
         &self,
         module_id: ModuleId,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         context: &CompilerContext<'_>,
     ) -> ImportResult<()> {
         let _timing = self.timing_scope(tags::IMPORT_MODULE_DESUGAR);

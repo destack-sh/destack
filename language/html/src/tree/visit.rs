@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Attribute, Content, Doctype, Document, Fragment, LocalNodeId, NodeTree, NodeType,
-    walk_attribute, walk_doctype, walk_document, walk_fragment, walk_node,
+    Attribute, Content, Doctype, Document, Fragment, LocalNodeId, NodeType, Tree, walk_attribute,
+    walk_doctype, walk_document, walk_fragment, walk_node,
 };
 
 /// One HTML node visitor configuration.
@@ -16,35 +16,30 @@ pub trait NodeVisitor {
 
     /// Visit one arbitrary node id.
     #[inline]
-    fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {}
+    fn visit_any(&mut self, tree: &Tree, ty: NodeType, id: u32) {}
 
     /// Visit one document node.
-    fn visit_document(&mut self, tree: &NodeTree, id: LocalNodeId<Document>, document: &Document) {
+    fn visit_document(&mut self, tree: &Tree, id: LocalNodeId<Document>, document: &Document) {
         destack_core::ensure_sufficient_stack(|| walk_document(self, tree, id, document));
     }
 
     /// Visit one doctype node.
-    fn visit_doctype(&mut self, tree: &NodeTree, id: LocalNodeId<Doctype>, doctype: &Doctype) {
+    fn visit_doctype(&mut self, tree: &Tree, id: LocalNodeId<Doctype>, doctype: &Doctype) {
         walk_doctype(self, tree, id, doctype);
     }
 
     /// Visit one fragment node.
-    fn visit_fragment(&mut self, tree: &NodeTree, id: LocalNodeId<Fragment>, fragment: &Fragment) {
+    fn visit_fragment(&mut self, tree: &Tree, id: LocalNodeId<Fragment>, fragment: &Fragment) {
         destack_core::ensure_sufficient_stack(|| walk_fragment(self, tree, id, fragment));
     }
 
     /// Visit one HTML node.
-    fn visit_node(&mut self, tree: &NodeTree, id: LocalNodeId<Content>, node: &Content) {
+    fn visit_node(&mut self, tree: &Tree, id: LocalNodeId<Content>, node: &Content) {
         destack_core::ensure_sufficient_stack(|| walk_node(self, tree, id, node));
     }
 
     /// Visit one attribute node.
-    fn visit_attribute(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Attribute>,
-        attribute: &Attribute,
-    ) {
+    fn visit_attribute(&mut self, tree: &Tree, id: LocalNodeId<Attribute>, attribute: &Attribute) {
         walk_attribute(self, tree, id, attribute);
     }
 }
@@ -84,32 +79,27 @@ impl NodeVisitor for CapturingNodeVisitor {
         &self.options
     }
 
-    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
         self.visited.push(id);
     }
 
-    fn visit_document(&mut self, tree: &NodeTree, id: LocalNodeId<Document>, _document: &Document) {
+    fn visit_document(&mut self, tree: &Tree, id: LocalNodeId<Document>, _document: &Document) {
         self.visit_any(tree, NodeType::Document, id.id);
     }
 
-    fn visit_doctype(&mut self, tree: &NodeTree, id: LocalNodeId<Doctype>, _doctype: &Doctype) {
+    fn visit_doctype(&mut self, tree: &Tree, id: LocalNodeId<Doctype>, _doctype: &Doctype) {
         self.visit_any(tree, NodeType::Doctype, id.id);
     }
 
-    fn visit_fragment(&mut self, tree: &NodeTree, id: LocalNodeId<Fragment>, _fragment: &Fragment) {
+    fn visit_fragment(&mut self, tree: &Tree, id: LocalNodeId<Fragment>, _fragment: &Fragment) {
         self.visit_any(tree, NodeType::Fragment, id.id);
     }
 
-    fn visit_node(&mut self, tree: &NodeTree, id: LocalNodeId<Content>, _node: &Content) {
+    fn visit_node(&mut self, tree: &Tree, id: LocalNodeId<Content>, _node: &Content) {
         self.visit_any(tree, NodeType::Content, id.id);
     }
 
-    fn visit_attribute(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Attribute>,
-        _attribute: &Attribute,
-    ) {
+    fn visit_attribute(&mut self, tree: &Tree, id: LocalNodeId<Attribute>, _attribute: &Attribute) {
         self.visit_any(tree, NodeType::Attribute, id.id);
     }
 }

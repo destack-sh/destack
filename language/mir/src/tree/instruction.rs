@@ -193,7 +193,7 @@ pub enum Instruction {
     // memory (pointers)
     /// Load from a pointer (dereference).
     ///
-    /// Optional memory access metadata is stored in `NodeTree::memory_table`.
+    /// Optional memory access metadata is stored in `Tree::memory_table`.
     Load {
         /// The SSA value to define with the loaded value.
         destination: ValueReference,
@@ -204,7 +204,7 @@ pub enum Instruction {
     },
     /// Store to a pointer (write through pointer).
     ///
-    /// Optional memory access metadata is stored in `NodeTree::memory_table`.
+    /// Optional memory access metadata is stored in `Tree::memory_table`.
     Store {
         /// The pointer to store to.
         pointer: ValueReference,
@@ -283,7 +283,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The struct type to construct.
         ty: TypeReference,
-        /// The field values (stored in NodeTree's argument buffer).
+        /// The field values (stored in Tree's argument buffer).
         fields: ArgumentSlice,
     },
     /// Construct a tuple from element values.
@@ -294,7 +294,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tuple type to construct.
         ty: TypeReference,
-        /// The element values (stored in NodeTree's argument buffer).
+        /// The element values (stored in Tree's argument buffer).
         elements: ArgumentSlice,
     },
     /// Construct an array from element values.
@@ -305,7 +305,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The array type to construct.
         ty: TypeReference,
-        /// The element values (stored in NodeTree's argument buffer).
+        /// The element values (stored in Tree's argument buffer).
         elements: ArgumentSlice,
     },
 
@@ -407,7 +407,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor reference to load from.
         view: ValueReference,
-        /// The index values (stored in NodeTree's argument buffer).
+        /// The index values (stored in Tree's argument buffer).
         indices: ArgumentSlice,
     },
     /// Extract a tensor element from a tensor value.
@@ -416,14 +416,14 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor value to extract from.
         tensor: ValueReference,
-        /// The index values (stored in NodeTree's argument buffer).
+        /// The index values (stored in Tree's argument buffer).
         indices: ArgumentSlice,
     },
     /// Store a tensor element into a tensor reference.
     TensorStore {
         /// The tensor reference to store into.
         view: ValueReference,
-        /// The index values (stored in NodeTree's argument buffer).
+        /// The index values (stored in Tree's argument buffer).
         indices: ArgumentSlice,
         /// The value to store.
         value: ValueReference,
@@ -448,7 +448,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor value to reshape.
         tensor: ValueReference,
-        /// The shape values (stored in NodeTree's argument buffer).
+        /// The shape values (stored in Tree's argument buffer).
         shape: ArgumentSlice,
     },
     /// Broadcast a tensor into a larger shape.
@@ -482,7 +482,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor reference to view.
         view: ValueReference,
-        /// The view arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
+        /// The view arguments (offsets, sizes, strides) stored in Tree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of offset values.
         offsets_count: u16,
@@ -497,7 +497,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor value to slice.
         tensor: ValueReference,
-        /// The slice arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
+        /// The slice arguments (offsets, sizes, strides) stored in Tree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of offset values.
         offsets_count: u16,
@@ -512,7 +512,7 @@ pub enum Instruction {
         destination: ValueReference,
         /// The tensor value to pad.
         tensor: ValueReference,
-        /// The padding arguments (low, high, interior) stored in NodeTree's argument buffer.
+        /// The padding arguments (low, high, interior) stored in Tree's argument buffer.
         arguments: ArgumentSlice,
         /// The number of low padding values.
         low_count: u16,
@@ -527,7 +527,7 @@ pub enum Instruction {
     TensorConcat {
         /// The SSA value to define with the concatenated tensor.
         destination: ValueReference,
-        /// The tensor operands stored in NodeTree's argument buffer.
+        /// The tensor operands stored in Tree's argument buffer.
         tensors: ArgumentSlice,
         /// The concatenation axis.
         axis: u32,
@@ -979,7 +979,7 @@ impl Instruction {
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
     /// For Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
-    /// in NodeTree's argument buffer and must be fetched via `NodeTree::get_arguments()`.
+    /// in Tree's argument buffer and must be fetched via `Tree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
         match self {
             Instruction::Error => smallvec![],

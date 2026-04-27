@@ -26,9 +26,9 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionKind, FunctionSignature,
     FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId, Member,
-    Mutability, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property, TokenType,
-    TupleElement, TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject,
-    VarianceBound, WhereClause,
+    Mutability, Node, NodeType, Parameter, Property, TokenType, Tree, TreeImpl, TupleElement,
+    TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
+    WhereClause,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -1777,7 +1777,7 @@ fn function_like_parameters_span<T>(
 ) -> Option<Span>
 where
     T: Node,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     context
         .tree
@@ -1791,7 +1791,7 @@ fn write_constructor_type_parameter_boundary<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let Some(parameters_span) = function_like_parameters_span(f.context(), node_id) else {
         write!(f, [space()])?;

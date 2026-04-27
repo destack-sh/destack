@@ -3,8 +3,8 @@ use destack_core::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, ImportAttribute, ImportAttributeClause,
     ImportAttributeClauseKind, ImportAttributeValue, ImportSource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, StaticKey,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
+    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeType, StaticKey, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, Tree, TypeTable,
 };
 
 use crate::Compiler;
@@ -130,7 +130,7 @@ impl Compiler {
         target: Option<StringId>,
         ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {

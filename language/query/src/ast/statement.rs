@@ -13,10 +13,7 @@ pub(crate) enum BlockStatementPosition {
 }
 
 /// Check whether an expression can act as one statement head.
-fn expression_is_statement_head_candidate(
-    _ast_tree: &ast::NodeTree,
-    expr: &ast::Expression,
-) -> bool {
+fn expression_is_statement_head_candidate(_ast_tree: &ast::Tree, expr: &ast::Expression) -> bool {
     match expr {
         ast::Expression::Missing => false,
         _ => !expr.is_wide(),
@@ -25,7 +22,7 @@ fn expression_is_statement_head_candidate(
 
 /// Check whether an expression still owns one trailing missing slot.
 fn expression_has_trailing_missing_slot(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ast_tree.get(expr_id);
@@ -57,7 +54,7 @@ fn expression_has_trailing_missing_slot(
 
 /// Return true when the cursor is on the main span of one statement head.
 fn cursor_is_on_statement_main_span(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     expr_id: ast::LocalNodeId<ast::Expression>,
     span: Span,
     offset: u32,

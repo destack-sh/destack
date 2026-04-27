@@ -34,7 +34,7 @@ declare_pass! {
 
 impl ModulePass for GlobalDeadCodeEliminate {
     /// Run global dead code elimination for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_global_dead_code_eliminate(tree);
 
         // report analysis preservation based on whether changes occurred
@@ -58,7 +58,7 @@ impl ModulePass for GlobalDeadCodeEliminate {
 }
 
 /// Run global dead code elimination over the module.
-pub(crate) fn run_global_dead_code_eliminate(tree: &mut mir::NodeTree) -> bool {
+pub(crate) fn run_global_dead_code_eliminate(tree: &mut mir::Tree) -> bool {
     // collect globals referenced by instructions
     let used_globals = collect_used_globals(tree);
 
@@ -90,7 +90,7 @@ pub(crate) fn run_global_dead_code_eliminate(tree: &mut mir::NodeTree) -> bool {
 }
 
 /// Collect globals referenced by instructions in the module.
-fn collect_used_globals(tree: &mir::NodeTree) -> HashSet<mir::LocalNodeId<mir::Global>> {
+fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Global>> {
     // scan the module for global references
     let mut used = HashSet::new();
 

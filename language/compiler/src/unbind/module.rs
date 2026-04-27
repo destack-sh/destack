@@ -11,7 +11,7 @@ use crate::Compiler;
 #[derive(Debug)]
 pub struct UnboundModule {
     /// The AST tree.
-    pub tree: ast::NodeTree,
+    pub tree: ast::Tree,
     /// The string pool.
     pub strings: StringPool,
     /// The root expressions.
@@ -115,7 +115,7 @@ impl Compiler {
     pub(crate) fn unbind_module_from_parts(
         &self,
         module: &Module,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
@@ -124,7 +124,7 @@ impl Compiler {
         let mut context = UnbindContext::new();
 
         // rebuild the AST tree
-        let mut ast_tree = ast::NodeTree::new();
+        let mut ast_tree = ast::Tree::new();
         let mut ast_strings = StringPool::new();
         let roots: Vec<ast::LocalNodeId<ast::Expression>> = roots
             .iter()

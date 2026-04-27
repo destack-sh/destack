@@ -33,7 +33,7 @@ enum ExpressionSlotOwner {
 
 /// Return whether one assign pattern contains the expression.
 fn assign_pattern_contains_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -55,7 +55,7 @@ fn assign_pattern_contains_expression(
 
 /// Return whether one assign pattern field contains the expression.
 fn assign_pattern_field_contains_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -150,7 +150,7 @@ fn expression_slot_owner(
 
 /// Resolve the structural context for one missing expression node.
 fn expression_slot_owner_for_missing_node(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotOwner> {
@@ -243,7 +243,7 @@ fn open_expression_slot_owner(
 
 /// Unwrap statement expressions to the inner structural owner.
 fn unwrap_statement_ast_expression(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> (ast::LocalNodeId<ast::Expression>, &ast::Expression) {
     let expr = ast_tree.get(expr_id);
@@ -402,7 +402,7 @@ fn expression_slot_position_in_member(
 
 /// Resolve the structural context for an expression child.
 fn expression_slot_position_in_expression(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     expression: &ast::Expression,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ExpressionSlotPosition> {
@@ -584,7 +584,7 @@ fn cursor_is_after_initializer_assign(
 
 /// Collect simple binding names from one pattern.
 fn collect_pattern_binding_names(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
     names: &mut Vec<StringId>,
 ) {

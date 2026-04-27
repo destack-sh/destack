@@ -181,7 +181,7 @@ impl TypeLowerer {
         ty: mir::LocalNodeId<mir::Type>,
         field_name: StringId,
         strings: &StringPool,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<usize> {
         let mut target_ty = ty;
         loop {
@@ -720,7 +720,7 @@ impl TypeLowerer {
         &self,
         symbol: dir::GlobalSymbolId,
         symbols: &dir::SymbolTable,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
         let declaration = symbols.get_symbol(symbol.local_id).primary_declaration?;
         let declaration_id = declaration

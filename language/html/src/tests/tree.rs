@@ -1,11 +1,11 @@
 use crate::{
     Attribute, AttributeValue, AttributeValueForm, Content, Document, Element, Fragment, Name,
-    Namespace, NodeSpanKind, NodeTree, Text, assert_node,
+    Namespace, NodeSpanKind, Text, Tree, assert_node,
 };
 use destack_source::{FileId, Span};
 
 /// Create one interned HTML name inside one test tree.
-fn make_name(tree: &NodeTree, local: &str) -> Name {
+fn make_name(tree: &Tree, local: &str) -> Name {
     Name {
         prefix: None,
         namespace: Namespace::Html,
@@ -16,7 +16,7 @@ fn make_name(tree: &NodeTree, local: &str) -> Name {
 /// Store the main span and side spans for inserted nodes.
 #[test]
 fn test_insert_tracks_main_and_side_spans() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let attribute = tree.insert(
         Attribute {
             name: make_name(&tree, "src"),
@@ -54,7 +54,7 @@ fn test_insert_tracks_main_and_side_spans() {
 /// Keep explicit template content fragments on element nodes.
 #[test]
 fn test_element_keeps_template_content_fragment() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let text = tree.insert(
         Content::Text(Text {
             value: "fragment".to_string(),

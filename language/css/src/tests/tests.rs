@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_source::{File, FileId, FileType, Span, Uri};
 
 use crate::parse::Parser;
-use crate::{ComponentFragment, LocalNodeId, NodeTree, Stylesheet, parse_css};
+use crate::{ComponentFragment, LocalNodeId, Stylesheet, Tree, parse_css};
 
 /// A test wrapper for CSS tree parsing.
 #[derive(Debug)]
@@ -30,7 +30,7 @@ impl TestParser {
     }
 
     /// Parse one stylesheet source into one owned tree and stylesheet id.
-    pub(crate) fn parse_stylesheet(&self, source: &str) -> (NodeTree, LocalNodeId<Stylesheet>) {
+    pub(crate) fn parse_stylesheet(&self, source: &str) -> (Tree, LocalNodeId<Stylesheet>) {
         parse_css(self.file.as_ref(), source).unwrap_or_else(|error| panic!("{error:?}"))
     }
 
@@ -38,7 +38,7 @@ impl TestParser {
     pub(crate) fn parse_component_fragment(
         &self,
         source: &str,
-    ) -> (NodeTree, LocalNodeId<ComponentFragment>) {
+    ) -> (Tree, LocalNodeId<ComponentFragment>) {
         Parser::parse_component_fragment(source)
     }
 

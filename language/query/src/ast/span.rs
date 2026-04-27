@@ -17,10 +17,10 @@ pub(crate) fn get_module_by_file_id(
     repository.module(revision, module_id).ok().flatten()
 }
 
-/// Get the span of a DIR node using one DIR node tree.
+/// Get the span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_span(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
     // get the AST node id from the DIR node
@@ -30,10 +30,10 @@ pub(crate) fn get_node_tree_span(
     ast.source_map().get(ast_node_id)
 }
 
-/// Get the main span of a DIR node using one DIR node tree.
+/// Get the main span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_main_span(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
     // get the AST node id from the DIR node
@@ -46,7 +46,7 @@ pub(crate) fn get_node_tree_main_span(
 /// Resolve the span for a DIR node within a query context.
 pub(crate) fn span_for_dir_node(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
@@ -59,7 +59,7 @@ pub(crate) fn span_for_dir_node(
 /// Resolve the span for a DIR node when its source id is present in the AST source map.
 pub(crate) fn try_span_for_dir_node(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span when the source id is still valid
@@ -72,7 +72,7 @@ pub(crate) fn try_span_for_dir_node(
 /// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span for the node
@@ -85,7 +85,7 @@ pub(crate) fn main_span_for_dir_node(
 /// Resolve the main or enclosing span for a DIR node.
 pub(crate) fn main_or_enclosing_span_for_dir_node(
     ast: AstQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node

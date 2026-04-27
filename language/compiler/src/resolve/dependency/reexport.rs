@@ -3,7 +3,7 @@ use destack_ast::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleTarget,
-    NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
+    StaticKey, SymbolSpace, SymbolSpaceOrder, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, Revision};
@@ -25,7 +25,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
-        tree: &NodeTree,
+        tree: &Tree,
         order: SymbolSpaceOrder,
         key: StaticKey,
     ) -> Option<GlobalSymbolId> {

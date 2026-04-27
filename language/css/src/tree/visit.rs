@@ -13,9 +13,9 @@ use crate::{
     AnySelector, AttributeSelector, ComponentFragment, ContainerCondition,
     ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
     EnvironmentVariable, FeatureName, FeatureValue, LocalNodeId, MediaCondition, MediaQuery,
-    MediaQueryList, NodeTree, NodeType, NthOfSelector, NthSelector, PageMarginRule, PseudoClass,
+    MediaQueryList, NodeType, NthOfSelector, NthSelector, PageMarginRule, PseudoClass,
     PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
-    SimpleSelector, Stylesheet, SupportsCondition,
+    SimpleSelector, Stylesheet, SupportsCondition, Tree,
 };
 
 /// One CSS node visitor configuration.
@@ -29,12 +29,12 @@ pub trait NodeVisitor {
 
     /// Visit one arbitrary node id.
     #[inline]
-    fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {}
+    fn visit_any(&mut self, tree: &Tree, ty: NodeType, id: u32) {}
 
     /// Visit one stylesheet node.
     fn visit_stylesheet(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Stylesheet>,
         stylesheet: &Stylesheet,
     ) {
@@ -44,7 +44,7 @@ pub trait NodeVisitor {
     /// Visit one component fragment root.
     fn visit_component_fragment(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ComponentFragment>,
         fragment: &ComponentFragment,
     ) {
@@ -52,14 +52,14 @@ pub trait NodeVisitor {
     }
 
     /// Visit one CSS rule node.
-    fn visit_rule(&mut self, tree: &NodeTree, id: LocalNodeId<Rule>, rule: &Rule) {
+    fn visit_rule(&mut self, tree: &Tree, id: LocalNodeId<Rule>, rule: &Rule) {
         destack_core::ensure_sufficient_stack(|| walk_rule(self, tree, id, rule));
     }
 
     /// Visit one page margin rule node.
     fn visit_page_margin_rule(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PageMarginRule>,
         rule: &PageMarginRule,
     ) {
@@ -69,7 +69,7 @@ pub trait NodeVisitor {
     /// Visit one declaration block node.
     fn visit_declaration_block(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<DeclarationBlock>,
         declarations: &DeclarationBlock,
     ) {
@@ -79,7 +79,7 @@ pub trait NodeVisitor {
     /// Visit one declaration node.
     fn visit_declaration(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
     ) {
@@ -89,7 +89,7 @@ pub trait NodeVisitor {
     /// Visit one selector list node.
     fn visit_selector_list(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SelectorList>,
         selector_list: &SelectorList,
     ) {
@@ -97,14 +97,14 @@ pub trait NodeVisitor {
     }
 
     /// Visit one selector node.
-    fn visit_selector(&mut self, tree: &NodeTree, id: LocalNodeId<Selector>, selector: &Selector) {
+    fn visit_selector(&mut self, tree: &Tree, id: LocalNodeId<Selector>, selector: &Selector) {
         walk_selector(self, tree, id, selector);
     }
 
     /// Visit one selector component node.
     fn visit_selector_component(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SelectorComponent>,
         component: &SelectorComponent,
     ) {
@@ -114,7 +114,7 @@ pub trait NodeVisitor {
     /// Visit one simple selector node.
     fn visit_simple_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SimpleSelector>,
         selector: &SimpleSelector,
     ) {
@@ -124,7 +124,7 @@ pub trait NodeVisitor {
     /// Visit one attribute selector node.
     fn visit_attribute_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<AttributeSelector>,
         selector: &AttributeSelector,
     ) {
@@ -134,7 +134,7 @@ pub trait NodeVisitor {
     /// Visit one nth selector node.
     fn visit_nth_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<NthSelector>,
         selector: &NthSelector,
     ) {
@@ -144,7 +144,7 @@ pub trait NodeVisitor {
     /// Visit one nth-of selector node.
     fn visit_nth_of_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<NthOfSelector>,
         selector: &NthOfSelector,
     ) {
@@ -154,7 +154,7 @@ pub trait NodeVisitor {
     /// Visit one pseudo class node.
     fn visit_pseudo_class(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PseudoClass>,
         selector: &PseudoClass,
     ) {
@@ -164,7 +164,7 @@ pub trait NodeVisitor {
     /// Visit one vendor any selector node.
     fn visit_any_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<AnySelector>,
         selector: &AnySelector,
     ) {
@@ -174,7 +174,7 @@ pub trait NodeVisitor {
     /// Visit one pseudo element node.
     fn visit_pseudo_element(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PseudoElement>,
         selector: &PseudoElement,
     ) {
@@ -184,7 +184,7 @@ pub trait NodeVisitor {
     /// Visit one media query list node.
     fn visit_media_query_list(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<MediaQueryList>,
         media_query_list: &MediaQueryList,
     ) {
@@ -192,19 +192,14 @@ pub trait NodeVisitor {
     }
 
     /// Visit one media query node.
-    fn visit_media_query(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<MediaQuery>,
-        query: &MediaQuery,
-    ) {
+    fn visit_media_query(&mut self, tree: &Tree, id: LocalNodeId<MediaQuery>, query: &MediaQuery) {
         walk_media_query(self, tree, id, query);
     }
 
     /// Visit one media condition node.
     fn visit_media_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<MediaCondition>,
         condition: &MediaCondition,
     ) {
@@ -214,7 +209,7 @@ pub trait NodeVisitor {
     /// Visit one feature name node.
     fn visit_feature_name(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<FeatureName>,
         name: &FeatureName,
     ) {
@@ -224,7 +219,7 @@ pub trait NodeVisitor {
     /// Visit one query feature node.
     fn visit_query_feature(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<QueryFeature>,
         feature: &QueryFeature,
     ) {
@@ -234,7 +229,7 @@ pub trait NodeVisitor {
     /// Visit one feature value node.
     fn visit_feature_value(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<FeatureValue>,
         value: &FeatureValue,
     ) {
@@ -242,19 +237,14 @@ pub trait NodeVisitor {
     }
 
     /// Visit one ratio value node.
-    fn visit_ratio_value(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<RatioValue>,
-        value: &RatioValue,
-    ) {
+    fn visit_ratio_value(&mut self, tree: &Tree, id: LocalNodeId<RatioValue>, value: &RatioValue) {
         walk_ratio_value(self, tree, id, value);
     }
 
     /// Visit one environment variable node.
     fn visit_environment_variable(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<EnvironmentVariable>,
         value: &EnvironmentVariable,
     ) {
@@ -264,7 +254,7 @@ pub trait NodeVisitor {
     /// Visit one supports condition node.
     fn visit_supports_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SupportsCondition>,
         condition: &SupportsCondition,
     ) {
@@ -274,7 +264,7 @@ pub trait NodeVisitor {
     /// Visit one container condition node.
     fn visit_container_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerCondition>,
         condition: &ContainerCondition,
     ) {
@@ -284,7 +274,7 @@ pub trait NodeVisitor {
     /// Visit one container style query node.
     fn visit_container_style_query(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerStyleQuery>,
         query: &ContainerStyleQuery,
     ) {
@@ -294,7 +284,7 @@ pub trait NodeVisitor {
     /// Visit one container scroll state query node.
     fn visit_container_scroll_state_query(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerScrollStateQuery>,
         query: &ContainerScrollStateQuery,
     ) {
@@ -337,26 +327,26 @@ impl NodeVisitor for CapturingNodeVisitor {
         &self.options
     }
 
-    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
         self.visited.push(id);
     }
 
     fn visit_stylesheet(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Stylesheet>,
         _stylesheet: &Stylesheet,
     ) {
         self.visit_any(tree, NodeType::Stylesheet, id.id);
     }
 
-    fn visit_rule(&mut self, tree: &NodeTree, id: LocalNodeId<Rule>, _rule: &Rule) {
+    fn visit_rule(&mut self, tree: &Tree, id: LocalNodeId<Rule>, _rule: &Rule) {
         self.visit_any(tree, NodeType::Rule, id.id);
     }
 
     fn visit_page_margin_rule(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PageMarginRule>,
         _rule: &PageMarginRule,
     ) {
@@ -365,7 +355,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_declaration_block(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<DeclarationBlock>,
         _declarations: &DeclarationBlock,
     ) {
@@ -374,7 +364,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_declaration(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Declaration>,
         _declaration: &Declaration,
     ) {
@@ -383,20 +373,20 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_selector_list(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SelectorList>,
         _selector_list: &SelectorList,
     ) {
         self.visit_any(tree, NodeType::SelectorList, id.id);
     }
 
-    fn visit_selector(&mut self, tree: &NodeTree, id: LocalNodeId<Selector>, _selector: &Selector) {
+    fn visit_selector(&mut self, tree: &Tree, id: LocalNodeId<Selector>, _selector: &Selector) {
         self.visit_any(tree, NodeType::Selector, id.id);
     }
 
     fn visit_selector_component(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SelectorComponent>,
         _component: &SelectorComponent,
     ) {
@@ -405,7 +395,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_simple_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SimpleSelector>,
         _selector: &SimpleSelector,
     ) {
@@ -414,7 +404,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_attribute_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<AttributeSelector>,
         _selector: &AttributeSelector,
     ) {
@@ -423,7 +413,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_nth_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<NthSelector>,
         _selector: &NthSelector,
     ) {
@@ -432,7 +422,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_nth_of_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<NthOfSelector>,
         _selector: &NthOfSelector,
     ) {
@@ -441,7 +431,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_pseudo_class(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PseudoClass>,
         _selector: &PseudoClass,
     ) {
@@ -450,7 +440,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_any_selector(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<AnySelector>,
         _selector: &AnySelector,
     ) {
@@ -459,7 +449,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_pseudo_element(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PseudoElement>,
         _selector: &PseudoElement,
     ) {
@@ -468,25 +458,20 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_media_query_list(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<MediaQueryList>,
         _media_query_list: &MediaQueryList,
     ) {
         self.visit_any(tree, NodeType::MediaQueryList, id.id);
     }
 
-    fn visit_media_query(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<MediaQuery>,
-        _query: &MediaQuery,
-    ) {
+    fn visit_media_query(&mut self, tree: &Tree, id: LocalNodeId<MediaQuery>, _query: &MediaQuery) {
         self.visit_any(tree, NodeType::MediaQuery, id.id);
     }
 
     fn visit_media_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<MediaCondition>,
         _condition: &MediaCondition,
     ) {
@@ -495,7 +480,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_feature_name(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<FeatureName>,
         _name: &FeatureName,
     ) {
@@ -504,25 +489,20 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_supports_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<SupportsCondition>,
         _condition: &SupportsCondition,
     ) {
         self.visit_any(tree, NodeType::SupportsCondition, id.id);
     }
 
-    fn visit_ratio_value(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<RatioValue>,
-        _value: &RatioValue,
-    ) {
+    fn visit_ratio_value(&mut self, tree: &Tree, id: LocalNodeId<RatioValue>, _value: &RatioValue) {
         self.visit_any(tree, NodeType::RatioValue, id.id);
     }
 
     fn visit_environment_variable(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<EnvironmentVariable>,
         _value: &EnvironmentVariable,
     ) {
@@ -531,7 +511,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_container_condition(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerCondition>,
         _condition: &ContainerCondition,
     ) {
@@ -540,7 +520,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_container_style_query(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerStyleQuery>,
         _query: &ContainerStyleQuery,
     ) {
@@ -549,7 +529,7 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_container_scroll_state_query(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ContainerScrollStateQuery>,
         _query: &ContainerScrollStateQuery,
     ) {

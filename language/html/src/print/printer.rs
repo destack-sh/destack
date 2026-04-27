@@ -1,4 +1,4 @@
-use crate::{Attribute, AttributeValue, AttributeValueForm, Element, Name, NodeTree};
+use crate::{Attribute, AttributeValue, AttributeValueForm, Element, Name, Tree};
 
 /// One HTML source rendering mode.
 #[derive(Debug, Clone, Copy, Default)]
@@ -11,7 +11,7 @@ pub struct PrintOptions {
 #[derive(Debug)]
 pub(crate) struct Printer<'a> {
     /// The HTML tree being printed.
-    pub(crate) tree: &'a NodeTree,
+    pub(crate) tree: &'a Tree,
     /// The print options.
     pub(crate) options: PrintOptions,
     /// The emitted source.
@@ -20,7 +20,7 @@ pub(crate) struct Printer<'a> {
 
 impl<'a> Printer<'a> {
     /// Create one HTML printer.
-    pub(crate) fn new(tree: &'a NodeTree, options: PrintOptions) -> Self {
+    pub(crate) fn new(tree: &'a Tree, options: PrintOptions) -> Self {
         Self {
             tree,
             options,

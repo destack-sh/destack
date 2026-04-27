@@ -22,8 +22,8 @@ declare_pass! {
 
 /// Context for move checking.
 struct MoveCheckContext<'a> {
-    /// The MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// The MIR tree.
+    tree: &'a mir::Tree,
     /// The ownership analysis results.
     ownership: &'a OwnershipAnalysis,
     /// The module being checked.
@@ -35,7 +35,7 @@ struct MoveCheckContext<'a> {
 impl<'a> MoveCheckContext<'a> {
     /// Create a new move check context.
     fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         ownership: &'a OwnershipAnalysis,
         module_id: ModuleId,
         target_id: TargetId,
@@ -395,7 +395,7 @@ impl FunctionPass for MoveCheck {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get ownership analysis

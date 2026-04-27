@@ -26,7 +26,7 @@ impl CallTargetAnalysis {
     }
 
     /// Build call target data from a call graph.
-    fn build(tree: &mir::NodeTree, call_graph: &CallGraph) -> Self {
+    fn build(tree: &mir::Tree, call_graph: &CallGraph) -> Self {
         let mut instruction_targets: HashMap<
             mir::LocalNodeId<mir::Instruction>,
             Vec<mir::LocalNodeId<mir::Function>>,
@@ -68,7 +68,7 @@ impl Analysis for CallTargetAnalysis {
 }
 
 impl ModuleAnalysis for CallTargetAnalysis {
-    fn compute(tree: &mir::NodeTree, analyses: &ModuleAnalyses<'_>) -> Self {
+    fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses<'_>) -> Self {
         let call_graph = analyses.get::<CallGraph>();
         Self::build(tree, call_graph.as_ref())
     }
@@ -85,7 +85,7 @@ mod tests {
 
     /// Find the first instruction in a function that matches a predicate.
     fn find_instruction_id<F>(
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
         predicate: F,
     ) -> mir::LocalNodeId<mir::Instruction>

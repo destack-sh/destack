@@ -12,8 +12,8 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Asynchrony, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter, Pattern,
-    TokenType, TypeExpression, VarianceModifier, Visibility, WhereClause,
+    GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeImpl,
+    TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult};
@@ -205,7 +205,7 @@ fn write_parameter_type<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     // declared type
     if let Some(declared_type) = declared_type {
@@ -245,7 +245,7 @@ pub(crate) fn write_signature_return_type<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     if let Some(type_span) = f
         .context()
@@ -955,7 +955,7 @@ pub(crate) fn write_empty_parameter_list_with_interior_comments<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     // empty list
     if !f.context().has_infix_annotation(node_id) {

@@ -77,7 +77,7 @@ impl FunctionPass for LoopInterchange {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // gather analyses
@@ -131,7 +131,7 @@ struct InterchangeCandidate {
 /// Run loop interchange and return true when changes are made.
 fn run_loop_interchange(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -176,7 +176,7 @@ fn build_interchange_candidate(
     inner: &crate::optimize::analyses::Loop,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
@@ -340,7 +340,7 @@ fn is_perfectly_nested(
 fn loops_are_read_only(
     outer: &crate::optimize::analyses::Loop,
     inner: &crate::optimize::analyses::Loop,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // require read only effects for each loop
@@ -350,7 +350,7 @@ fn loops_are_read_only(
 }
 
 /// Apply loop interchange to a candidate.
-fn apply_interchange(tree: &mut mir::NodeTree, candidate: &InterchangeCandidate) -> bool {
+fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> bool {
     // update the outer preheader to jump to the inner header
     let preheader_block = tree.get(candidate.outer_preheader).clone();
     let preheader_terminator = mir::Terminator::Jump {

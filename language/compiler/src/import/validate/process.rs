@@ -1,6 +1,6 @@
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, ImportResult};
-use destack_dir::{Expression, NodeTree, SymbolTable};
+use destack_dir::{Expression, SymbolTable, Tree};
 use destack_source::ModuleId;
 
 impl Compiler {
@@ -8,7 +8,7 @@ impl Compiler {
     pub(crate) fn import_module_validate(
         &self,
         module_id: ModuleId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         roots: &[destack_dir::LocalNodeId<Expression>],
         global_augmentation_scope: destack_dir::LocalScopeId,

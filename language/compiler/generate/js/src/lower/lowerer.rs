@@ -25,7 +25,7 @@ pub struct ModuleLowerer<'a> {
     /// The DIR roots.
     pub(crate) dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
     /// The DIR tree.
-    pub(crate) dir_tree: &'a dir::NodeTree,
+    pub(crate) dir_tree: &'a dir::Tree,
     /// The symbol table.
     pub(crate) symbols: &'a SymbolTable,
     /// The type table.
@@ -34,7 +34,7 @@ pub struct ModuleLowerer<'a> {
     pub(crate) target: &'a Target,
 
     /// The output JS AST tree.
-    pub(crate) tree: js::NodeTree,
+    pub(crate) tree: js::Tree,
     /// Root nodes in the output.
     pub(crate) roots: Vec<js::LocalNodeIdAny>,
     /// String pool for the output.
@@ -58,7 +58,7 @@ impl<'a> ModuleLowerer<'a> {
         symbol_id: ScriptSymbolId,
     ) where
         T: js::Node,
-        js::NodeTree: js::NodeTreeImpl<T>,
+        js::Tree: js::TreeImpl<T>,
     {
         self.tree.set_symbol(node_id, symbol_id);
     }
@@ -70,7 +70,7 @@ impl<'a> ModuleLowerer<'a> {
         symbol_id: dir::LocalSymbolId,
     ) where
         T: js::Node,
-        js::NodeTree: js::NodeTreeImpl<T>,
+        js::Tree: js::TreeImpl<T>,
     {
         self.set_node_symbol(node_id, self.source_symbol_id(symbol_id));
     }
@@ -82,7 +82,7 @@ impl<'a> ModuleLowerer<'a> {
         symbol_id: GlobalSymbolId,
     ) where
         T: js::Node,
-        js::NodeTree: js::NodeTreeImpl<T>,
+        js::Tree: js::TreeImpl<T>,
     {
         self.set_node_symbol(node_id, ScriptSymbolId::Source(symbol_id));
     }
@@ -142,7 +142,7 @@ impl<'a> ModuleLowerer<'a> {
             symbols: dir.symbols.as_ref(),
             types: dir.types.as_ref(),
             target,
-            tree: js::NodeTree::new(),
+            tree: js::Tree::new(),
             roots: Vec::new(),
             strings: StringPool::new(),
             warnings: Vec::new(),

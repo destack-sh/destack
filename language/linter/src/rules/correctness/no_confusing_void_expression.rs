@@ -197,7 +197,7 @@ impl NodeVisitor for NoConfusingVoidExpressionVisitor<'_, '_> {
     /// Visit one expression node.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -256,7 +256,7 @@ fn is_void_or_never_expression(
 
 /// Return true when the expression is a `void` unary expression.
 fn is_void_unary_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     matches!(
@@ -270,7 +270,7 @@ fn is_void_unary_expression(
 
 /// Return one nearest invalid ancestor when a void-like expression is in value position.
 fn invalid_ancestor_expression_id(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // start from outer transparent wrappers around the candidate

@@ -19,7 +19,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         context: &CompilerContext<'_>,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         symbols: &mut dir::SymbolTable,
         types: &mut dir::TypeTable,
     ) -> ElaborateResult<()> {

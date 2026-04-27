@@ -108,7 +108,7 @@ impl ScriptLinkageCollector {
 
     /// Return the static target for one dynamic import expression when it is known.
     fn dynamic_import_target(
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         strings: &StringPool,
         expression: &js::Expression,
     ) -> Option<(Option<String>, Option<ModuleId>)> {
@@ -178,7 +178,7 @@ impl js::NodeVisitor for ScriptLinkageCollector {
 
     fn visit_statement(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Statement>,
         statement: &js::Statement,
     ) {
@@ -220,7 +220,7 @@ impl js::NodeVisitor for ScriptLinkageCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Expression>,
         expression: &js::Expression,
     ) {

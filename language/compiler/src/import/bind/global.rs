@@ -1,5 +1,5 @@
 use destack_dir::{
-    Declaration, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions, SymbolOrigin, SymbolTable,
+    Declaration, LocalNodeId, NodeVisitor, NodeVisitorOptions, SymbolOrigin, SymbolTable, Tree,
     walk_declaration,
 };
 use destack_workspace::Module;
@@ -29,7 +29,7 @@ impl NodeVisitor for GlobalAugmentationVisitor<'_> {
 
     fn visit_declaration(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
     ) {
@@ -60,7 +60,7 @@ impl Compiler {
     pub(super) fn mark_global_augmentation_symbols(
         &self,
         _module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &mut SymbolTable,
     ) {
         // visit each global declaration to mark nested symbols

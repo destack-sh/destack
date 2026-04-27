@@ -106,7 +106,7 @@ impl SourcePartKey {
     }
 }
 
-/// Side index of spans into a NodeTree.
+/// Side index of spans into a Tree.
 #[derive(Debug)]
 pub struct NodeSourceMap {
     /// Enclosing spans of all nodes, indexed by global node id.

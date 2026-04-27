@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, LocalNodeIdAny, Member, NodeTree, NodeType, SymbolTable};
+use destack_dir::{Declaration, LocalNodeIdAny, Member, NodeType, SymbolTable, Tree};
 
 use crate::Compiler;
 
@@ -6,7 +6,7 @@ impl Compiler {
     /// Check whether a node is active for the current profile.
     pub(crate) fn is_node_active(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         node_id: LocalNodeIdAny,
     ) -> bool {

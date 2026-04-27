@@ -27,7 +27,7 @@ declare_pass! {
 }
 
 impl ModulePass for TailCallElim {
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         // run tail call elimination
         let changed = run_tail_call_elimination(tree, ctx.strings);
         if changed {
@@ -47,7 +47,7 @@ impl ModulePass for TailCallElim {
 }
 
 /// Tail call elimination logic.
-fn run_tail_call_elimination(tree: &mut mir::NodeTree, strings: &StringPool) -> bool {
+fn run_tail_call_elimination(tree: &mut mir::Tree, strings: &StringPool) -> bool {
     let mut changed = false;
 
     // collect function ids first to avoid borrow issues
@@ -122,7 +122,7 @@ struct AccumulatorPattern {
 /// rewrites original as a thin wrapper that calls impl with identity.
 fn try_accumulator_transform(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     strings: &StringPool,
@@ -230,7 +230,7 @@ fn try_accumulator_transform(
 #[allow(clippy::too_many_arguments)]
 fn try_accumulator_transform_exported(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     patterns: &[AccumulatorPattern],
@@ -334,7 +334,7 @@ fn try_accumulator_transform_exported(
 #[allow(clippy::type_complexity)]
 fn clone_function_as_impl(
     original: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     impl_name: destack_core::StringId,
 ) -> (
     mir::LocalNodeId<mir::Function>,
@@ -661,7 +661,7 @@ fn update_recursive_calls_to_impl(
     block_id: mir::LocalNodeId<mir::Block>,
     original_function_id: mir::LocalNodeId<mir::Function>,
     impl_function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     let block = tree.get(block_id).clone();
     let signature = build_signature_type(impl_function_id, tree);
@@ -691,7 +691,7 @@ fn update_recursive_calls_to_impl(
 /// Rewrite a function as a thin wrapper that calls impl with identity.
 fn rewrite_as_wrapper(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry_block: mir::LocalNodeId<mir::Block>,
     impl_function_id: mir::LocalNodeId<mir::Function>,
     identity: &Constant,
@@ -767,7 +767,7 @@ struct CallSite {
 fn find_external_call_sites(
     target_function_id: mir::LocalNodeId<mir::Function>,
     recursive_call_blocks: &[mir::LocalNodeId<mir::Block>],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Vec<CallSite> {
     let mut call_sites = Vec::new();
 
@@ -812,7 +812,7 @@ fn update_call_site(
     call_site: &CallSite,
     identity_value: mir::Value,
     identity: &Constant,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // get the existing call instruction
     let call_instr = tree.get(call_site.instruction_id).clone();
@@ -891,7 +891,7 @@ fn is_associative_operator(op: BinaryOperator) -> bool {
 fn identity_constant_for_operator(
     op: BinaryOperator,
     type_id: mir::LocalNodeId<mir::Type>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<Constant> {
     let ty = tree.get(type_id);
 
@@ -937,7 +937,7 @@ fn identity_constant_for_operator(
 /// Find all blocks with the accumulator pattern.
 fn find_accumulator_patterns(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
 ) -> Vec<AccumulatorPattern> {
     let mut patterns = Vec::new();
@@ -956,7 +956,7 @@ fn find_accumulator_patterns(
 /// Pattern: call self -> binary op using call result -> return binary result
 fn detect_accumulator_pattern(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
 ) -> Option<AccumulatorPattern> {
     let block = tree.get(block_id);
@@ -1091,7 +1091,7 @@ fn detect_accumulator_pattern(
 /// whether the returned value is the identity constant.
 fn find_base_case_blocks(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
     identity: &Constant,
 ) -> Vec<(mir::LocalNodeId<mir::Block>, bool)> {
@@ -1137,7 +1137,7 @@ fn is_value_identity(
     value: mir::Value,
     identity: &Constant,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // search all blocks for the defining instruction
     for &block_id in &function.blocks {
@@ -1167,7 +1167,7 @@ fn transform_accumulator_block(
     entry_block: mir::LocalNodeId<mir::Block>,
     acc_value: mir::Value,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // get the call arguments before any mutations
     let call_args: Vec<mir::Value> = tree
@@ -1237,7 +1237,7 @@ fn transform_base_case_block(
     operator: BinaryOperator,
     is_identity: bool,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // clone block first to avoid borrow conflicts
     let block = tree.get(block_id).clone();
@@ -1293,7 +1293,7 @@ fn transform_self_recursive_tail_call(
     block_id: mir::LocalNodeId<mir::Block>,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
@@ -1374,7 +1374,7 @@ fn transform_self_recursive_tail_call(
 fn transform_sibling_tail_call(
     block_id: mir::LocalNodeId<mir::Block>,
     current_function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);

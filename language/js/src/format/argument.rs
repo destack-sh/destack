@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    Argument, GenericParameter, Keyword, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter,
-};
+use crate::{Argument, GenericParameter, Keyword, LocalNodeId, Node, Parameter, Tree, TreeImpl};
 use destack_fir::format::{BestFittingMode, FormatResult};
 
 use crate::format::property::{
@@ -18,7 +16,7 @@ use destack_fir::{best_fitting, format_args, write};
 pub(crate) struct ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     start_token: &'static str,
     end_token: &'static str,
@@ -46,7 +44,7 @@ pub(crate) enum TrailingSeparatorMode {
 impl<'ast, 'e, T> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     pub(crate) fn force_expand(&mut self) -> &mut Self {
         self.force_expand = true;
@@ -77,7 +75,7 @@ where
 impl<'ast, 'e, T> Format<JsFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, JsFormatContext<'ast>>) -> FormatResult<()> {
@@ -163,7 +161,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
 ) -> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     ListLike {
         start_token,

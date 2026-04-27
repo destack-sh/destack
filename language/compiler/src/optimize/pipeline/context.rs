@@ -317,17 +317,13 @@ impl<'a> PipelineContext<'a> {
         metadata: &PassMetadata,
         function_id: mir::LocalNodeId<mir::Function>,
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         super::contract::enforce_function_requirements(self, metadata, function_id, function, tree)
     }
 
     /// Enforce metadata requirements for a module pass.
-    pub fn enforce_module_requirements(
-        &self,
-        metadata: &PassMetadata,
-        tree: &mir::NodeTree,
-    ) -> bool {
+    pub fn enforce_module_requirements(&self, metadata: &PassMetadata, tree: &mir::Tree) -> bool {
         super::contract::enforce_module_requirements(self, metadata, tree)
     }
 
@@ -335,7 +331,7 @@ impl<'a> PipelineContext<'a> {
     ///
     /// Module analyses are created on demand since the context doesn't hold
     /// a reference to the tree (to allow mutation during pipeline execution).
-    pub fn module_analyses<'b>(&self, tree: &'b mir::NodeTree) -> ModuleAnalyses<'b> {
+    pub fn module_analyses<'b>(&self, tree: &'b mir::Tree) -> ModuleAnalyses<'b> {
         ModuleAnalyses::new(tree)
     }
 
@@ -343,7 +339,7 @@ impl<'a> PipelineContext<'a> {
     pub fn function_analyses<'b>(
         &self,
         function: &'b mir::Function,
-        tree: &'b mir::NodeTree,
+        tree: &'b mir::Tree,
     ) -> FunctionAnalyses<'b> {
         FunctionAnalyses::with_options(function, tree, self.options.clone())
     }

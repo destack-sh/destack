@@ -41,7 +41,7 @@ impl FunctionPass for ValueRangePropagation {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -80,7 +80,7 @@ impl FunctionPass for ValueRangePropagation {
 /// Apply range-based constant folding to a function.
 fn run_value_range_propagation(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ranges: &RangeAnalysis,
 ) -> bool {
     // track whether any instruction was replaced

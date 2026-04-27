@@ -64,7 +64,7 @@ struct CodegenJsSourceMap<'a> {
 
 impl CodegenJsSourceMap<'_> {
     /// Return the AST source id for one lowered JS node when one exists.
-    fn source_id(&self, tree: &js::NodeTree, node_id: u32) -> Option<u32> {
+    fn source_id(&self, tree: &js::Tree, node_id: u32) -> Option<u32> {
         let (module_id, source_id) = tree.get_source(node_id);
 
         // skip nodes lowered from another source module
@@ -82,7 +82,7 @@ impl CodegenJsSourceMap<'_> {
 }
 
 impl js::JsSourceMap for CodegenJsSourceMap<'_> {
-    fn source_span(&self, tree: &js::NodeTree, node_id: u32) -> Option<Span> {
+    fn source_span(&self, tree: &js::Tree, node_id: u32) -> Option<Span> {
         let source_id = self.source_id(tree, node_id)?;
 
         Some(self.ast.tree.get_span_by_id(source_id))
@@ -90,7 +90,7 @@ impl js::JsSourceMap for CodegenJsSourceMap<'_> {
 
     fn source_part_span(
         &self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         node_id: u32,
         span_type: NodeSpanType,
     ) -> Option<Span> {

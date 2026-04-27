@@ -109,7 +109,7 @@ impl LintRule for PreferImplicitReturn {
 
 /// Return the value expression id when a block has one `return value` statement.
 fn single_return_block_value(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     block: &Block,
 ) -> Option<ast::LocalNodeId<Expression>> {
     if block.len() != 1 {

@@ -38,7 +38,7 @@ impl Analysis for PostDominatorTree {
 impl FunctionAnalysis for PostDominatorTree {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();

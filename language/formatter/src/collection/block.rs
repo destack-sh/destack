@@ -1,7 +1,7 @@
 use crate::DestackFormatter;
 use crate::annotation::FormatLeadingComments;
 use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
-use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_ast::{LocalNodeId, Node, Tree, TreeImpl};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
@@ -14,7 +14,7 @@ fn block_entries_have_blank_line_between<T>(
 ) -> bool
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let previous_span = f.context().span(previous_node_id);
     let next_span = f.context().span(next_node_id);
@@ -52,7 +52,7 @@ pub(crate) fn format_block_nodes_with_ignore_ranges_after<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
     F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
 {
     let comment_tokens = f.context().comment_tokens();

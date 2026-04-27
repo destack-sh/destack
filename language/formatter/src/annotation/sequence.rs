@@ -1,8 +1,6 @@
 use super::trivia::format_comment;
 use crate::{Decorator, DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
-    Comment, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType,
-};
+use destack_ast::{Comment, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeImpl};
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::write;
@@ -24,7 +22,7 @@ pub(crate) fn prefix_comment_nodes<'ast, T>(
 ) -> Vec<Comment>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let token_start = context.node_token_start(node_id);
 
@@ -57,7 +55,7 @@ fn prefix_comment_nodes_outside_decorators<'ast, T>(
 ) -> Vec<Comment>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     prefix_comment_nodes(context, node_id)
         .into_iter()
@@ -73,7 +71,7 @@ fn prefix_comments_after_offset<'ast, T>(
 ) -> Vec<Comment>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     prefix_comment_nodes_outside_decorators(context, node_id)
         .into_iter()
@@ -130,7 +128,7 @@ pub(crate) fn block_infix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut items = Vec::new();
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
@@ -149,7 +147,7 @@ pub(crate) fn prefix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let comments = prefix_comment_nodes_outside_decorators(context, node_id);
     let annotation_ids = prefix_annotation_ids(context, node_id);
@@ -164,7 +162,7 @@ pub(crate) fn prefix_annotations_without_comments<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     prefix_sequence(context, Vec::new(), prefix_annotation_ids(context, node_id))
 }
@@ -177,7 +175,7 @@ pub(crate) fn prefix_annotations_after_offset<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let comments = prefix_comments_after_offset(context, node_id, start_offset);
     let annotation_ids = prefix_annotation_ids(context, node_id);
@@ -203,7 +201,7 @@ fn prefix_annotation_ids<'ast, T>(
 ) -> Vec<LocalNodeId<Decorator>>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut annotation_ids = Vec::new();
 
@@ -229,7 +227,7 @@ fn comment_is_inside_decorator_span<'ast, T>(
 ) -> bool
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     context
         .annotation_ids(node_id)
@@ -248,7 +246,7 @@ pub(crate) fn prefix_comments_before_decorators<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let first_decorator_start = context
         .annotation_ids(node_id)
@@ -275,7 +273,7 @@ pub(crate) fn decorator_prefix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let first_decorator_start = context
         .annotation_ids(node_id)
@@ -432,7 +430,7 @@ pub(crate) fn postfix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut items = Vec::new();
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
@@ -454,7 +452,7 @@ pub(crate) fn infix_or_postfix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let mut items = Vec::new();
     for annotation_id in context.annotation_ids(node_id).iter().copied() {

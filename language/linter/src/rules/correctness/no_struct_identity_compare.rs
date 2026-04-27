@@ -128,7 +128,7 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
 
 /// Return true when one expression is a nullish literal.
 fn is_nullish_literal_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
@@ -147,7 +147,7 @@ impl NodeVisitor for StructCompareVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

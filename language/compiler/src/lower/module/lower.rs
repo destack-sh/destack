@@ -32,7 +32,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the source module data.
     pub(crate) module: &'a Module,
     /// Provide access to the DIR tree for expression lookup.
-    pub(crate) dir_tree: &'a dir::NodeTree,
+    pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to the root expressions for the module.
     pub(crate) dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// Stable fallback node for diagnostics and synthetic types.
@@ -138,7 +138,7 @@ impl<'a> ModuleLowerer<'a> {
         context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
-        dir_tree: &'a dir::NodeTree,
+        dir_tree: &'a dir::Tree,
         dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
         anchor_node: dir::LocalNodeIdAny,
         symbols: &'a dir::SymbolTable,
@@ -882,7 +882,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
-    pub(crate) fn finish(self) -> (mir::NodeTree, StringPool) {
+    pub(crate) fn finish(self) -> (mir::Tree, StringPool) {
         self.builder.finish_mutable()
     }
 

@@ -461,7 +461,7 @@ fn resolve_name_from_primary_declaration(
 /// Return the binding name for one pattern subtree.
 fn rename_pattern_binding_name(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
 ) -> Option<String> {

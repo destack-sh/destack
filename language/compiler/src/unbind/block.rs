@@ -14,10 +14,10 @@ impl Compiler {
         module: &Module,
         block_id: dir::LocalNodeId<dir::Block>,
         block_context: ast::BlockContext,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
-        ast_tree: &mut ast::NodeTree,
+        ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Block> {

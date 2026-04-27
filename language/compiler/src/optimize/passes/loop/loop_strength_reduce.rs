@@ -70,7 +70,7 @@ impl FunctionPass for LoopStrengthReduce {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -187,7 +187,7 @@ struct ValueDefinitions {
 
 impl ValueDefinitions {
     /// Build a definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect parameter and instruction definitions
         let mut definitions = HashMap::new();
 
@@ -247,7 +247,7 @@ struct ValueUses {
 
 impl ValueUses {
     /// Build a use map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // collect value uses per block
         let mut uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>> = HashMap::new();
 
@@ -318,8 +318,8 @@ struct StrengthReduceContext<'a> {
 
 /// Shared context for collecting strength reduction candidates.
 struct CandidateContext<'a> {
-    /// Node tree for the function.
-    tree: &'a mir::NodeTree,
+    /// tree for the function.
+    tree: &'a mir::Tree,
     /// Loop analysis results.
     loops: &'a LoopAnalysis,
     /// Control flow graph for the function.
@@ -502,7 +502,7 @@ impl<'a> CandidateContext<'a> {
 /// Build strength reduction candidates and apply transformations.
 fn run_loop_strength_reduce(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     context: &StrengthReduceContext<'_>,
 ) -> bool {
     // build definition and use metadata
@@ -623,7 +623,7 @@ fn run_loop_strength_reduce(
 #[allow(clippy::too_many_arguments)]
 fn apply_candidates_for_loop(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidates: &[StrengthReductionCandidate],
     definitions: &ValueDefinitions,
     value_types: &ValueTypeMap,
@@ -784,7 +784,7 @@ fn scev_is_zero(scev: &Scev) -> bool {
 fn type_is_integer(
     ty: mir::LocalNodeId<mir::Type>,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // inspect the referenced type
     tree.get(ty)
@@ -802,7 +802,7 @@ fn division_is_safe(
     ranges: &RangeAnalysis,
     value_types: &ValueTypeMap,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     match operator {
         mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
@@ -831,7 +831,7 @@ fn signed_division_is_safe(
     ranges: &RangeAnalysis,
     value_types: &ValueTypeMap,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // require signed operand ranges
     let Some(right_range) = signed_integer_range(right, block_id, ranges) else {
@@ -962,7 +962,7 @@ fn signed_min_for_value(
     value: mir::Value,
     value_types: &ValueTypeMap,
     pointer_width_bits: u16,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<i128> {
     let ty = value_types.require_value_type(value);
     let (width, is_signed) = tree
@@ -1226,8 +1226,8 @@ fn append_arguments_for_successor(
 
 /// Helper for materializing SCEV expressions in the preheader.
 struct ScevMaterializer<'a> {
-    /// Mutable node tree reference.
-    tree: &'a mut mir::NodeTree,
+    /// Mutable tree reference.
+    tree: &'a mut mir::Tree,
     /// Preheader block id.
     preheader: mir::LocalNodeId<mir::Block>,
     /// Blocks inside the loop.
@@ -1258,7 +1258,7 @@ struct ScevMaterializer<'a> {
 impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
-        tree: &'a mut mir::NodeTree,
+        tree: &'a mut mir::Tree,
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a ValueDefinitions,

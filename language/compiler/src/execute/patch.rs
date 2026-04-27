@@ -21,7 +21,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         types: &dir::TypeTable,
         patch: ComptimePatch,
     ) {
@@ -89,7 +89,7 @@ impl Compiler {
     fn attach_comptime_comment(
         &self,
         module_id: ModuleId,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // comments are no longer representable as DIR annotations

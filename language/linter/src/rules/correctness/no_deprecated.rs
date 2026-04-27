@@ -153,7 +153,7 @@ impl NodeVisitor for DeprecatedUsageVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -177,7 +177,7 @@ fn is_usage_expression(expression: &dir::Expression) -> bool {
 
 /// Return true when this expression should be skipped to avoid duplicate reports.
 fn should_skip_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(parent) = tree.get_parent(expression_id.id) else {

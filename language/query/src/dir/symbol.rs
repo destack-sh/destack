@@ -333,7 +333,7 @@ fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolIn
 fn member_to_symbol_index_entry(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     member_id: dir::LocalNodeId<dir::Member>,
     container_name: &str,
 ) -> Option<SymbolIndexEntry> {
@@ -368,7 +368,7 @@ fn member_to_symbol_index_entry(
 fn type_member_to_symbol_index_entry(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     member_id: dir::LocalNodeId<dir::TypeMember>,
     container_name: &str,
 ) -> Option<SymbolIndexEntry> {
@@ -399,7 +399,7 @@ fn type_member_to_symbol_index_entry(
 fn enum_field_to_symbol_index_entry(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     field_id: dir::LocalNodeId<dir::EnumField>,
     container_name: &str,
 ) -> Option<SymbolIndexEntry> {
@@ -446,7 +446,7 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolI
 }
 
 /// Resolve one symbol index range without failing the whole query on bad source ids.
-fn symbol_index_range(ctx: &QueryContext, dir_tree: &dir::NodeTree, node_id: u32) -> Option<Span> {
+fn symbol_index_range(ctx: &QueryContext, dir_tree: &dir::Tree, node_id: u32) -> Option<Span> {
     let node_id = LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
     try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
 }
@@ -456,7 +456,7 @@ fn get_symbol_span_with(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(AstQuery<'_>, &dir::NodeTree, LocalNodeIdAny) -> Span + Copy,
+    span_for_declaration: impl Fn(AstQuery<'_>, &dir::Tree, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
     with_resolved_symbol_context(
         repository,

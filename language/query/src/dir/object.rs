@@ -131,7 +131,7 @@ pub(crate) fn is_inside_object_literal_expression(ast: AstQuery<'_>, offset: u32
 
 /// Check if the cursor is in a property key position of an object literal.
 pub(crate) fn is_object_literal_key_position(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     properties: &[ast::LocalNodeId<ast::Property>],
     offset: u32,
 ) -> bool {
@@ -172,7 +172,7 @@ fn contextual_object_type(
 
 /// Extract property names from object literal properties.
 fn extract_object_property_names(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     properties: &[dir::LocalNodeId<dir::Property>],
     strings: &StringPool,
 ) -> Vec<String> {
@@ -201,7 +201,7 @@ fn extract_object_property_names(
 
 /// Check if the cursor is inside a value span of an object literal.
 fn is_object_literal_value_position(
-    ast_tree: &ast::NodeTree,
+    ast_tree: &ast::Tree,
     properties: &[ast::LocalNodeId<ast::Property>],
     offset: u32,
 ) -> bool {

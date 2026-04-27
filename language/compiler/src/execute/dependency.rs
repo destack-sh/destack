@@ -35,7 +35,7 @@ impl dir::NodeVisitor for ComptimeDependencyCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -54,7 +54,7 @@ impl dir::NodeVisitor for ComptimeDependencyCollector {
 
 /// Collect nested comptime expressions for dependency tracking.
 pub(crate) fn collect_comptime_dependencies(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     root_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<dir::LocalNodeIdAny> {
     let mut visitor = ComptimeDependencyCollector::new(root_id);

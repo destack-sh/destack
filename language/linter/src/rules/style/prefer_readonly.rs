@@ -162,7 +162,7 @@ fn collect_mutated_candidate_fields(
 
 /// Return true when one assignment is constructor initialization of a `this` field.
 fn assignment_is_constructor_self_initialization(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
     assigned_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -175,7 +175,7 @@ fn assignment_is_constructor_self_initialization(
 
 /// Return true when one assignment expression is enclosed in a constructor method.
 fn assignment_is_inside_constructor_method(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_node_id = assignment_expression_id.id;
@@ -203,7 +203,7 @@ fn assignment_is_inside_constructor_method(
 
 /// Return true when one assignment target references a field on `this`.
 fn assigned_expression_is_self_field_reference(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assigned_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let assigned_expression_id = expression_unwrap_parenthesized(tree, assigned_expression_id);
@@ -218,7 +218,7 @@ fn assigned_expression_is_self_field_reference(
 
 /// Return true when one expression resolves to a `this` reference.
 fn expression_is_this_reference(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

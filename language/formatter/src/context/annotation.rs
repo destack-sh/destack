@@ -1,7 +1,5 @@
 use super::context::DestackFormatContext;
-use destack_ast::{
-    Decorator, DecoratorPosition, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType,
-};
+use destack_ast::{Decorator, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeImpl};
 use destack_source::Span;
 
 impl<'a> DestackFormatContext<'a> {
@@ -55,7 +53,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn annotation_ids<T>(&self, node_id: LocalNodeId<T>) -> &[LocalNodeId<Decorator>]
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.tree.get_decorators_ref(node_id.id)
     }
@@ -65,7 +63,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         !self.tree.get_decorators_ref(node_id.id).is_empty()
     }
@@ -75,7 +73,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn has_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.annotation_ids(node_id)
             .iter()
@@ -95,7 +93,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn has_infix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.annotation_ids(node_id)
             .iter()
@@ -110,7 +108,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn has_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.annotation_ids(node_id)
             .iter()

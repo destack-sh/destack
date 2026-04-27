@@ -7,9 +7,9 @@ use crate::{
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugRangeStart, DebugScopeKind, DebugValueLocation, EffectClass, Field,
     Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
-    LocalReference, Mutability, NodeTree, Ownership, ProvenanceAnchor, ProvenanceKey,
-    ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Type, TypeReference, UnwindBehavior,
-    Value, ValueReference, VtableSlotId,
+    LocalReference, Mutability, Ownership, ProvenanceAnchor, ProvenanceKey, ReferenceKind,
+    ReferenceMap, SuspendBehavior, Terminator, Tree, Type, TypeReference, UnwindBehavior, Value,
+    ValueReference, VtableSlotId,
 };
 
 use super::Validator;
@@ -51,7 +51,7 @@ fn function_reference(function: LocalNodeId<Function>) -> FunctionReference {
 /// Local references must resolve to locals declared on the function.
 #[test]
 fn test_validate_rejects_local_not_in_function() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("test");
 
@@ -118,7 +118,7 @@ b1:
 /// Reject recoverable attribute syntax after validation.
 #[test]
 fn test_reject_recovered_attribute_values() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let strings = StringPool::new();
     let type_id = tree.insert_type(Type::Void);
     let attribute_name = strings.intern("broken");
@@ -492,7 +492,7 @@ b2:
 /// Reject duplicate instruction ids within a block.
 #[test]
 fn test_reject_duplicate_instruction_id() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("dup_inst");
 
@@ -534,7 +534,7 @@ fn test_reject_duplicate_instruction_id() {
 /// Reject duplicate terminator ids within a function.
 #[test]
 fn test_reject_duplicate_terminator_id() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("dup_terminator");
 
@@ -569,7 +569,7 @@ fn test_reject_duplicate_terminator_id() {
 /// Reject one empty debug binding location range.
 #[test]
 fn test_reject_debug_binding_empty_range() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("debug_range");
 
@@ -632,7 +632,7 @@ fn test_reject_debug_binding_empty_range() {
 /// Reject one cyclic origin graph.
 #[test]
 fn test_reject_origin_cycle() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let first =
         tree.metadata
             .provenance
@@ -659,7 +659,7 @@ fn test_reject_origin_cycle() {
 /// Reject duplicate local ids on a function.
 #[test]
 fn test_reject_duplicate_local_id() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("dup_local");
 
@@ -698,7 +698,7 @@ fn test_reject_duplicate_local_id() {
 /// Reject malformed function return type ids.
 #[test]
 fn test_reject_function_return_type_wrong_node_kind() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("bad_return_type");
 
@@ -733,7 +733,7 @@ fn test_reject_function_return_type_wrong_node_kind() {
 /// Reject malformed callable environment type ids.
 #[test]
 fn test_reject_callable_environment_type_wrong_node_kind() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("bad_environment_type");
 
@@ -768,7 +768,7 @@ fn test_reject_callable_environment_type_wrong_node_kind() {
 /// Reject argument slices that exceed the argument buffer.
 #[test]
 fn test_reject_argument_slice_out_of_bounds() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("arg_slice");
 
@@ -811,7 +811,7 @@ fn test_reject_argument_slice_out_of_bounds() {
 /// Reject call metadata with mismatched argument attribute lengths.
 #[test]
 fn test_reject_call_effect_argument_count_mismatch() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("bad_effects");
 
@@ -857,7 +857,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
 /// Pure effects must not suspend execution.
 #[test]
 fn test_reject_pure_effect_with_suspend() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("pure_suspend");
 
@@ -908,7 +908,7 @@ fn test_reject_pure_effect_with_suspend() {
 /// Pure effects must not unwind.
 #[test]
 fn test_reject_pure_effect_with_unwind() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("pure_unwind");
 
@@ -1100,7 +1100,7 @@ b0:
 /// Reject struct layout metadata when field types disagree with the struct type.
 #[test]
 fn test_reject_struct_layout_field_type_mismatch() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let strings = StringPool::new();
     let field_name = strings.intern("x");
 
@@ -1165,7 +1165,7 @@ fn test_dynamic_call_declared_target_is_inline() {
 /// Reject managed allocation instructions when noManaged is required.
 #[test]
 fn test_reject_new_with_no_managed_mode() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("noManaged");
 
@@ -1215,7 +1215,7 @@ fn test_reject_new_with_no_managed_mode() {
 /// Reject raw heap allocations when stackOnly is required.
 #[test]
 fn test_reject_raw_alloc_with_stack_only_mode() {
-    let mut tree = NodeTree::new();
+    let mut tree = Tree::new();
     let pool = StringPool::new();
     let name = pool.intern("stackOnly");
 

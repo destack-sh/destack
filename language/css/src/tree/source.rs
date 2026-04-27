@@ -1,6 +1,6 @@
 use crate::{
     Declaration, DeclarationBlock, DeclarationRule, GroupRule, IgnoredRule, ImportRule,
-    KeyframeRule, LeafRule, LocalNodeId, NestedDeclarationsRule, NodeTree, PageMarginRule,
+    KeyframeRule, LeafRule, LocalNodeId, NestedDeclarationsRule, Tree, PageMarginRule,
     PageRule, Rule, StyleRule, Stylesheet,
 };
 use lightningcss::rules::CssRuleList;
@@ -18,7 +18,7 @@ pub struct StylesheetError {
 }
 
 /// Return one stylesheet subtree as canonical CSS source.
-pub fn stylesheet_to_source(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>) -> String {
+pub fn stylesheet_to_source(tree: &Tree, stylesheet: LocalNodeId<Stylesheet>) -> String {
     let stylesheet = tree.get(stylesheet);
     let mut source = String::new();
 
@@ -38,7 +38,7 @@ pub fn stylesheet_to_source(tree: &NodeTree, stylesheet: LocalNodeId<Stylesheet>
 
 /// Rebuild one owned Lightning CSS stylesheet from one stylesheet subtree.
 pub fn stylesheet_to_lightning_stylesheet(
-    tree: &NodeTree,
+    tree: &Tree,
     stylesheet: LocalNodeId<Stylesheet>,
 ) -> Result<OwnedStylesheet, StylesheetError> {
     let stylesheet_node = tree.get(stylesheet);
@@ -78,7 +78,7 @@ pub fn stylesheet_to_lightning_stylesheet(
 }
 
 /// Render one CSS rule.
-fn render_rule(tree: &NodeTree, id: LocalNodeId<Rule>, source: &mut String) {
+fn render_rule(tree: &Tree, id: LocalNodeId<Rule>, source: &mut String) {
     match tree.get(id) {
         Rule::Import(rule) => render_import_rule(rule, source),
         Rule::Style(rule) => render_style_rule(tree, rule, source),
@@ -124,7 +124,7 @@ fn render_leaf_rule(rule: &LeafRule, source: &mut String) {
 fn render_ignored_rule(_rule: &IgnoredRule, _source: &mut String) {}
 
 /// Render one grouped rule.
-fn render_group_rule(tree: &NodeTree, rule: &GroupRule, source: &mut String) {
+fn render_group_rule(tree: &Tree, rule: &GroupRule, source: &mut String) {
     source.push_str(&rule.header);
     source.push('{');
     render_rule_list(tree, &rule.rules, source);
@@ -132,7 +132,7 @@ fn render_group_rule(tree: &NodeTree, rule: &GroupRule, source: &mut String) {
 }
 
 /// Render one declaration rule.
-fn render_declaration_rule(tree: &NodeTree, rule: &DeclarationRule, source: &mut String) {
+fn render_declaration_rule(tree: &Tree, rule: &DeclarationRule, source: &mut String) {
     if let Some(raw_source) = &rule.source {
         source.push_str(raw_source);
 
@@ -146,7 +146,7 @@ fn render_declaration_rule(tree: &NodeTree, rule: &DeclarationRule, source: &mut
 }
 
 /// Render one style rule.
-fn render_style_rule(tree: &NodeTree, rule: &StyleRule, source: &mut String) {
+fn render_style_rule(tree: &Tree, rule: &StyleRule, source: &mut String) {
     source.push_str(&rule.header);
     source.push('{');
     render_declaration_and_rule_contents(tree, rule.declarations, &rule.rules, source);
@@ -154,7 +154,7 @@ fn render_style_rule(tree: &NodeTree, rule: &StyleRule, source: &mut String) {
 }
 
 /// Render one keyframe rule.
-fn render_keyframe_rule(tree: &NodeTree, rule: &KeyframeRule, source: &mut String) {
+fn render_keyframe_rule(tree: &Tree, rule: &KeyframeRule, source: &mut String) {
     source.push_str(&rule.header);
     source.push('{');
     render_declaration_block_contents(tree, rule.declarations, source);
@@ -163,7 +163,7 @@ fn render_keyframe_rule(tree: &NodeTree, rule: &KeyframeRule, source: &mut Strin
 
 /// Render one nested declarations rule.
 fn render_nested_declarations_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &NestedDeclarationsRule,
     source: &mut String,
 ) {
@@ -173,7 +173,7 @@ fn render_nested_declarations_rule(
 }
 
 /// Render one page rule.
-fn render_page_rule(tree: &NodeTree, rule: &PageRule, source: &mut String) {
+fn render_page_rule(tree: &Tree, rule: &PageRule, source: &mut String) {
     source.push_str(&rule.header);
     source.push('{');
 
@@ -189,7 +189,7 @@ fn render_page_rule(tree: &NodeTree, rule: &PageRule, source: &mut String) {
 }
 
 /// Render one page margin rule.
-fn render_page_margin_rule(tree: &NodeTree, id: LocalNodeId<PageMarginRule>, source: &mut String) {
+fn render_page_margin_rule(tree: &Tree, id: LocalNodeId<PageMarginRule>, source: &mut String) {
     let rule = tree.get(id);
 
     source.push_str(&rule.header);
@@ -199,7 +199,7 @@ fn render_page_margin_rule(tree: &NodeTree, id: LocalNodeId<PageMarginRule>, sou
 }
 
 /// Render one rule list.
-fn render_rule_list(tree: &NodeTree, rules: &[LocalNodeId<Rule>], source: &mut String) {
+fn render_rule_list(tree: &Tree, rules: &[LocalNodeId<Rule>], source: &mut String) {
     for rule in rules {
         render_rule(tree, *rule, source);
     }
@@ -207,7 +207,7 @@ fn render_rule_list(tree: &NodeTree, rules: &[LocalNodeId<Rule>], source: &mut S
 
 /// Render one declaration block and one nested rule list.
 fn render_declaration_and_rule_contents(
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
     source: &mut String,
@@ -218,7 +218,7 @@ fn render_declaration_and_rule_contents(
 
 /// Render one declaration block.
 fn render_declaration_block_contents(
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     source: &mut String,
 ) {
@@ -235,7 +235,7 @@ fn render_declaration_block_contents(
 }
 
 /// Render one declaration.
-fn render_declaration(tree: &NodeTree, id: LocalNodeId<Declaration>, source: &mut String) {
+fn render_declaration(tree: &Tree, id: LocalNodeId<Declaration>, source: &mut String) {
     let declaration = tree.get(id);
 
     source.push_str(&declaration.source);

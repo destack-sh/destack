@@ -2,7 +2,7 @@ use destack_core::ImmutableStringPool;
 use destack_source::{DiagnosticCollection, FileId, Span};
 
 use crate::parse::{ParseOptions, Parser};
-use crate::{CommentSpan, MirFormatOptions, NodeTree, format_mir};
+use crate::{CommentSpan, MirFormatOptions, Tree, format_mir};
 
 /// Assert that one MIR node matches a pattern.
 #[macro_export]
@@ -51,14 +51,14 @@ impl<'a> TestParser<'a> {
     }
 
     /// Parse one fixture and require full validation.
-    pub(crate) fn parse(self) -> (NodeTree, ImmutableStringPool) {
+    pub(crate) fn parse(self) -> (Tree, ImmutableStringPool) {
         Parser::parse(FileId::new(0), self.source, ParseOptions::default())
             .validate()
             .expect("parse failed")
     }
 
     /// Parse one fixture and keep recovery diagnostics.
-    pub(crate) fn parse_with_diagnostics(self) -> (NodeTree, DiagnosticCollection) {
+    pub(crate) fn parse_with_diagnostics(self) -> (Tree, DiagnosticCollection) {
         let parsed = Parser::parse(FileId::new(0), self.source, ParseOptions::default());
         let (tree, _, diagnostics) = parsed.into_parts();
 
@@ -66,7 +66,7 @@ impl<'a> TestParser<'a> {
     }
 
     /// Parse one fixture and return only the tree.
-    pub(crate) fn tree(self) -> NodeTree {
+    pub(crate) fn tree(self) -> Tree {
         let (tree, _) = self.parse();
         tree
     }

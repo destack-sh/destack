@@ -3,7 +3,7 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
-    NodeTree, PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral,
+    PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral, Tree,
     TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
@@ -48,7 +48,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> TemplateLiteral {

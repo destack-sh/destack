@@ -53,7 +53,7 @@ declare_pass! {
 
 impl ModulePass for InterproceduralConstantPropagation {
     /// Run interprocedural constant propagation for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let pointer_width_bits = ctx.options.type_context().pointer_width_bits;
         let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
 
@@ -96,7 +96,7 @@ struct CallData {
 }
 
 /// Run interprocedural constant propagation over the module.
-fn run_interprocedural_constant_prop(tree: &mut mir::NodeTree, pointer_width_bits: u16) -> bool {
+fn run_interprocedural_constant_prop(tree: &mut mir::Tree, pointer_width_bits: u16) -> bool {
     // collect callsites up front
     let call_data = collect_call_data(tree);
 
@@ -155,7 +155,7 @@ fn run_interprocedural_constant_prop(tree: &mut mir::NodeTree, pointer_width_bit
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::NodeTree) -> CallData {
+fn collect_call_data(tree: &mir::Tree) -> CallData {
     // prepare the callsite data container
     let mut data = CallData::default();
 
@@ -281,7 +281,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
 /// Build definition maps for each function with a body.
 fn build_definition_cache(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>>
 {
     // prepare the cache container
@@ -307,7 +307,7 @@ fn constant_parameters(
         mir::LocalNodeId<mir::Function>,
         HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     >,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Vec<Option<mir::Constant>> {
     // allocate constant slots for each parameter

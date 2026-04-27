@@ -40,7 +40,7 @@ pub fn effect_is_trackable(effect: &MemoryAccessEffect) -> bool {
 pub fn stack_alloc_base(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::Value> {
     // walk pointer definitions to find the base allocation
     let mut current = value;
@@ -81,7 +81,7 @@ pub fn stack_alloc_base(
 /// Collect stack allocations that do not escape the function.
 pub fn collect_non_escaping_stack_allocs(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> HashSet<mir::Value> {
     // collect stack allocation bases
@@ -478,7 +478,7 @@ fn record_stack_escape(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     stack_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
 ) {
@@ -502,7 +502,7 @@ fn record_stack_escape_reference(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     stack_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
 ) {
@@ -528,7 +528,7 @@ fn record_stack_escape_value(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     stack_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
@@ -551,7 +551,7 @@ fn record_stack_escape_value(
 /// Collect local definitions for stack escape tracking.
 pub(crate) fn collect_local_defs(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> {
     let mut defs: HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> = HashMap::new();
 
@@ -577,7 +577,7 @@ pub(crate) fn collect_local_defs(
 /// Collect block parameter definitions from predecessor arguments.
 pub(crate) fn collect_block_param_defs(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, Vec<mir::Value>> {
     let mut defs: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
 
@@ -623,7 +623,7 @@ pub(crate) fn collect_block_param_defs(
 fn add_param_defs(
     defs: &mut HashMap<mir::Value, Vec<mir::Value>>,
     target: &mir::BlockTarget,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) {
     let Some(block_id) = target.block.block() else {
         return;
@@ -650,7 +650,7 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     stack_allocs: &HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
     bases: &mut HashSet<mir::Value>,
@@ -897,7 +897,7 @@ pub fn alias_scopes_may_alias(
 
 /// Check whether two memory access effects describe the same location.
 pub fn effects_match_location(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     current: &MemoryAccessEffect,
     previous: &MemoryAccessEffect,
@@ -949,7 +949,7 @@ pub fn effects_match_location(
 
 /// Check whether two access effects may alias.
 pub fn effects_may_alias(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
     left: &MemoryAccessEffect,
     right: &MemoryAccessEffect,
@@ -1000,7 +1000,7 @@ pub fn effects_may_alias(
 
 /// Return true when an instruction has ordered memory access metadata.
 pub fn instruction_has_atomic_ordering(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
     // atomic instructions carry ordering on the instruction
@@ -1031,7 +1031,7 @@ pub fn instruction_has_atomic_ordering(
 
 /// Return true when an instruction requires exact memory access semantics.
 pub fn instruction_requires_exact_access(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
     // atomic instructions must preserve exact access semantics
@@ -1208,7 +1208,7 @@ fn type_alias_node_is_ancestor(
 /// Resolve a pointer's pointee type when it is statically known.
 pub fn resolve_pointer_pointee_type(
     pointer: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // resolve the reference pointee type
@@ -1224,7 +1224,7 @@ pub fn resolve_pointer_pointee_type(
 /// Resolve a pointer's address space when it is statically known.
 pub fn resolve_pointer_address_space(
     pointer: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) -> Option<mir::AddressSpace> {
     // resolve the reference address space
@@ -1240,7 +1240,7 @@ pub fn resolve_pointer_address_space(
 /// Resolve a pointer's reference kind when it is statically known.
 pub fn resolve_pointer_kind(
     pointer: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     value_types: &ValueTypeMap,
 ) -> Option<mir::ReferenceKind> {
     // resolve the reference kind from the pointer type
@@ -1379,8 +1379,8 @@ pub struct PointerDecomposer<'a> {
     constants: &'a HashMap<mir::Value, i64>,
     /// Map from values to their defining instructions.
     definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// The MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// The MIR tree.
+    tree: &'a mir::Tree,
     /// Function parameters for noalias checking.
     parameters: &'a [mir::Parameter],
     /// Whether strict borrow mode is enabled.
@@ -1396,7 +1396,7 @@ impl<'a> PointerDecomposer<'a> {
     pub fn new(
         constants: &'a HashMap<mir::Value, i64>,
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         parameters: &'a [mir::Parameter],
         strict_borrow_mode: bool,
         value_types: &'a ValueTypeMap,

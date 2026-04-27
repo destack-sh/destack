@@ -259,7 +259,7 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
 
 /// Return the first positional value from an array expression argument list.
 fn array_first_argument_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     array_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let array_expression = tree.get(array_expression_id);
@@ -282,7 +282,7 @@ impl NodeVisitor for PreferObjectHasOwnVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

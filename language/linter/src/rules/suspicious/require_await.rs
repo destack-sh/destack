@@ -233,10 +233,7 @@ fn check_async_callable<T: dir::Node>(
 }
 
 /// Return true when a function body is an empty explicit block.
-fn function_body_is_empty(
-    tree: &dir::NodeTree,
-    body_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
+fn function_body_is_empty(tree: &dir::Tree, body_id: dir::LocalNodeId<dir::Expression>) -> bool {
     let body = tree.get(body_id);
     let dir::Expression::Block(block) = body else {
         return false;
@@ -251,7 +248,7 @@ fn analyze_async_callable_body(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     body_id: dir::LocalNodeId<dir::Expression>,
@@ -372,7 +369,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
     }
 
     /// Walk one function body expression.
-    fn run(&mut self, tree: &dir::NodeTree, body_id: dir::LocalNodeId<dir::Expression>) {
+    fn run(&mut self, tree: &dir::Tree, body_id: dir::LocalNodeId<dir::Expression>) {
         let body = tree.get(body_id);
         self.visit_expression(tree, body_id, body);
     }
@@ -385,7 +382,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &Expression,
     ) {
@@ -467,7 +464,7 @@ fn expression_is_thenable_return_value(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     promise_symbols: &[dir::GlobalSymbolId],
@@ -510,7 +507,7 @@ fn expression_is_implicit_thenable_return(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     promise_symbols: &[dir::GlobalSymbolId],
@@ -538,7 +535,7 @@ fn expression_is_implicit_thenable_return(
 
 /// Return true when one expression is a direct call to one known async callable symbol.
 fn expression_is_async_symbol_call(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> bool {
@@ -561,7 +558,7 @@ fn expression_is_async_symbol_call(
 
 /// Return true when one expression is an async callable value expression.
 fn expression_is_async_callable_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

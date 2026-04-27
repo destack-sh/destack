@@ -88,7 +88,7 @@ impl FunctionPass for LoopFusion {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // gather analyses
@@ -176,7 +176,7 @@ struct GuardInfo {
 #[allow(clippy::too_many_arguments)]
 fn run_loop_fusion(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -231,7 +231,7 @@ fn build_fusion_candidate(
     loop_index: usize,
     lp: &crate::optimize::analyses::Loop,
     loops: &LoopAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     memory_ssa: &MemorySSA,
@@ -435,7 +435,7 @@ fn build_fusion_candidate(
 fn guard_info(
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -533,7 +533,7 @@ fn induction_step(
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
     induction_index: usize,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -597,7 +597,7 @@ fn induction_step(
 /// Check whether a latch contains only speculatable instructions.
 fn latch_is_speculatable(
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // scan latch instructions
@@ -633,7 +633,7 @@ fn latch_is_speculatable(
 /// Collect ordered body instructions for a latch.
 fn latch_body_instructions(
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     control: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // return instructions that are not part of control
@@ -650,7 +650,7 @@ fn latch_body_instructions(
 fn effects_are_independent(
     first: &[MemoryAccessEffect],
     second: &[MemoryAccessEffect],
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // compare each pair
@@ -752,7 +752,7 @@ fn const_i64(
 /// Apply loop fusion to a candidate.
 fn apply_fusion(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     candidate: &FusionCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,

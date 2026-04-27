@@ -6,11 +6,11 @@ use super::attribute::write_attribute;
 use super::context::HtmlFormatContext;
 use super::name::write_authored_or_resolved_name;
 use crate::print::Printer;
-use crate::{Content, Element, LocalNodeId, NodeTree};
+use crate::{Content, Element, LocalNodeId, Tree};
 
 /// Write one content node.
 pub(crate) fn write_content(
-    tree: &NodeTree,
+    tree: &Tree,
     content_id: LocalNodeId<Content>,
     is_raw_text: bool,
     f: &mut Formatter<'_, HtmlFormatContext>,
@@ -37,7 +37,7 @@ pub(crate) fn write_content(
 
 /// Write one element.
 pub(crate) fn write_element(
-    tree: &NodeTree,
+    tree: &Tree,
     element: &Element,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {
@@ -160,11 +160,7 @@ pub(crate) fn write_element(
 }
 
 /// Return whether one element can stay inline.
-fn can_inline_element(
-    tree: &NodeTree,
-    content: &[LocalNodeId<Content>],
-    is_raw_text: bool,
-) -> bool {
+fn can_inline_element(tree: &Tree, content: &[LocalNodeId<Content>], is_raw_text: bool) -> bool {
     // only one child can stay inline
     if content.len() != 1 {
         return false;

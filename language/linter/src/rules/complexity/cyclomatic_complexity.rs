@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
     self as ast, AssignOperator, BinaryOperator, Expression, FunctionSignature, LocalNodeId,
-    MatchKind, NodeTree, NodeVisitor, NodeVisitorOptions, PatternField, walk_expression,
+    MatchKind, NodeVisitor, NodeVisitorOptions, PatternField, Tree, walk_expression,
     walk_parameter, walk_pattern_field,
 };
 use destack_workspace::{CyclomaticComplexityVariant, LintSeverity};
@@ -197,7 +197,7 @@ impl NodeVisitor for ComplexityVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -257,7 +257,7 @@ impl NodeVisitor for ComplexityVisitor {
 
     fn visit_parameter(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<ast::Parameter>,
         parameter: &ast::Parameter,
     ) {
@@ -272,7 +272,7 @@ impl NodeVisitor for ComplexityVisitor {
 
     fn visit_pattern_field(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<PatternField>,
         pattern_field: &PatternField,
     ) {
@@ -288,7 +288,7 @@ impl NodeVisitor for ComplexityVisitor {
 
 /// Return complexity increment from one match expression case set.
 fn match_case_complexity(
-    tree: &NodeTree,
+    tree: &Tree,
     kind: MatchKind,
     cases: &[LocalNodeId<ast::MatchCase>],
     variant: CyclomaticComplexityVariant,

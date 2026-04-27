@@ -165,7 +165,7 @@ fn source_expression_is_declared_any(
 
 /// Return true when the target expression is an explicit `any` type literal.
 fn assertion_target_is_explicit_any(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
     let expression = tree.get(type_expression_id);
@@ -224,7 +224,7 @@ struct AssertionExpressionOperands {
 
 /// Resolve assertion operands for explicit `as` assertions.
 fn assertion_expression_operands(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<AssertionExpressionOperands> {
     let expression = tree.get(expression_id);

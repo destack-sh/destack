@@ -1,9 +1,9 @@
 use destack_core::StringId;
-use destack_dir::{Expression, Key, Name, NodeTree, ScalarLiteral, StaticKey};
+use destack_dir::{Expression, Key, Name, ScalarLiteral, StaticKey, Tree};
 
 /// Resolve a static key from one DIR key when it is locally obvious.
 pub(crate) fn static_key_from_key(
-    tree: &NodeTree,
+    tree: &Tree,
     key: Key,
     mut private_name: impl FnMut(StringId) -> StringId,
 ) -> Option<StaticKey> {
@@ -17,7 +17,7 @@ pub(crate) fn static_key_from_key(
 
 /// Resolve a static key from one locally constant expression.
 fn static_key_from_expression(
-    tree: &NodeTree,
+    tree: &Tree,
     expression_id: destack_dir::LocalNodeId<Expression>,
 ) -> Option<StaticKey> {
     match tree.get(expression_id) {

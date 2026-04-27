@@ -97,7 +97,7 @@ impl ConstantPropagation {
     /// Build constant propagation for a function.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         type_context: TypeContext,
     ) -> Self {
@@ -107,7 +107,7 @@ impl ConstantPropagation {
     /// Build constant propagation with seeded entry constants.
     fn build_with_entry_constants(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         type_context: TypeContext,
         entry_constants: ConstantMap,
@@ -259,7 +259,7 @@ impl ConstantPropagation {
 /// Build constant propagation with constant parameters seeded at entry.
 pub fn constant_propagation_with_params(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_context: TypeContext,
     param_constants: &HashMap<mir::Value, mir::Constant>,
 ) -> ConstantPropagation {
@@ -289,7 +289,7 @@ impl Analysis for ConstantPropagation {
 impl FunctionAnalysis for ConstantPropagation {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
@@ -311,7 +311,7 @@ enum ParamState {
 /// Apply block parameter constants derived from predecessor arguments.
 fn apply_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     block_exit: &HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
     entry_state: &mut ConstantMap,
@@ -338,7 +338,7 @@ fn apply_block_param_constants(
 /// Resolve constant values for block parameters from predecessor arguments.
 fn resolve_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     block_exit: &HashMap<mir::LocalNodeId<mir::Block>, ConstantMap>,
 ) -> HashMap<mir::Value, mir::Constant> {
@@ -420,7 +420,7 @@ fn resolve_block_param_constants(
 fn transfer_block(
     block_id: mir::LocalNodeId<mir::Block>,
     entry_state: &ConstantMap,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> ConstantMap {
     // clone entry state for updates
@@ -452,7 +452,7 @@ fn transfer_block(
 /// Evaluate a constant for an instruction when possible.
 fn constant_for_instruction(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     state: &ConstantMap,
     pointer_width_bits: u16,
 ) -> Option<mir::Constant> {

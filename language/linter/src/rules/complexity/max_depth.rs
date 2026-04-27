@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression, walk_member,
+    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+    walk_member,
 };
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -137,7 +137,7 @@ impl NodeVisitor for DepthNodeVisitor<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -179,12 +179,7 @@ impl NodeVisitor for DepthNodeVisitor<'_> {
         }
     }
 
-    fn visit_member(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<ast::Member>,
-        member: &ast::Member,
-    ) {
+    fn visit_member(&mut self, tree: &Tree, id: LocalNodeId<ast::Member>, member: &ast::Member) {
         // keep method and static-block callable scopes isolated from outer depth
         let body_id = match member {
             ast::Member::Method {
@@ -210,7 +205,7 @@ impl NodeVisitor for DepthNodeVisitor<'_> {
 
 /// Return true when one expression increases nesting depth.
 fn expression_increases_depth(
-    tree: &NodeTree,
+    tree: &Tree,
     parents: &ast::NodeParentIndex,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,

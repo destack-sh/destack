@@ -266,7 +266,7 @@ fn get_parameter_names(
 /// Decide whether a parameter hint should be skipped for an argument.
 fn should_skip_parameter_hint(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     argument: &Argument,
     param_name: &str,
     argument_is_literal: bool,
@@ -310,7 +310,7 @@ fn should_skip_parameter_hint(
 /// Extract a simple reference name from an argument value when available.
 fn argument_reference(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     argument: &Argument,
 ) -> Option<ArgumentReference> {
     // resolve the argument expression
@@ -337,7 +337,7 @@ enum ArgumentReference {
 }
 
 /// Check whether an argument is a literal value.
-fn argument_is_literal(dir_tree: &dir::NodeTree, argument: &Argument) -> bool {
+fn argument_is_literal(dir_tree: &dir::Tree, argument: &Argument) -> bool {
     // resolve the argument expression
     let expr = dir_tree.get::<Expression>(argument.value());
 

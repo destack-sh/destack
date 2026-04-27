@@ -376,7 +376,7 @@ fn scope_mark_at_offset(
     ast: AstQuery<'_>,
     scope_id: dir::LocalScopeId,
     offset: u32,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     symbols: &dir::SymbolTable,
 ) -> dir::LocalScopeMark {
     let scope = symbols.get_scope_by_id(scope_id);
@@ -434,7 +434,7 @@ fn owned_scope_for_declaration_id(
 /// Resolve the owned scope for one ast declaration id.
 fn owned_scope_for_ast_declaration_id(
     symbols: &dir::SymbolTable,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     ast_id: u32,
 ) -> Option<dir::LocalScopeId> {
     for (index, scope) in symbols.scopes().enumerate() {

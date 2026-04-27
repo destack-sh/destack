@@ -317,7 +317,7 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -378,7 +378,7 @@ fn build_no_extra_boolean_cast_fix(
 
 /// Return true when one replacement expression needs protective parentheses.
 fn replacement_needs_parentheses(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     replacement_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {

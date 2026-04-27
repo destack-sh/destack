@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::Variable;
 use crate::{
     AllocationMode, AllocationSize, Block, BorrowRegion, CallBehavior, ExecutionModel,
-    ExecutionStage, Function, Instruction, Linkage, LocalNodeId, MemoryEffect, NodeTree, Parameter,
-    PointerAttribute, Type, TypeReference, Value, ValueReference, finalize_function_names,
+    ExecutionStage, Function, Instruction, Linkage, LocalNodeId, MemoryEffect, Parameter,
+    PointerAttribute, Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -35,8 +35,8 @@ use crate::{
 #[derive(Debug)]
 pub struct FunctionBuilder<'a> {
     // meta
-    /// The node tree this function is being built in.
-    pub(super) tree: &'a mut NodeTree,
+    /// The tree this function is being built in.
+    pub(super) tree: &'a mut Tree,
     /// The string pool used for generated MIR names.
     pub(super) strings: &'a mut StringPool,
     /// The id of the function being built.
@@ -72,7 +72,7 @@ pub struct FunctionBuilder<'a> {
 impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
     pub fn new(
-        tree: &'a mut NodeTree,
+        tree: &'a mut Tree,
         strings: &'a mut StringPool,
         name: StringId,
         parameter_types: &[LocalNodeId<Type>],
@@ -142,7 +142,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a function builder for an existing declared function.
     /// (Must not have a body yet).
     pub fn from_declared(
-        tree: &'a mut NodeTree,
+        tree: &'a mut Tree,
         strings: &'a mut StringPool,
         function_id: LocalNodeId<Function>,
         verify: bool,
@@ -279,13 +279,13 @@ impl<'a> FunctionBuilder<'a> {
         function.return_region = region;
     }
 
-    /// Get a reference to the underlying node tree.
-    pub fn tree(&self) -> &NodeTree {
+    /// Get a reference to the underlying tree.
+    pub fn tree(&self) -> &Tree {
         self.tree
     }
 
-    /// Get a mutable reference to the underlying node tree.
-    pub fn tree_mut(&mut self) -> &mut NodeTree {
+    /// Get a mutable reference to the underlying tree.
+    pub fn tree_mut(&mut self) -> &mut Tree {
         self.tree
     }
 

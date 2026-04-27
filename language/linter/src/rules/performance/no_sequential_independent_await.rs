@@ -200,7 +200,7 @@ fn await_operand_expression_id(
 
 /// Return true when two await statements are independent.
 fn awaits_are_independent(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     module_id: destack_source::ModuleId,
     previous: &AwaitStatement,
     current: &AwaitStatement,
@@ -221,7 +221,7 @@ fn awaits_are_independent(
 
 /// Return true when an expression references any symbol from one set.
 fn expression_references_any_symbol(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     module_id: destack_source::ModuleId,
     expression_id: dir::LocalNodeId<dir::Expression>,
     target_symbols: &HashSet<dir::LocalSymbolId>,
@@ -266,7 +266,7 @@ impl NodeVisitor for SymbolReferenceVisitor<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

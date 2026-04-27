@@ -127,7 +127,7 @@ impl Layout {
 
 /// Return the transparent representation type for one semantic type.
 pub(crate) fn repr_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     mut ty: mir::LocalNodeId<mir::Type>,
 ) -> mir::LocalNodeId<mir::Type> {
     loop {
@@ -144,7 +144,7 @@ pub(crate) fn repr_type(
 
 /// Return the concrete representation type for one semantic type.
 fn concrete_repr_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     mut ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<mir::LocalNodeId<mir::Type>> {
     loop {
@@ -160,7 +160,7 @@ fn concrete_repr_type(
 
 /// Build compiled layouts for all MIR types in the tree.
 pub(crate) fn build_layouts(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Result<HashMap<mir::LocalNodeId<mir::Type>, Layout>> {
     let mut layouts = HashMap::new();
 
@@ -174,7 +174,7 @@ pub(crate) fn build_layouts(
 
 /// Build one compiled layout for one MIR type.
 fn build_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Layout> {
@@ -309,16 +309,13 @@ fn scalar_layout(byte_len: usize, alignment: usize) -> Layout {
 }
 
 /// Build one raw scalar layout.
-fn raw_scalar_layout(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Layout {
+fn raw_scalar_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Layout {
     let (raw_byte_len, raw_alignment) = raw_scalar_size_alignment(tree, ty);
     scalar_layout(raw_byte_len, raw_alignment)
 }
 
 /// Return the raw scalar size and alignment for one MIR type.
-fn raw_scalar_size_alignment(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> (usize, usize) {
+fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> (usize, usize) {
     match tree.get(ty) {
         mir::Type::Void => (0, 1),
         mir::Type::Boolean => (1, 1),
@@ -353,7 +350,7 @@ fn raw_scalar_size_alignment(
 
 /// Build one record layout from one ordered field type list.
 fn build_record_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>> + Clone,
@@ -384,7 +381,7 @@ fn build_record_layout(
 
 /// Build one array layout.
 fn build_array_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
@@ -422,7 +419,7 @@ fn build_array_layout(
 
 /// Build one vector layout.
 fn build_vector_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
@@ -467,7 +464,7 @@ fn build_vector_layout(
 
 /// Build one tensor layout.
 fn build_tensor_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
@@ -556,7 +553,7 @@ fn stride_byte_len(element_count: usize, stride: usize) -> Result<usize> {
 }
 
 /// Report whether the repr type contains one callable value.
-fn contains_callable(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
+fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
     let ty = concrete_repr_type(tree, ty)?;
 
     match tree.get(ty) {
@@ -605,7 +602,7 @@ fn contains_callable(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> R
 
 /// Return the address space when the repr type is one heap reference.
 fn heap_reference_space(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<mir::AddressSpace> {
     let ty = repr_type(tree, ty);
@@ -632,7 +629,7 @@ fn heap_reference_space(
 }
 
 /// Return the raw MIR layout entry for one type.
-fn raw_layout_entry(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<&mir::Layout> {
+fn raw_layout_entry(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<&mir::Layout> {
     tree.type_layout(ty)
         .ok_or_else(|| Error::InvariantViolation {
             context: format!("missing MIR raw layout metadata for {ty:?}"),
@@ -676,7 +673,7 @@ fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
 
 /// Build one runtime field layout for one record with callable children.
 fn build_runtime_fields_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>>,
@@ -731,7 +728,7 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
 
 /// Build one reference map for one compiled layout.
 fn build_reference_map(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
@@ -762,7 +759,7 @@ fn build_reference_map(
 
 /// Append heap reference offsets for one compiled layout subtree.
 fn append_reference_offsets(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     base_offset: u32,
@@ -944,11 +941,11 @@ mod tests {
     use super::*;
     use destack_core::ImmutableStringPool;
     use destack_mir::parse::{ParseOptions, Parser};
-    use destack_mir::{NodeTree, Storage, Type, TypeAlias};
+    use destack_mir::{Storage, Tree, Type, TypeAlias};
     use destack_source::FileId;
 
     /// Parse one MIR program with the given storage metadata.
-    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (NodeTree, ImmutableStringPool) {
+    fn parse_tree_with_layout(mir_text: &str, storage: Storage) -> (Tree, ImmutableStringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
@@ -964,7 +961,7 @@ mod tests {
 
     /// Look up one aliased type by name.
     fn lookup_type_alias(
-        tree: &NodeTree,
+        tree: &Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> mir::LocalNodeId<Type> {

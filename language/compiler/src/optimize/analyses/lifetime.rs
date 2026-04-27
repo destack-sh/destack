@@ -80,7 +80,7 @@ impl LifetimeAnalysis {
     /// Resolve lifetime bounds from a function signature type.
     pub fn resolve_signature(
         signature: impl Into<mir::TypeReference>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ResolvedLifetime {
         let signature = signature.into();
 
@@ -101,7 +101,7 @@ impl LifetimeAnalysis {
     }
 
     /// Build lifetime analysis for all functions in the tree.
-    fn build(tree: &mir::NodeTree) -> Self {
+    fn build(tree: &mir::Tree) -> Self {
         let mut function_lifetimes = HashMap::new();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -113,10 +113,7 @@ impl LifetimeAnalysis {
     }
 
     /// Resolve the effective lifetime for a single function.
-    fn resolve_function_lifetime(
-        function: &mir::Function,
-        tree: &mir::NodeTree,
-    ) -> ResolvedLifetime {
+    fn resolve_function_lifetime(function: &mir::Function, tree: &mir::Tree) -> ResolvedLifetime {
         // check if return type contains borrowed references
         let Some(return_ty) = function.return_type.ty() else {
             return ResolvedLifetime::None;
@@ -164,7 +161,7 @@ impl Analysis for LifetimeAnalysis {
 }
 
 impl ModuleAnalysis for LifetimeAnalysis {
-    fn compute(tree: &mir::NodeTree, _analyses: &ModuleAnalyses<'_>) -> Self {
+    fn compute(tree: &mir::Tree, _analyses: &ModuleAnalyses<'_>) -> Self {
         Self::build(tree)
     }
 }

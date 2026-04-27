@@ -29,7 +29,7 @@ pub(crate) fn container_name_for_symbol(
 
 /// Resolve the container name by walking the DIR parent chain.
 pub(crate) fn container_name_for_node(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     strings: &StringPool,
     node_id: u32,
 ) -> Option<String> {

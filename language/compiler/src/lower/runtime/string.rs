@@ -5,7 +5,7 @@ use destack_dir as dir;
 
 /// Collect string literal ids from a DIR expression tree.
 pub(crate) fn collect_expression_string_literals(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> HashSet<StringId> {
     // walk the tree and gather literal ids
@@ -31,7 +31,7 @@ impl dir::NodeVisitor for StringLiteralCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

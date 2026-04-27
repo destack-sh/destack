@@ -28,7 +28,7 @@ impl js::NodeVisitor for DynamicImportCallCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Expression>,
         expression: &js::Expression,
     ) {

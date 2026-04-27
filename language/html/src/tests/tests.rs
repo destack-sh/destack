@@ -4,7 +4,7 @@ use destack_source::{File, FileId, FileType, Uri};
 
 use crate::parse::parser::ParseContextName;
 use crate::{
-    Attribute, Content, Document, Fragment, LocalNodeId, NodeTree, parse_fragment, parse_html,
+    Attribute, Content, Document, Fragment, LocalNodeId, Tree, parse_fragment, parse_html,
 };
 
 /// A test wrapper for HTML tree parsing.
@@ -32,7 +32,7 @@ impl TestParser {
     }
 
     /// Parse one document source into one owned tree and document id.
-    pub(crate) fn parse_document(&self, source: &str) -> (NodeTree, LocalNodeId<Document>) {
+    pub(crate) fn parse_document(&self, source: &str) -> (Tree, LocalNodeId<Document>) {
         parse_html(self.file.as_ref(), source)
     }
 
@@ -41,7 +41,7 @@ impl TestParser {
         &self,
         source: &str,
         context: &ParseContextName,
-    ) -> (NodeTree, LocalNodeId<Fragment>) {
+    ) -> (Tree, LocalNodeId<Fragment>) {
         parse_fragment(self.file.as_ref(), source, context)
     }
 }
@@ -82,7 +82,7 @@ macro_rules! assert_node {
 
 /// Find the first element child with one local name.
 pub(crate) fn find_child_element(
-    tree: &NodeTree,
+    tree: &Tree,
     children: &[LocalNodeId<Content>],
     local_name: &str,
 ) -> LocalNodeId<Content> {
@@ -99,7 +99,7 @@ pub(crate) fn find_child_element(
 
 /// Find one attribute by local name.
 pub(crate) fn find_attribute(
-    tree: &NodeTree,
+    tree: &Tree,
     attributes: &[LocalNodeId<Attribute>],
     local_name: &str,
 ) -> LocalNodeId<Attribute> {

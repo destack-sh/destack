@@ -17,10 +17,7 @@ pub(super) struct BlockOrder {
 
 impl BlockOrder {
     /// Build one lowered block traversal order from the entry block.
-    pub(super) fn new(
-        tree: &mir::NodeTree,
-        entry_block: mir::LocalNodeId<mir::Block>,
-    ) -> Result<Self> {
+    pub(super) fn new(tree: &mir::Tree, entry_block: mir::LocalNodeId<mir::Block>) -> Result<Self> {
         let mut index_by_id = HashMap::new();
         let mut block = Vec::new();
         let mut queue = vec![entry_block];
@@ -158,8 +155,8 @@ impl BlockOrder {
 
 /// One shared function-scoped lowering context.
 pub(super) struct FunctionContext<'a> {
-    /// The MIR node tree.
-    pub(super) tree: &'a mir::NodeTree,
+    /// The MIR tree.
+    pub(super) tree: &'a mir::Tree,
     /// The current MIR function id.
     pub(super) function_id: mir::LocalNodeId<mir::Function>,
     /// The lowered entry block index.

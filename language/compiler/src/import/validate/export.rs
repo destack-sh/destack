@@ -4,8 +4,8 @@ use destack_ast::Keyword;
 use destack_core::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, ExportMode, Expression,
-    ImportSource, LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Pattern, PatternField,
-    StaticKey, SymbolTable,
+    ImportSource, LocalNodeId, LocalNodeIdAny, NodeType, Pattern, PatternField, StaticKey,
+    SymbolTable, Tree,
 };
 use destack_workspace::Module;
 use std::str::FromStr;
@@ -36,7 +36,7 @@ impl Compiler {
     pub(super) fn validate_dependency_top_level(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         roots: &[LocalNodeId<Expression>],
     ) {
         // declaration files allow nested ambient import and export forms
@@ -90,7 +90,7 @@ impl Compiler {
     /// Return true when an expression is nested under a namespace declaration.
     fn expression_is_within_namespace_declaration(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         // walk parent links until a declaration boundary is found
@@ -110,7 +110,7 @@ impl Compiler {
     pub(super) fn validate_export_local_item_names(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         roots: &[LocalNodeId<Expression>],
     ) {
         // only direct module exports participate in local export name validation
@@ -168,7 +168,7 @@ impl Compiler {
     pub(super) fn validate_export_conflicts(
         &self,
         module: &Module,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         roots: &[LocalNodeId<Expression>],
     ) {
@@ -391,7 +391,7 @@ impl Compiler {
     /// Resolve the value export name declared by a dependency item.
     fn value_export_name_for_dependency_item(
         &self,
-        tree: &destack_dir::NodeTree,
+        tree: &destack_dir::Tree,
         item_id: LocalNodeId<DependencyItem>,
         default_name: StringId,
     ) -> Option<StringId> {
@@ -524,7 +524,7 @@ impl Compiler {
     /// Collect all exported bindings declared by a pattern.
     fn collect_binding_exports_from_pattern(
         &self,
-        tree: &destack_dir::NodeTree,
+        tree: &destack_dir::Tree,
         symbols: &SymbolTable,
         pattern_id: LocalNodeId<Pattern>,
         bindings: &mut Vec<BindingExport>,
@@ -576,7 +576,7 @@ impl Compiler {
     /// Collect all exported bindings declared by a pattern field.
     fn collect_binding_exports_from_pattern_field(
         &self,
-        tree: &destack_dir::NodeTree,
+        tree: &destack_dir::Tree,
         symbols: &SymbolTable,
         field_id: LocalNodeId<PatternField>,
         bindings: &mut Vec<BindingExport>,

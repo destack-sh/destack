@@ -60,7 +60,7 @@ impl FunctionPass for DeadStoreEliminate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -114,7 +114,7 @@ impl FunctionPass for DeadStoreEliminate {
 /// Core DSE logic. Returns true if changes were made.
 fn run_dead_store_eliminate(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     value_types: &ValueTypeMap,
@@ -250,7 +250,7 @@ struct DefAccessInfo {
 /// Collect store candidates with MemorySSA defs.
 fn collect_store_candidates(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Vec<StoreCandidate> {
     // collect store instructions with MemorySSA defs
@@ -319,7 +319,7 @@ fn collect_store_candidates(
 /// Collect MemorySSA def accesses for the function.
 fn collect_def_accesses(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Vec<DefAccessInfo> {
     // collect all MemorySSA def accesses
@@ -358,7 +358,7 @@ fn collect_def_accesses(
 /// Collect def accesses that are needed by memory reads.
 fn collect_live_defs(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     aa: &AliasAnalysis,
 ) -> HashSet<MemoryAccessId> {
@@ -453,7 +453,7 @@ fn collect_stack_alloc_reads(
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     stack_allocs: &HashSet<mir::Value>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashSet<mir::Value> {
     // collect stack bases with reads
     let mut reads = HashSet::new();
@@ -504,7 +504,7 @@ fn store_is_non_escaping_stack(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     non_escaping_stack_allocs: &HashSet<mir::Value>,
     stack_alloc_reads: &HashSet<mir::Value>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // only pointer locations can be stack allocations
     let MemoryAccessLocation::Pointer(_) = store.location else {
@@ -539,7 +539,7 @@ fn store_is_postdominated_by_clobber(
     aa: &AliasAnalysis,
     postdom: &PostDominatorTree,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     constants: &HashMap<mir::Value, i64>,
     value_types: &ValueTypeMap,
@@ -664,7 +664,7 @@ fn decomposition_is_constant(pointer: &DecomposedPointer) -> bool {
 /// Build a map from values to constant integer values.
 fn build_integer_constant_map(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, i64> {
     let mut constants = HashMap::new();
 
@@ -700,10 +700,7 @@ mod tests {
     use crate::optimize::common::tests::TestProgram;
 
     /// Return the pointer operand for a store instruction.
-    fn store_pointer(
-        tree: &mir::NodeTree,
-        store_id: mir::LocalNodeId<mir::Instruction>,
-    ) -> mir::Value {
+    fn store_pointer(tree: &mir::Tree, store_id: mir::LocalNodeId<mir::Instruction>) -> mir::Value {
         let mir::Instruction::Store { pointer, .. } = tree.get(store_id) else {
             panic!("expected store instruction");
         };

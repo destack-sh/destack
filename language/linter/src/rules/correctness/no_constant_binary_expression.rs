@@ -209,7 +209,7 @@ fn expression_constant_truthiness(
 }
 
 /// Check if an expression is nullish (null or undefined).
-fn is_nullish(tree: &ast::NodeTree, expression: &ast::Expression) -> bool {
+fn is_nullish(tree: &ast::Tree, expression: &ast::Expression) -> bool {
     let ast::Expression::Type { value } = expression else {
         return false;
     };
@@ -219,7 +219,7 @@ fn is_nullish(tree: &ast::NodeTree, expression: &ast::Expression) -> bool {
 
 /// Return true when one type-expression node is `null` or `undefined`.
 fn type_expression_is_nullish(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
     matches!(

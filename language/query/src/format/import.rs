@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_ast::{DependencyItem, DependencyKind, LocalNodeId, NodeTree};
+use destack_ast::{DependencyItem, DependencyKind, LocalNodeId, Tree};
 use destack_core::{ImmutableStringPool, StringId};
 use destack_workspace::ImportSortOrder;
 
@@ -96,7 +96,7 @@ pub fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec
 /// Return dependency items sorted by kind and configured key order.
 pub fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {

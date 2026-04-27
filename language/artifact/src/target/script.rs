@@ -1,5 +1,5 @@
 use destack_core::StringPool;
-use destack_js::{LocalNodeIdAny, NodeTree};
+use destack_js::{LocalNodeIdAny, Tree};
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ use crate::SourceMapArtifact;
 #[derive(Debug, Clone)]
 pub struct ScriptModule {
     /// The lowered script tree.
-    pub tree: NodeTree,
+    pub tree: Tree,
     /// The root nodes in the lowered tree.
     pub roots: Vec<LocalNodeIdAny>,
     /// The string pool for the lowered tree.

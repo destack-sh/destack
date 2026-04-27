@@ -1,5 +1,5 @@
 use super::context::DestackFormatContext;
-use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenSpan, TokenType};
+use destack_ast::{LocalNodeId, Node, NodeType, TokenSpan, TokenType, Tree, TreeImpl};
 use destack_source::Span;
 
 /// Return whether a token contributes non-whitespace content.
@@ -40,7 +40,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn span<T>(&self, node_id: LocalNodeId<T>) -> Span
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.tree.get_span(node_id)
     }
@@ -56,7 +56,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn node<T>(&self, node_id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.tree.get(node_id)
     }
@@ -66,7 +66,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn parent<T>(&self, node_id: LocalNodeId<T>) -> Option<(u32, NodeType)>
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         let parent_id = self.parents.get(node_id)?;
         let parent_type = self.tree.get_node_type(parent_id);

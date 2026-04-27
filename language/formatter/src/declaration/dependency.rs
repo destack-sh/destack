@@ -9,8 +9,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Argument, DecoratorPosition, DependencyItem, DependencyKind, DependencyMode, Expression,
     ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
-    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, NodeTree, ScalarLiteral, TokenSpan,
-    TokenType,
+    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType,
+    Tree,
 };
 use destack_core::{ImmutableStringPool, StringId};
 use destack_fir::format::{FormatError, FormatResult};
@@ -107,7 +107,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 /// Return the inner import expression, unwrapping statement wrappers when needed.
 pub(crate) fn import_expression(
     expr_id: LocalNodeId<Expression>,
-    tree: &NodeTree,
+    tree: &Tree,
 ) -> Option<&Expression> {
     let expr = tree.get(expr_id);
     match expr {
@@ -127,7 +127,7 @@ pub(crate) fn import_expression(
 }
 
 /// Check if an expression is an import (unwrapping Statement if needed).
-pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &Tree) -> bool {
     import_expression(expr_id, tree).is_some()
 }
 
@@ -210,7 +210,7 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
 /// Side-effect imports (no items) preserve their relative order and stay at the top.
 pub(crate) fn sort_imports(
     imports: &[LocalNodeId<Expression>],
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
 ) -> Vec<LocalNodeId<Expression>> {
     let mut expression_ids = Vec::new();
@@ -243,7 +243,7 @@ pub(crate) fn sort_imports(
 /// Sort dependency items by kind and configured key order.
 pub(crate) fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
@@ -258,7 +258,7 @@ pub(crate) fn sort_dependency_items(
 pub(crate) fn should_insert_blank_between(
     prev_expr_id: LocalNodeId<Expression>,
     curr_expr_id: LocalNodeId<Expression>,
-    tree: &NodeTree,
+    tree: &Tree,
     strings: &ImmutableStringPool,
 ) -> bool {
     let (prev_is_side_effect, prev_group) = match import_expression(prev_expr_id, tree) {

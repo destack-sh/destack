@@ -6,9 +6,9 @@ use destack_dir::{
     EnumKind, ExportMode, Expression, ExtensionDeclaration, FunctionDeclaration, GlobalDeclaration,
     ImportAliasDeclaration, ImportAliasTarget, ImportSource, InterfaceDeclaration,
     InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
-    ModuleBinding, Name, NamespaceDeclaration, NamespaceKind, NodeTree, NodeType, ProvenanceReason,
+    ModuleBinding, Name, NamespaceDeclaration, NamespaceKind, NodeType, ProvenanceReason,
     ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, TypeDeclaration, TypeTable,
+    SymbolSpaceOrder, SymbolTable, SymbolType, Tree, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -345,7 +345,7 @@ impl Compiler {
         ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
         is_statement_declaration: bool,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
@@ -1546,7 +1546,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_field_id: ast::LocalNodeId<ast::EnumField>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {

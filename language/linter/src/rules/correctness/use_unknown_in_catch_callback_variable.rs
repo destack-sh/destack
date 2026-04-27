@@ -166,7 +166,7 @@ fn catch_callback_unknown_fix(
 
 /// Collect callback candidates from one rejection callback argument expression.
 fn collect_rejection_callback_candidates(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut candidates = Vec::new();
@@ -176,7 +176,7 @@ fn collect_rejection_callback_candidates(
 
 /// Recursively collect callback candidates from wrapper expressions.
 fn collect_rejection_callback_candidates_inner(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     candidates: &mut Vec<dir::LocalNodeId<dir::Expression>>,
 ) {
@@ -330,7 +330,7 @@ fn callback_declaration_uses_any_parameter(
 
 /// Return the first callback parameter for one declaration node.
 fn first_callback_parameter_in_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalNodeId<dir::Parameter>> {
     if declaration_id.ty == dir::NodeType::Declaration {
@@ -367,8 +367,8 @@ fn first_callback_parameter(
 
 /// Return true when one callback parameter is typed as explicit `any`.
 fn parameter_uses_explicit_any(
-    ast_tree: &ast::NodeTree,
-    tree: &dir::NodeTree,
+    ast_tree: &ast::Tree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     module_id: destack_source::ModuleId,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
@@ -395,8 +395,8 @@ fn parameter_uses_explicit_any(
 
 /// Return true when one parameter declaration is explicitly `any` in source AST.
 fn parameter_declares_explicit_any_in_ast(
-    ast_tree: &ast::NodeTree,
-    tree: &dir::NodeTree,
+    ast_tree: &ast::Tree,
+    tree: &dir::Tree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
     let Some(type_expression_id) = ast_parameter_type_expression_id(ast_tree, tree, parameter_id)
@@ -409,8 +409,8 @@ fn parameter_declares_explicit_any_in_ast(
 
 /// Resolve the AST type expression for one DIR parameter.
 fn ast_parameter_type_expression_id(
-    ast_tree: &ast::NodeTree,
-    tree: &dir::NodeTree,
+    ast_tree: &ast::Tree,
+    tree: &dir::Tree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     let source_id = tree.get_source(parameter_id.id);
@@ -431,7 +431,7 @@ fn ast_parameter_type_expression_id(
 
 /// Return true when one AST type expression is an explicit `any`.
 fn ast_type_expression_is_explicit_any(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {
     let expression = tree.get(type_expression_id);

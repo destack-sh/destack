@@ -38,7 +38,7 @@ impl LivenessAnalysis {
         block_id: mir::LocalNodeId<mir::Block>,
         instruction_index: usize,
         value: mir::Value,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> bool {
         self.liveness
             .is_value_live_after_instruction(block_id, instruction_index, value, tree)
@@ -58,7 +58,7 @@ impl Analysis for LivenessAnalysis {
 impl FunctionAnalysis for LivenessAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let _cfg = analyses.get::<ControlFlowGraph>();

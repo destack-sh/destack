@@ -67,7 +67,7 @@ impl FunctionPass for InstructionCombine {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // collect analyses and options
@@ -141,7 +141,7 @@ struct ElementGetEntry {
 /// Core instruction combine logic.
 fn run_instruction_combine(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     float_math: FloatMathPolicy,
@@ -790,7 +790,7 @@ impl<'a> ConstantLookup<'a> {
 /// Update a constant map with instruction effects.
 fn update_constant_map(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     block_constants: &mut ConstantMap,
     ranges: &RangeMap,
     type_context: TypeContext,

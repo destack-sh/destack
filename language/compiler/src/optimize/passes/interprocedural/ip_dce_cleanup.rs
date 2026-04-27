@@ -43,7 +43,7 @@ declare_pass! {
 
 impl ModulePass for InterproceduralDceCleanup {
     /// Run interprocedural cleanup for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         // run the cleanup pass
         let changed = run_interprocedural_dce_cleanup(tree);
 
@@ -68,7 +68,7 @@ impl ModulePass for InterproceduralDceCleanup {
 }
 
 /// Run interprocedural cleanup over the module.
-fn run_interprocedural_dce_cleanup(tree: &mut mir::NodeTree) -> bool {
+fn run_interprocedural_dce_cleanup(tree: &mut mir::Tree) -> bool {
     let mut changed = false;
 
     if run_dead_function_eliminate(tree) {

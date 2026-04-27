@@ -60,7 +60,7 @@ impl FunctionPass for BoundsCheckEliminate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -221,7 +221,7 @@ struct ValueDefinitions {
 
 impl ValueDefinitions {
     /// Build the definition map for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         // seed value definitions from parameters and instructions
         let mut definitions = HashMap::new();
         for &block_id in &function.blocks {
@@ -369,7 +369,7 @@ impl ReachabilityCache {
     /// Return true when target is reachable from the start block.
     fn can_reach(
         &mut self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         start: mir::LocalNodeId<mir::Block>,
         target: mir::LocalNodeId<mir::Block>,
     ) -> bool {
@@ -427,7 +427,7 @@ struct BoundsCheckCandidate {
 }
 
 /// Return whether a block is a dedicated trap block.
-fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -> bool {
+fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::Tree) -> bool {
     // only accept blocks that end in one fatal trap
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
@@ -436,7 +436,7 @@ fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -
 
 /// Replace a block's terminator with a jump.
 fn replace_terminator_with_jump(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
 ) {
@@ -449,7 +449,7 @@ fn replace_terminator_with_jump(
 /// Extract a bounds check candidate from a block terminator.
 fn bounds_check_candidate(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<BoundsCheckCandidate> {
     // inspect the terminator for check patterns
     let block = tree.get(block_id);
@@ -515,7 +515,7 @@ fn bounds_check_candidate(
 fn build_block_constraints(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &ValueDefinitions,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
@@ -586,7 +586,7 @@ fn build_block_constraints(
 /// Collect constraints from assume instructions in a block.
 fn constraints_from_assumes(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &ValueDefinitions,
     constants: &ConstantPropagation,
     ranges: &RangeMap,
@@ -623,7 +623,7 @@ fn constraints_from_assumes(
 fn constraints_for_edge(
     block_id: mir::LocalNodeId<mir::Block>,
     child: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &ValueDefinitions,
     constants: &ConstantPropagation,
     ranges: &RangeMap,
@@ -1060,7 +1060,7 @@ fn condition_truth_value(
     condition: mir::Value,
     ranges: &RangeMap,
     definitions: &ValueDefinitions,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<bool> {
     // check range analysis for constant booleans
     if let Some(ValueRange::Boolean {
@@ -1161,7 +1161,7 @@ fn constraints_for_check_kind(
     truth_value: bool,
     block_id: mir::LocalNodeId<mir::Block>,
     definitions: &ValueDefinitions,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeMap,
 ) -> Option<Vec<BoundsConstraint>> {
@@ -1222,7 +1222,7 @@ fn constraints_for_condition(
     truth_value: bool,
     block_id: mir::LocalNodeId<mir::Block>,
     definitions: &ValueDefinitions,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeMap,
 ) -> Option<Vec<BoundsConstraint>> {
@@ -1488,7 +1488,7 @@ fn bound_key_for_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     definitions: &ValueDefinitions,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeMap,
 ) -> BoundKey {

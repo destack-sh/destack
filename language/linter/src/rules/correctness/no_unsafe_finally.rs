@@ -1,6 +1,5 @@
 use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
+    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
 };
 use destack_workspace::LintSeverity;
 
@@ -133,7 +132,7 @@ impl FinallyVisitor {
     /// Report one unsafe control-flow expression in a finally block.
     fn report_unsafe(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Expression>,
         message: &'static str,
         label: &'static str,
@@ -171,7 +170,7 @@ impl NodeVisitor for FinallyVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {

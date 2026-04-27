@@ -7,9 +7,9 @@ use crate::{
     CastOperator, CastSource, Declaration, Declarator, DependencyItem, DependencyKind, ExportMode,
     GenericArgument, GlobalSymbolId, ImportAttributeClause, ImportSource, ImportTarget,
     LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSource,
-    ModuleTarget, Mutability, Node, NodeTree, NodeType, Path, Pattern, Property, ScalarLiteral,
-    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeExpression, TypeLiteral,
-    UnaryOperator, VarianceBound,
+    ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
+    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, Tree, TypeExpression,
+    TypeLiteral, UnaryOperator, VarianceBound,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
 
@@ -585,10 +585,7 @@ impl Expression {
     }
 
     /// Resolve the source span kind that identifies this member name token.
-    pub fn member_source_part(
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> NodeSpanType {
+    pub fn member_source_part(tree: &Tree, expression_id: LocalNodeId<Expression>) -> NodeSpanType {
         let source_id = tree.get_source(expression_id.id);
         let mut segment_index = 0u16;
         let mut current_id = expression_id;

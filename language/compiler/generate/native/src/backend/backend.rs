@@ -140,7 +140,7 @@ impl CodegenCraneliftBackend {
     /// For native targets, returns an object file.
     pub(crate) fn compile_module(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &StringPool,
         name: &str,
     ) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
@@ -152,7 +152,7 @@ impl CodegenCraneliftBackend {
     /// Compile a MIR module and return Cranelift IR text format.
     pub fn compile_to_clif(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &StringPool,
         name: &str,
     ) -> CodegenCraneliftResult<String> {

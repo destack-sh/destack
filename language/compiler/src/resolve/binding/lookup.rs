@@ -1,8 +1,8 @@
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
 use destack_dir::{
     BindingCategory, Declaration, Expression, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Name, NodeTree, NodeType, Scope, StaticKey, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, SymbolType,
+    LocalSymbolId, Name, NodeType, Scope, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, Tree,
 };
 use destack_workspace::Module;
 
@@ -13,7 +13,7 @@ impl Compiler {
     /// Return the namespace scope used for module binding lookups in global declarations.
     pub(crate) fn module_binding_scope_for_global_expression(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<LocalScopeId> {
         // track the nearest global declaration in the parent chain

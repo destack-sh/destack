@@ -149,7 +149,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
-        tree: &mut destack_dir::NodeTree,
+        tree: &mut destack_dir::Tree,
         symbols: &mut SymbolTable,
         _types: &mut TypeTable,
         namespace_symbol: LocalSymbolId,

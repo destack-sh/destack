@@ -13,18 +13,18 @@ use crate::{
     FeatureComparison, FeatureName, FeatureValue, FontFeatureSubruleKind, FontFeatureValuesRule,
     Function, ImportLayer, ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList,
     KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule, LocalNodeId, MediaCondition,
-    MediaQualifier, MediaQuery, MediaQueryList, MediaType, NamespaceRule, NamespaceUrl, NodeTree,
+    MediaQualifier, MediaQuery, MediaQueryList, MediaType, NamespaceRule, NamespaceUrl,
     NthOfSelector, NthSelector, NthSelectorKind, Number, PageMarginBox, PageMarginRule,
     PagePseudoClass, PageRule, PageSelector, PageSelectorList, PropertyName, PropertyRule,
     PropertySyntax, PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier,
     PseudoArgument, PseudoClass, PseudoElement, QueryFeature, RatioValue, Rule, ScopeRule,
     Selector, SelectorComponent, SelectorList, SimpleBlock, SimpleSelector, Stylesheet,
-    SupportsCondition, TimelineRangeName, Token, UnknownRule, VendorPrefix,
+    SupportsCondition, TimelineRangeName, Token, Tree, UnknownRule, VendorPrefix,
 };
 
 /// Format one stylesheet as pretty CSS.
 pub fn format_stylesheet(
-    tree: &NodeTree,
+    tree: &Tree,
     stylesheet: LocalNodeId<Stylesheet>,
     options: CssFormatOptions,
 ) -> FormatResult<String> {
@@ -85,7 +85,7 @@ impl FormatContext for CssFormatContext {
 
 /// Write one stylesheet.
 fn write_stylesheet(
-    tree: &NodeTree,
+    tree: &Tree,
     stylesheet_id: LocalNodeId<Stylesheet>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -110,7 +110,7 @@ fn write_stylesheet(
 
 /// Write one CSS rule.
 fn write_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule_id: LocalNodeId<Rule>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -184,7 +184,7 @@ fn write_rule(
 
 /// Write one selector-based block rule prelude and body.
 fn write_selector_block_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     selectors: LocalNodeId<SelectorList>,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
@@ -199,7 +199,7 @@ fn write_selector_block_rule(
 
 /// Write one media rule prelude and body.
 fn write_media_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     media: LocalNodeId<MediaQueryList>,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -214,7 +214,7 @@ fn write_media_rule(
 
 /// Write one supports rule prelude and body.
 fn write_supports_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -229,7 +229,7 @@ fn write_supports_rule(
 
 /// Write one layer block rule prelude and body.
 fn write_layer_block_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &LayerBlockRule,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -246,7 +246,7 @@ fn write_layer_block_rule(
 
 /// Write one container rule prelude and body.
 fn write_container_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &ContainerRule,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -269,7 +269,7 @@ fn write_container_rule(
 
 /// Write one scope rule prelude and body.
 fn write_scope_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &ScopeRule,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -298,7 +298,7 @@ fn write_scope_rule(
 
 /// Write one custom media rule.
 fn write_custom_media_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &CustomMediaRule,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -320,7 +320,7 @@ fn write_custom_media_rule(
 
 /// Write one grouped block rule body after one prelude.
 fn write_group_block_rule_body(
-    tree: &NodeTree,
+    tree: &Tree,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -341,7 +341,7 @@ fn write_group_block_rule_body(
 
 /// Write one style-like block rule body after one prelude.
 fn write_block_rule_body(
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -369,7 +369,7 @@ fn write_block_rule_body(
 
 /// Write one selector list.
 fn write_selector_list(
-    tree: &NodeTree,
+    tree: &Tree,
     selectors: LocalNodeId<SelectorList>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -395,7 +395,7 @@ fn write_identifier(value: &str, f: &mut Formatter<'_, CssFormatContext>) -> For
 
 /// Write one selector.
 fn write_selector(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<Selector>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -410,7 +410,7 @@ fn write_selector(
 
 /// Write one selector component.
 fn write_selector_component(
-    tree: &NodeTree,
+    tree: &Tree,
     component: LocalNodeId<SelectorComponent>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -444,7 +444,7 @@ fn write_selector_combinator(
 
 /// Write one simple selector.
 fn write_simple_selector(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<SimpleSelector>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -541,7 +541,7 @@ fn write_simple_selector(
 
 /// Write one pseudo class.
 fn write_pseudo_class(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<PseudoClass>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -560,7 +560,7 @@ fn write_pseudo_class(
 
 /// Write one pseudo element.
 fn write_pseudo_element(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<PseudoElement>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -579,7 +579,7 @@ fn write_pseudo_element(
 
 /// Write one vendor any selector.
 fn write_any_selector(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<AnySelector>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -600,7 +600,7 @@ fn write_any_selector(
 
 /// Write one pseudo argument.
 fn write_pseudo_argument(
-    tree: &NodeTree,
+    tree: &Tree,
     argument: &PseudoArgument,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -623,7 +623,7 @@ fn write_pseudo_argument(
 
 /// Write one nth selector.
 fn write_nth_selector(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<NthSelector>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -655,7 +655,7 @@ fn write_nth_selector(
 
 /// Write one nth-of selector.
 fn write_nth_of_selector(
-    tree: &NodeTree,
+    tree: &Tree,
     selector: LocalNodeId<NthOfSelector>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -714,7 +714,7 @@ fn write_affine(a: i32, b: i32, f: &mut Formatter<'_, CssFormatContext>) -> Form
 
 /// Write one media query list.
 fn write_media_query_list(
-    tree: &NodeTree,
+    tree: &Tree,
     media: LocalNodeId<MediaQueryList>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -733,7 +733,7 @@ fn write_media_query_list(
 
 /// Write one media query.
 fn write_media_query(
-    tree: &NodeTree,
+    tree: &Tree,
     query: LocalNodeId<MediaQuery>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -773,7 +773,7 @@ fn write_media_query(
 
 /// Write one media condition.
 fn write_media_condition(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<MediaCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -801,7 +801,7 @@ fn write_media_condition(
 
 /// Write one parenthesized media condition when needed.
 fn write_parenthesized_media(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<MediaCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -819,7 +819,7 @@ fn write_parenthesized_media(
 
 /// Write one supports condition.
 fn write_supports_condition(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -864,7 +864,7 @@ fn write_supports_condition(
 
 /// Write one parenthesized supports condition when needed.
 fn write_parenthesized_supports(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -882,7 +882,7 @@ fn write_parenthesized_supports(
 
 /// Write one container condition.
 fn write_container_condition(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<ContainerCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -922,7 +922,7 @@ fn write_container_condition(
 
 /// Write one parenthesized container condition when needed.
 fn write_parenthesized_container(
-    tree: &NodeTree,
+    tree: &Tree,
     condition: LocalNodeId<ContainerCondition>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -966,7 +966,7 @@ fn write_condition_sequence<T>(
 
 /// Write one query feature.
 fn write_query_feature(
-    tree: &NodeTree,
+    tree: &Tree,
     feature: LocalNodeId<QueryFeature>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1014,7 +1014,7 @@ fn write_query_feature(
 
 /// Write one feature name.
 fn write_feature_name(
-    tree: &NodeTree,
+    tree: &Tree,
     name: LocalNodeId<FeatureName>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1043,7 +1043,7 @@ fn write_feature_comparison(
 
 /// Write one feature value.
 fn write_feature_value(
-    tree: &NodeTree,
+    tree: &Tree,
     value: LocalNodeId<FeatureValue>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1064,7 +1064,7 @@ fn write_feature_value(
 
 /// Write one ratio value.
 fn write_ratio_value(
-    tree: &NodeTree,
+    tree: &Tree,
     value: LocalNodeId<RatioValue>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1077,7 +1077,7 @@ fn write_ratio_value(
 
 /// Write one environment variable.
 fn write_environment_variable(
-    tree: &NodeTree,
+    tree: &Tree,
     value: LocalNodeId<EnvironmentVariable>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1112,7 +1112,7 @@ fn write_environment_variable_name(
 
 /// Write one style query.
 fn write_container_style_query(
-    tree: &NodeTree,
+    tree: &Tree,
     query: LocalNodeId<ContainerStyleQuery>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1161,7 +1161,7 @@ fn write_container_style_query(
 
 /// Write one scroll state query.
 fn write_container_scroll_state_query(
-    tree: &NodeTree,
+    tree: &Tree,
     query: LocalNodeId<ContainerScrollStateQuery>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1188,7 +1188,7 @@ fn write_container_scroll_state_query(
 
 /// Write one parenthesized style query when needed.
 fn write_parenthesized_style_query(
-    tree: &NodeTree,
+    tree: &Tree,
     query: LocalNodeId<ContainerStyleQuery>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1206,7 +1206,7 @@ fn write_parenthesized_style_query(
 
 /// Write one parenthesized scroll state query when needed.
 fn write_parenthesized_scroll_state_query(
-    tree: &NodeTree,
+    tree: &Tree,
     query: LocalNodeId<ContainerScrollStateQuery>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1222,7 +1222,7 @@ fn write_parenthesized_scroll_state_query(
 
 /// Write one import rule.
 fn write_import_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &ImportRule,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1259,7 +1259,7 @@ fn write_import_rule(
 
 /// Write one grouped block rule.
 fn write_group_block_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     prelude: &str,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -1281,7 +1281,7 @@ fn write_group_block_rule(
 
 /// Write one `@keyframes` grouped rule.
 fn write_keyframes_group_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &KeyframesRule,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -1325,7 +1325,7 @@ fn write_keyframes_group_rule(
 
 /// Write one declaration-only block rule.
 fn write_named_declaration_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     prefix: &str,
     name: &str,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
@@ -1342,7 +1342,7 @@ fn write_named_declaration_rule(
 
 /// Write one declaration-only block body after one prelude.
 fn write_declaration_only_block_body(
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1608,7 +1608,7 @@ fn write_font_feature_values_rule(
 
 /// Write one page rule.
 fn write_page_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &PageRule,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1658,7 +1658,7 @@ fn write_page_rule(
 
 /// Write one keyframe rule.
 fn write_keyframe_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &KeyframeRule,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1713,7 +1713,7 @@ fn write_keyframe_selector(
 
 /// Write one page margin rule.
 fn write_page_margin_rule(
-    tree: &NodeTree,
+    tree: &Tree,
     rule_id: LocalNodeId<PageMarginRule>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -1739,7 +1739,7 @@ fn write_page_margin_rule(
 
 /// Write one style-like rule body.
 fn write_rule_body(
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
@@ -1955,7 +1955,7 @@ fn write_page_margin_box(
 
 /// Write one declaration block.
 fn write_declaration_block(
-    tree: &NodeTree,
+    tree: &Tree,
     declaration_block_id: LocalNodeId<DeclarationBlock>,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
@@ -2068,7 +2068,7 @@ fn write_number(number: Number, f: &mut Formatter<'_, CssFormatContext>) -> Form
 /// Render one component token as canonical CSS.
 /// Write one nested rule list.
 fn write_rule_list(
-    tree: &NodeTree,
+    tree: &Tree,
     rules: &[LocalNodeId<Rule>],
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {

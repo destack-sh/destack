@@ -36,8 +36,8 @@ impl Default for DumperOptions {
 pub struct Dumper<'a> {
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
-    /// The node tree.
-    pub tree: &'a js::NodeTree,
+    /// The tree.
+    pub tree: &'a js::Tree,
     /// The dump options.
     pub options: DumperOptions,
 
@@ -58,7 +58,7 @@ impl<'a> Dumper<'a> {
     /// Create a new Dumper.
     pub fn new(
         strings: &'a ImmutableStringPool,
-        tree: &'a js::NodeTree,
+        tree: &'a js::Tree,
         options: DumperOptions,
     ) -> Self {
         Self {
@@ -384,7 +384,7 @@ impl Dump for StringId {
 /// Dump a NodeId<T> as the node it points to.
 impl<T: js::Node + Clone + Dump> Dump for js::LocalNodeId<T>
 where
-    js::NodeTree: js::NodeTreeImpl<T>,
+    js::Tree: js::TreeImpl<T>,
 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);
@@ -654,7 +654,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, tree: &js::NodeTree, _ty: js::NodeType, id: u32) {
+    fn visit_any(&mut self, tree: &js::Tree, _ty: js::NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
@@ -664,7 +664,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_block(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Block>,
         block: &js::Block,
     ) {
@@ -679,7 +679,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_statement(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Statement>,
         statement: &js::Statement,
     ) {
@@ -854,7 +854,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_expression(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Expression>,
         expression: &js::Expression,
     ) {
@@ -1059,7 +1059,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_switch_case(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::SwitchCase>,
         switch_case: &js::SwitchCase,
     ) {
@@ -1071,7 +1071,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_catch_clause(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::CatchClause>,
         catch_clause: &js::CatchClause,
     ) {
@@ -1083,7 +1083,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_declaration(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Declaration>,
         declaration: &js::Declaration,
     ) {
@@ -1189,7 +1189,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_property(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Property>,
         property: &js::Property,
     ) {
@@ -1233,7 +1233,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_member(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Member>,
         member: &js::Member,
     ) {
@@ -1272,7 +1272,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_enum_field(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::EnumField>,
         field: &js::EnumField,
     ) {
@@ -1288,7 +1288,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_dependency_item(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::DependencyItem>,
         dependency_item: &js::DependencyItem,
     ) {
@@ -1305,7 +1305,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_parameter(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Parameter>,
         parameter: &js::Parameter,
     ) {
@@ -1358,7 +1358,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_argument(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Argument>,
         argument: &js::Argument,
     ) {
@@ -1377,7 +1377,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_array_element(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::ArrayElement>,
         array_element: &js::ArrayElement,
     ) {
@@ -1399,7 +1399,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_pattern(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Pattern>,
         pattern: &js::Pattern,
     ) {
@@ -1433,7 +1433,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_pattern_field(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::PatternField>,
         field: &js::PatternField,
     ) {
@@ -1481,7 +1481,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_type_expression(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::TypeExpression>,
         type_expression: &js::TypeExpression,
     ) {
@@ -1605,7 +1605,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
 
     fn visit_annotation(
         &mut self,
-        tree: &js::NodeTree,
+        tree: &js::Tree,
         id: js::LocalNodeId<js::Annotation>,
         annotation: &js::Annotation,
     ) {

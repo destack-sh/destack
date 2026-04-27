@@ -56,7 +56,7 @@ impl Compiler {
     /// Require one type expression node for one local type id.
     fn insert_comptime_type_expression_for_type_id(
         &self,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         types: &dir::TypeTable,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -92,7 +92,7 @@ impl Compiler {
     /// Convert a static expression into a DIR expression node.
     pub(crate) fn static_expression_to_expression(
         &self,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         types: &dir::TypeTable,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -221,7 +221,7 @@ impl Compiler {
     /// Convert a static property into a DIR property node.
     pub(crate) fn static_property_to_property(
         &self,
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         types: &dir::TypeTable,
         module_id: ModuleId,
         profile_id: ProfileId,

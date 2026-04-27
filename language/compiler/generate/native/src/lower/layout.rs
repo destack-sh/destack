@@ -55,7 +55,7 @@ impl TypeLayout {
 
 /// Compute the layout of a MIR type.
 pub(crate) fn compute_type_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_id: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
@@ -294,7 +294,7 @@ fn static_dim(dim: &mir::TensorDimension) -> Option<u64> {
 
 /// Compute the layout of a tuple type.
 fn compute_tuple_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     elements: &[mir::LocalNodeId<mir::Type>],
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
@@ -335,7 +335,7 @@ fn compute_tuple_layout(
 /// NOTE: Callers should typically verify bounds before calling, as they have
 /// access to more information for better error reporting.
 pub(crate) fn compute_tuple_element_offset(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     elements: &[mir::LocalNodeId<mir::Type>],
     index: u32,
     pointer_bytes: u8,

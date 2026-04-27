@@ -25,7 +25,7 @@ pub(super) enum OutputScopeId {
 #[derive(Debug, Clone)]
 pub(super) struct MinifySourceContext {
     /// The source tree.
-    pub(super) tree: Arc<dir::NodeTree>,
+    pub(super) tree: Arc<dir::Tree>,
     /// The source symbol table.
     pub(super) symbols: Arc<dir::SymbolTable>,
     /// The namespace scope for this module.
@@ -46,7 +46,7 @@ impl js::NodeVisitor for ReferencedNodeCollector {
         &self.options
     }
 
-    fn visit_any(&mut self, _tree: &js::NodeTree, _ty: js::NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &js::Tree, _ty: js::NodeType, id: u32) {
         self.visited.push(id);
     }
 }

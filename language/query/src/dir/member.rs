@@ -434,7 +434,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
         target_symbol,
         current_module_id,
         |dir, extension| {
-            // load symbol and node trees for extension lookup
+            // load symbol and trees for extension lookup
             let symbols = dir.symbols();
             let tree = dir.tree();
 

@@ -22,7 +22,7 @@ pub fn declaration_has_nested_executable_scope(declaration: &dir::Declaration) -
 
 /// Return true when one expression enters a nested declaration scope.
 pub fn expression_enters_nested_declaration_scope(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
 ) -> bool {
     let dir::Expression::Declaration(declaration) = expression else {
@@ -35,7 +35,7 @@ pub fn expression_enters_nested_declaration_scope(
 
 /// Return true when one expression belongs to a known type position.
 pub fn expression_is_in_type_position(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_node_id = expression_id.id;
@@ -56,7 +56,7 @@ pub fn expression_is_in_type_position(
 
 /// Return the single returned value expression from one block body.
 pub fn block_single_return_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     block_id: dir::LocalNodeId<dir::Block>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let block = tree.get(block_id);
@@ -78,7 +78,7 @@ pub fn block_single_return_value(
 
 /// Return one parent expression id when the parent node is an expression.
 pub fn expression_parent_id(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // resolve one parent node
@@ -93,7 +93,7 @@ pub fn expression_parent_id(
 
 /// Return true when one expression belongs to an async callable boundary.
 pub fn expression_is_inside_async_callable(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_parent_id = tree.get_parent(expression_id.id);
@@ -113,7 +113,7 @@ pub fn expression_is_inside_async_callable(
 
 /// Return true when one expression is in an error handling context.
 pub fn expression_affects_error_handling_context(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_child_id = expression_id.into_any();
@@ -175,7 +175,7 @@ pub fn expression_affects_error_handling_context(
 
 /// Return true when one expression is in a resource-management-sensitive context.
 pub fn expression_affects_resource_management_context(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_child_id = expression_id.into_any();
@@ -233,7 +233,7 @@ enum TryContext {
 
 /// Return the async marker for one callable boundary node.
 fn callable_boundary_asynchrony(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::Asynchrony> {
     match node_id.ty {
@@ -306,7 +306,7 @@ fn try_context_from_direct_child(
 
 /// Return true when one statement expression is a using declaration.
 fn expression_is_using_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize statement and parenthesized wrappers first
@@ -326,7 +326,7 @@ fn expression_is_using_declaration(
 
 /// Return the outermost transparent wrapper that still contains this expression.
 pub fn expression_outer_transparent_ancestor(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
     // walk through transparent parent wrappers
@@ -382,7 +382,7 @@ fn expression_is_transparent_parent_of(
 
 /// Return the surrounding statement expression for a standalone expression.
 pub fn statement_expression_ancestor(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // normalize transparent wrappers before checking statement ownership
@@ -445,7 +445,7 @@ pub fn statement_expression_span(
 /// This accepts transparent wrappers around the expression before the
 /// surrounding statement node.
 pub fn expression_is_standalone_statement(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     statement_expression_ancestor(tree, expression_id).is_some()

@@ -9,7 +9,7 @@ pub(crate) fn enforce_function_requirements(
     metadata: &PassMetadata,
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // skip enforcement when not required
     if !ctx.require_optimized_metadata() {
@@ -60,7 +60,7 @@ pub(crate) fn enforce_function_requirements(
 pub(crate) fn enforce_module_requirements(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // skip enforcement when not required
     if !ctx.require_optimized_metadata() {
@@ -91,7 +91,7 @@ fn enforce_call_effects(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // skip imported functions
     if function.entry.is_none() {
@@ -128,7 +128,7 @@ fn enforce_memory_metadata(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // skip imported functions
     if function.entry.is_none() {
@@ -196,7 +196,7 @@ fn enforce_profile_data(
 fn enforce_type_layouts(
     ctx: &PipelineContext<'_>,
     metadata: &PassMetadata,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     let diagnostics = ctx.diagnostics();
 
@@ -287,7 +287,7 @@ fn is_memory_intrinsic(intrinsic: mir::Intrinsic) -> bool {
 
 /// Return true when a type requires layout metadata.
 fn type_requires_layout(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_id: mir::LocalNodeId<mir::Type>,
     ty: &mir::Type,
 ) -> bool {

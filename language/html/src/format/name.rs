@@ -3,11 +3,11 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::context::HtmlFormatContext;
-use crate::{Name, NodeTree, StringId};
+use crate::{Name, StringId, Tree};
 
 /// Write one authored name when present, otherwise one resolved name.
 pub(crate) fn write_authored_or_resolved_name(
-    tree: &NodeTree,
+    tree: &Tree,
     authored_name: Option<StringId>,
     name: &Name,
     f: &mut Formatter<'_, HtmlFormatContext>,

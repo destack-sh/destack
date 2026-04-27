@@ -173,7 +173,7 @@ impl NodeVisitor for NoRequireImportsVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -183,7 +183,7 @@ impl NodeVisitor for NoRequireImportsVisitor<'_, '_> {
 }
 
 /// Return true when an expression is `import foo = require("foo")`.
-fn expression_is_require_import_alias(tree: &dir::NodeTree, expression: &dir::Expression) -> bool {
+fn expression_is_require_import_alias(tree: &dir::Tree, expression: &dir::Expression) -> bool {
     let dir::Expression::Declaration(declaration) = expression else {
         return false;
     };
@@ -200,7 +200,7 @@ fn expression_is_require_import_alias(tree: &dir::NodeTree, expression: &dir::Ex
 
 /// Return true when an expression represents a require() import.
 fn expression_uses_require_import(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: StringId,
@@ -254,7 +254,7 @@ fn expression_uses_require_import(
 
 /// Return the static target string for one require-based import form.
 fn require_import_target(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: StringId,

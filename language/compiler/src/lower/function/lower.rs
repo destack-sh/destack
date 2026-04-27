@@ -32,7 +32,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Provide access to compiler helpers for artifact-backed reads.
     pub(crate) compiler: &'a Compiler,
     /// Provide access to the DIR tree for expression lookup.
-    pub(crate) dir_tree: &'a dir::NodeTree,
+    pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to symbol metadata for type resolution.
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.

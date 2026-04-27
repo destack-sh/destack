@@ -272,7 +272,7 @@ impl Precedence {
 
 impl Expression {
     /// Return whether this expression is type only in plain js output.
-    pub fn is_type_only(&self, tree: &crate::NodeTree) -> bool {
+    pub fn is_type_only(&self, tree: &crate::Tree) -> bool {
         let Self::Declaration { declaration } = self else {
             return false;
         };
@@ -282,10 +282,7 @@ impl Expression {
     }
 
     /// Return this expression without redundant explicit parentheses.
-    pub(crate) fn without_parentheses<'a>(
-        tree: &'a crate::NodeTree,
-        expression: &'a Self,
-    ) -> &'a Self {
+    pub(crate) fn without_parentheses<'a>(tree: &'a crate::Tree, expression: &'a Self) -> &'a Self {
         let mut expression = expression;
 
         while let Self::Parenthesized {

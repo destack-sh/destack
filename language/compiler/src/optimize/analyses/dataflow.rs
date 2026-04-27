@@ -69,7 +69,7 @@ impl<S> Default for DataflowResult<S> {
 /// # Parameters
 ///
 /// - `function`: The function to analyze
-/// - `tree`: The MIR node tree
+/// - `tree`: The MIR tree
 /// - `cfg`: Control flow graph (for predecessor information)
 /// - `entry_state`: Initial state at function entry
 /// - `transfer`: Transfer function that processes a block and returns the exit state.
@@ -90,14 +90,14 @@ impl<S> Default for DataflowResult<S> {
 /// 3. Iterate until fixed point
 pub fn forward_dataflow<S, F>(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     entry_state: S,
     mut transfer: F,
 ) -> DataflowResult<S>
 where
     S: Lattice,
-    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::NodeTree) -> S,
+    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
 {
     let entry = match function.entry {
         Some(e) => e,
@@ -201,7 +201,7 @@ where
 /// # Parameters
 ///
 /// - `function`: The function to analyze
-/// - `tree`: The MIR node tree
+/// - `tree`: The MIR tree
 /// - `cfg`: Control flow graph (for predecessor information)
 /// - `exit_state`: Initial state at function exits (return/unreachable)
 /// - `transfer`: Transfer function that processes a block and returns the entry state.
@@ -212,14 +212,14 @@ where
 /// A `DataflowResult` containing the computed states at entry and exit of each block.
 pub fn backward_dataflow<S, F>(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     exit_state: S,
     mut transfer: F,
 ) -> DataflowResult<S>
 where
     S: Lattice,
-    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::NodeTree) -> S,
+    F: FnMut(mir::LocalNodeId<mir::Block>, S, &mir::Tree) -> S,
 {
     if function.entry.is_none() {
         return DataflowResult::new();

@@ -117,7 +117,7 @@ fn resolve_indirect_callable(
 
 /// Resolve the expected signature for one indirect callable type.
 fn indirect_callable_signature(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     callable_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
     let callable_type = crate::program::repr_type(tree, callable_type);
@@ -131,7 +131,7 @@ fn indirect_callable_signature(
 
 /// Check whether one function has the expected call signature.
 fn validate_indirect_signature(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
     signature: mir::LocalNodeId<mir::Type>,
 ) -> Result<(), Error> {

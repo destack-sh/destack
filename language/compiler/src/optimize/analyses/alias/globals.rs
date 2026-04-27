@@ -27,7 +27,7 @@ pub(crate) struct GlobalsAA {
 
 impl GlobalsAA {
     /// Build GlobalsAA for a function.
-    pub(super) fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    pub(super) fn build(function: &mir::Function, tree: &mir::Tree) -> Self {
         let info = FunctionAA::collect(function, tree);
 
         let mut reads = HashSet::new();
@@ -129,7 +129,7 @@ impl GlobalsAA {
     fn get_global_base(
         ptr: mir::Value,
         definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> Option<mir::LocalNodeId<mir::Global>> {
         let mut current = ptr;
         let mut visited = HashSet::new();
@@ -171,7 +171,7 @@ impl GlobalsAA {
         &self,
         loc_a: &MemoryLocation,
         loc_b: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> AliasResult {
         let global_a = Self::get_global_base(loc_a.ptr, &self.function.definitions, tree);
         let global_b = Self::get_global_base(loc_b.ptr, &self.function.definitions, tree);
@@ -206,7 +206,7 @@ impl GlobalsAA {
         &self,
         _call: &mir::Instruction,
         loc: &MemoryLocation,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ModRefInfo {
         let Some(global) = Self::get_global_base(loc.ptr, &self.function.definitions, tree) else {
             // not a global location, we can't help

@@ -5,7 +5,7 @@ use crate::LintModuleDirContext;
 use super::{canonical_symbol_for, expression_target_symbol, expression_unwrap_parenthesized};
 
 /// Return true when one DIR pattern matches all remaining values.
-pub fn pattern_is_total(tree: &dir::NodeTree, pattern_id: dir::LocalNodeId<dir::Pattern>) -> bool {
+pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Pattern>) -> bool {
     let pattern = tree.get(pattern_id);
 
     match pattern {

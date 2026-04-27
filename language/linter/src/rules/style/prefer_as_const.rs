@@ -238,7 +238,7 @@ fn member_field_literal_annotation_fix(
 
 /// Return true when a cast has the same literal value on both sides.
 fn is_exact_literal_self_cast(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     left_id: ast::LocalNodeId<Expression>,
     right_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> bool {

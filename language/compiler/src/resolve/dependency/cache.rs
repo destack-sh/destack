@@ -1,8 +1,8 @@
 use destack_artifact::{DirPrepared, ExportedSymbolTable};
 use destack_dir::{
     DependencyItem, DependencyKind, Export, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, ModuleBindingExports, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
-    StringId, SymbolSpace,
+    LocalScopeId, ModuleBindingExports, ModuleTarget, NamespaceExport, StaticKey, StringId,
+    SymbolSpace, Tree,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -52,7 +52,7 @@ impl ResolveDependencyItemCache {
     pub(crate) fn dependency_item_ids_for(
         &mut self,
         module_id: ModuleId,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> Vec<LocalNodeId<DependencyItem>> {
         if let Some(item_ids) = self.dependency_item_ids.get(&module_id) {
             return item_ids.clone();

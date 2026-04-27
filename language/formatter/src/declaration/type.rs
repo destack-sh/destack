@@ -21,8 +21,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
     GenericArgument, GenericParameter, InterfaceDeclaration, InterfaceHeritage, Keyword,
-    LocalNodeId, LocalNodeIdAny, Member, Node, NodeTree, NodeTreeImpl, NodeType, StructDeclaration,
-    TokenSpan, TokenType, TypeExpression, TypeMember, WhereClause,
+    LocalNodeId, LocalNodeIdAny, Member, Node, NodeType, StructDeclaration, TokenSpan, TokenType,
+    Tree, TreeImpl, TypeExpression, TypeMember, WhereClause,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
@@ -66,7 +66,7 @@ fn combined_node_span<T>(
 ) -> Option<Span>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T>,
+    Tree: TreeImpl<T>,
 {
     let first_id = node_ids.first().copied()?;
     let last_id = node_ids.last().copied()?;

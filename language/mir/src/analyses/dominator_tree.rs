@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Block, BlockReference, ControlFlowGraph, Function, LocalNodeId, NodeTree};
+use crate::{Block, BlockReference, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Dense control flow graph used by dominance computation.
 #[derive(Debug)]
@@ -15,7 +15,7 @@ struct DenseControlFlow {
 
 impl DenseControlFlow {
     /// Build one dense control flow graph for one function.
-    fn build(function: &Function, tree: &NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let mut block_index = HashMap::new();
 
         // block indices
@@ -77,7 +77,7 @@ pub struct DominatorTree {
 
 impl DominatorTree {
     /// Build the dominator tree for one function.
-    pub fn build(function: &Function, tree: &NodeTree, cfg: &ControlFlowGraph) -> Self {
+    pub fn build(function: &Function, tree: &Tree, cfg: &ControlFlowGraph) -> Self {
         let Some(entry) = function.entry else {
             return Self {
                 immediate_dominators: HashMap::new(),

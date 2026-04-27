@@ -25,7 +25,7 @@ pub enum ThisParameterCount {
 
 /// Visit each callable function signature in one AST module.
 pub fn for_each_callable_signature(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     mut callback: impl FnMut(
         CallableOwnerId,
         &ast::FunctionSignature,
@@ -74,7 +74,7 @@ pub fn for_each_callable_signature(
 }
 
 /// Return the source span of one callable owner node.
-pub fn callable_owner_span(tree: &ast::NodeTree, owner_id: CallableOwnerId) -> Span {
+pub fn callable_owner_span(tree: &ast::Tree, owner_id: CallableOwnerId) -> Span {
     match owner_id {
         CallableOwnerId::Declaration(declaration_id) => tree.get_span(declaration_id),
         CallableOwnerId::Member(member_id) => tree.get_span(member_id),
@@ -96,7 +96,7 @@ pub fn parameter_type_expression_id(
 }
 
 /// Return true when one parameter is explicitly typed as `void`.
-pub fn parameter_is_void_type(tree: &ast::NodeTree, parameter: &ast::Parameter) -> bool {
+pub fn parameter_is_void_type(tree: &ast::Tree, parameter: &ast::Parameter) -> bool {
     // resolve one parameter type annotation
     let Some(type_expression_id) = parameter_type_expression_id(parameter) else {
         return false;
@@ -114,7 +114,7 @@ pub fn parameter_is_void_type(tree: &ast::NodeTree, parameter: &ast::Parameter) 
 
 /// Return one effective parameter count for a function signature.
 pub fn function_signature_parameter_count(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     signature: &ast::FunctionSignature,
     this_parameter_count: ThisParameterCount,
 ) -> usize {

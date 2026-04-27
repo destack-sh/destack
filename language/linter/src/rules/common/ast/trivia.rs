@@ -5,7 +5,7 @@ use crate::LintAstContext;
 use crate::rules::common::is_doc_comment_source;
 
 /// Return true when one span contains at least one raw comment.
-pub fn span_has_comment(tree: &ast::NodeTree, span: Span) -> bool {
+pub fn span_has_comment(tree: &ast::Tree, span: Span) -> bool {
     tree.comments().iter().any(|comment| {
         let comment_span = comment.span;
         comment_span.file == span.file

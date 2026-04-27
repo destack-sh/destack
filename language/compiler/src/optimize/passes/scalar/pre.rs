@@ -60,7 +60,7 @@ impl FunctionPass for PartialRedundancyElim {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -148,7 +148,7 @@ enum ExpressionTemplate {
 fn run_pre(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     available: &AvailableExpressions,
@@ -566,7 +566,7 @@ fn build_dominator_children(
 #[allow(clippy::too_many_arguments)]
 fn rename_block(
     block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     phi_map: &HashMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>>,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     current: &mut HashMap<ExpressionKey, Vec<mir::Value>>,
@@ -661,7 +661,7 @@ fn insert_expression_in_block(
     key: ExpressionKey,
     value_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     template: Option<&ExpressionTemplate>,
     use_def: &UseDefMaps,
     domtree: &DominatorTree,

@@ -51,7 +51,7 @@ impl FunctionPass for Reassociate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // collect constant propagation state
@@ -83,7 +83,7 @@ impl FunctionPass for Reassociate {
 /// Reassociate binary operations within each block.
 fn run_reassociate(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     float_math: FloatMathPolicy,
 ) -> bool {
@@ -474,7 +474,7 @@ fn associative_subtree_contains_constant(
 /// Rebuild a chain of binary operations for a list of operands.
 fn rebuild_chain(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     operator: mir::BinaryOperator,
     operands: &[mir::Value],
     result_type: mir::LocalNodeId<mir::Type>,
@@ -535,7 +535,7 @@ fn resolve_constant_value(
     constant: mir::Constant,
     result_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_constants: &ConstantMap,
 ) -> ResolvedConstant {
     // reuse an existing constant when available

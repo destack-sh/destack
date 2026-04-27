@@ -37,7 +37,7 @@ declare_pass! {
 
 impl ModulePass for GlobalOpt {
     /// Run global optimization for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_global_opt(tree);
 
         // report analysis preservation based on whether changes occurred
@@ -61,7 +61,7 @@ impl ModulePass for GlobalOpt {
 }
 
 /// Run global optimizations over the module.
-fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
+fn run_global_opt(tree: &mut mir::Tree) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
     let use_maps = build_value_use_maps(tree);
@@ -140,7 +140,7 @@ struct GlobalAddrInfo {
 }
 
 /// Collect global.address instructions for the module.
-fn collect_global_addr_info(tree: &mir::NodeTree) -> GlobalAddrInfo {
+fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
     // prepare the address info container
     let mut info = GlobalAddrInfo::default();
 
@@ -186,7 +186,7 @@ fn collect_global_addr_info(tree: &mir::NodeTree) -> GlobalAddrInfo {
 
 /// Build value use maps for each function.
 fn build_value_use_maps(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ValueUseInfo> {
     // prepare the cache container
     let mut cache = HashMap::new();
@@ -260,7 +260,7 @@ struct ValueUseInfo {
 
 /// Collect globals that are written by stores or memory effects.
 fn collect_written_globals(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     addr_info: &GlobalAddrInfo,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     // prepare the written set
@@ -384,7 +384,7 @@ fn any_argument_global(
     arguments: &mir::ArgumentSlice,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     tree.get_arguments(*arguments)
         .iter()
@@ -397,7 +397,7 @@ fn any_argument_global_values(
     arguments: &[mir::ValueReference],
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     arguments
         .iter()
@@ -410,7 +410,7 @@ fn globals_from_arguments(
     arguments: &mir::ArgumentSlice,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     globals_from_values(tree.get_arguments(*arguments), definitions, addr_info, tree)
 }
@@ -420,7 +420,7 @@ fn globals_from_values(
     values: &[mir::ValueReference],
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     let mut globals = HashSet::new();
 
@@ -438,7 +438,7 @@ fn global_addr_base(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Global>> {
     // walk pointer definitions to find the base address
     let mut current = value;
@@ -499,7 +499,7 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
 }
 
 /// Return true when a callsite may write memory.
-fn call_writes_memory(tree: &mir::NodeTree, instruction: &mir::Instruction) -> bool {
+fn call_writes_memory(tree: &mir::Tree, instruction: &mir::Instruction) -> bool {
     let Some(effects) = instruction.call_memory_effect() else {
         let Some(function) = instruction.call_declared_target() else {
             return true;
@@ -517,7 +517,7 @@ fn call_writes_memory(tree: &mir::NodeTree, instruction: &mir::Instruction) -> b
 
 /// Return terminator arguments when the terminator may write memory.
 fn terminator_write_arguments(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
 ) -> Option<Vec<mir::ValueReference>> {
@@ -559,7 +559,7 @@ fn terminator_write_arguments(
 
 /// Return true when a function summary may write memory.
 fn function_memory_writes_from_tree(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function: mir::LocalNodeId<mir::Function>,
 ) -> bool {
     tree.get(function).memory_effect.writes

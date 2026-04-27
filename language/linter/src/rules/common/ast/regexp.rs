@@ -26,7 +26,7 @@ pub fn regexp_global_qualifier_names(strings: &ast::StringPool) -> [ast::StringI
 /// Resolve regex pattern info from a regex literal or `RegExp` constructor call.
 pub fn regex_pattern_info(
     strings: &ast::StringPool,
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     expression_id: ast::LocalNodeId<ast::Expression>,
     regexp_name: ast::StringId,
     global_qualifier_names: &[ast::StringId],

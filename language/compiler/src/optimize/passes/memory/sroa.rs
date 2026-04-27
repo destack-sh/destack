@@ -57,7 +57,7 @@ impl FunctionPass for Sroa {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
@@ -103,7 +103,7 @@ impl FunctionPass for Sroa {
 /// Core SROA logic. Returns true if changes were made.
 fn run_sroa(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
     constants: &ConstantPropagation,
@@ -207,7 +207,7 @@ struct AllocationUses {
 /// Find stack allocations that can be split into scalars.
 fn find_splittable_allocations_core(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     max_array_elements: usize,
     constants: &ConstantPropagation,
 ) -> Vec<SplitCandidate> {
@@ -286,7 +286,7 @@ fn find_splittable_allocations_core(
 /// subsequent passes.
 fn get_element_types(
     ty: &mir::Type,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     max_array_elements: usize,
 ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
     match ty {
@@ -339,7 +339,7 @@ fn get_element_types(
 fn analyze_uses(
     alloc_value: mir::Value,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     constants: &ConstantPropagation,
 ) -> Option<AllocationUses> {
     let mut uses = Vec::new();
@@ -509,7 +509,7 @@ fn constant_to_index(constant: &mir::Constant) -> Option<usize> {
 fn split_allocation(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // create new allocations for each element
@@ -620,7 +620,7 @@ fn split_allocation(
 fn rewrite_base_load(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     index_to_value: &HashMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
@@ -676,7 +676,7 @@ fn rewrite_base_load(
 fn rewrite_base_store(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     index_to_value: &HashMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
@@ -744,7 +744,7 @@ fn rewrite_base_store(
 
 /// Build an aggregate construction instruction for the given layout.
 fn build_aggregate_instruction(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     layout: mir::LocalNodeId<mir::Type>,
     destination: mir::Value,
     element_values: &[mir::Value],
@@ -777,7 +777,7 @@ fn build_aggregate_instruction(
 /// Insert a constant instruction for an array index value.
 fn insert_index_constant(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     index: usize,
 ) -> (mir::Value, mir::LocalNodeId<mir::Instruction>) {
     // convert index to a signed 64 bit constant
@@ -810,7 +810,7 @@ fn insert_index_constant(
 fn apply_substitutions(
     substitutions: &HashMap<mir::Value, mir::Value>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     if substitutions.is_empty() {
         return;

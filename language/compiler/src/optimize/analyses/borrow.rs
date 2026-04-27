@@ -503,7 +503,7 @@ impl BorrowAnalysis {
     /// Build the analysis.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         liveness: &LivenessAnalysis,
     ) -> Self {
@@ -632,7 +632,7 @@ fn apply_instruction_effects(
     state: &mut BorrowMap,
     inst_id: mir::LocalNodeId<Instruction>,
     inst: &Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) {
     match inst {
         // address projections create a borrow of the container
@@ -698,7 +698,7 @@ fn apply_instruction_effects(
 }
 
 /// Return true when a reference type is borrowed.
-fn reference_is_borrowed(ty_id: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> bool {
+fn reference_is_borrowed(ty_id: mir::LocalNodeId<mir::Type>, tree: &mir::Tree) -> bool {
     let ty = tree.get(ty_id);
     ty.is_borrowed_reference()
 }
@@ -711,7 +711,7 @@ impl Analysis for BorrowAnalysis {
 impl FunctionAnalysis for BorrowAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
@@ -728,7 +728,7 @@ mod tests {
     /// Borrow analysis recognizes borrowed tensor views.
     #[test]
     fn test_reference_is_borrowed_tensor_view() {
-        let mut tree = mir::NodeTree::new();
+        let mut tree = mir::Tree::new();
         let element = tree.insert_type(mir::Type::Float { width: 32 });
         let tensor_ref = tree.insert_type(mir::Type::TensorView {
             kind: mir::ReferenceKind::Borrowed,

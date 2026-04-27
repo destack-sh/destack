@@ -324,7 +324,7 @@ pub fn symbol_initializer_expression(
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // resolve the primary declaration for this symbol
@@ -346,7 +346,7 @@ pub fn symbol_initializer_expression(
 
 /// Resolve one initializer expression from a symbol primary declaration node.
 pub fn primary_declaration_initializer_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
@@ -425,7 +425,7 @@ pub fn primary_declaration_initializer_expression(
 
 /// Find the nearest declarator parent for one node id.
 fn enclosing_declarator(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     mut node_id: u32,
 ) -> Option<dir::LocalNodeId<dir::Declarator>> {
     loop {
@@ -529,7 +529,7 @@ pub fn local_symbol_has_other_declarations(
 
 /// Return true when one local symbol is merged with a class declaration in this module.
 pub fn local_symbol_has_class_merge(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
@@ -553,7 +553,7 @@ pub fn local_symbol_has_class_merge(
 
 /// Return true when one local symbol declares a class in this module.
 fn local_symbol_has_class_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
@@ -574,7 +574,7 @@ fn local_symbol_has_class_declaration(
 
 /// Return true when one local node id points at a class declaration.
 fn local_node_is_class_declaration(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: Option<dir::LocalNodeIdAny>,
 ) -> bool {
     let Some(declaration_id) = declaration_id else {

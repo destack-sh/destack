@@ -55,8 +55,8 @@ pub enum ExpressionKey {
 /// Cached value equivalence for pure expressions.
 #[derive(Debug)]
 pub struct ValueEquivalence<'a> {
-    /// MIR node tree.
-    tree: &'a mir::NodeTree,
+    /// MIR tree.
+    tree: &'a mir::Tree,
     /// Map from values to their defining instructions.
     definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     /// Constant propagation results when available.
@@ -73,7 +73,7 @@ pub struct ValueEquivalence<'a> {
 impl<'a> ValueEquivalence<'a> {
     /// Create a new equivalence helper.
     pub fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     ) -> Self {
         Self {
@@ -88,7 +88,7 @@ impl<'a> ValueEquivalence<'a> {
 
     /// Create a new equivalence helper with constant propagation support.
     pub fn new_with_constants(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
         constants: &'a ConstantPropagation,
         instruction_blocks: &'a HashMap<
@@ -487,7 +487,7 @@ impl<'a> ValueEquivalence<'a> {
 /// Returns `None` for instructions that cannot be safely deduplicated.
 pub fn expression_key_from_instruction(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<ExpressionKey> {
     match instruction {
         mir::Instruction::Error => {

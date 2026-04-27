@@ -73,7 +73,7 @@ pub struct AvailableExpressions {
 
 impl AvailableExpressions {
     /// Build available expressions for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(function: &mir::Function, tree: &mir::Tree, cfg: &ControlFlowGraph) -> Self {
         let entry_state = AvailableExpressionSet::new();
         let result = forward_dataflow(function, tree, cfg, entry_state, transfer_block);
 
@@ -104,7 +104,7 @@ impl AvailableExpressions {
         &self,
         block: mir::LocalNodeId<mir::Block>,
         instruction_index: usize,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> AvailableExpressionSet {
         // read the block data and entry state
         let block_data = tree.get(block);
@@ -129,7 +129,7 @@ impl AvailableExpressions {
         &self,
         block: mir::LocalNodeId<mir::Block>,
         instruction_index: usize,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> AvailableExpressionSet {
         // compute availability before the instruction
         let mut state = self.expressions_before_instruction(block, instruction_index, tree);
@@ -155,7 +155,7 @@ impl Analysis for AvailableExpressions {
 impl FunctionAnalysis for AvailableExpressions {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         // read the control flow graph
@@ -169,7 +169,7 @@ impl FunctionAnalysis for AvailableExpressions {
 fn transfer_block(
     block: mir::LocalNodeId<mir::Block>,
     entry_state: AvailableExpressionSet,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> AvailableExpressionSet {
     let block_data = tree.get(block);
     let mut state = entry_state;
@@ -201,7 +201,7 @@ mod tests {
     /// Return the first expression key in a block.
     fn first_expression_key(
         block: mir::LocalNodeId<mir::Block>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> ExpressionKey {
         // read the block data
         let block_data = tree.get(block);

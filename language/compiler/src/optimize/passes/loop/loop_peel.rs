@@ -61,7 +61,7 @@ impl FunctionPass for LoopPeel {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -91,7 +91,7 @@ impl FunctionPass for LoopPeel {
 /// Run loop peeling on a single function and report whether it changed.
 fn run_loop_peel(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // gather analyses
@@ -186,7 +186,7 @@ fn find_preheader(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
     let mut outside_preds: Vec<_> = cfg

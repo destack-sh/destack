@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, BindingCategory, ExportMode, LocalMergeGroupId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol,
-    SymbolBinding, SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType,
+    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
+    SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType, Tree,
 };
 use std::fmt::Debug;
 
@@ -223,7 +223,7 @@ impl SymbolTable {
     pub fn get_scope<'a, T: Node>(
         &'a self,
         node_id: LocalNodeId<T>,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> (LocalScopeId, &'a Scope, LocalScopeMark) {
         let (scope_id, mark) = tree.get_scope(node_id);
         let scope = self.scopes.get(scope_id.0);

@@ -37,7 +37,7 @@ impl FunctionPass for LoopRotate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
@@ -79,7 +79,7 @@ impl FunctionPass for LoopRotate {
 fn run_loop_rotate(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
@@ -137,7 +137,7 @@ fn find_rotation_candidate(
     lp: &Loop,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     _entry: mir::LocalNodeId<mir::Block>,
 ) -> Option<RotationCandidate> {
     // need preheader (immediate dominator outside the loop)
@@ -247,7 +247,7 @@ fn find_rotation_candidate(
 /// ```
 fn rotate_loop(
     _function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     candidate: &RotationCandidate,
 ) -> bool {
     let header_block = tree.get(candidate.header).clone();

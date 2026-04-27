@@ -4,8 +4,8 @@ use destack_artifact::ExportedSymbolTable;
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
     Declaration, Expression, GenericArgument, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalScopeMark, LocalSymbolId, Node, NodeTree, NodeType, Path, Scope, ScopeKind,
-    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    LocalScopeId, LocalScopeMark, LocalSymbolId, Node, NodeType, Path, Scope, ScopeKind, StaticKey,
+    StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, Tree,
 };
 use destack_source::ModuleId;
 use destack_workspace::Revision;
@@ -64,7 +64,7 @@ pub(crate) struct ResolveState<'a> {
     /// The active symbol table.
     symbols: &'a SymbolTable,
     /// The current-module tree when one local resolve pass needs syntax reads.
-    current_tree: Option<&'a NodeTree>,
+    current_tree: Option<&'a Tree>,
 }
 
 impl<'a> ResolveState<'a> {
@@ -80,7 +80,7 @@ impl<'a> ResolveState<'a> {
         namespace_scope: LocalScopeId,
         _global_augmentation_scope: LocalScopeId,
         _exported_symbols: &'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>,
-        tree: Option<&'a NodeTree>,
+        tree: Option<&'a Tree>,
     ) -> Self {
         Self {
             revision,
@@ -109,7 +109,7 @@ impl<'a> ResolveState<'a> {
         namespace_scope: LocalScopeId,
         _global_augmentation_scope: LocalScopeId,
         _exported_symbols: &'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>,
-        tree: Option<&'a NodeTree>,
+        tree: Option<&'a Tree>,
     ) -> Self {
         Self {
             revision,
@@ -149,7 +149,7 @@ impl Compiler {
         revision: Revision,
         module: &Module,
         profile: ProfileId,
-        tree: &NodeTree,
+        tree: &Tree,
         symbols: &SymbolTable,
         namespace_symbol: LocalSymbolId,
         namespace_scope: LocalScopeId,
@@ -355,7 +355,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
     ) -> Option<Expression> {
         // only value space lookups can resolve runtime commonjs names
         if !pass.space_order.spaces().contains(&SymbolSpace::Value) {
@@ -472,7 +472,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         member_name: StringId,
-        tree: &NodeTree,
+        tree: &Tree,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let mut current_scope = scope;
         let member_key = StaticKey::Name(member_name);
@@ -678,7 +678,7 @@ impl Compiler {
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
         if !self.is_selected_library_module(pass.profile_id, pass.module.id) {
@@ -843,7 +843,7 @@ impl Compiler {
         prelude_symbol: GlobalSymbolId,
         path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
         let remaining_segments = &path.segments[1..];
         let receiver_targets = single_path_segment_target(prelude_symbol);
@@ -979,7 +979,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
         let selected_library_modules = self.selected_library_modules(pass.profile_id);
@@ -1532,7 +1532,7 @@ impl Compiler {
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
         let pass = ResolveState::current(
@@ -1877,7 +1877,7 @@ impl Compiler {
         local_id: LocalSymbolId,
         path: &Path,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
         let first_segment = path.first_segment().expect("path is empty");

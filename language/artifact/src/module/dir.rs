@@ -30,8 +30,8 @@ pub type ExportedSymbolTable = IndexMap<(dir::SymbolSpace, dir::StaticKey), dir:
 pub struct DirBase {
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -57,7 +57,7 @@ pub struct DirBase {
 impl DirBase {
     /// Create a stable anchor node for module-level diagnostics.
     fn create_anchor_node(
-        tree: &mut dir::NodeTree,
+        tree: &mut dir::Tree,
         scope_id: dir::LocalScopeId,
         anchor_source_id: u32,
     ) -> dir::LocalNodeIdAny {
@@ -115,7 +115,7 @@ impl DirBase {
         );
 
         // create a stable anchor node for diagnostics
-        let mut tree = dir::NodeTree::new(id);
+        let mut tree = dir::Tree::new(id);
         let anchor_node = Self::create_anchor_node(&mut tree, namespace_scope_id, anchor_source_id);
 
         Self {
@@ -152,8 +152,8 @@ pub struct DirPrepared {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -189,7 +189,7 @@ impl DirPrepared {
     pub fn from_base_with(
         base: &DirBase,
         profile_id: ProfileId,
-        tree: dir::NodeTree,
+        tree: dir::Tree,
         symbols: dir::SymbolTable,
         roots: Vec<dir::LocalNodeId<dir::Expression>>,
         export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
@@ -226,8 +226,8 @@ pub struct DirResolved {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -262,7 +262,7 @@ impl DirResolved {
     /// Build one resolved artifact from one prepared artifact and resolved locals.
     pub fn from_prepared_with(
         prepared: &DirPrepared,
-        tree: dir::NodeTree,
+        tree: dir::Tree,
         symbols: dir::SymbolTable,
         types: dir::TypeTable,
         export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
@@ -300,8 +300,8 @@ pub struct DirDeclared {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -354,8 +354,8 @@ pub struct DirInterface {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -412,8 +412,8 @@ pub struct DirAnalyzed {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -466,8 +466,8 @@ pub struct DirElaborated {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -486,7 +486,7 @@ impl DirElaborated {
     /// Build one elaborated artifact from one analyzed artifact and elaborated locals.
     pub fn from_analyzed_with(
         analyzed: &DirAnalyzed,
-        tree: dir::NodeTree,
+        tree: dir::Tree,
         symbols: dir::SymbolTable,
         types: dir::TypeTable,
     ) -> Self {
@@ -511,8 +511,8 @@ pub struct DirPatched {
     pub profile_id: ProfileId,
     /// The id of the Module.
     pub id: ModuleId,
-    /// The main DIR node tree of the Module.
-    pub tree: Arc<dir::NodeTree>,
+    /// The main DIR tree of the Module.
+    pub tree: Arc<dir::Tree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
     /// The type side table of the Module.
@@ -529,7 +529,7 @@ pub struct DirPatched {
 
 impl DirPatched {
     /// Build one patched artifact from one elaborated artifact and a patched tree.
-    pub fn from_elaborated_with(elaborated: &DirElaborated, tree: dir::NodeTree) -> Self {
+    pub fn from_elaborated_with(elaborated: &DirElaborated, tree: dir::Tree) -> Self {
         Self {
             profile_id: elaborated.profile_id,
             id: elaborated.id,

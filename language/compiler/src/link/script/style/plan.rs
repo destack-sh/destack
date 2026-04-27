@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use css::print::{print_layer_name_list, print_media_query_list, print_supports_condition};
 use css::{
     ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportResource, ImportRule,
-    LocalNodeId, NodeTree, Rule, SupportsCondition, Token, UrlResource,
+    LocalNodeId, Rule, SupportsCondition, Token, Tree, UrlResource,
 };
 use destack_artifact::{ArtifactKey, Css, Data, ModuleEdgeRelation, ModuleGraph};
 use destack_css as css;
@@ -189,7 +189,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return one stable import-context signature when this import wraps its target.
     pub(super) fn css_import_context_signature(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         import_rule: &ImportRule,
     ) -> Option<String> {
         if !self.css_import_has_wrappers(import_rule) {
@@ -253,7 +253,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         rule_id: LocalNodeId<Rule>,
         import_targets: &mut BTreeMap<u32, Option<ModuleId>>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
@@ -475,7 +475,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         rule_id: LocalNodeId<css::PageMarginRule>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -504,7 +504,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         declaration_block_id: LocalNodeId<DeclarationBlock>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -534,7 +534,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &NodeTree,
+        tree: &Tree,
         components: &mut ComponentValueList,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -600,7 +600,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         condition_id: LocalNodeId<SupportsCondition>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -672,7 +672,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_graph: &ModuleGraph,
-        tree: &NodeTree,
+        tree: &Tree,
         function: &mut Function,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -855,7 +855,7 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Return one canonical CSS url() value string from one argument list.
-    fn css_function_url_value(&self, _tree: &NodeTree, arguments: &ComponentValueList) -> String {
+    fn css_function_url_value(&self, _tree: &Tree, arguments: &ComponentValueList) -> String {
         if arguments.values.len() == 1 {
             match &arguments.values[0] {
                 ComponentValue::Token(Token::String(value))

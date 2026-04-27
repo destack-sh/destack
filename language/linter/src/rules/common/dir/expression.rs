@@ -13,7 +13,7 @@ use super::{
 
 /// Return true when one expression is a numeric scalar literal.
 pub fn expression_is_numeric_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize parenthesized wrappers first
@@ -31,7 +31,7 @@ pub fn expression_is_numeric_literal(
 
 /// Return one simple expression target from an assignment pattern.
 pub fn assign_pattern_target_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     mut assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     loop {
@@ -55,7 +55,7 @@ pub fn assign_pattern_target_expression(
 
 /// Return true when one assignment pattern contains one expression node.
 pub fn assign_pattern_contains_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -77,7 +77,7 @@ pub fn assign_pattern_contains_expression(
 
 /// Return true when one assignment pattern field contains one expression node.
 pub fn assign_pattern_field_contains_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -103,7 +103,7 @@ pub fn assign_pattern_field_contains_expression(
 
 /// Return one assignment target expression for assignment-like expressions.
 pub fn expression_assignment_target(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
@@ -172,7 +172,7 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
 
 /// Return one static import target specifier for import-like expressions.
 pub fn expression_import_target_specifier(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
 ) -> Option<StringId> {
     // match direct static module targets
@@ -193,7 +193,7 @@ pub fn expression_import_target_specifier(
 
 /// Return the expression id with parenthesized nodes unwrapped.
 pub fn expression_unwrap_parenthesized(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     mut expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
     loop {
@@ -206,7 +206,7 @@ pub fn expression_unwrap_parenthesized(
 
 /// Resolve the value expression for one DIR argument node.
 pub fn argument_expression_id(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let argument = tree.get(argument_id);
@@ -222,7 +222,7 @@ pub fn argument_expression_id(
 
 /// Return true when one generic argument list contains the target segment.
 fn generic_arguments_contain_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     target_segment: StringId,
 ) -> bool {
@@ -233,7 +233,7 @@ fn generic_arguments_contain_reference_segment(
 
 /// Return true when one argument list contains the target segment.
 fn arguments_contain_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     target_segment: StringId,
 ) -> bool {
@@ -246,7 +246,7 @@ fn arguments_contain_reference_segment(
 
 /// Return true when one path or generic argument list contains the target segment.
 fn path_or_generic_arguments_contain_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     path: &dir::Path,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     target_segment: StringId,
@@ -260,7 +260,7 @@ fn path_or_generic_arguments_contain_reference_segment(
 
 /// Return true when one type expression contains a reference ending in the target segment.
 pub fn type_expression_contains_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     target_segment: StringId,
 ) -> bool {
@@ -409,7 +409,7 @@ pub fn type_expression_contains_reference_segment(
 
 /// Return true when one function signature return type contains the target segment.
 pub fn function_signature_return_type_contains_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     signature: &dir::FunctionSignature,
     target_segment: StringId,
 ) -> bool {
@@ -422,7 +422,7 @@ pub fn function_signature_return_type_contains_reference_segment(
 
 /// Return the expression id with transparent wrappers unwrapped.
 pub fn expression_unwrap_transparent(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     mut expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
     loop {
@@ -454,7 +454,7 @@ pub fn expression_unwrap_transparent(
 
 /// Return the expression id with statement wrappers unwrapped.
 pub fn expression_unwrap_statement(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
     expression_unwrap_transparent(tree, expression_id)
@@ -462,7 +462,7 @@ pub fn expression_unwrap_statement(
 
 /// Return true when one binary expression is nested under the same operator.
 pub fn binary_expression_is_nested_same_operator(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
 ) -> bool {
@@ -493,7 +493,7 @@ pub fn binary_expression_is_nested_same_operator(
 
 /// Collect all members of one flattened binary operator chain.
 pub fn binary_expression_chain_members(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
     members: &mut Vec<dir::LocalNodeId<dir::Expression>>,
@@ -602,7 +602,7 @@ pub fn find_first_byte_between(source: &[u8], start: usize, end: usize, byte: u8
 }
 /// Return one discarded call-like value and its replacement expression span owner.
 pub fn expression_discarded_call_like_value(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     statement_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(
     dir::LocalNodeId<dir::Expression>,
@@ -664,7 +664,7 @@ pub fn expression_discarded_call_like_value(
 /// Return true when an expression is typed as `any` or references a declaration typed as `any`.
 pub fn expression_is_any_typed(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -714,7 +714,7 @@ pub fn expression_is_any_typed(
 /// in places where context can coerce the inferred type.
 pub fn expression_declared_or_inferred_type_id(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
@@ -734,7 +734,7 @@ pub fn expression_type_map<T>(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -761,7 +761,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -817,7 +817,7 @@ pub fn expression_type_or_call_return_type_map<T>(
 /// Return true when an expression evaluates to a Promise like value.
 pub fn expression_is_promise_like(
     module_id: ModuleId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     types: &dir::TypeTable,
     promise_symbol: dir::GlobalSymbolId,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -860,7 +860,7 @@ pub fn expression_is_promise_like(
 
 /// Return true when a declaration marks a symbol as `any`.
 fn declaration_marks_symbol_as_any(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
@@ -913,7 +913,7 @@ fn declaration_marks_symbol_as_any(
 
 /// Return true when a type expression is an explicit `any` literal.
 fn type_expression_is_explicit_any(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
     let type_expression = tree.get(type_expression_id);
@@ -994,7 +994,7 @@ pub fn is_binary_comparison_operator(operator: dir::BinaryOperator) -> bool {
 /// Literals are considered safe; references, calls, member access, index access,
 /// binary operations, and template expressions are considered potentially tainted.
 pub fn expression_is_potentially_tainted(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parentheses
@@ -1035,7 +1035,7 @@ pub fn expression_is_potentially_tainted(
 
 /// Return true when one generic argument contains a matching type-space reference segment.
 fn generic_argument_contains_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     generic_argument_id: dir::LocalNodeId<dir::GenericArgument>,
     target_segment: StringId,
 ) -> bool {
@@ -1054,7 +1054,7 @@ fn generic_argument_contains_reference_segment(
 
 /// Return true when one value expression contains a matching reference segment.
 fn expression_contains_reference_segment(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     target_segment: StringId,
 ) -> bool {

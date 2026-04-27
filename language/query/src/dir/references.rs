@@ -415,7 +415,7 @@ fn span_matches_target_name(
 fn member_receiver_matches_target(
     repository: &Repository,
     dir: DirQuery<'_>,
-    _dir_tree: &dir::NodeTree,
+    _dir_tree: &dir::Tree,
     receiver_expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
     _target_name: Option<&str>,
@@ -447,7 +447,7 @@ fn resolve_expression_target_symbol(
 
 /// Check whether an expression is used as the receiver of a member access.
 fn expression_is_member_receiver_expression(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
     let Some(parent) = dir_tree.get_parent(expression_id.id) else {
@@ -471,7 +471,7 @@ fn expression_is_member_receiver_expression(
 fn resolve_expression_reference_span(
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
     let span = get_node_tree_main_span(ast, dir.tree(), expression_id.into());

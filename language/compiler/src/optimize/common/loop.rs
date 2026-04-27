@@ -39,7 +39,7 @@ pub fn loop_guard_branch(
     header: mir::LocalNodeId<mir::Block>,
     in_loop: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<LoopGuardBranch> {
     // read the header terminator
     let header_block = tree.get(header);
@@ -111,7 +111,7 @@ pub fn loop_guard_branch(
 /// Return true when all instructions in a block are speculatable and read free.
 pub fn block_is_speculatable_no_reads(
     block: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // scan instructions in the block
@@ -139,7 +139,7 @@ pub fn loop_preheader(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // collect outside predecessors
     let mut outside_preds: Vec<_> = cfg
@@ -182,7 +182,7 @@ pub fn loop_preheader(
 pub fn control_instructions_for_latch(
     header: mir::LocalNodeId<mir::Block>,
     latch: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
@@ -244,7 +244,7 @@ pub fn control_instructions_for_latch(
 /// Collect loop memory effects across all loop blocks.
 pub fn collect_loop_effects(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
     policy: LoopEffectPolicy,
 ) -> Option<Vec<MemoryAccessEffect>> {
@@ -315,7 +315,7 @@ pub fn collect_loop_effects(
 pub fn clone_loop_blocks(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -330,7 +330,7 @@ pub fn clone_loop_blocks(
 pub fn clone_loop_blocks_with_instructions(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,
@@ -345,7 +345,7 @@ pub fn clone_loop_blocks_with_instructions(
 fn clone_loop_blocks_internal(
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> (
     HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     HashMap<mir::Value, mir::Value>,

@@ -140,7 +140,7 @@ fn equality_literal_for_binding(
 
 /// Return true when one expression is a simple literal pattern candidate.
 fn expression_is_simple_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

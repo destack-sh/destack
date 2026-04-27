@@ -7,9 +7,8 @@ use crate::tree::Precedence;
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
     Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap,
-    LocalNodeId, LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeTree, NodeType, Parameter,
-    Pattern, PatternField, Property, Statement, SwitchCase, TupleElement, TypeExpression,
-    TypeMember,
+    LocalNodeId, LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeType, Parameter, Pattern,
+    PatternField, Property, Statement, SwitchCase, Tree, TupleElement, TypeExpression, TypeMember,
 };
 
 /// The result type for direct JS printing.
@@ -27,7 +26,7 @@ pub struct PrintedScript {
 /// Print one root list through the direct minified printer.
 pub fn print_roots_minified(
     file_type: FileType,
-    tree: &NodeTree,
+    tree: &Tree,
     roots: &[LocalNodeIdAny],
     strings: &ImmutableStringPool,
 ) -> JsPrintResult<PrintedScript> {
@@ -39,7 +38,7 @@ pub fn print_roots_minified(
 /// Print one root list through the direct minified printer with one source span provider.
 pub fn print_roots_minified_with_source_map(
     file_type: FileType,
-    tree: &NodeTree,
+    tree: &Tree,
     roots: &[LocalNodeIdAny],
     strings: &ImmutableStringPool,
     source_map: &dyn JsSourceMap,
@@ -53,7 +52,7 @@ pub fn print_roots_minified_with_source_map(
 #[derive(Debug)]
 pub(crate) struct Printer<'a> {
     /// The lowered JS tree.
-    pub(crate) tree: &'a NodeTree,
+    pub(crate) tree: &'a Tree,
     /// The root nodes to print.
     pub(crate) roots: &'a [LocalNodeIdAny],
     /// The string pool.
@@ -110,7 +109,7 @@ impl<'a> Printer<'a> {
     /// Create one direct script printer.
     pub(crate) fn new(
         file_type: FileType,
-        tree: &'a NodeTree,
+        tree: &'a Tree,
         roots: &'a [LocalNodeIdAny],
         strings: &'a ImmutableStringPool,
         source_map: &'a dyn JsSourceMap,

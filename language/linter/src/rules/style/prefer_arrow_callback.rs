@@ -483,7 +483,7 @@ impl NodeVisitor for CallbackBodyUsageVisitor {
     /// Visit one expression in the callback body.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -531,7 +531,7 @@ impl NodeVisitor for CallbackBodyUsageVisitor {
 
 /// Return true when one expression is a single segment reference to the target name.
 fn expression_is_single_name_reference(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
     name: dir::StringId,
 ) -> bool {

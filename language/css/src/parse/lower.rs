@@ -7,14 +7,14 @@ use crate::{
     ImportLayer, ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList, KeyframesName,
     KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule, LocalName, LocalNodeId,
     MediaRule, MozDocumentRule, NamespacePrefix, NamespaceRule, NamespaceUrl,
-    NestedDeclarationsRule, NestingRule, Node, NodeSpanRegion, NodeSpanType, NodeTree,
-    NodeTreeImpl, NthOfSelector, NthSelector, NthSelectorKind, Number, PageMarginBox,
-    PageMarginRule, PagePseudoClass, PageRule, PageSelector, PageSelectorList, PropertyName,
-    PropertyRule, PropertySyntax, PropertySyntaxComponent, PropertySyntaxComponentKind,
-    PropertySyntaxMultiplier, PseudoArgument, PseudoClass, PseudoElement, Rule, ScopeRule,
-    Selector, SelectorComponent, SelectorList, SimpleSelector, StartingStyleRule, StyleRule,
-    Stylesheet, SupportsRule, Symbol, TimelineRangeName, TimelineRangePercentage, Token,
-    UnknownRule, VendorPrefix, ViewTransitionPartArgument, ViewTransitionRule, ViewportRule,
+    NestedDeclarationsRule, NestingRule, Node, NodeSpanRegion, NodeSpanType, NthOfSelector,
+    NthSelector, NthSelectorKind, Number, PageMarginBox, PageMarginRule, PagePseudoClass, PageRule,
+    PageSelector, PageSelectorList, PropertyName, PropertyRule, PropertySyntax,
+    PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier, PseudoArgument,
+    PseudoClass, PseudoElement, Rule, ScopeRule, Selector, SelectorComponent, SelectorList,
+    SimpleSelector, StartingStyleRule, StyleRule, Stylesheet, SupportsRule, Symbol,
+    TimelineRangeName, TimelineRangePercentage, Token, Tree, TreeImpl, UnknownRule, VendorPrefix,
+    ViewTransitionPartArgument, ViewTransitionRule, ViewportRule,
 };
 use destack_core::StringId;
 use destack_source::{File, Span};
@@ -29,7 +29,7 @@ pub(crate) struct Lowerer<'a> {
     /// The authored source text.
     source: &'a str,
     /// The output CSS tree.
-    tree: NodeTree,
+    tree: Tree,
     /// The next stable resource id.
     next_resource_id: u32,
 }
@@ -40,7 +40,7 @@ impl<'a> Lowerer<'a> {
         Self {
             file,
             source,
-            tree: NodeTree::new(),
+            tree: Tree::new(),
             next_resource_id: 0,
         }
     }
@@ -49,7 +49,7 @@ impl<'a> Lowerer<'a> {
     pub(crate) fn lower_stylesheet<'o>(
         mut self,
         stylesheet: lightning::LightningStylesheet<'a, 'o>,
-    ) -> (NodeTree, LocalNodeId<Stylesheet>) {
+    ) -> (Tree, LocalNodeId<Stylesheet>) {
         let root_span = Span::new(self.file.id, 0, self.source.len() as u32);
         let rules = stylesheet
             .rules
@@ -102,7 +102,7 @@ impl<'a> Lowerer<'a> {
     pub(crate) fn insert_inner<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.tree.insert(node, self.inner_span())
     }

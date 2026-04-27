@@ -1,7 +1,6 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression,
+    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
 };
 use destack_workspace::LintSeverity;
 
@@ -153,7 +152,7 @@ fn report_missing_generator_yield<T: ast::Node>(
 
 /// Return true when one generator body expression is an empty block.
 fn generator_body_is_empty(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let body_expression = tree.get(body_expression_id);
@@ -167,7 +166,7 @@ fn generator_body_is_empty(
 
 /// Return true when one generator body has one yield expression in its own scope.
 fn generator_body_has_yield(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let body_expression = tree.get(body_expression_id);
@@ -195,7 +194,7 @@ impl NodeVisitor for GeneratorYieldVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {

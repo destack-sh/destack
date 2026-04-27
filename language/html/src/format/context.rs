@@ -2,7 +2,7 @@ use destack_fir::format::{FormatContext, FormatOptions};
 use destack_fir::print::PrintOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{Doctype, DoctypeQuoteStyle, Element, NodeTree, SelfClosingStyle, StringId};
+use crate::{Doctype, DoctypeQuoteStyle, Element, SelfClosingStyle, StringId, Tree};
 
 /// HTML format options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,14 +114,14 @@ impl HtmlFormatContext {
     }
 
     /// Render one authored doctype keyword.
-    pub(crate) fn render_doctype_keyword(&self, tree: &NodeTree, doctype: &Doctype) -> String {
+    pub(crate) fn render_doctype_keyword(&self, tree: &Tree, doctype: &Doctype) -> String {
         tree.string(doctype.doctype_keyword).to_string()
     }
 
     /// Render one authored doctype kind keyword.
     pub(crate) fn render_doctype_kind_keyword(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         doctype: &Doctype,
         fallback: &str,
     ) -> String {

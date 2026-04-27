@@ -3,8 +3,8 @@ use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     Argument, BindingCategory, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, NodeTree, NodeType, Parameter, ProvenanceReason, SymbolBinding,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeTable,
+    LocalScopeMark, ModuleBinding, NodeType, Parameter, ProvenanceReason, SymbolBinding,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, Tree, Type, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -32,7 +32,7 @@ impl Compiler {
         symbol_space: SymbolSpace,
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
@@ -363,7 +363,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         space_order: SymbolSpaceOrder,

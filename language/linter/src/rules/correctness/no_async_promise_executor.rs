@@ -199,7 +199,7 @@ impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {
     /// Visit an expression node.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

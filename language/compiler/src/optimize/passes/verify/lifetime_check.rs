@@ -164,7 +164,7 @@ impl FunctionPass for LifetimeCheck {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // resolve the declared return region
@@ -307,7 +307,7 @@ impl FunctionPass for LifetimeCheck {
     }
 }
 
-fn build_entry_state(function: &mir::Function, tree: &mir::NodeTree) -> BorrowOriginMap {
+fn build_entry_state(function: &mir::Function, tree: &mir::Tree) -> BorrowOriginMap {
     // seed parameter origins for borrowed parameters
     let mut state = BorrowOriginMap::default();
     for (index, param) in function.parameters.iter().enumerate() {
@@ -329,7 +329,7 @@ fn build_entry_state(function: &mir::Function, tree: &mir::NodeTree) -> BorrowOr
 }
 
 fn field_type_for_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     aggregate_type: impl Into<mir::TypeReference>,
     index: u32,
 ) -> Option<mir::LocalNodeId<Type>> {
@@ -348,7 +348,7 @@ fn field_type_for_value(
 }
 
 fn element_type_for_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     array_type: impl Into<mir::TypeReference>,
 ) -> Option<mir::LocalNodeId<Type>> {
     // resolve element types for arrays
@@ -363,7 +363,7 @@ fn element_type_for_value(
 
 fn value_contains_borrowed_refs(
     value: impl Into<mir::ValueReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     types: &ValueTypeMap,
 ) -> bool {
     // resolve the value type
@@ -376,7 +376,7 @@ fn value_contains_borrowed_refs(
 
 fn local_contains_borrowed_refs(
     local: impl Into<mir::LocalReference>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     types: &ValueTypeMap,
 ) -> bool {
     // resolve the local type
@@ -391,7 +391,7 @@ fn assign_origin_if_borrowed(
     state: &mut BorrowOriginMap,
     destination: impl Into<mir::ValueReference>,
     origins: BorrowOriginSet,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     types: &ValueTypeMap,
 ) {
     let destination = destination.into();
@@ -408,7 +408,7 @@ fn apply_instruction_effects(
     state: &mut BorrowOriginMap,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     types: &ValueTypeMap,
     lifetime_analysis: &LifetimeAnalysis,
     call_targets: &CallTargetAnalysis,
@@ -1165,7 +1165,7 @@ fn origins_for_targets(
 
 fn origins_for_signature(
     signature_type: mir::TypeReference,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     arguments: &[mir::ValueReference],
     state: &BorrowOriginMap,
     return_contains_borrow: bool,

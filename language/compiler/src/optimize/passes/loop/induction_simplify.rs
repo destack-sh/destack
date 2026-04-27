@@ -58,7 +58,7 @@ impl FunctionPass for InductionVariableSimplify {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -130,7 +130,7 @@ struct ParamSignature {
 /// Run induction variable simplification for a function.
 fn run_induction_simplify(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     loops: &LoopAnalysis,
     scev: &ScalarEvolution,
     cfg: &ControlFlowGraph,
@@ -441,7 +441,7 @@ fn scev_constant(scev: &Scev) -> Option<&mir::Constant> {
 /// Insert an offset adjustment at a loop header.
 fn insert_offset_value(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     header: mir::LocalNodeId<mir::Block>,
     base_value: mir::Value,
     offset: mir::Constant,
@@ -689,7 +689,7 @@ fn filter_indices(
 fn param_signature(
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     cfg: &ControlFlowGraph,
     forwarding: &BlockParamForwarding,
 ) -> Option<ParamSignature> {

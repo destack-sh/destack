@@ -43,7 +43,7 @@ impl FunctionPass for DeadCodeEliminate {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // build alias analysis for local dead store elimination
@@ -73,7 +73,7 @@ impl FunctionPass for DeadCodeEliminate {
 /// Core dead code elimination logic (shared by both pass implementations).
 fn run_dead_code_elimination(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // drop dead stores before liveness
@@ -185,7 +185,7 @@ fn run_dead_code_elimination(
 /// Remove dead stores and return true when changes are made.
 fn remove_dead_stores(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // collect locals that are read anywhere
@@ -266,7 +266,7 @@ fn local_set_overwritten(
     instruction_ids: &[mir::LocalNodeId<mir::Instruction>],
     start: usize,
     local: mir::LocalNodeId<mir::Local>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> bool {
     // scan later instructions in the block
     for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
@@ -295,7 +295,7 @@ fn store_overwritten_in_block(
     instruction_ids: &[mir::LocalNodeId<mir::Instruction>],
     start: usize,
     pointer: mir::Value,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     alias: &AliasAnalysis,
 ) -> bool {
     // build a memory location for the stored pointer

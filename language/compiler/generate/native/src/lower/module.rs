@@ -70,7 +70,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower an entire MIR module.
-    pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
+    pub(crate) fn lower_module(&mut self, tree: &mir::Tree) -> CodegenCraneliftResult<()> {
         // phase 1: declare and define all globals
         self.lower_globals(tree)?;
 
@@ -93,7 +93,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Declare all functions in the module (first pass).
-    fn declare_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
+    fn declare_functions(&mut self, tree: &mir::Tree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -114,7 +114,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower all globals to Cranelift data sections.
-    fn lower_globals(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
+    fn lower_globals(&mut self, tree: &mir::Tree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (global_id, global) in tree.iter_nodes::<mir::Global>() {
@@ -147,7 +147,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Lower a GlobalInitializer to raw bytes.
     fn lower_initializer(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         init: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
         pointer_bytes: u8,
@@ -263,7 +263,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower / define all function bodies (third pass after declaration).
-    fn lower_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
+    fn lower_functions(&mut self, tree: &mir::Tree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -307,7 +307,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a Cranelift signature for a MIR function.
     fn create_signature(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         function: &mir::Function,
         pointer_bytes: u8,
     ) -> Result<cir::Signature, CodegenCraneliftError> {

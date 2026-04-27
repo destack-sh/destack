@@ -12,7 +12,7 @@ pub struct MirStats {
 }
 
 /// Count MIR size metrics for all functions in a tree.
-pub fn count_mir_size(tree: &mir::NodeTree) -> MirStats {
+pub fn count_mir_size(tree: &mir::Tree) -> MirStats {
     let mut metrics = MirStats::default();
 
     for (_, function) in tree.iter_nodes::<mir::Function>() {

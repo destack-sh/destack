@@ -40,19 +40,13 @@ type String {
     }
 
     /// Collect class dispatch tables from a MIR tree.
-    pub(crate) fn class_dispatch_tables<'a>(
-        &self,
-        tree: &'a mir::NodeTree,
-    ) -> Vec<&'a mir::Vtable> {
+    pub(crate) fn class_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::Vtable> {
         // collect class vtables
         tree.metadata.dispatch.vtables.iter().collect()
     }
 
     /// Collect interface dispatch tables from a MIR tree.
-    pub(crate) fn interface_dispatch_tables<'a>(
-        &self,
-        tree: &'a mir::NodeTree,
-    ) -> Vec<&'a mir::Itab> {
+    pub(crate) fn interface_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::Itab> {
         // collect interface itabs
         tree.metadata.dispatch.itabs.iter().collect()
     }
@@ -60,7 +54,7 @@ type String {
     /// Resolve an interface dispatch table for a concrete and interface object pair.
     pub(crate) fn interface_dispatch_table<'a>(
         &self,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         strings: &ImmutableStringPool,
         concrete_name: &str,
         interface_name: &str,
@@ -81,10 +75,7 @@ type String {
     }
 
     /// Assert that a tree has exactly one interface dispatch table.
-    pub(crate) fn expect_single_interface_table<'a>(
-        &self,
-        tree: &'a mir::NodeTree,
-    ) -> &'a mir::Itab {
+    pub(crate) fn expect_single_interface_table<'a>(&self, tree: &'a mir::Tree) -> &'a mir::Itab {
         // collect interface tables
         let tables = self.interface_dispatch_tables(tree);
         assert_eq!(tables.len(), 1);
@@ -117,7 +108,7 @@ type String {
     pub(crate) fn vtable_method_names(
         &self,
         table: &mir::Vtable,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
     ) -> Vec<String> {
         table
@@ -173,7 +164,7 @@ type String {
     pub(crate) fn interface_method_target_name(
         &self,
         table: &mir::Itab,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         method_name: &str,
     ) -> Option<String> {
@@ -201,7 +192,7 @@ type String {
     pub(crate) fn expect_interface_method_target_name(
         &self,
         table: &mir::Itab,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         method_name: &str,
     ) -> String {
@@ -212,7 +203,7 @@ type String {
     /// Find a type with a matching type metadata name.
     pub(crate) fn find_type_by_metadata_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -231,7 +222,7 @@ type String {
     /// Find a type with a matching type metadata name or panic.
     pub(crate) fn type_by_metadata_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> mir::LocalNodeId<mir::Type> {
@@ -242,7 +233,7 @@ type String {
     /// Resolve lineage metadata for a type id or panic.
     pub(crate) fn type_lineage<'a>(
         &self,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::TypeLineage {
         tree.metadata
@@ -254,7 +245,7 @@ type String {
     /// Resolve a parent type from lineage metadata or panic.
     pub(crate) fn type_parent(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
         let lineage = self.type_lineage(tree, type_id);
@@ -266,7 +257,7 @@ type String {
     /// Resolve a vtable id for a type or panic.
     pub(crate) fn type_vtable_id(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> mir::VtableId {
         tree.metadata
@@ -278,7 +269,7 @@ type String {
     /// Resolve union layout metadata for a type id or panic.
     pub(crate) fn union_layout<'a>(
         &self,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::UnionLayout {
         tree.metadata
@@ -329,7 +320,7 @@ type String {
     /// Resolve the field type id for a struct field name.
     pub(crate) fn struct_field_type_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -357,7 +348,7 @@ type String {
     /// Resolve the field type id for a struct field name or panic.
     pub(crate) fn expect_struct_field_type_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -369,7 +360,7 @@ type String {
     /// Resolve the byte offset for a struct field name.
     pub(crate) fn struct_field_offset_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -400,7 +391,7 @@ type String {
     /// Resolve the byte offset for a struct field name or panic.
     pub(crate) fn expect_struct_field_offset_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -412,7 +403,7 @@ type String {
     /// Resolve one struct field by field name.
     pub(crate) fn struct_field_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -432,7 +423,7 @@ type String {
     /// Resolve one struct field by field name or panic.
     pub(crate) fn expect_struct_field_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
@@ -444,7 +435,7 @@ type String {
     /// Resolve a field name for a field id or panic.
     pub(crate) fn field_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         field_id: mir::LocalNodeId<mir::Field>,
     ) -> String {
@@ -457,7 +448,7 @@ type String {
     /// Resolve a MIR function id by name or panic.
     pub(crate) fn function_id_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> mir::LocalNodeId<mir::Function> {
@@ -468,7 +459,7 @@ type String {
     /// Resolve a MIR function by name or panic.
     pub(crate) fn function_by_name<'a>(
         &self,
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> &'a mir::Function {
@@ -479,7 +470,7 @@ type String {
     /// Find a MIR function id by name.
     pub(crate) fn find_function_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
@@ -493,7 +484,7 @@ type String {
     #[allow(dead_code)]
     pub(crate) fn function_parameter_type_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         name: &str,
         index: usize,
@@ -512,7 +503,7 @@ type String {
     /// Find the first interface dispatch call in a function body.
     pub(crate) fn find_interface_call_info(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<InterfaceCall> {
         // scan call instructions for interface dispatch
@@ -542,7 +533,7 @@ type String {
     /// Find the first virtual dispatch call in a function body.
     pub(crate) fn find_virtual_call_info(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<VirtualCall> {
         // scan call instructions for virtual dispatch
@@ -572,7 +563,7 @@ type String {
     /// Find interface dispatch calls for a function name.
     pub(crate) fn find_interface_call_info_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         function_name: &str,
     ) -> Option<InterfaceCall> {
@@ -586,7 +577,7 @@ type String {
     /// Find interface dispatch calls for a function name or panic.
     pub(crate) fn interface_call_info_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         function_name: &str,
     ) -> InterfaceCall {
@@ -597,7 +588,7 @@ type String {
     /// Find virtual dispatch calls for a function name.
     pub(crate) fn find_virtual_call_info_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         function_name: &str,
     ) -> Option<VirtualCall> {
@@ -609,7 +600,7 @@ type String {
     /// Find virtual dispatch calls for a function name or panic.
     pub(crate) fn virtual_call_info_by_name(
         &self,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         strings: &ImmutableStringPool,
         function_name: &str,
     ) -> VirtualCall {

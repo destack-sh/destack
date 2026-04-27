@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField, Expression,
-    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeTree,
-    NodeTreeImpl, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField,
-    Property, TupleElement, TypeExpression, TypeMember, WhereClause, walk_any,
+    GenericArgument, GenericParameter, LocalNodeId, MatchCase, Member, Node, NodeType, NodeVisitor,
+    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, Tree, TreeImpl, TupleElement,
+    TypeExpression, TypeMember, WhereClause, walk_any,
 };
 
-/// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
+/// The NodeParentIndex is a side index of parent nodes into the AST Tree.
 /// (We maintain this separately since it's more convenient to build bottom up during parsing;
 ///  having bottom-up ids also makes it simpler to get the "innermost" or "outermost" node unambiguously.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,8 +32,8 @@ impl NodeParentIndex {
         }
     }
 
-    /// Create a new NodeParentIndex from a NodeTree.
-    pub fn from_tree(tree: &NodeTree) -> Self {
+    /// Create a new NodeParentIndex from a Tree.
+    pub fn from_tree(tree: &Tree) -> Self {
         // build dense parent lookup directly: no hash map and no captured child list
         let node_count = tree.node_index_by_node_id.len();
         let mut visitor = ParentIndexBuilderVisitor::new(node_count);
@@ -48,7 +48,7 @@ impl NodeParentIndex {
     }
 
     /// Create a new NodeParentIndex from reachable expression roots.
-    pub fn from_expression_roots(tree: &NodeTree, roots: &[LocalNodeId<Expression>]) -> Self {
+    pub fn from_expression_roots(tree: &Tree, roots: &[LocalNodeId<Expression>]) -> Self {
         let node_count = tree.node_index_by_node_id.len();
         let mut reachable = ReachableNodeVisitor::new(node_count);
 
@@ -101,7 +101,7 @@ impl NodeParentIndex {
     pub fn get_ancestors<T>(&self, node_id: LocalNodeId<T>) -> Vec<u32>
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
+        Tree: TreeImpl<T>,
     {
         self.walk_parents_by_id(node_id.id)
     }
@@ -151,7 +151,7 @@ impl NodeVisitor for ReachableNodeVisitor {
     }
 
     #[inline]
-    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
         if self.seen[id as usize] {
             return;
         }
@@ -200,19 +200,19 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
         self.record_parent_for(id);
     }
 
     #[inline]
-    fn visit_block(&mut self, _tree: &NodeTree, id: LocalNodeId<Block>, _block: &Block) {
+    fn visit_block(&mut self, _tree: &Tree, id: LocalNodeId<Block>, _block: &Block) {
         self.record_parent_for(id.id);
     }
 
     #[inline]
     fn visit_expression(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<Expression>,
         _expression: &Expression,
     ) {
@@ -222,7 +222,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_declaration(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<Declaration>,
         _declaration: &Declaration,
     ) {
@@ -230,19 +230,14 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_property(
-        &mut self,
-        _tree: &NodeTree,
-        id: LocalNodeId<Property>,
-        _property: &Property,
-    ) {
+    fn visit_property(&mut self, _tree: &Tree, id: LocalNodeId<Property>, _property: &Property) {
         self.record_parent_for(id.id);
     }
 
     #[inline]
     fn visit_type_member(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<TypeMember>,
         _type_member: &TypeMember,
     ) {
@@ -250,14 +245,14 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_member(&mut self, _tree: &NodeTree, id: LocalNodeId<Member>, _member: &Member) {
+    fn visit_member(&mut self, _tree: &Tree, id: LocalNodeId<Member>, _member: &Member) {
         self.record_parent_for(id.id);
     }
 
     #[inline]
     fn visit_enum_field(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<EnumField>,
         _enum_field: &EnumField,
     ) {
@@ -267,7 +262,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_where_clause(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<WhereClause>,
         _where_clause: &WhereClause,
     ) {
@@ -277,7 +272,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_dependency_item(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<DependencyItem>,
         _dependency_item: &DependencyItem,
     ) {
@@ -287,7 +282,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_generic_parameter(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<GenericParameter>,
         _generic_parameter: &GenericParameter,
     ) {
@@ -296,7 +291,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
 
     fn visit_parameter(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<Parameter>,
         _parameter: &Parameter,
     ) {
@@ -304,19 +299,14 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_argument(
-        &mut self,
-        _tree: &NodeTree,
-        id: LocalNodeId<Argument>,
-        _argument: &Argument,
-    ) {
+    fn visit_argument(&mut self, _tree: &Tree, id: LocalNodeId<Argument>, _argument: &Argument) {
         self.record_parent_for(id.id);
     }
 
     #[inline]
     fn visit_generic_argument(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<GenericArgument>,
         _generic_argument: &GenericArgument,
     ) {
@@ -326,7 +316,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_tuple_element(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<TupleElement>,
         _tuple_element: &TupleElement,
     ) {
@@ -336,7 +326,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_match_case(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<MatchCase>,
         _match_case: &MatchCase,
     ) {
@@ -346,7 +336,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_declarator(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<Declarator>,
         _declarator: &Declarator,
     ) {
@@ -354,14 +344,14 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     }
 
     #[inline]
-    fn visit_pattern(&mut self, _tree: &NodeTree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
+    fn visit_pattern(&mut self, _tree: &Tree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
         self.record_parent_for(id.id);
     }
 
     #[inline]
     fn visit_pattern_field(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<PatternField>,
         _pattern_field: &PatternField,
     ) {
@@ -371,7 +361,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_decorator(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<Decorator>,
         _decorator: &Decorator,
     ) {
@@ -381,7 +371,7 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
     #[inline]
     fn visit_type_expression(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &Tree,
         id: LocalNodeId<TypeExpression>,
         _type_expression: &TypeExpression,
     ) {

@@ -6,7 +6,7 @@ use crate::{LinkError, LinkResult};
 use destack_artifact::{ScriptArtifact, ScriptDependencyTarget};
 use destack_codegen_js::{
     DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, LocalNodeIdAny,
-    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement,
+    Tree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement,
     walk_expression, walk_root,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
@@ -50,7 +50,7 @@ impl NodeVisitor for DynamicImportCallCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {

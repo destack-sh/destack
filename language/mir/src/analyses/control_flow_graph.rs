@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Block, BlockReference, Function, LocalNodeId, NodeTree};
+use crate::{Block, BlockReference, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub struct ControlFlowGraph {
 
 impl ControlFlowGraph {
     /// Build the control flow graph for one function.
-    pub fn build(function: &Function, tree: &NodeTree) -> Self {
+    pub fn build(function: &Function, tree: &Tree) -> Self {
         let mut predecessors = HashMap::new();
 
         // initialize predecessor lists

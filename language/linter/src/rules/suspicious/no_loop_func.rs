@@ -169,7 +169,7 @@ impl NodeVisitor for NoLoopFuncVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -216,7 +216,7 @@ struct CapturedMutableSymbolCollector<'a> {
     /// The current module id.
     module_id: destack_source::ModuleId,
     /// The DIR tree.
-    tree: &'a dir::NodeTree,
+    tree: &'a dir::Tree,
     /// The symbol table.
     symbols: &'a dir::SymbolTable,
     /// The function scope id for local ownership checks.
@@ -233,7 +233,7 @@ impl<'a> CapturedMutableSymbolCollector<'a> {
     /// Build a collector for one function body.
     fn new(
         module_id: destack_source::ModuleId,
-        tree: &'a dir::NodeTree,
+        tree: &'a dir::Tree,
         symbols: &'a dir::SymbolTable,
         function_scope_id: dir::LocalScopeId,
         active_loop_scopes: &'a [dir::LocalScopeId],
@@ -306,7 +306,7 @@ impl NodeVisitor for CapturedMutableSymbolCollector<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -348,7 +348,7 @@ fn scope_is_descendant_of(
 
 /// Return true when one declaration expression is immediately invoked.
 fn expression_is_immediately_invoked(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_expression_id = expression_id;

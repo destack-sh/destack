@@ -23,7 +23,7 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
 }
 
 /// Return the callable box byte layout.
-fn callable_box_layout(tree: &mir::NodeTree) -> (usize, usize, usize) {
+fn callable_box_layout(tree: &mir::Tree) -> (usize, usize, usize) {
     let pointer_bytes = tree.pointer_bytes() as usize;
     let function_offset = 0usize;
     let environment_offset = align_offset(pointer_bytes, pointer_bytes);
@@ -34,7 +34,7 @@ fn callable_box_layout(tree: &mir::NodeTree) -> (usize, usize, usize) {
 
 /// Return the environment type for one bound function.
 fn callable_environment_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
     let function = tree.get(function_id);
@@ -233,7 +233,7 @@ pub(super) fn check_array_index(
 
 /// Resolve the byte size for one raw pointee type.
 pub(crate) fn raw_type_size(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<usize, Error> {
     let ty = repr_type(tree, ty);
@@ -306,7 +306,7 @@ fn write_raw_bytes(
 
 /// Decode one raw byte range into a VM value.
 pub(crate) fn decode_raw_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Word, Error> {
@@ -507,7 +507,7 @@ where
 
 /// Encode one VM value into raw bytes for the given type.
 pub(crate) fn encode_raw_value(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<Vec<u8>, Error> {

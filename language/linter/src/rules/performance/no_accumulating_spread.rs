@@ -106,7 +106,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
     /// Check if a call is a reduce on an array and enter reduce context.
     fn check_reduce_call(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // match method call pattern
@@ -328,7 +328,7 @@ impl NodeVisitor for NoAccumulatingSpreadVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

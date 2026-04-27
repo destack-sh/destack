@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree, NodeType, Parameter,
+    Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeType, Parameter, Tree,
 };
 use destack_workspace::{Repository, Revision};
 
@@ -50,7 +50,7 @@ pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parame
 /// Collect parameter display names from parameter nodes.
 pub(crate) fn parameter_display_names(
     repository: &Repository,
-    tree: &NodeTree,
+    tree: &Tree,
     parameters: &[LocalNodeId<Parameter>],
 ) -> Vec<String> {
     // collect parameter display names in declared order
@@ -310,7 +310,7 @@ fn collect_expected_type_symbols_inner(
 
 /// Resolve the parameter node that should guide one argument index.
 fn resolve_expected_parameter_id(
-    dir_tree: &NodeTree,
+    dir_tree: &Tree,
     parameters: &[LocalNodeId<Parameter>],
     parameter_index: usize,
 ) -> Option<LocalNodeId<Parameter>> {

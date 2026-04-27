@@ -72,7 +72,7 @@ declare_pass! {
 
 impl ModulePass for ArgumentSpecialize {
     /// Run argument specialization for the module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         // run the specialization pass
         let changed = run_argument_specialize(tree, ctx);
 
@@ -147,7 +147,7 @@ enum ConstantKey {
 }
 
 /// Run argument specialization over the module.
-fn run_argument_specialize(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
+fn run_argument_specialize(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
     // collect callsite information
     let call_data = collect_call_data(tree);
 
@@ -241,7 +241,7 @@ fn run_argument_specialize(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) 
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::NodeTree) -> CallData {
+fn collect_call_data(tree: &mir::Tree) -> CallData {
     // prepare the callsite data container
     let mut data = CallData::default();
 
@@ -295,7 +295,7 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
 
 /// Build constant propagation data for each defined function.
 fn build_constant_maps(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     type_context: crate::optimize::TypeContext,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the constants map
@@ -319,7 +319,7 @@ fn build_constant_maps(
 fn callsite_constants(
     callsite: &DirectCallSite,
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> Option<Vec<Option<mir::Constant>>> {
     // read the caller constant propagation state
@@ -393,7 +393,7 @@ fn specialize_callee(
     spec_index: usize,
     constants: &[Option<mir::Constant>],
     removal_indices: &[usize],
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> mir::LocalNodeId<mir::Function> {
     // build the specialized function name
@@ -430,7 +430,7 @@ fn specialized_suffix(spec_index: usize) -> String {
 fn clone_function(
     function_id: mir::LocalNodeId<mir::Function>,
     name: destack_core::StringId,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> mir::LocalNodeId<mir::Function> {
     // read the original function
     let original = tree.get(function_id).clone();
@@ -560,7 +560,7 @@ fn removable_constant_parameters(
 fn apply_parameter_removals(
     function_id: mir::LocalNodeId<mir::Function>,
     remap: &ParameterRemap,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) {
     // update function parameters and attributes
     let entry_id = {
@@ -584,7 +584,7 @@ fn update_callsite(
     callsite: &DirectCallSite,
     new_callee: mir::LocalNodeId<mir::Function>,
     removal_indices: &[usize],
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> bool {
     // prepare removal remapping data
     let remap = ParameterRemap::new(removal_indices);

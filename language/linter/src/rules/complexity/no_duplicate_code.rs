@@ -376,7 +376,7 @@ fn collect_prefilter_groups(candidates: &[BlockCandidate]) -> Vec<Vec<usize>> {
 
 /// Build a coarse prefilter key for a block.
 fn build_block_prefilter_key(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> BlockPrefilterKey {
     let block = tree.get(block_id);
@@ -877,7 +877,7 @@ fn report_group_diagnostics(
 
 /// Return coarse description for the given block.
 fn classify_block_kind(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> &'static str {
@@ -912,7 +912,7 @@ fn classify_block_kind(
 
 /// Return coarse description for a block expression owner.
 fn classify_block_expression_owner(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     parents: &ast::NodeParentIndex,
     block_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> &'static str {
@@ -1022,7 +1022,7 @@ struct BlockSignatures {
 /// Build exact and near signatures for a block.
 fn build_block_signatures(
     strings: &destack_core::StringPool,
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     block_id: ast::LocalNodeId<ast::Block>,
     include_near: bool,
     include_near_token_hashes: bool,
@@ -1279,13 +1279,13 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, _tree: &ast::NodeTree, ty: ast::NodeType, _id: u32) {
+    fn visit_any(&mut self, _tree: &ast::Tree, ty: ast::NodeType, _id: u32) {
         self.push_debug("node_type", ty);
     }
 
     fn visit_block(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Block>,
         block: &ast::Block,
     ) {
@@ -1295,7 +1295,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Expression>,
         expression: &ast::Expression,
     ) {
@@ -1490,7 +1490,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_declaration(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Declaration>,
         declaration: &ast::Declaration,
     ) {
@@ -1524,7 +1524,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_property(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Property>,
         property: &ast::Property,
     ) {
@@ -1550,7 +1550,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_member(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Member>,
         member: &ast::Member,
     ) {
@@ -1584,7 +1584,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_where_clause(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::WhereClause>,
         where_clause: &ast::WhereClause,
     ) {
@@ -1594,7 +1594,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_dependency_item(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::DependencyItem>,
         dependency_item: &ast::DependencyItem,
     ) {
@@ -1632,7 +1632,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_parameter(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Parameter>,
         parameter: &ast::Parameter,
     ) {
@@ -1673,7 +1673,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_argument(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Argument>,
         argument: &ast::Argument,
     ) {
@@ -1701,7 +1701,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_pattern(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::Pattern>,
         pattern: &ast::Pattern,
     ) {
@@ -1724,7 +1724,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_pattern_field(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::PatternField>,
         pattern_field: &ast::PatternField,
     ) {
@@ -1750,7 +1750,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
 
     fn visit_match_case(
         &mut self,
-        tree: &ast::NodeTree,
+        tree: &ast::Tree,
         id: ast::LocalNodeId<ast::MatchCase>,
         match_case: &ast::MatchCase,
     ) {

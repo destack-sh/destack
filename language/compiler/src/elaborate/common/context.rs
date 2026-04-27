@@ -38,7 +38,7 @@ pub(crate) struct ElaborateState<'a> {
     /// The active phase identity.
     pub ctx: ElaborateContext<'a>,
     /// The local DIR tree.
-    pub tree: &'a mut dir::NodeTree,
+    pub tree: &'a mut dir::Tree,
     /// The local symbol table.
     pub symbols: &'a mut dir::SymbolTable,
     /// The local type table.
@@ -49,7 +49,7 @@ impl<'a> ElaborateState<'a> {
     /// Construct mutable elaborate state.
     pub(crate) fn new(
         ctx: ElaborateContext<'a>,
-        tree: &'a mut dir::NodeTree,
+        tree: &'a mut dir::Tree,
         symbols: &'a mut dir::SymbolTable,
         types: &'a mut dir::TypeTable,
     ) -> Self {

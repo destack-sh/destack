@@ -51,7 +51,7 @@ declare_pass! {
 
 impl ModulePass for Inline {
     /// Run the inline pass over a module.
-    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
         let changed = run_inline(tree, ctx);
 
         // report analysis preservation based on whether changes occurred
@@ -144,7 +144,7 @@ const INLINE_COST_BLOCK: u64 = 3;
 const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 
 /// Inline pass main entry.
-fn run_inline(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
+fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
     // build analysis summaries for inlining
     let analyses = ModuleAnalyses::new(tree);
     let scc_map = analyses.get::<CallGraphScc>();
@@ -296,7 +296,7 @@ struct InlineCandidate {
 fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     scc_map: &CallGraphScc,
     profile: Option<&mir::ProfileTable>,
     hotness_policy: &CallsiteHotnessPolicy,
@@ -367,7 +367,7 @@ fn find_inline_site(
 // allow many arguments to keep the inline heuristics explicit
 #[allow(clippy::too_many_arguments)]
 fn inline_candidate(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
     scc_map: &CallGraphScc,
@@ -429,7 +429,7 @@ fn scale_inline_limit(limit: usize, scale_percent: u64) -> usize {
 // allow many arguments to keep the inline heuristics explicit
 #[allow(clippy::too_many_arguments)]
 fn inline_score(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
     scc_map: &CallGraphScc,
@@ -535,7 +535,7 @@ fn inline_score(
 /// Resolve a call instruction to a direct inline target.
 fn resolve_inline_target(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> Option<(
     mir::LocalNodeId<mir::Function>,
     Vec<mir::Value>,
@@ -570,7 +570,7 @@ fn resolve_inline_target(
 // allow many arguments to keep the inline heuristics explicit
 #[allow(clippy::too_many_arguments)]
 fn should_inline(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     caller_id: mir::LocalNodeId<mir::Function>,
     callee_id: mir::LocalNodeId<mir::Function>,
     scc_map: &CallGraphScc,
@@ -649,11 +649,7 @@ fn should_inline(
 }
 
 /// Inline a direct callsite into the caller.
-fn inline_callsite(
-    caller: &mut mir::Function,
-    tree: &mut mir::NodeTree,
-    site: &InlineSite,
-) -> bool {
+fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &InlineSite) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
     let Some(entry_block) = callee.entry else {
@@ -768,7 +764,7 @@ struct InlineSplit {
 /// Clone locals from the callee into the caller.
 fn clone_locals(
     caller: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     callee: &mir::Function,
 ) -> HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>> {
     // allocate new locals in the caller
@@ -786,7 +782,7 @@ fn clone_locals(
 /// Clone callee blocks and their value ids into the caller.
 fn clone_callee_blocks(
     caller: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     callee: &mir::Function,
     argument_map: &HashMap<mir::Value, mir::Value>,
 ) -> (
@@ -853,7 +849,7 @@ fn clone_callee_blocks(
 #[allow(clippy::too_many_arguments)]
 fn split_block_for_inline(
     caller: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     call_index: usize,
     call_instruction_id: mir::LocalNodeId<mir::Instruction>,
@@ -934,7 +930,7 @@ fn split_block_for_inline(
 
 /// Substitute a value inside a single block.
 fn substitute_value_in_function(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     function: &mir::Function,
     from: mir::Value,
     to: mir::Value,
@@ -963,7 +959,7 @@ fn substitute_value_in_function(
 
 /// Remap values and locals in inlined blocks.
 fn remap_inline_blocks(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     callee: &mir::Function,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -1036,7 +1032,7 @@ fn remap_inline_blocks(
 
 /// Rewrite return terminators in inlined blocks to jump to the continuation.
 fn rewrite_inlined_returns(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     continuation: mir::LocalNodeId<mir::Block>,
     expects_value: bool,
@@ -1069,7 +1065,7 @@ fn rewrite_inlined_returns(
 }
 
 /// Check whether a function contains tail call terminators.
-fn has_tail_calls(tree: &mir::NodeTree, function: &mir::Function) -> bool {
+fn has_tail_calls(tree: &mir::Tree, function: &mir::Function) -> bool {
     // scan terminators for tail call forms
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
@@ -1124,7 +1120,7 @@ struct FunctionCost {
 }
 
 /// Compute the cost summary for a single function.
-fn function_cost_for(tree: &mir::NodeTree, function: &mir::Function) -> FunctionCost {
+fn function_cost_for(tree: &mir::Tree, function: &mir::Function) -> FunctionCost {
     // count blocks, instructions, and callsites
     let mut cost = FunctionCost {
         blocks: function.blocks.len(),
@@ -1235,7 +1231,7 @@ fn inline_benefit(
     hotness: CallsiteHotness,
     arguments: &[mir::Value],
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     callee_cost: &FunctionCost,
     entry_count: u64,
     block_count: u64,
@@ -1298,7 +1294,7 @@ fn inline_benefit(
 
 /// Compute the inline budget for a module.
 fn inline_budget_for_module(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     profile: Option<&mir::ProfileTable>,
     policy: &CallsiteHotnessPolicy,
     inline_budget_scale_percent: u64,
@@ -1336,7 +1332,7 @@ fn inline_budget_for_module(
 
 /// Compute inline budgets per SCC.
 fn inline_scc_budgets(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     scc_map: &CallGraphScc,
     profile: Option<&mir::ProfileTable>,
     policy: &CallsiteHotnessPolicy,
@@ -1384,7 +1380,7 @@ fn inline_scc_budgets(
 }
 
 /// Compute the cost for a single instruction.
-fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64 {
+fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
     match instruction {
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");

@@ -95,7 +95,7 @@ impl LoopAnalysis {
     /// Build loop analysis from dominator information.
     fn build(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         domtree: &DominatorTree,
     ) -> Self {
@@ -131,7 +131,7 @@ impl LoopAnalysis {
     /// Find all back edges grouped by their target (header).
     fn find_back_edges(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         domtree: &DominatorTree,
     ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
         let mut back_edges: HashMap<
@@ -165,7 +165,7 @@ impl LoopAnalysis {
             mir::LocalNodeId<mir::Block>,
             Vec<mir::LocalNodeId<mir::Block>>,
         >,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         cfg: &ControlFlowGraph,
         domtree: &DominatorTree,
     ) -> (Vec<Loop>, HashMap<mir::LocalNodeId<mir::Block>, usize>) {
@@ -240,7 +240,7 @@ impl LoopAnalysis {
     /// Find exiting blocks and exit blocks for a loop.
     fn compute_exits(
         body: &HashSet<mir::LocalNodeId<mir::Block>>,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
     ) -> (
         Vec<mir::LocalNodeId<mir::Block>>,
         Vec<mir::LocalNodeId<mir::Block>>,
@@ -409,7 +409,7 @@ impl Analysis for LoopAnalysis {
 impl FunctionAnalysis for LoopAnalysis {
     fn compute(
         function: &mir::Function,
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();

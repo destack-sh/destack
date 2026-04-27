@@ -55,7 +55,7 @@ pub fn format_member_hover(
     member: &dir::Member,
     member_id: dir::LocalNodeId<dir::Member>,
     module_id: ModuleId,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     types: &dir::TypeTable,
     container: Option<&str>,
 ) -> String {
@@ -249,7 +249,7 @@ fn format_method_hover(
     qualified_name: &str,
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,

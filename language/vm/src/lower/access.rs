@@ -117,7 +117,7 @@ pub(super) fn tensor_element_access(
 
 /// Resolve the pointer class for one tensor value type.
 pub(super) fn tensor_view_pointer_class(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<PointerClass> {
     match tree.get(repr_type(tree, ty)) {
@@ -141,7 +141,7 @@ fn layout_is_scalar(
 
 /// Resolve the tensor element type for one tensor value or reference type.
 pub(super) fn tensor_element_type_for_view_type(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     let ty = repr_type(tree, ty);
@@ -153,7 +153,7 @@ pub(super) fn tensor_element_type_for_view_type(
 }
 
 /// Resolve the field count for a struct or tuple representation.
-pub(super) fn field_count_from_repr(tree: &mir::NodeTree, repr: ValueRepr) -> Option<u32> {
+pub(super) fn field_count_from_repr(tree: &mir::Tree, repr: ValueRepr) -> Option<u32> {
     match repr {
         ValueRepr::FrameBytes { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
@@ -170,7 +170,7 @@ pub(super) fn field_count_from_repr(tree: &mir::NodeTree, repr: ValueRepr) -> Op
 }
 
 /// Resolve the element length for an array representation.
-pub(super) fn array_length_from_repr(tree: &mir::NodeTree, repr: ValueRepr) -> Option<u64> {
+pub(super) fn array_length_from_repr(tree: &mir::Tree, repr: ValueRepr) -> Option<u64> {
     match repr {
         ValueRepr::Array { length, .. } => Some(length),
         ValueRepr::FrameBytes { ty } => match tree.get(ty) {

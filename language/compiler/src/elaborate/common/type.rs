@@ -140,7 +140,7 @@ impl Compiler {
     pub(crate) fn reinfer_block_type(
         &self,
         block_id: LocalNodeId<Block>,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         types: &mut TypeTable,
         module_id: ModuleId,
     ) -> ElaborateResult<()> {

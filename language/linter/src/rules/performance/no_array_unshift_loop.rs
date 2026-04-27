@@ -133,7 +133,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Visit a loop expression with loop context.
     fn visit_loop(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         condition: Option<dir::LocalNodeId<dir::Expression>>,
         body: dir::LocalNodeId<dir::Block>,
     ) {
@@ -159,7 +159,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Visit a for each loop expression with loop context.
     fn visit_for_each(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         binding: &dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
@@ -200,7 +200,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Visit a for loop expression with loop context.
     fn visit_for(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         initialization: Option<dir::LocalNodeId<dir::Expression>>,
         condition: Option<dir::LocalNodeId<dir::Expression>>,
         increment: Option<dir::LocalNodeId<dir::Expression>>,
@@ -247,7 +247,7 @@ impl NodeVisitor for NoArrayUnshiftLoopVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

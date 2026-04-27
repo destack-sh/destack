@@ -22,7 +22,7 @@ struct FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     /// Create one function lowerer for the given MIR function.
     fn new(
-        tree: &'a mir::NodeTree,
+        tree: &'a mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
         frame_layout: destack_engine::FrameLayoutId,
         yield_resume_points: &'a HashMap<
@@ -154,7 +154,7 @@ impl<'a> FunctionLowerer<'a> {
 
     /// Collect block parameter values in lowered block order.
     fn block_parameter(
-        tree: &mir::NodeTree,
+        tree: &mir::Tree,
         mir_block: &[mir::LocalNodeId<mir::Block>],
     ) -> Result<Vec<Vec<mir::Value>>> {
         let mut block_parameter = Vec::with_capacity(mir_block.len());
@@ -181,7 +181,7 @@ impl<'a> FunctionLowerer<'a> {
 
 /// Lower a MIR function into the interpreter function form.
 pub(crate) fn lower_function(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     func_id: mir::LocalNodeId<mir::Function>,
     frame_layout: destack_engine::FrameLayoutId,
     yield_resume_points: &HashMap<mir::LocalNodeId<mir::Block>, destack_engine::ResumePointId>,
@@ -327,7 +327,7 @@ impl<'a> BlockLowerer<'a> {
 
 /// Compute SSA value use counts across the function.
 fn compute_value_use_counts(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
     value_count: usize,
 ) -> Result<Vec<u32>> {

@@ -352,7 +352,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
 /// Collect binding documentation from semantic DIR metadata.
 fn binding_documentation(
     strings: &StringPool,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
     declaration_id: dir::LocalNodeId<Declaration>,
 ) -> Option<String> {
@@ -367,7 +367,7 @@ fn binding_documentation(
 }
 
 /// Collect semantic documentation from one DIR node.
-fn node_documentation(strings: &StringPool, tree: &dir::NodeTree, node_id: u32) -> Option<String> {
+fn node_documentation(strings: &StringPool, tree: &dir::Tree, node_id: u32) -> Option<String> {
     let documentation = tree.get_documentation(node_id)?;
 
     Some(strings.get(documentation.text).to_string())
@@ -379,7 +379,7 @@ fn binding_decorator_value(
     context: &GeneratorContext,
     profile_id: ProfileId,
     binding_decorator_symbol: GlobalSymbolId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     node_id: dir::LocalNodeIdAny,
     strings: &StringPool,
 ) -> Option<BindingDecorator> {
@@ -424,7 +424,7 @@ fn expression_is_binding_decorator(
     context: &GeneratorContext,
     profile_id: ProfileId,
     binding_decorator_symbol: GlobalSymbolId,
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expr_id: dir::LocalNodeId<Expression>,
 ) -> bool {
     let expression = tree.get::<Expression>(expr_id);
@@ -439,7 +439,7 @@ fn expression_is_binding_decorator(
 
 /// Resolve a declaration node from a binding expression.
 fn declaration_from_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression_id: dir::LocalNodeId<Expression>,
     expression: &Expression,
 ) -> Option<dir::LocalNodeId<Declaration>> {
@@ -463,7 +463,7 @@ fn declaration_from_expression(
 
 /// Extract the binding decorator arguments.
 fn decorator_binding_argument(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     arguments: Option<&[dir::LocalNodeId<Argument>]>,
     strings: &StringPool,
 ) -> BindingDecorator {
@@ -528,7 +528,7 @@ struct BindingEffectSpec {
 
 /// Parse effect options from a binding decorator.
 fn parse_effect_spec(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
 ) -> BindingEffectSpec {
@@ -778,7 +778,7 @@ fn parse_replay_payload(value: Option<&str>) -> CatalogReplayPayload {
 
 /// Parse required platform capabilities from a decorator value.
 fn parse_capabilities_list(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
 ) -> Vec<String> {
@@ -819,7 +819,7 @@ fn parse_capabilities_list(
 
 /// Parse host platforms from a decorator value.
 fn parse_host_platforms_list(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
 ) -> Vec<String> {
@@ -965,7 +965,7 @@ fn validate_binding_extern_name(extern_name: &str) {
 
 /// Parse a property key string from a binding options object.
 fn parse_option_key(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     key: Option<&dir::DynamicKey>,
     strings: &StringPool,
 ) -> Option<String> {
@@ -984,7 +984,7 @@ fn parse_option_key(
 
 /// Parse a string literal from a scalar expression.
 fn scalar_string_literal(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
 ) -> Option<String> {

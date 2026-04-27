@@ -1,6 +1,6 @@
 use crate::{
     BlockKind, ComponentFragment, ComponentValue, ComponentValueList, Dimension, Function,
-    LocalNodeId, NodeTree, Number, SimpleBlock, Stylesheet, Symbol, Token, UrlResource,
+    LocalNodeId, Number, SimpleBlock, Stylesheet, Symbol, Token, Tree, UrlResource,
 };
 use cssparser::{Parser as CssParser, ParserInput};
 use destack_core::StringPool;
@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one CSS stylesheet from authored source.
-    pub fn parse(self) -> Result<(NodeTree, LocalNodeId<Stylesheet>), ParseError> {
+    pub fn parse(self) -> Result<(Tree, LocalNodeId<Stylesheet>), ParseError> {
         let stylesheet = lightning::LightningStylesheet::parse(
             self.source,
             lightning::ParserOptions {
@@ -119,8 +119,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one canonical component fragment from source.
-    pub fn parse_component_fragment(source: &str) -> (NodeTree, LocalNodeId<ComponentFragment>) {
-        let mut tree = NodeTree::new();
+    pub fn parse_component_fragment(source: &str) -> (Tree, LocalNodeId<ComponentFragment>) {
+        let mut tree = Tree::new();
         let mut next_resource_id = 0;
         let value = Self::parse_component_value_list_with_pool(
             &tree.strings,
@@ -814,9 +814,6 @@ impl DeclarationScanState {
 }
 
 /// Parse one CSS stylesheet from authored source.
-pub fn parse_css(
-    file: &File,
-    source: &str,
-) -> Result<(NodeTree, LocalNodeId<Stylesheet>), ParseError> {
+pub fn parse_css(file: &File, source: &str) -> Result<(Tree, LocalNodeId<Stylesheet>), ParseError> {
     Parser::new(file, source).parse()
 }

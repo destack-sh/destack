@@ -128,7 +128,7 @@ enum ArrayTypeForm {
 
 /// Return the source array form for one AST expression when applicable.
 fn source_array_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     source_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ArrayTypeForm> {
     let expression = tree.get(source_expression_id);
@@ -144,7 +144,7 @@ fn source_array_form(
 
 /// Return the source array form for one AST type expression when applicable.
 fn source_array_type_form(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
 ) -> Option<ArrayTypeForm> {
     let type_expression = tree.get(type_expression_id);
@@ -182,7 +182,7 @@ fn source_array_type_form(
 
 /// Return one type expression id from one AST generic argument.
 fn generic_argument_value_type_expression(
-    tree: &ast::NodeTree,
+    tree: &ast::Tree,
     argument_id: ast::LocalNodeId<ast::GenericArgument>,
 ) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
     let argument = tree.get(argument_id);

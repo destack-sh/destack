@@ -134,7 +134,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
 /// Check if an instruction can be speculated without trapping.
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
-pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTree) -> bool {
+pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::Tree) -> bool {
     // classify instructions by speculative safety
     match instruction {
         // borrow producing address computations are not speculatable
@@ -392,7 +392,7 @@ pub fn instruction_is_read_only_access(
 pub fn instruction_allows_read_only_motion(
     _instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &Instruction,
-    _tree: &mir::NodeTree,
+    _tree: &mir::Tree,
 ) -> bool {
     // accept non call instructions
     let is_call = matches!(
@@ -428,7 +428,7 @@ pub fn instruction_allows_read_only_motion(
 /// which values are live.
 pub fn instruction_collect_used_values(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashSet<mir::Value> {
     // seed the used value set
     let mut used = HashSet::new();
@@ -1122,7 +1122,7 @@ pub fn instruction_substitute_uses(
 pub fn instruction_substitute_uses_in_tree(
     instruction: &mir::Instruction,
     substitutions: &HashMap<mir::Value, mir::Value>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // skip when no substitutions are provided
     if substitutions.is_empty() {
@@ -1680,7 +1680,7 @@ pub fn substitute_values(
 /// Returns true when any instruction or terminator is updated or removed.
 pub fn apply_substitutions_in_function(
     function: &mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     substitutions: &HashMap<mir::Value, mir::Value>,
     to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
 ) -> bool {
@@ -1759,7 +1759,7 @@ pub struct UseDefMaps {
 ///
 /// This is useful for sinking, code motion, and liveness analysis.
 /// Function parameters are not included in `def_block` (they have no defining block).
-pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> UseDefMaps {
+pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefMaps {
     // initialize use and definition maps
     let mut use_blocks: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>> = HashMap::new();
     let mut def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>> = HashMap::new();
@@ -1828,7 +1828,7 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
 /// Build a map from values to their use counts.
 pub fn build_value_use_counts(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, usize> {
     // reuse use def map and count occurrences
     let use_def = build_use_def_maps(function, tree);
@@ -1845,7 +1845,7 @@ pub fn build_value_use_counts(
 
 /// Clone instruction metadata while remapping value references.
 pub fn clone_instruction_metadata(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     original: mir::LocalNodeId<mir::Instruction>,
     cloned: mir::LocalNodeId<mir::Instruction>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -1874,7 +1874,7 @@ pub fn clone_instruction_metadata(
 
 /// Remap instruction memory access metadata in place using a substitution map.
 pub fn remap_instruction_memory_accesses(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     instruction: mir::LocalNodeId<mir::Instruction>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) {
@@ -1916,7 +1916,7 @@ pub struct InstructionRef {
 /// Build a map from values to the instructions that define them.
 pub fn build_value_definition_map(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
     // collect instruction destinations
     let mut map = HashMap::new();
@@ -1938,7 +1938,7 @@ pub fn build_value_definition_map(
 /// Build a map from values to their defining blocks.
 pub fn build_value_definition_blocks(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, mir::LocalNodeId<mir::Block>> {
     // collect definition blocks
     let mut map = HashMap::new();
@@ -1969,7 +1969,7 @@ pub fn build_value_definition_blocks(
 /// Build a map from instruction ids to their containing blocks.
 pub fn build_instruction_block_map(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>> {
     let mut map = HashMap::new();
 
@@ -1987,7 +1987,7 @@ pub fn build_instruction_block_map(
 /// Build a map from values to their defining instructions.
 pub fn build_value_instruction_map(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, mir::Instruction> {
     // collect instruction destinations
     let mut map = HashMap::new();
@@ -2011,7 +2011,7 @@ pub fn build_value_instruction_map(
 /// Build a map from values to their defining instruction references.
 pub fn build_value_instruction_refs(
     function: &mir::Function,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
 ) -> HashMap<mir::Value, InstructionRef> {
     // collect instruction references
     let mut map = HashMap::new();
@@ -2047,7 +2047,7 @@ pub fn build_value_instruction_refs(
 pub fn instruction_map(
     instruction: &mir::Instruction,
     value_map: &HashMap<mir::Value, mir::Value>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // remap values through the provided map
     let remap = |value: mir::ValueReference| -> mir::ValueReference {
@@ -2797,7 +2797,7 @@ pub fn instruction_map_with_locals(
     instruction: &mir::Instruction,
     value_map: &HashMap<mir::Value, mir::Value>,
     local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // create a value remapper for simple value uses
     let remap = |value: mir::ValueReference| -> mir::ValueReference {

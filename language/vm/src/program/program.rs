@@ -29,7 +29,7 @@ fn align_offset(offset: usize, alignment: usize) -> Result<usize> {
 /// Lowered MIR program and execution metadata shared across isolates.
 pub struct Program {
     /// The MIR tree executed by this program.
-    pub(crate) tree: mir::NodeTree,
+    pub(crate) tree: mir::Tree,
     /// The immutable string pool for this program.
     pub(crate) strings: ImmutableStringPool,
     /// Lowered function bodies for the current interpreter backend.
@@ -75,7 +75,7 @@ pub struct Program {
 
 impl Program {
     /// Build one program from one MIR tree and immutable string pool.
-    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Result<Self> {
+    pub fn new(tree: mir::Tree, strings: ImmutableStringPool) -> Result<Self> {
         ProgramBuilder::new(tree, strings).build()
     }
 
@@ -375,7 +375,7 @@ struct InitializerRange {
 
 /// Encode one static initializer into bytes.
 fn initializer_bytes(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     initializer: &mir::GlobalInitializer,
     ty: mir::LocalNodeId<mir::Type>,
@@ -417,7 +417,7 @@ fn initializer_bytes(
 
 /// Encode one scalar initializer into bytes.
 fn scalar_initializer_bytes(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     initializer: &mir::GlobalInitializer,
     ty: mir::LocalNodeId<mir::Type>,
     byte_len: usize,
@@ -460,7 +460,7 @@ fn scalar_initializer_bytes(
 
 /// Validate one zero initializer against the declared type.
 fn validate_zero_initializer(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<()> {
@@ -483,7 +483,7 @@ fn validate_zero_initializer(
 }
 
 /// Validate whether one scalar type accepts a zero initializer.
-fn validate_zero_scalar_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Result<()> {
+fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<()> {
     let ty_node = tree.get(ty).clone();
 
     match ty_node {
@@ -516,7 +516,7 @@ fn validate_zero_scalar_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Typ
 
 /// Encode one payload initializer into bytes.
 fn payload_initializer_bytes(
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     elements: &[mir::GlobalInitializer],
     ty: mir::LocalNodeId<mir::Type>,
@@ -605,7 +605,7 @@ fn initializer_ranges(
 
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
-    tree: mir::NodeTree,
+    tree: mir::Tree,
     strings: ImmutableStringPool,
     frame_layouts: Vec<engine::FrameLayout>,
     frame_layout_id_by_function: HashMap<mir::LocalNodeId<mir::Function>, engine::FrameLayoutId>,
@@ -626,7 +626,7 @@ struct ProgramBuilder {
 
 impl ProgramBuilder {
     /// Create one program builder.
-    fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Self {
+    fn new(tree: mir::Tree, strings: ImmutableStringPool) -> Self {
         Self {
             tree,
             strings,

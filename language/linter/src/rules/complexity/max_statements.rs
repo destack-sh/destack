@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
-    walk_expression, walk_member, walk_property,
+    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+    walk_member, walk_property,
 };
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -149,13 +149,13 @@ impl LintRule for MaxStatements {
 }
 
 /// Return true when one callable owner is a top-level function.
-fn callable_owner_is_top_level_function(tree: &NodeTree, owner_id: CallableOwnerId) -> bool {
+fn callable_owner_is_top_level_function(tree: &Tree, owner_id: CallableOwnerId) -> bool {
     let owner_span = callable_owner_span(tree, owner_id);
     !callable_is_nested_in_enclosing_scope(tree, owner_span)
 }
 
 /// Return true when one callable span is nested inside another callable-like scope.
-fn callable_is_nested_in_enclosing_scope(tree: &NodeTree, owner_span: Span) -> bool {
+fn callable_is_nested_in_enclosing_scope(tree: &Tree, owner_span: Span) -> bool {
     // nested function declarations
     for enclosing_declaration_id in tree.iter_nodes::<ast::Declaration>() {
         let enclosing_declaration = tree.get(enclosing_declaration_id);
@@ -212,10 +212,7 @@ fn span_strictly_contains(outer: Span, inner: Span) -> bool {
 }
 
 /// Count statements for one callable body while skipping nested callable scopes.
-fn count_callable_statements(
-    tree: &NodeTree,
-    body_expression_id: LocalNodeId<Expression>,
-) -> usize {
+fn count_callable_statements(tree: &Tree, body_expression_id: LocalNodeId<Expression>) -> usize {
     // initialize statement count visitor for one callable body
     let mut visitor = StatementCountVisitor {
         options: NodeVisitorOptions::default(),
@@ -277,7 +274,7 @@ impl NodeVisitor for StatementCountVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -303,7 +300,7 @@ impl NodeVisitor for StatementCountVisitor {
 
     fn visit_property(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         property_id: LocalNodeId<ast::Property>,
         property: &ast::Property,
     ) {
@@ -318,7 +315,7 @@ impl NodeVisitor for StatementCountVisitor {
 
     fn visit_member(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         member_id: LocalNodeId<ast::Member>,
         member: &ast::Member,
     ) {

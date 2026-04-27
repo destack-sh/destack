@@ -571,33 +571,32 @@ mod tests {
     use super::Printer;
     use crate::{
         Argument, BinaryOperator, DependencyItem, DependencyKind, DependencyMode, Expression,
-        JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, NodeTree, Path, PostfixPosition,
-        Property, ScalarLiteral, Statement, print_roots_minified,
-        print_roots_minified_with_source_map,
+        JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, Path, PostfixPosition, Property,
+        ScalarLiteral, Statement, Tree, print_roots_minified, print_roots_minified_with_source_map,
     };
 
     fn dummy_source_id() -> dir::LocalNodeIdAny {
         dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
     }
 
-    fn insert_expression(tree: &mut NodeTree, expression: Expression) -> LocalNodeId<Expression> {
+    fn insert_expression(tree: &mut Tree, expression: Expression) -> LocalNodeId<Expression> {
         tree.insert_from_source_any(expression, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_property(tree: &mut NodeTree, property: Property) -> LocalNodeId<Property> {
+    fn insert_property(tree: &mut Tree, property: Property) -> LocalNodeId<Property> {
         tree.insert_from_source_any(property, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_argument(tree: &mut NodeTree, argument: Argument) -> LocalNodeId<Argument> {
+    fn insert_argument(tree: &mut Tree, argument: Argument) -> LocalNodeId<Argument> {
         tree.insert_from_source_any(argument, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
-    fn insert_statement(tree: &mut NodeTree, statement: Statement) -> LocalNodeId<Statement> {
+    fn insert_statement(tree: &mut Tree, statement: Statement) -> LocalNodeId<Statement> {
         tree.insert_from_source_any(statement, ModuleId::EPHEMERAL, dummy_source_id())
     }
 
     fn insert_dependency_item(
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         item: DependencyItem,
     ) -> LocalNodeId<DependencyItem> {
         tree.insert_from_source_any(item, ModuleId::EPHEMERAL, dummy_source_id())
@@ -613,7 +612,7 @@ mod tests {
     }
 
     fn print_javascript_roots_minified(
-        tree: &NodeTree,
+        tree: &Tree,
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
@@ -630,7 +629,7 @@ mod tests {
     }
 
     impl JsSourceMap for FixedSourceMap {
-        fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+        fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span> {
             let _ = tree;
             let _ = node_id;
 
@@ -639,7 +638,7 @@ mod tests {
 
         fn source_part_span(
             &self,
-            tree: &NodeTree,
+            tree: &Tree,
             node_id: u32,
             span_type: NodeSpanType,
         ) -> Option<Span> {
@@ -659,7 +658,7 @@ mod tests {
     }
 
     impl JsSourceMap for FixedPartSourceMap {
-        fn source_span(&self, tree: &NodeTree, node_id: u32) -> Option<Span> {
+        fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span> {
             let _ = tree;
             let _ = node_id;
 
@@ -668,7 +667,7 @@ mod tests {
 
         fn source_part_span(
             &self,
-            tree: &NodeTree,
+            tree: &Tree,
             node_id: u32,
             span_type: NodeSpanType,
         ) -> Option<Span> {
@@ -729,7 +728,7 @@ mod tests {
     /// Print meta-property roots and members through the direct minified printer.
     #[test]
     fn test_prints_meta_property_expressions_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let import_meta = insert_expression(&mut tree, Expression::ImportMeta);
@@ -760,7 +759,7 @@ mod tests {
     /// Print dynamic import attributes through the direct minified printer.
     #[test]
     fn test_prints_dynamic_import_call_with_attributes_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let target = insert_expression(
@@ -822,7 +821,7 @@ mod tests {
     /// Keep path imports and runtime imports distinct while minifying.
     #[test]
     fn test_prints_path_and_dynamic_import_roots_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let path = insert_expression(
@@ -858,7 +857,7 @@ mod tests {
     /// Print optional chaining and nullish coalescing without introducing separator hazards.
     #[test]
     fn test_prints_optional_chaining_and_nullish_coalescing_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let object = insert_expression(
@@ -905,7 +904,7 @@ mod tests {
     /// Preserve parentheses for nullish coalescing against logical operators.
     #[test]
     fn test_prints_nullish_coalescing_precedence_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let a = insert_expression(
@@ -1002,7 +1001,7 @@ mod tests {
     /// Preserve grouping around optional chaining before one following member access.
     #[test]
     fn test_prints_grouped_optional_chaining_members_minified() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let foo = insert_expression(
@@ -1058,7 +1057,7 @@ mod tests {
     /// Mark dynamic import targets with exact source map spans.
     #[test]
     fn test_marks_dynamic_import_target_source_ranges() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let target = insert_expression(
@@ -1108,7 +1107,7 @@ mod tests {
     /// Mark import targets and dependency item parts with exact source ranges.
     #[test]
     fn test_marks_import_dependency_part_source_ranges() {
-        let mut tree = NodeTree::new();
+        let mut tree = Tree::new();
         let strings = StringPool::new();
 
         let item = insert_dependency_item(

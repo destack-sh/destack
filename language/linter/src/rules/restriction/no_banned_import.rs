@@ -168,7 +168,7 @@ impl NodeVisitor for NoBannedImportVisitor<'_, '_> {
 
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -303,7 +303,7 @@ fn matching_target(
 
 /// Return one static `require()` target specifier for require-like calls.
 fn expression_require_target_specifier(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: destack_core::StringId,

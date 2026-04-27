@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Argument, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
+    self as ast, Argument, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree,
     walk_argument,
 };
 use destack_source::Span;
@@ -107,7 +107,7 @@ impl CallbackVisitor<'_> {
     /// Return true when one expression is a callback function expression.
     fn expression_is_callback_function(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         // normalize parenthesized wrappers before shape checks
@@ -134,7 +134,7 @@ impl NodeVisitor for CallbackVisitor<'_> {
 
     fn visit_argument(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         argument_id: LocalNodeId<Argument>,
         argument: &Argument,
     ) {
@@ -185,7 +185,7 @@ fn argument_value_expression_id(argument: &Argument) -> Option<LocalNodeId<Expre
 
 /// Return true when one argument id belongs to call arguments.
 fn argument_is_call_argument(
-    tree: &NodeTree,
+    tree: &Tree,
     parents: &ast::NodeParentIndex,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {

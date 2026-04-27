@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, BinaryOperator, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeVisitor,
-    NodeVisitorOptions, walk_expression, walk_member, walk_property,
+    self as ast, BinaryOperator, Expression, LocalNodeId, NodeParentIndex, NodeVisitor,
+    NodeVisitorOptions, Tree, walk_expression, walk_member, walk_property,
 };
 use destack_workspace::LintSeverity;
 
@@ -127,7 +127,7 @@ fn report_cognitive_complexity_violation<T: ast::Node>(
 
 /// Compute cognitive complexity for one callable body.
 fn compute_callable_cognitive_complexity(
-    tree: &NodeTree,
+    tree: &Tree,
     parents: &NodeParentIndex,
     body_expression_id: LocalNodeId<Expression>,
 ) -> usize {
@@ -196,7 +196,7 @@ impl CognitiveComplexityVisitor<'_> {
     /// Return the logical operator kind of one parent expression.
     fn parent_logical_operator_kind(
         &self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<LogicalOperatorKind> {
         // require expression parent node
@@ -223,7 +223,7 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -366,7 +366,7 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
 
     fn visit_property(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         property_id: LocalNodeId<ast::Property>,
         property: &ast::Property,
     ) {
@@ -381,7 +381,7 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
 
     fn visit_member(
         &mut self,
-        tree: &NodeTree,
+        tree: &Tree,
         member_id: LocalNodeId<ast::Member>,
         member: &ast::Member,
     ) {

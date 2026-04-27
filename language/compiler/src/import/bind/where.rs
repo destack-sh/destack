@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree, NodeType,
-    SymbolSpaceOrder, SymbolTable, TypeExpression, TypeTable, WhereClause,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
+    SymbolSpaceOrder, SymbolTable, Tree, TypeExpression, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
@@ -22,7 +22,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {

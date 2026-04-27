@@ -2,7 +2,7 @@ use crate::{Compiler, ResolveResult};
 use destack_artifact::ExportedSymbolTable;
 use destack_dir::{
     Declaration, DependencyKind, ImportAliasTarget, LocalNodeId, LocalScopeId, LocalSymbolId,
-    NodeTree, SymbolSpaceOrder, SymbolTable, TypeExpression,
+    SymbolSpaceOrder, SymbolTable, Tree, TypeExpression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -13,7 +13,7 @@ impl Compiler {
         revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
-        tree: &mut NodeTree,
+        tree: &mut Tree,
         symbols: &mut SymbolTable,
         namespace_symbol: LocalSymbolId,
         namespace_scope: LocalScopeId,

@@ -62,7 +62,7 @@ impl FunctionPass for StorePre {
     fn run(
         &self,
         function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
+        tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
@@ -137,7 +137,7 @@ struct EdgeStorePlan {
 /// Run store PRE and return true when changes are made.
 fn run_store_pre(
     function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // gather analyses
@@ -307,7 +307,7 @@ fn store_access_info(
     local: Option<mir::LocalNodeId<mir::Local>>,
     value: mir::Value,
     kind: StoreKind,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> Option<StoreCandidate> {
     // resolve the memory ssa def access
@@ -382,7 +382,7 @@ fn store_access_info(
 fn store_can_move_to_entry(
     store_id: mir::LocalNodeId<mir::Instruction>,
     block: &mir::Block,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {
     // inspect instructions before the store
@@ -415,7 +415,7 @@ fn collect_edge_insertions(
     store: &StoreCandidate,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     function_params: &HashSet<mir::Value>,
     param_indices: &HashMap<mir::Value, usize>,
@@ -513,7 +513,7 @@ fn incoming_def_matches(
     value: mir::Value,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
+    tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // require a memory def on the edge
@@ -585,7 +585,7 @@ fn incoming_def_matches(
 
 /// Insert a store instruction for the plan.
 fn insert_store_for_plan(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     plan: &EdgeStorePlan,
     kind: StoreKind,
@@ -612,7 +612,7 @@ fn insert_store_for_plan(
 
 /// Clone store metadata to a new instruction.
 fn clone_store_metadata(
-    tree: &mut mir::NodeTree,
+    tree: &mut mir::Tree,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,

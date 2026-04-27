@@ -23,7 +23,7 @@ const UINT8_ARRAY_NAME: &str = "Uint8Array";
 
 /// Insert one local immutable binding for one runtime value.
 fn insert_bound_value_statement(
-    tree: &mut js::NodeTree,
+    tree: &mut js::Tree,
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
@@ -64,7 +64,7 @@ fn insert_bound_value_statement(
 
 /// Insert one default export alias for one local binding.
 fn insert_default_export_statement(
-    tree: &mut js::NodeTree,
+    tree: &mut js::Tree,
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
@@ -100,7 +100,7 @@ fn insert_default_export_statement(
 
 /// Insert one string expression into the generated module tree.
 fn insert_string_expression(
-    tree: &mut js::NodeTree,
+    tree: &mut js::Tree,
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
@@ -117,7 +117,7 @@ fn insert_string_expression(
 
 /// Insert one JSON expression into the generated module tree.
 fn insert_json_expression(
-    tree: &mut js::NodeTree,
+    tree: &mut js::Tree,
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
@@ -204,7 +204,7 @@ fn insert_json_expression(
 
 /// Insert one binary runtime value into the generated module tree.
 fn insert_binary_expression(
-    tree: &mut js::NodeTree,
+    tree: &mut js::Tree,
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
@@ -310,7 +310,7 @@ impl<'a> ScriptLinker<'a> {
                 ),
             })?;
         let is_plain_stylesheet = self.is_plain_stylesheet_module(module_id);
-        let mut tree = js::NodeTree::new();
+        let mut tree = js::Tree::new();
         let mut strings = StringPool::new();
         let value = self.resource_value(
             output_id,
@@ -395,7 +395,7 @@ impl<'a> ScriptLinker<'a> {
         module: &Module,
         plan: &Plan,
         anchor: dir::LocalNodeIdAny,
-        tree: &mut js::NodeTree,
+        tree: &mut js::Tree,
         strings: &mut StringPool,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         if self.is_plain_stylesheet_module(module.id) {

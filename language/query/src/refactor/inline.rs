@@ -373,7 +373,7 @@ fn collect_inline_reference_entries(
 
 /// Count the number of bindings in a pattern.
 fn count_pattern_bindings(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> usize {
     let mut bindings = HashSet::new();
@@ -383,7 +383,7 @@ fn count_pattern_bindings(
 
 /// Collect binding symbols from a pattern.
 fn collect_pattern_bindings(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -428,7 +428,7 @@ fn collect_pattern_bindings(
 
 /// Collect binding symbols from a pattern field.
 fn collect_pattern_bindings_field(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -463,7 +463,7 @@ fn collect_pattern_bindings_field(
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -519,7 +519,7 @@ fn pattern_access_path(
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -567,7 +567,7 @@ fn pattern_access_path_object_fields(
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
     repository: &Repository,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -671,7 +671,7 @@ fn escape_string_literal(value: &str) -> String {
 
 /// Resolve the nearest expression that owns a property shorthand.
 fn property_parent_expression(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // walk upward to find the containing expression for a property
@@ -701,7 +701,7 @@ fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
 /// Resolve the precise span for a reference expression.
 fn reference_span_for_expression(
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
     let span = main_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into())
@@ -748,7 +748,7 @@ fn reference_span_for_expression(
 fn collect_captured_symbols(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     value_id: dir::LocalNodeId<dir::Expression>,
     inline_symbol: dir::GlobalSymbolId,
 ) -> Option<Vec<CapturedSymbol>> {
@@ -788,7 +788,7 @@ fn collect_captured_symbols(
 fn inline_shadow_safe(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
 ) -> bool {
@@ -837,7 +837,7 @@ fn resolve_symbol_in_scope(
 
 /// Find the declarator and statement ids for a declaration.
 fn find_declarator_and_statement(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<(
     dir::LocalNodeId<dir::Declarator>,
@@ -878,7 +878,7 @@ fn find_declarator_and_statement(
 
 /// Resolve the initializer expression for a declarator.
 fn declarator_value(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     declarator_id: dir::LocalNodeId<dir::Declarator>,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
@@ -901,7 +901,7 @@ fn declarator_value(
 /// Resolve declarator spans for a let statement.
 fn statement_declarator_spans(
     ctx: &QueryContext,
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
     // resolve declarator spans from the let statement
@@ -1035,7 +1035,7 @@ fn expression_is_simple(expression: &dir::Expression) -> bool {
 
 /// Detect whether an expression produces side effects.
 fn expression_has_side_effects(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // walk the expression subtree and detect side effects
@@ -1046,7 +1046,7 @@ fn expression_has_side_effects(
 }
 
 /// Detect whether a symbol is assigned within a scope.
-fn symbol_is_assigned(dir_tree: &dir::NodeTree, symbol_id: dir::GlobalSymbolId) -> bool {
+fn symbol_is_assigned(dir_tree: &dir::Tree, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let target_symbol = match expr {
@@ -1065,7 +1065,7 @@ fn symbol_is_assigned(dir_tree: &dir::NodeTree, symbol_id: dir::GlobalSymbolId) 
 
 /// Return the target symbol for one direct expression assignment target.
 fn expression_target_symbol(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     let expression = dir_tree.get::<dir::Expression>(expression_id);
@@ -1080,7 +1080,7 @@ fn expression_target_symbol(
 
 /// Return the target symbol for one assign pattern when it is a simple reference.
 fn assign_pattern_target_symbol(
-    dir_tree: &dir::NodeTree,
+    dir_tree: &dir::Tree,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
     let assign_pattern = dir_tree.get(assign_pattern_id);
@@ -1147,7 +1147,7 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
     /// Visit expressions and collect captured symbols.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
@@ -1211,7 +1211,7 @@ impl dir::NodeVisitor for SideEffectVisitor {
     /// Visit expressions and detect side effects.
     fn visit_expression(
         &mut self,
-        tree: &dir::NodeTree,
+        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {

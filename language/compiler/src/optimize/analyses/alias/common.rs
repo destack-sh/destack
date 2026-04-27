@@ -21,7 +21,7 @@ impl FunctionAA {
     ///
     /// Scans all instructions to build maps of constants and definitions.
     /// Returns a default (empty) result for imported functions without bodies.
-    pub(super) fn collect(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    pub(super) fn collect(function: &mir::Function, tree: &mir::Tree) -> Self {
         // imports have no body
         if function.entry.is_none() {
             return Self::default();

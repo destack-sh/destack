@@ -179,7 +179,7 @@ pub enum ForInitialization {
 
 impl Statement {
     /// Return whether this statement is type only in plain js output.
-    pub fn is_type_only(&self, tree: &crate::NodeTree) -> bool {
+    pub fn is_type_only(&self, tree: &crate::Tree) -> bool {
         match self {
             Self::Declaration { declaration } => {
                 let declaration = tree.get(*declaration);

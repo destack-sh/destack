@@ -207,7 +207,7 @@ fn reference_has_empty_value_argument(
 
 /// Return the value expression for one generic argument.
 fn generic_argument_value_expression(
-    tree: &dir::NodeTree,
+    tree: &dir::Tree,
     generic_argument_id: dir::LocalNodeId<dir::GenericArgument>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let generic_argument = tree.get(generic_argument_id);
