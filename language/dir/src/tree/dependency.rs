@@ -1,5 +1,4 @@
 use destack_core::StringId;
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
 };
 
 /// The mode of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum DependencyMode {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
@@ -19,7 +18,7 @@ pub enum DependencyMode {
 }
 
 /// The export mode of a declaration or binding.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum ExportMode {
     /// Named export (`export const foo = 1`).
     Named,
@@ -28,7 +27,7 @@ pub enum ExportMode {
 }
 
 /// The type of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
@@ -37,7 +36,7 @@ pub enum DependencyKind {
 }
 
 /// A DependencyItem is an item to use in a import clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
     /// Malformed dependency item slot.
     Error,
@@ -101,7 +100,7 @@ impl Node for DependencyItem {
 }
 
 /// A namespace export edge from `export * from` declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceExport {
     /// The target module.
     pub module_id: ModuleTarget,
