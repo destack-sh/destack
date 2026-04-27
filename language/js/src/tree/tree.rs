@@ -16,6 +16,98 @@ use crate::{
 /// The local binding base name for one synthetic non-code module default.
 pub const MODULE_DEFAULT_NAME: &str = "_default";
 
+/// Dense metadata for one JS node id.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct NodeIndexEntry {
+    /// The packed local id and node type.
+    packed: u32,
+}
+
+impl NodeIndexEntry {
+    const NODE_TYPE_SHIFT: u32 = 24;
+    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
+
+    /// Pack one local id and node type into a dense entry.
+    #[inline]
+    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
+        debug_assert!(
+            local_id < Self::LOCAL_ID_MASK,
+            "JS node local id exceeds packed index capacity: {local_id}"
+        );
+
+        Self {
+            packed: local_id | (Self::node_type_tag(node_type) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Return the local arena id for this entry.
+    #[inline]
+    pub(crate) fn local_id(self) -> u32 {
+        self.packed & Self::LOCAL_ID_MASK
+    }
+
+    /// Return the concrete node type for this entry.
+    #[inline]
+    pub(crate) fn node_type(self) -> NodeType {
+        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
+            0 => NodeType::Block,
+            1 => NodeType::CatchClause,
+            2 => NodeType::Statement,
+            3 => NodeType::Expression,
+            4 => NodeType::ArrayElement,
+            5 => NodeType::Declaration,
+            6 => NodeType::Declarator,
+            7 => NodeType::Property,
+            8 => NodeType::Member,
+            9 => NodeType::TypeExpression,
+            10 => NodeType::TupleElement,
+            11 => NodeType::TypeMember,
+            12 => NodeType::EnumField,
+            13 => NodeType::DependencyItem,
+            14 => NodeType::SwitchCase,
+            15 => NodeType::Pattern,
+            16 => NodeType::PatternField,
+            17 => NodeType::AssignPattern,
+            18 => NodeType::AssignPatternField,
+            19 => NodeType::GenericParameter,
+            20 => NodeType::Parameter,
+            21 => NodeType::Argument,
+            22 => NodeType::Annotation,
+            _ => unreachable!("invalid JS node type tag in packed node index"),
+        }
+    }
+
+    /// Return the stable packed tag for one node type.
+    #[inline]
+    fn node_type_tag(node_type: NodeType) -> u32 {
+        match node_type {
+            NodeType::Block => 0,
+            NodeType::CatchClause => 1,
+            NodeType::Statement => 2,
+            NodeType::Expression => 3,
+            NodeType::ArrayElement => 4,
+            NodeType::Declaration => 5,
+            NodeType::Declarator => 6,
+            NodeType::Property => 7,
+            NodeType::Member => 8,
+            NodeType::TypeExpression => 9,
+            NodeType::TupleElement => 10,
+            NodeType::TypeMember => 11,
+            NodeType::EnumField => 12,
+            NodeType::DependencyItem => 13,
+            NodeType::SwitchCase => 14,
+            NodeType::Pattern => 15,
+            NodeType::PatternField => 16,
+            NodeType::AssignPattern => 17,
+            NodeType::AssignPatternField => 18,
+            NodeType::GenericParameter => 19,
+            NodeType::Parameter => 20,
+            NodeType::Argument => 21,
+            NodeType::Annotation => 22,
+        }
+    }
+}
+
 /// One stable symbol identity in lowered script output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScriptSymbolId {
@@ -25,15 +117,13 @@ pub enum ScriptSymbolId {
     ModuleDefault(ModuleId),
 }
 
-/// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
+/// Mutable AST tree for a single source unit. NOT THREAD-SAFE.
 #[derive(Clone)]
-pub struct NodeTree {
+pub struct Tree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
-    /// The local ids of all nodes. Index is the global node id.
-    pub(crate) local_id_by_node_id: Vec<u32>,
-    /// The types of all nodes. Index is the global node id.
-    pub(crate) node_type_by_node_id: Vec<NodeType>,
+    /// Dense local id and node type metadata by node id.
+    pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
@@ -74,33 +164,32 @@ pub struct NodeTree {
     pub(crate) annotations: Arena<Annotation>,
 }
 
-impl Debug for NodeTree {
+impl Debug for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree")
+        f.debug_struct("Tree")
             .field("next_global_id", &self.next_global_id)
-            .field("node_count", &self.local_id_by_node_id.len())
+            .field("node_count", &self.node_index_by_node_id.len())
             .finish()
     }
 }
 
-impl Default for NodeTree {
+impl Default for Tree {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NodeTree {
-    /// Create a new NodeTree.
+impl Tree {
+    /// Create a new Tree.
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
 
-    /// Create a new NodeTree with the given capacity.
+    /// Create a new Tree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             next_global_id: 0,
-            local_id_by_node_id: Vec::with_capacity(capacity),
-            node_type_by_node_id: Vec::with_capacity(capacity),
+            node_index_by_node_id: Vec::with_capacity(capacity),
             module_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
             source_id_by_node_id: Vec::with_capacity(capacity),
@@ -138,13 +227,13 @@ impl NodeTree {
     fn insert<T>(&mut self, node: T, module_id: ModuleId) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.node_type_by_node_id.push(T::TYPE);
-        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
-        self.local_id_by_node_id.push(local_id);
+        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.module_by_node_id.push(module_id);
         self.symbol_id_by_node_id.push(None);
         LocalNodeId::new(global_id)
@@ -159,9 +248,9 @@ impl NodeTree {
     ) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
         U: dir::Node,
-        dir::NodeTree: dir::NodeTreeImpl<U>,
+        dir::Tree: dir::TreeImpl<U>,
     {
         let node_id = self.insert(node, module_id);
         self.source_id_by_node_id.push(dir_node_id.id);
@@ -177,7 +266,7 @@ impl NodeTree {
     ) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         let node_id = self.insert(node, module_id);
         self.source_id_by_node_id.push(dir_node_id.id);
@@ -188,7 +277,7 @@ impl NodeTree {
     pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: LocalNodeId<U>) -> LocalNodeId<T>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
         U: Node,
     {
         let module_id = self.module_by_node_id[dir_node_id.id as usize];
@@ -209,7 +298,7 @@ impl NodeTree {
     pub fn alias_from_source<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
     }
@@ -218,7 +307,7 @@ impl NodeTree {
     pub fn alias_from<T>(&mut self, node_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.alias_node_id_by_node_id.insert(node_id, alias.id);
     }
@@ -232,7 +321,7 @@ impl NodeTree {
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_type_by_node_id[id as usize]
+        self.node_index_by_node_id[id as usize].node_type()
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -240,10 +329,10 @@ impl NodeTree {
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get(self, local_id)
+        let local_id = self.local_id_for_node_id(id.id);
+        <Self as TreeImpl<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
@@ -251,10 +340,10 @@ impl NodeTree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
-        let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
+        let local_id = self.local_id_for_node_id(id.id);
+        <Self as TreeImpl<T>>::get_mut(self, local_id)
     }
 
     /// Get the nodes for all nodes of a given type.
@@ -264,12 +353,24 @@ impl NodeTree {
         T: Node,
     {
         let mut nodes = Vec::new();
-        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
-            if *ty == T::TYPE {
+        for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
+            if entry.node_type() == T::TYPE {
                 nodes.push(LocalNodeId::new(idx as u32));
             }
         }
         nodes
+    }
+
+    /// Return the number of nodes stored in this tree.
+    #[inline]
+    pub fn node_count(&self) -> usize {
+        self.node_index_by_node_id.len()
+    }
+
+    /// Return the local arena id for one untyped node id.
+    #[inline]
+    pub(crate) fn local_id_for_node_id(&self, id: u32) -> u32 {
+        self.node_index_by_node_id[id as usize].local_id()
     }
 
     /// Get the source and DIR id of a node by its global id.
@@ -284,7 +385,7 @@ impl NodeTree {
     pub fn set_symbol<T>(&mut self, node_id: LocalNodeId<T>, symbol_id: ScriptSymbolId)
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
     }
@@ -293,7 +394,7 @@ impl NodeTree {
     pub fn symbol<T>(&self, node_id: LocalNodeId<T>) -> Option<ScriptSymbolId>
     where
         T: Node,
-        Self: NodeTreeImpl<T>,
+        Self: TreeImpl<T>,
     {
         self.symbol_id_by_node_id[node_id.id as usize]
     }
@@ -313,43 +414,43 @@ impl NodeTree {
 }
 
 /// Map node types to arenas.
-pub trait NodeTreeImpl<T: Node> {
+pub trait TreeImpl<T: Node> {
     /// Allocate a node into the relevant arena.
-    fn allocate(tree: &mut NodeTree, node: T) -> u32;
+    fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the relevant arena.
-    fn get(tree: &NodeTree, idx: u32) -> &T;
+    fn get(tree: &Tree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
-    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
+    fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
 }
 
-macro_rules! impl_node_tree_store {
+macro_rules! impl_tree_store {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeImpl<$ty> for NodeTree {
+        impl TreeImpl<$ty> for Tree {
             #[inline]
-            fn allocate(tree: &mut NodeTree, node: $ty) -> u32 {
+            fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &NodeTree, idx: u32) -> &$ty {
+            fn get(tree: &Tree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
             }
 
             #[inline]
-            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
+            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
                 tree.$field.get_mut(idx)
             }
         }
     };
 }
 
-macro_rules! impl_node_tree_stores {
+macro_rules! impl_tree_stores {
     ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
-        $( impl_node_tree_store!($ty, $field); )*
+        $( impl_tree_store!($ty, $field); )*
     };
 }
 
-impl_node_tree_stores! {
+impl_tree_stores! {
     Block => blocks,
     CatchClause => catch_clauses,
     Statement => statements,

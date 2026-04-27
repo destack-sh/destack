@@ -2,20 +2,20 @@ use crate::{
     AnySelector, AttributeSelector, ComponentFragment, ContainerCondition,
     ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
     EnvironmentVariable, FeatureName, FeatureValue, KeyframeRule, LocalNodeId, LocalNodeIdAny,
-    MediaCondition, MediaQuery, MediaQueryList, NestedDeclarationsRule, NodeTree, NodeType,
-    NodeVisitor, NthOfSelector, NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass,
+    MediaCondition, MediaQuery, MediaQueryList, NestedDeclarationsRule, NodeType, NodeVisitor,
+    NthOfSelector, NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass,
     PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
-    SimpleSelector, Stylesheet, SupportsCondition,
+    SimpleSelector, Stylesheet, SupportsCondition, Tree,
 };
 
 /// Walk one arbitrary CSS node id.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node_id[node_id as usize];
+    let local_idx = tree.local_id_for_node_id(node_id);
 
     match node_type {
         NodeType::Stylesheet => {
@@ -134,7 +134,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk one CSS root node.
-pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root: &LocalNodeIdAny) {
+pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &LocalNodeIdAny) {
     match root.ty {
         NodeType::Stylesheet => {
             let stylesheet_id = LocalNodeId::<Stylesheet>::new(root.id);
@@ -282,7 +282,7 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
 /// Walk one component fragment root.
 pub fn walk_component_fragment<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<ComponentFragment>,
     _fragment: &ComponentFragment,
 ) {
@@ -290,11 +290,7 @@ pub fn walk_component_fragment<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk one CSS root list through the visitor entry points.
-pub fn walk_roots<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    roots: &[LocalNodeIdAny],
-) {
+pub fn walk_roots<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, roots: &[LocalNodeIdAny]) {
     for root in roots {
         walk_root(visitor, tree, root);
     }
@@ -303,7 +299,7 @@ pub fn walk_roots<V: NodeVisitor + ?Sized>(
 /// Walk one stylesheet node.
 pub fn walk_stylesheet<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Stylesheet>,
     stylesheet: &Stylesheet,
 ) {
@@ -319,7 +315,7 @@ pub fn walk_stylesheet<V: NodeVisitor + ?Sized>(
 /// Walk one CSS rule node.
 pub fn walk_rule<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Rule>,
     rule: &Rule,
 ) {
@@ -403,7 +399,7 @@ pub fn walk_rule<V: NodeVisitor + ?Sized>(
 /// Walk one nested rule list.
 fn walk_rule_list_children<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     rules: &[LocalNodeId<Rule>],
 ) {
     for child in rules {
@@ -416,7 +412,7 @@ fn walk_rule_list_children<V: NodeVisitor + ?Sized>(
 /// Walk one selector list child node.
 fn walk_selector_list_child<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     selector_list_id: LocalNodeId<SelectorList>,
 ) {
     let selector_list = tree.get(selector_list_id);
@@ -426,7 +422,7 @@ fn walk_selector_list_child<V: NodeVisitor + ?Sized>(
 /// Walk one media query list child node.
 fn walk_media_query_list_child<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     media_query_list_id: LocalNodeId<MediaQueryList>,
 ) {
     let media_query_list = tree.get(media_query_list_id);
@@ -436,7 +432,7 @@ fn walk_media_query_list_child<V: NodeVisitor + ?Sized>(
 /// Walk one supports condition child node.
 fn walk_supports_condition_child<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     condition_id: LocalNodeId<SupportsCondition>,
 ) {
     let condition = tree.get(condition_id);
@@ -446,7 +442,7 @@ fn walk_supports_condition_child<V: NodeVisitor + ?Sized>(
 /// Walk one container condition child node.
 fn walk_container_condition_child<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     condition_id: LocalNodeId<ContainerCondition>,
 ) {
     let condition = tree.get(condition_id);
@@ -456,7 +452,7 @@ fn walk_container_condition_child<V: NodeVisitor + ?Sized>(
 /// Walk one style rule node.
 fn walk_style_rule_children<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
 ) {
@@ -473,7 +469,7 @@ fn walk_style_rule_children<V: NodeVisitor + ?Sized>(
 /// Walk one declaration rule node.
 fn walk_declaration_children<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
 ) {
     if let Some(declarations) = declarations {
@@ -487,18 +483,14 @@ fn walk_declaration_children<V: NodeVisitor + ?Sized>(
 /// Walk one keyframe rule node.
 fn walk_keyframe_rule_children<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &KeyframeRule,
 ) {
     walk_declaration_children(visitor, tree, rule.declarations);
 }
 
 /// Walk one page rule node.
-fn walk_page_rule_children<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    rule: &PageRule,
-) {
+fn walk_page_rule_children<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, rule: &PageRule) {
     walk_declaration_children(visitor, tree, rule.declarations);
 
     for page_margin_rule in &rule.page_margin_rules {
@@ -512,7 +504,7 @@ fn walk_page_rule_children<V: NodeVisitor + ?Sized>(
 /// Walk one nested declarations rule node.
 fn walk_nested_declarations_rule_children<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     rule: &NestedDeclarationsRule,
 ) {
     walk_declaration_children(visitor, tree, rule.declarations);
@@ -521,7 +513,7 @@ fn walk_nested_declarations_rule_children<V: NodeVisitor + ?Sized>(
 /// Walk one CSS page margin rule node.
 pub fn walk_page_margin_rule<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<PageMarginRule>,
     rule: &PageMarginRule,
 ) {
@@ -533,7 +525,7 @@ pub fn walk_page_margin_rule<V: NodeVisitor + ?Sized>(
 /// Walk one declaration block node.
 pub fn walk_declaration_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<DeclarationBlock>,
     declarations: &DeclarationBlock,
 ) {
@@ -550,7 +542,7 @@ pub fn walk_declaration_block<V: NodeVisitor + ?Sized>(
 /// Walk one declaration node.
 pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Declaration>,
     _declaration: &Declaration,
 ) {
@@ -560,7 +552,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 /// Walk one selector list node.
 pub fn walk_selector_list<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<SelectorList>,
     selector_list: &SelectorList,
 ) {
@@ -575,7 +567,7 @@ pub fn walk_selector_list<V: NodeVisitor + ?Sized>(
 /// Walk one selector node.
 pub fn walk_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<Selector>,
     selector: &Selector,
 ) {
@@ -590,7 +582,7 @@ pub fn walk_selector<V: NodeVisitor + ?Sized>(
 /// Walk one selector component node.
 pub fn walk_selector_component<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<SelectorComponent>,
     component: &SelectorComponent,
 ) {
@@ -608,7 +600,7 @@ pub fn walk_selector_component<V: NodeVisitor + ?Sized>(
 /// Walk one simple selector node.
 pub fn walk_simple_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<SimpleSelector>,
     simple: &SimpleSelector,
 ) {
@@ -659,7 +651,7 @@ pub fn walk_simple_selector<V: NodeVisitor + ?Sized>(
 /// Walk one attribute selector node.
 pub fn walk_attribute_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<AttributeSelector>,
     _selector: &AttributeSelector,
 ) {
@@ -669,7 +661,7 @@ pub fn walk_attribute_selector<V: NodeVisitor + ?Sized>(
 /// Walk one nth selector node.
 pub fn walk_nth_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<NthSelector>,
     _selector: &NthSelector,
 ) {
@@ -679,7 +671,7 @@ pub fn walk_nth_selector<V: NodeVisitor + ?Sized>(
 /// Walk one nth-of selector node.
 pub fn walk_nth_of_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<NthOfSelector>,
     selector: &NthOfSelector,
 ) {
@@ -694,7 +686,7 @@ pub fn walk_nth_of_selector<V: NodeVisitor + ?Sized>(
 /// Walk one pseudo class node.
 pub fn walk_pseudo_class<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<PseudoClass>,
     selector: &PseudoClass,
 ) {
@@ -711,7 +703,7 @@ pub fn walk_pseudo_class<V: NodeVisitor + ?Sized>(
 /// Walk one vendor any selector node.
 pub fn walk_any_selector<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<AnySelector>,
     selector: &AnySelector,
 ) {
@@ -723,7 +715,7 @@ pub fn walk_any_selector<V: NodeVisitor + ?Sized>(
 /// Walk one pseudo element node.
 pub fn walk_pseudo_element<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<PseudoElement>,
     selector: &PseudoElement,
 ) {
@@ -740,7 +732,7 @@ pub fn walk_pseudo_element<V: NodeVisitor + ?Sized>(
 /// Walk one media query list node.
 pub fn walk_media_query_list<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<MediaQueryList>,
     media_query_list: &MediaQueryList,
 ) {
@@ -755,7 +747,7 @@ pub fn walk_media_query_list<V: NodeVisitor + ?Sized>(
 /// Walk one media query node.
 pub fn walk_media_query<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<MediaQuery>,
     query: &MediaQuery,
 ) {
@@ -770,7 +762,7 @@ pub fn walk_media_query<V: NodeVisitor + ?Sized>(
 /// Walk one media condition node.
 pub fn walk_media_condition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<MediaCondition>,
     condition: &MediaCondition,
 ) {
@@ -798,7 +790,7 @@ pub fn walk_media_condition<V: NodeVisitor + ?Sized>(
 /// Walk one feature name node.
 pub fn walk_feature_name<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<FeatureName>,
     _name: &FeatureName,
 ) {
@@ -808,7 +800,7 @@ pub fn walk_feature_name<V: NodeVisitor + ?Sized>(
 /// Walk one query feature node.
 pub fn walk_query_feature<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<QueryFeature>,
     feature: &QueryFeature,
 ) {
@@ -844,7 +836,7 @@ pub fn walk_query_feature<V: NodeVisitor + ?Sized>(
 /// Walk one feature value node.
 pub fn walk_feature_value<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<FeatureValue>,
     _value: &FeatureValue,
 ) {
@@ -866,7 +858,7 @@ pub fn walk_feature_value<V: NodeVisitor + ?Sized>(
 /// Walk one ratio value node.
 pub fn walk_ratio_value<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<RatioValue>,
     _value: &RatioValue,
 ) {
@@ -876,7 +868,7 @@ pub fn walk_ratio_value<V: NodeVisitor + ?Sized>(
 /// Walk one environment variable node.
 pub fn walk_environment_variable<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<EnvironmentVariable>,
     _value: &EnvironmentVariable,
 ) {
@@ -886,7 +878,7 @@ pub fn walk_environment_variable<V: NodeVisitor + ?Sized>(
 /// Walk one supports condition node.
 pub fn walk_supports_condition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<SupportsCondition>,
     condition: &SupportsCondition,
 ) {
@@ -913,7 +905,7 @@ pub fn walk_supports_condition<V: NodeVisitor + ?Sized>(
 /// Walk one container condition node.
 pub fn walk_container_condition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<ContainerCondition>,
     condition: &ContainerCondition,
 ) {
@@ -949,7 +941,7 @@ pub fn walk_container_condition<V: NodeVisitor + ?Sized>(
 /// Walk one container style query node.
 pub fn walk_container_style_query<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<ContainerStyleQuery>,
     query: &ContainerStyleQuery,
 ) {
@@ -973,7 +965,7 @@ pub fn walk_container_style_query<V: NodeVisitor + ?Sized>(
 /// Walk one container scroll state query node.
 pub fn walk_container_scroll_state_query<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &NodeTree,
+    tree: &Tree,
     id: LocalNodeId<ContainerScrollStateQuery>,
     query: &ContainerScrollStateQuery,
 ) {
