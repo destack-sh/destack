@@ -1,5 +1,4 @@
 use crate::parse::expression::common::DeclarationHeader;
-use crate::parse::timing::tags;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
@@ -86,8 +85,6 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_TYPE);
-
         let keyword_start = self.span_start();
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
@@ -110,8 +107,6 @@ impl Parser {
 
         // named alias heads commit before we consume the identifier
         if self.identifier_starts_type_alias() {
-            let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
-
             // alias head
             let (name, name_span) = self.eat_name_with_span()?;
             let generic_parameter_container_start = self.span_start();

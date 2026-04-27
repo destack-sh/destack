@@ -55,7 +55,6 @@ impl Parser {
         header: DeclarationHeader,
         kind: TypeKind,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let _timing = self.timing_scope(tags::PARSE_INTERFACE);
         // typed interface heads do not admit tree literals
         let allow_tree_literals = if self.language.is_typescript() {
             let allow_tree_literals = self.allow_tree_literals();

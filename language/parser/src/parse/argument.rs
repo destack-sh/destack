@@ -1759,7 +1759,6 @@ impl Parser {
     /// Only type and value arguments are allowed.
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_generic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<GenericArgument>>> {
-        let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         let start = self.span_start();
         let used_shift_left_start = self.peek_is(TokenType::ShiftLeft);
 
@@ -1849,7 +1848,6 @@ impl Parser {
     /// Eat dynamic arguments (including the `(` and `)` tokens).
     /// Only positional and spread arguments are allowed (no named arguments).
     pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         self.eat_token(TokenType::OpenParenthesis)?;
 
         // empty dynamic arguments

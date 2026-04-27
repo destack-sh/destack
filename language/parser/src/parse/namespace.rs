@@ -51,7 +51,6 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
         // keyword
         let namespace_kind = if self.is_keyword(Keyword::Namespace) {
             self.bump(); // eat namespace

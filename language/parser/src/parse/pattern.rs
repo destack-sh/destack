@@ -22,7 +22,6 @@ impl Parser {
     /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
-        let _timing = self.timing_scope(tags::PARSE_PATTERN);
         let start = self.span_start();
 
         // mutability

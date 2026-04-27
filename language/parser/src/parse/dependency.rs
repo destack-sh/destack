@@ -314,7 +314,6 @@ impl Parser {
     /// import a = require("a")
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_IMPORT);
         let start = self.span_start();
 
         // keyword

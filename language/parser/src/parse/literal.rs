@@ -80,7 +80,6 @@ impl Parser {
     /// /abc/g
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParseResult<ScalarLiteral> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let literal_span = *self.eat()?;
         let Some(body) = literal_span.token.literal else {
             return Err(ParseError::unexpected(literal_span.span));
@@ -640,7 +639,6 @@ impl Parser {
         &mut self,
         allow_legacy_octal_escapes: bool,
     ) -> ParseResult<TemplateLiteral> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let (strings, arguments) = self
             .eat_template_literal_parts(allow_legacy_octal_escapes, |parser| {
                 parser.eat_template_literal_argument()
@@ -663,7 +661,6 @@ impl Parser {
     pub fn eat_type_template_literal_expression(
         &mut self,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.span_start();
         let (strings, spans) = self.eat_template_literal_parts(false, |parser| {
             // reset outer precedence so interpolation unions parse fully
@@ -865,7 +862,6 @@ impl Parser {
 
     /// Eat an array literal (including the surrounding brackets).
     pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBracket)?;
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
@@ -948,7 +944,6 @@ impl Parser {
     /// { a: 1, b }
     /// { a(x): void }
     pub fn eat_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
         // object literal properties are always expression properties, not variant members
         let property_ambient_context = self.flags.with_variant(false);
@@ -963,7 +958,6 @@ impl Parser {
 
     /// Eat one object type literal (including the surrounding braces).
     pub fn eat_type_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
 
         let property_ambient_context = self.flags.with_variant(false).with_type(true);
@@ -1221,7 +1215,6 @@ impl Parser {
         &mut self,
         in_tree_child: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.span_start();
         self.eat_tree_opening_angle()?;
 

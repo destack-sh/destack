@@ -2,14 +2,12 @@ use destack_core::StringId;
 use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
-use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 use destack_ast::{Expression, LocalNodeId, Path, TokenType};
 
 impl Parser {
     /// Eat a path.
     pub fn eat_path(&mut self) -> ParseResult<Path> {
-        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier
@@ -53,7 +51,6 @@ impl Parser {
 
     /// Eat a path and return the spans of all its segments.
     pub fn eat_path_with_segment_spans(&mut self) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
-        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
@@ -96,7 +93,6 @@ impl Parser {
 
     /// Eat a tree literal path.
     pub fn eat_tree_literal_path(&mut self) -> ParseResult<Path> {
-        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
@@ -133,7 +129,6 @@ impl Parser {
     pub fn eat_tree_literal_path_with_segment_spans(
         &mut self,
     ) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
-        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 

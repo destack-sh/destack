@@ -48,7 +48,6 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let _timing = self.timing_scope(tags::PARSE_MATCH);
         // keyword
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let kind = if keyword == Keyword::Switch {

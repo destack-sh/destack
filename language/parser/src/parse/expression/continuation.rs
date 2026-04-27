@@ -623,7 +623,6 @@ impl Parser {
 
         // indirect calls stay in value space
         if next_token_type == TokenType::OpenParenthesis {
-            let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
             self.bump(); // eat .
             let expression_id =
                 self.eat_call(left_expression_id, None, PostfixPosition::Indirect)?;
@@ -1077,8 +1076,6 @@ impl Parser {
         if left_is_unparenthesized_lambda {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
-
-        let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
         let expression_id = self.eat_call(left_expression_id, None, PostfixPosition::Direct)?;
 
         Ok(Some(expression_id))
@@ -1099,7 +1096,6 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
-            self.stats.record_with_flags_call();
             let tuple_elements = self.with_flags(self.flags.not_in_position(), |parser| {
                 parser
                     .eat_sequence_literal_body(Some(first_element_id), TokenType::CloseParenthesis)
@@ -1318,7 +1314,6 @@ impl Parser {
         mut left_expression_id: LocalNodeId<Expression>,
         mut left_is_parenthesized: bool,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
         let is_in_static = self.flags.is_in_static();
         let is_in_ternary_or_match =
             self.flags.is_in_ternary_condition() || self.flags.is_in_match_case();
@@ -1372,7 +1367,6 @@ impl Parser {
         start: &ParserSpanStart,
         mut left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
         let is_in_static = self.flags.is_in_static();
         let is_in_ternary_or_match =
             self.flags.is_in_ternary_condition() || self.flags.is_in_match_case();
@@ -1478,7 +1472,6 @@ impl Parser {
         start: &ParserSpanStart,
         mut left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
         let left_precedence = self.flags.left_precedence;
 
         loop {
@@ -1721,8 +1714,6 @@ impl Parser {
                 .tree
                 .get(left_expression_id)
                 .ends_statement_on_newline();
-
-        let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
         let left_precedence = self.flags.left_precedence;
         loop {
             // wrapped type expressions keep the explicit value/type boundary

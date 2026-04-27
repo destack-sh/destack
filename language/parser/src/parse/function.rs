@@ -484,10 +484,7 @@ impl Parser {
         start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
-        self.stats.record_parenthesized_lambda_plain_call();
-
         let Some((close_span, head_shape)) = self.scan_plain_parenthesized_lambda_head() else {
-            self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         };
 
@@ -504,7 +501,6 @@ impl Parser {
             follow_token_type,
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
         ) {
-            self.stats.record_parenthesized_lambda_plain_miss();
             return Ok(None);
         }
 
@@ -607,8 +603,6 @@ impl Parser {
             body,
         );
 
-        self.stats.record_parenthesized_lambda_plain_hit();
-
         Ok(Some(function_id))
     }
 
@@ -703,8 +697,6 @@ impl Parser {
         start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
-        self.stats.record_identifier_lambda_plain_call();
-
         // parse the single named parameter
         let parameter_name = self.eat_identifier()?;
         let parameter_span = self.get_span_from(start);
@@ -737,8 +729,6 @@ impl Parser {
             None,
             body,
         );
-
-        self.stats.record_identifier_lambda_plain_hit();
 
         Ok(Some(function_id))
     }
@@ -807,7 +797,6 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let _timing = self.timing_scope(tags::PARSE_FUNCTION);
         let can_parse_plain_lambda =
             self.can_parse_plain_lambda(&header, expect_maybe, expect_body);
 
@@ -847,7 +836,6 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let _timing = self.timing_scope(tags::PARSE_FUNCTION);
         let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
 
         if function.signature.kind == FunctionKind::Lambda && function.body.is_none() {
