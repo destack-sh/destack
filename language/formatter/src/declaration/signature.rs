@@ -2,8 +2,8 @@ use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, infix_or_postfix_annotations,
     prefix_annotations,
 };
-use crate::collection::{TrailingSeparator, separated_entries};
-use crate::context::MemoizeFormatExt;
+use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
+use crate::context::{MemoizeFormatExt, MemoizedFormat};
 use crate::expression::write_type_expression_node;
 use crate::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
@@ -16,7 +16,7 @@ use destack_ast::{
     TokenType, TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
 use destack_core::StringId;
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatNodes, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -390,6 +390,113 @@ fn type_expression_is_object_like(
         context.tree.get(type_id),
         TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
     )
+}
+
+/// Return whether one generic parameter permits parameter grouping.
+pub(crate) fn function_grouping_generic_parameter_is_plain(
+    context: &DestackFormatContext<'_>,
+    generic_parameter_id: LocalNodeId<GenericParameter>,
+) -> bool {
+    match context.tree.get(generic_parameter_id) {
+        GenericParameter::Type {
+            constraint,
+            default,
+            ..
+        } => constraint.is_none() && default.is_none(),
+        GenericParameter::Value {
+            declared_type,
+            default,
+            ..
+        } => declared_type.is_none() && default.is_none(),
+        GenericParameter::Error => false,
+    }
+}
+
+/// Return whether parameters should group separately from the return type.
+pub(crate) fn should_group_parameters_with_return_type<'ast, T>(
+    f: &mut DestackFormatter<'ast, '_>,
+    generic_parameters: &[LocalNodeId<GenericParameter>],
+    parameter_count: usize,
+    return_type: Option<LocalNodeId<TypeExpression>>,
+    formatted_return_type: &MemoizedFormat<T>,
+) -> FormatResult<bool>
+where
+    T: Format<DestackFormatContext<'ast>>,
+{
+    match generic_parameters {
+        [] => {}
+        [generic_parameter_id]
+            if function_grouping_generic_parameter_is_plain(f.context(), *generic_parameter_id) => {
+        }
+        _ => return Ok(false),
+    }
+
+    let Some(return_type) = return_type else {
+        return Ok(false);
+    };
+    if parameter_count != 1 {
+        return Ok(false);
+    }
+
+    if type_expression_is_object_like(f.context(), return_type) {
+        return Ok(true);
+    }
+
+    let will_break = formatted_return_type
+        .inspect(f)?
+        .is_some_and(|return_type| return_type.will_break());
+
+    Ok(will_break)
+}
+
+/// Write type parameters, parameters, and return type using grouped signature layout.
+pub(crate) fn write_grouped_parameters_with_return_type<'ast, H, P, R>(
+    f: &mut DestackFormatter<'ast, '_>,
+    generic_parameters: &[LocalNodeId<GenericParameter>],
+    parameter_count: usize,
+    return_type: Option<LocalNodeId<TypeExpression>>,
+    format_parameter_head: &MemoizedFormat<H>,
+    format_parameters: &MemoizedFormat<P>,
+    format_return_type: &MemoizedFormat<R>,
+    should_expand_parameters: bool,
+    should_group_return_type: bool,
+) -> FormatResult<()>
+where
+    H: Format<DestackFormatContext<'ast>>,
+    P: Format<DestackFormatContext<'ast>>,
+    R: Format<DestackFormatContext<'ast>>,
+{
+    format_parameter_head.inspect(f)?;
+    format_parameters.inspect(f)?;
+
+    let should_group_parameters = should_expand_parameters
+        || should_group_parameters_with_return_type(
+            f,
+            generic_parameters,
+            parameter_count,
+            return_type,
+            format_return_type,
+        )?;
+
+    if should_group_parameters {
+        write!(
+            f,
+            [
+                group(&format_args![format_parameter_head, format_parameters])
+                    .should_expand(should_expand_parameters)
+            ]
+        )?;
+    } else {
+        write!(f, [format_parameter_head, format_parameters])?;
+    }
+
+    if should_group_return_type {
+        write!(f, [group(format_return_type)])?;
+    } else {
+        write!(f, [format_return_type])?;
+    }
+
+    Ok(())
 }
 
 /// Return whether comments surround the only parameter inside its parentheses.
@@ -793,7 +900,31 @@ pub(crate) fn write_signature_parameter_list<'ast>(
         return write!(f, [token("("), block_indent(&body), token(")")]);
     }
 
-    let body = separated_entries(",", parameters, trailing_separator, None);
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let entries = FormatSeparatedIter::new(parameters.iter().copied(), ",")
+            .with_trailing_separator(trailing_separator);
+
+        for (index, entry) in entries.enumerate() {
+            if index > 0 {
+                let parameter_span = f.context().span(entry.element());
+                let has_lines_before = f
+                    .context()
+                    .source_text()
+                    .get_lines_before(parameter_span, f.context().comments())
+                    > 1;
+
+                if has_lines_before {
+                    write!(f, [empty_line()])?;
+                } else {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+            }
+
+            write!(f, [entry])?;
+        }
+
+        Ok(())
+    });
     write!(f, [token("("), soft_block_indent(&body), token(")")])
 }
 
@@ -897,10 +1028,16 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
         match self {
             GenericParameter::Type {
                 name,
+                is_const,
                 variance,
                 constraint,
                 default,
             } => {
+                // const
+                if *is_const {
+                    write!(f, [Keyword::Const, space()])?;
+                }
+
                 // variance
                 write_variance_prefix(f, *variance)?;
 

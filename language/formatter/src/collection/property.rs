@@ -3,11 +3,13 @@ use crate::annotation::{
     infix_or_postfix_annotations, postfix_annotations, prefix_comments_before_decorators,
 };
 use crate::chain::transparent_inner_expression;
+use crate::context::MemoizeFormatExt;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
-    format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
-    write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
-    write_generic_parameter_list, write_signature_hug_parameter_list,
+    format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
+    should_hug_function_parameters, write_empty_parameter_list_with_interior_comments,
+    write_function_header_prefix, write_generic_parameter_list,
+    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list,
     write_signature_parameter_list, write_signature_return_type,
 };
 use crate::declaration::statement::write_block_body;
@@ -717,6 +719,7 @@ pub(crate) fn format_method_like<'ast, N>(
     is_static: bool,
     is_accessor: bool,
     is_comptime: bool,
+    is_optional: bool,
     key: Option<Key>,
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
@@ -742,6 +745,9 @@ where
     if let Some(key) = key {
         format_key_with_quotes(f, key, force_quote_keys)?;
     }
+
+    // optional
+    write_optional_suffix(f, is_optional)?;
 
     // generic parameters
     if !signature.generic_parameters.is_empty() {
@@ -793,20 +799,49 @@ where
     NodeTree: NodeTreeImpl<N>,
 {
     let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if parameters.is_empty() {
-            write_empty_parameter_list_with_interior_comments(f, node_id)?;
-        } else if should_hug_function_parameters(f.context(), parameters, false) {
-            write_signature_hug_parameter_list(f, parameters)?;
-        } else {
-            let disallow_trailing_parameter_separator = parameters
-                .last()
-                .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
-            write_signature_parameter_list(f, parameters, disallow_trailing_parameter_separator)?;
-        }
+        let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if parameters.is_empty() {
+                write_empty_parameter_list_with_interior_comments(f, node_id)?;
+            } else if should_hug_function_parameters(f.context(), parameters, false) {
+                write_signature_hug_parameter_list(f, parameters)?;
+            } else {
+                let disallow_trailing_parameter_separator = parameters
+                    .last()
+                    .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
+                write_signature_parameter_list(
+                    f,
+                    parameters,
+                    disallow_trailing_parameter_separator,
+                )?;
+            }
 
-        if let Some(return_type) = signature.return_type {
-            write_signature_return_type(f, node_id, return_type)?;
-        }
+            Ok(())
+        })
+        .memoized();
+
+        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            if let Some(return_type) = signature.return_type {
+                write_signature_return_type(f, node_id, return_type)?;
+            }
+
+            Ok(())
+        })
+        .memoized();
+
+        let format_parameter_head =
+            format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
+        let should_break_parameters = should_break_function_parameters(f.context(), parameters);
+        write_grouped_parameters_with_return_type(
+            f,
+            &signature.generic_parameters,
+            parameters.len(),
+            signature.return_type,
+            &format_parameter_head,
+            &format_parameters,
+            &format_return_type,
+            should_break_parameters,
+            false,
+        )?;
 
         Ok(())
     });
@@ -972,6 +1007,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     node_id,
                     None,
                     Ambientness::Concrete,
+                    false,
                     false,
                     false,
                     false,

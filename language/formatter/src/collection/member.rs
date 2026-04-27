@@ -210,6 +210,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             is_static,
             is_accessor,
             is_comptime,
+            is_optional,
             ..
         } = self
         {
@@ -224,6 +225,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     *is_static,
                     *is_accessor,
                     *is_comptime,
+                    *is_optional,
                     *key,
                     signature,
                     *body,
@@ -232,7 +234,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                 // abstract and signature-only methods own their terminator
                 if body.is_none() {
-                    write!(f, [token(";")])?;
+                    write_member_terminator(f, node_id)?;
                 }
 
                 Ok(())
