@@ -513,7 +513,7 @@ impl TypeLowerer {
             types,
             type_id,
             symbol,
-            static_arguments,
+            generic_arguments,
             module_id,
             node,
             builder,
@@ -665,20 +665,23 @@ impl TypeLowerer {
         let mut fields = Vec::new();
 
         for (source_index, member_id) in members.iter().enumerate() {
-            let dir::Member::Field { key, value, .. } = dir.tree.get(*member_id) else {
+            let dir::Member::Field {
+                key, declared_type, ..
+            } = dir.tree.get(*member_id)
+            else {
                 continue;
             };
-            let Some(key) = key.and_then(Self::static_key_from_member_key) else {
+            let Some(key) = Self::static_key_from_member_key(*key) else {
                 continue;
             };
-            let Some(value) = value else {
+            let Some(declared_type) = declared_type else {
                 continue;
             };
             let type_id = dir
                 .types
-                .get_declared_or_inferred_type_id(value.into_global_any(symbol.module_id))
+                .get_declared_or_inferred_type_id(declared_type.into_global_any(symbol.module_id))
                 .ok_or_else(|| LowerError::MissingType {
-                    node: value
+                    node: declared_type
                         .into_global_any(symbol.module_id)
                         .into_anchored(Some(profile)),
                 })?;
@@ -725,21 +728,22 @@ impl TypeLowerer {
             .try_into_typed::<dir::Declaration>()
             .ok()?;
 
-        let dir::Declaration::Struct { members, .. } = tree.get(declaration_id) else {
+        let dir::Declaration::Struct(declaration) = tree.get(declaration_id) else {
             return None;
         };
 
-        Some(members.clone())
+        Some(declaration.members.clone())
     }
 
     /// Convert a simple member key to a static field key.
-    fn static_key_from_member_key(key: dir::DynamicKey) -> Option<dir::StaticKey> {
+    fn static_key_from_member_key(key: dir::Key) -> Option<dir::StaticKey> {
         match key {
-            dir::DynamicKey::Name(name) | dir::DynamicKey::Private(name) => {
+            dir::Key::Name(dir::Name::Identifier(name) | dir::Name::String(name)) => {
                 Some(dir::StaticKey::Name(name))
             }
-            dir::DynamicKey::Number(name) => Some(dir::StaticKey::Number(name)),
-            dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => None,
+            dir::Key::Name(dir::Name::Number(name)) => Some(dir::StaticKey::Number(name)),
+            dir::Key::Private(name) => Some(dir::StaticKey::Name(name)),
+            dir::Key::Expression(_) => None,
         }
     }
 
