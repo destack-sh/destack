@@ -1,6 +1,5 @@
 mod assert;
 mod driver;
-mod dumper;
 mod resolve;
 pub(crate) mod scenario;
 mod tests;

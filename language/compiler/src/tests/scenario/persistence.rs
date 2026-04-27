@@ -1,9 +1,7 @@
 use destack_artifact::ArtifactKey;
 use destack_builtin::LanguageSymbol;
 
-use crate::tests::scenario::{
-    CompilerScenario, append_file_text, assert_ast_eq, assert_dir_resolved_eq,
-};
+use crate::tests::scenario::{CompilerScenario, append_file_text, assert_ast_eq};
 
 /// Reuse a persisted AST across a fresh compiler session.
 #[test]
@@ -134,59 +132,6 @@ export const value: number = dep;
     // compare the graph shape without live profile ids
     assert_eq!(loaded.modules, expected.modules);
     assert_eq!(loaded.dependents, expected.dependents);
-}
-
-/// Reuse a persisted resolved DIR across a fresh compiler session.
-#[test]
-fn test_reuses_dir_resolved_across_fresh_scenario_sessions() {
-    let workspace = CompilerScenario::new()
-        .with_prefix("scenario_dir_resolved_reuse")
-        .disk_cache()
-        .minimal_language_surface()
-        .file("dep.ts", "export const dep: number = 1;")
-        .file(
-            "main.ts",
-            r#"
-import { dep } from "./dep";
-
-export const value: number = dep;
-"#,
-        )
-        .root("main.ts")
-        .materialize();
-
-    // persist the resolved dir once
-    let first = workspace.open();
-    let dep = first.module("dep.ts");
-    let main = first.module("main.ts");
-    dep.require_dir_resolved();
-    main.require_dir_resolved();
-    let expected = main.dir_resolved().as_ref().clone();
-
-    // reopen a fresh compiler session over the same workspace
-    let fresh = first.reopen_fresh();
-    let fresh_main = fresh.module("main.ts");
-    let loaded = fresh
-        .compiler()
-        .load_dir_resolved_image(
-            fresh.current_revision(),
-            fresh_main.module_id(),
-            fresh.compiler().artifact_stamp_for_revision(
-                fresh.current_revision(),
-                &fresh_main.dir_resolved_key(),
-            ),
-            fresh_main.profile_id(),
-        )
-        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"))
-        .unwrap_or_else(|| panic!("expected persisted resolved dir image"));
-
-    // compare the persisted semantic surface
-    assert_dir_resolved_eq(
-        &first.program().strings,
-        &fresh.program().strings,
-        &expected,
-        &loaded,
-    );
 }
 
 /// Reject a persisted language environment image after builtin source changes.

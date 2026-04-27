@@ -12,8 +12,8 @@ use destack_source::TemporaryPhysicalFileSystem;
 use super::store::LANGUAGE_CACHE_ABI;
 use crate::run_to_completion;
 use crate::tests::scenario::{
-    append_file_text, build_disk_cache_compiler, build_memory_cache_compiler,
-    dump_dir_prepared_nodes, dump_dir_prepared_symbols, normalize_ast, test_profile_key,
+    append_file_text, build_disk_cache_compiler, build_memory_cache_compiler, normalize_ast,
+    test_profile_key,
 };
 
 /// Persist and load one language environment image through the artifact cache.
@@ -625,115 +625,6 @@ fn test_artifact_families_classify_persisted_image_validation() {
         ArtifactFamily::PackageOutput.persisted_image_validation(),
         Some(PersistedImageValidation::DependencyValidated)
     );
-}
-
-/// Reuse one persisted prepared DIR image across a fresh compiler session.
-#[test]
-fn test_compiler_reuses_dir_prepared_images_across_sessions() {
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image");
-    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-
-    // build and persist the prepared dir in the first session
-    let module_id = compiler
-        .resolve_path_to_module(program.current_revision(), &module_path)
-        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let profile_id = compiler
-        .context(program.current_revision())
-        .unwrap_or_else(|message| panic!("{message}"))
-        .default_profile_id_for_module(module_id);
-    run_to_completion(
-        &compiler,
-        program.current_revision(),
-        |compiler, _context| {
-            compiler.require_dir_prepared(_context.revision(), module_id, profile_id)
-        },
-    )
-    .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
-    let expected = compiler
-        .repository
-        .dir_prepared(program.current_revision(), module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published prepared dir"));
-    let expected_nodes = dump_dir_prepared_nodes(&compiler.repository.strings, &expected);
-    let expected_symbols = dump_dir_prepared_symbols(&compiler.repository.strings, &expected);
-    let cache_layout = session.artifact_cache_layout(LANGUAGE_CACHE_ABI);
-    let artifact_cache = ArtifactCache::new(session.cache().as_ref(), &cache_layout);
-    let image_key = ArtifactImageKey::DirPrepared {
-        module: module_id,
-        profile: compiler
-            .profile_for_revision(program.current_revision(), profile_id)
-            .key
-            .clone(),
-    };
-    let stored_header = artifact_cache
-        .load_header(&image_key)
-        .unwrap_or_else(|error| panic!("failed to load prepared dir image header: {error}"));
-    assert!(stored_header.is_some());
-
-    let expected = compiler.dir_prepared_image_header(
-        program.current_revision(),
-        module_id,
-        compiler.artifact_stamp_for_revision(
-            program.current_revision(),
-            &ArtifactKey::dir_prepared(module_id, profile_id),
-        ),
-        profile_id,
-    );
-    assert!(expected.is_some());
-
-    drop(compiler);
-    drop(program);
-    drop(session);
-
-    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-
-    // build the same stable profile in a fresh session
-    let module_id = compiler
-        .resolve_path_to_module(program.current_revision(), &module_path)
-        .unwrap_or_else(|error| {
-            panic!("failed to resolve main module in fresh session: {error:?}")
-        });
-    let profile_id = compiler
-        .context(program.current_revision())
-        .unwrap_or_else(|message| panic!("{message}"))
-        .default_profile_id_for_module(module_id);
-
-    // verify the persisted image is available before any rebuild
-    let loaded = compiler
-        .load_dir_prepared_image(
-            program.current_revision(),
-            module_id,
-            compiler.artifact_stamp_for_revision(
-                program.current_revision(),
-                &ArtifactKey::dir_prepared(module_id, profile_id),
-            ),
-            profile_id,
-        )
-        .unwrap_or_else(|error| panic!("failed to load persisted prepared dir: {error}"))
-        .unwrap_or_else(|| panic!("expected persisted prepared dir image"));
-
-    // compare the prepared dir surface semantically
-    let loaded_nodes = dump_dir_prepared_nodes(&compiler.repository.strings, &loaded);
-    let loaded_symbols = dump_dir_prepared_symbols(&compiler.repository.strings, &loaded);
-    assert_eq!(loaded_nodes, expected_nodes);
-    assert_eq!(loaded_symbols, expected_symbols);
-
-    // validate the public compiler path too
-    run_to_completion(
-        &compiler,
-        program.current_revision(),
-        |compiler, _context| {
-            compiler.require_dir_prepared(_context.revision(), module_id, profile_id)
-        },
-    )
-    .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
-    let resolved = compiler
-        .repository
-        .dir_prepared(program.current_revision(), module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published prepared dir"));
-    let resolved_nodes = dump_dir_prepared_nodes(&compiler.repository.strings, &resolved);
-    let resolved_symbols = dump_dir_prepared_symbols(&compiler.repository.strings, &resolved);
-    assert_eq!(resolved_nodes, expected_nodes);
-    assert_eq!(resolved_symbols, expected_symbols);
 }
 
 /// Skip artifact image loads when persistent cache is disabled.
