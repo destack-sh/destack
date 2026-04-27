@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 /// Deterministic BLAKE3-backed hasher for stable ids and cache keys.
 #[derive(Clone, Debug)]
 pub struct StableHasher {
@@ -39,6 +41,16 @@ impl StableHasher {
     /// Finish the hash stream as a 128-bit value.
     pub fn finish_u128(&self) -> u128 {
         hash_to_u128(self.inner.finalize())
+    }
+}
+
+impl Hasher for StableHasher {
+    fn finish(&self) -> u64 {
+        self.finish_u64()
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.update(bytes);
     }
 }
 
@@ -94,4 +106,19 @@ pub fn stable_hash_key_value_128(key: &[u8], value: &[u8]) -> u128 {
     hasher.update_len_prefixed(value);
 
     hasher.finish_u128()
+}
+
+/// Hash one structural value into one deterministic 64-bit value.
+pub fn stable_hash_value(value: &impl Hash) -> u64 {
+    let mut hasher = StableHasher::new();
+    value.hash(&mut hasher);
+
+    hasher.finish_u64()
+}
+
+/// Hash one key/value pair into one non-zero deterministic 128-bit value.
+pub fn stable_nonzero_hash_key_value(key: &[u8], value: &[u8]) -> u128 {
+    let hash = stable_hash_key_value_128(key, value);
+
+    if hash == 0 { 1 } else { hash }
 }
