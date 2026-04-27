@@ -36,28 +36,36 @@ export enum AccessibilityTextUnit {
 export newtype AccessibilityTextUnitFlags = uint32;
 
 /// No text navigation units.
-export const ACCESSIBILITY_TEXT_UNIT_NONE: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x0);
+export const ACCESSIBILITY_TEXT_UNIT_NONE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x0);
 
 /// Character-unit navigation.
-export const ACCESSIBILITY_TEXT_UNIT_CHARACTER: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x1);
+export const ACCESSIBILITY_TEXT_UNIT_CHARACTER: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x1);
 
 /// Format-run navigation.
-export const ACCESSIBILITY_TEXT_UNIT_FORMAT: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x2);
+export const ACCESSIBILITY_TEXT_UNIT_FORMAT: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x2);
 
 /// Word-unit navigation.
-export const ACCESSIBILITY_TEXT_UNIT_WORD: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x4);
+export const ACCESSIBILITY_TEXT_UNIT_WORD: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x4);
 
 /// Line-unit navigation.
-export const ACCESSIBILITY_TEXT_UNIT_LINE: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x8);
+export const ACCESSIBILITY_TEXT_UNIT_LINE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x8);
 
 /// Paragraph-unit navigation.
-export const ACCESSIBILITY_TEXT_UNIT_PARAGRAPH: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x10);
+export const ACCESSIBILITY_TEXT_UNIT_PARAGRAPH: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x10);
 
 /// Page-unit navigation.
-export const ACCESSIBILITY_TEXT_UNIT_PAGE: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x20);
+export const ACCESSIBILITY_TEXT_UNIT_PAGE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x20);
 
 /// Whole-document navigation.
-export const ACCESSIBILITY_TEXT_UNIT_DOCUMENT: AccessibilityTextUnitFlags = AccessibilityTextUnitFlags(0x40);
+export const ACCESSIBILITY_TEXT_UNIT_DOCUMENT: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x40);
 
 /// Logical bounds for one text fragment.
 export struct AccessibilityTextRect {

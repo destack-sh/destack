@@ -536,7 +536,9 @@ declare namespace input {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
+    export function monitorRead(
+        handle: InputMonitorHandle,
+    ): Result<InputMonitorEvent, PlatformError>;
 
     /// Poll one global input monitor event without blocking.
     ///
@@ -568,7 +570,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
+    export function monitorTryRead(
+        handle: InputMonitorHandle,
+    ): Result<InputMonitorEvent, PlatformError>;
 
     /// Read one input event.
     ///

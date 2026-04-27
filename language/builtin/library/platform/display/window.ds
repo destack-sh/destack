@@ -611,7 +611,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function windowContentRect(window: WindowHandle): Result<WindowLogicalRect, PlatformError>;
+    export function windowContentRect(
+        window: WindowHandle,
+    ): Result<WindowLogicalRect, PlatformError>;
 
     /// Read the drawable framebuffer size for a window.
     ///
@@ -672,7 +674,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function windowRenderState(window: WindowHandle): Result<WindowRenderState, PlatformError>;
+    export function windowRenderState(
+        window: WindowHandle,
+    ): Result<WindowRenderState, PlatformError>;
 
     /// Read the effective capability set for a window.
     ///
@@ -701,7 +705,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>;
+    export function windowCapabilities(
+        window: WindowHandle,
+    ): Result<DisplayBackendCapabilityFlags, PlatformError>;
 
     /// Set a window title string.
     ///

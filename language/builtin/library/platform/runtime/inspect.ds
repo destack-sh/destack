@@ -146,9 +146,7 @@ export declare namespace runtime {
         blocking: "never",
         affinity: "owner",
     })
-    export function revisionView(
-        view: WorldViewHandle,
-    ): Result<RevisionDescriptor, PlatformError>;
+    export function revisionView(view: WorldViewHandle): Result<RevisionDescriptor, PlatformError>;
 
     /// Describe the pinned image for one world view.
     ///

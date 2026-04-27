@@ -171,5 +171,4 @@ declare namespace memory {
         affinity: "any",
     })
     export function release(address: uint64, length: uint64): Result<void, PlatformError>;
-
 }

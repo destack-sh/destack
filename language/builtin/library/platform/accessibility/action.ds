@@ -401,5 +401,7 @@ declare namespace accessibility {
         blocking: "never",
         affinity: "any",
     })
-    export function actionTryRead(handle: AccessibilityActionHandle): Result<AccessibilityAction, PlatformError>;
+    export function actionTryRead(
+        handle: AccessibilityActionHandle,
+    ): Result<AccessibilityAction, PlatformError>;
 }

@@ -6,16 +6,16 @@ import type { PlatformError } from "../error/index.ds";
 export namespace timers {
     /// Schedule a one-shot timer.
     export function once(delayNs: uint64): Result<TimerHandle, PlatformError> {
-        platform.timer.once(delayNs)
+        platform.timer.once(delayNs);
     }
 
     /// Schedule a repeating timer.
     export function interval(periodNs: uint64): Result<TimerHandle, PlatformError> {
-        platform.timer.interval(periodNs)
+        platform.timer.interval(periodNs);
     }
 
     /// Cancel a scheduled timer.
     export function cancel(handle: TimerHandle): Result<void, PlatformError> {
-        platform.timer.cancel(handle)
+        platform.timer.cancel(handle);
     }
 }

@@ -840,7 +840,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function cameraDeviceWatchTryRead(handle: CameraWatchHandle): Result<CameraWatchEvent, PlatformError>;
+    export function cameraDeviceWatchTryRead(
+        handle: CameraWatchHandle,
+    ): Result<CameraWatchEvent, PlatformError>;
 
     /// Open a camera endpoint.
     ///
@@ -898,7 +900,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraDeviceStreamCapabilityList(handle: CameraDeviceHandle): Result<Slice<CameraStreamCapability>, PlatformError>;
+    export function cameraDeviceStreamCapabilityList(
+        handle: CameraDeviceHandle,
+    ): Result<Slice<CameraStreamCapability>, PlatformError>;
 
     /// Close a camera endpoint.
     ///
@@ -1107,7 +1111,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function cameraStreamTryRead(handle: CameraStreamHandle): Result<CameraFrame, PlatformError>;
+    export function cameraStreamTryRead(
+        handle: CameraStreamHandle,
+    ): Result<CameraFrame, PlatformError>;
 
     /// Read the active camera stream configuration.
     ///
@@ -1136,7 +1142,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamConfig(handle: CameraStreamHandle): Result<CameraStreamConfig, PlatformError>;
+    export function cameraStreamConfig(
+        handle: CameraStreamHandle,
+    ): Result<CameraStreamConfig, PlatformError>;
 
     /// Read camera control state.
     ///
@@ -1165,7 +1173,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamControlState(handle: CameraStreamHandle): Result<CameraControlState, PlatformError>;
+    export function cameraStreamControlState(
+        handle: CameraStreamHandle,
+    ): Result<CameraControlState, PlatformError>;
 
     /// Read camera control capabilities.
     ///
@@ -1194,7 +1204,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamControlCapabilities(handle: CameraStreamHandle): Result<CameraControlCapabilities, PlatformError>;
+    export function cameraStreamControlCapabilities(
+        handle: CameraStreamHandle,
+    ): Result<CameraControlCapabilities, PlatformError>;
 
     /// Apply camera control updates.
     ///
@@ -1255,7 +1267,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamRecordingCapabilities(handle: CameraStreamHandle): Result<CameraRecordingCapabilities, PlatformError>;
+    export function cameraStreamRecordingCapabilities(
+        handle: CameraStreamHandle,
+    ): Result<CameraRecordingCapabilities, PlatformError>;
 
     /// Read recording state for one opened camera stream.
     ///
@@ -1284,7 +1298,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamRecordingState(handle: CameraStreamHandle): Result<CameraRecordingState, PlatformError>;
+    export function cameraStreamRecordingState(
+        handle: CameraStreamHandle,
+    ): Result<CameraRecordingState, PlatformError>;
 
     /// Start recording from one opened camera stream.
     ///
@@ -1345,7 +1361,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamPauseRecording(handle: CameraStreamHandle): Result<void, PlatformError>;
+    export function cameraStreamPauseRecording(
+        handle: CameraStreamHandle,
+    ): Result<void, PlatformError>;
 
     /// Resume recording for one opened camera stream.
     ///
@@ -1374,7 +1392,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamResumeRecording(handle: CameraStreamHandle): Result<void, PlatformError>;
+    export function cameraStreamResumeRecording(
+        handle: CameraStreamHandle,
+    ): Result<void, PlatformError>;
 
     /// Stop recording for one opened camera stream.
     ///
@@ -1435,7 +1455,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamPhotoState(handle: CameraStreamHandle): Result<CameraPhotoState, PlatformError>;
+    export function cameraStreamPhotoState(
+        handle: CameraStreamHandle,
+    ): Result<CameraPhotoState, PlatformError>;
 
     /// Read still-photo capabilities for one opened camera stream.
     ///
@@ -1464,7 +1486,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamPhotoCapabilities(handle: CameraStreamHandle): Result<CameraPhotoCapabilities, PlatformError>;
+    export function cameraStreamPhotoCapabilities(
+        handle: CameraStreamHandle,
+    ): Result<CameraPhotoCapabilities, PlatformError>;
 
     /// Capture one still photo from one opened camera stream.
     ///

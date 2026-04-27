@@ -406,7 +406,9 @@ declare namespace crypto {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>;
+    export function storeOpen(
+        options: CryptoStoreOptions,
+    ): Result<CryptoStoreHandle, PlatformError>;
 
     /// Close one crypto store.
     ///

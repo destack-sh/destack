@@ -26,17 +26,23 @@ export newtype DisplayPixelFormat = uint32;
 /// Display metric changed-mask bit for display-name updates.
 export const DISPLAY_METRIC_CHANGED_NAME: DisplayMetricChangedMask = DisplayMetricChangedMask(0x1);
 /// Display metric changed-mask bit for primary-display updates.
-export const DISPLAY_METRIC_CHANGED_PRIMARY: DisplayMetricChangedMask = DisplayMetricChangedMask(0x2);
+export const DISPLAY_METRIC_CHANGED_PRIMARY: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x2);
 /// Display metric changed-mask bit for desktop-bounds updates.
-export const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask = DisplayMetricChangedMask(0x4);
+export const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x4);
 /// Display metric changed-mask bit for work-area updates.
-export const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask = DisplayMetricChangedMask(0x8);
+export const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x8);
 /// Display metric changed-mask bit for scale-factor updates.
-export const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask = DisplayMetricChangedMask(0x10);
+export const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x10);
 /// Display metric changed-mask bit for orientation updates.
-export const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask = DisplayMetricChangedMask(0x20);
+export const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x20);
 /// Display metric changed-mask bit for color-state updates.
-export const DISPLAY_METRIC_CHANGED_COLOR_STATE: DisplayMetricChangedMask = DisplayMetricChangedMask(0x40);
+export const DISPLAY_METRIC_CHANGED_COLOR_STATE: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(0x40);
 
 /// Support status for one capability that may be unknown on some hosts.
 export enum DisplaySupportStatus {
@@ -201,7 +207,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function monitorList(request: DisplayMonitorListRequest): Result<Slice<DisplayDescriptor>, PlatformError>;
+    export function monitorList(
+        request: DisplayMonitorListRequest,
+    ): Result<Slice<DisplayDescriptor>, PlatformError>;
 
     /// Read the current primary display handle.
     ///
@@ -230,7 +238,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function monitorPrimary(request: DisplayMonitorListRequest): Result<DisplayHandle | void, PlatformError>;
+    export function monitorPrimary(
+        request: DisplayMonitorListRequest,
+    ): Result<DisplayHandle | void, PlatformError>;
 
     /// Open a display endpoint.
     ///
@@ -317,7 +327,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function monitorDescriptor(handle: DisplayHandle): Result<DisplayDescriptor, PlatformError>;
+    export function monitorDescriptor(
+        handle: DisplayHandle,
+    ): Result<DisplayDescriptor, PlatformError>;
 
     /// Read available display modes.
     ///
@@ -493,7 +505,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>;
+    export function monitorColorState(
+        handle: DisplayHandle,
+    ): Result<DisplayColorState, PlatformError>;
 
     /// Read a display HDR policy mode.
     ///
@@ -580,7 +594,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>;
+    export function monitorGammaRamp(
+        handle: DisplayHandle,
+    ): Result<DisplayGammaRamp, PlatformError>;
 
     /// Set a display gamma ramp.
     ///

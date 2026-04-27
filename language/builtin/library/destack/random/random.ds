@@ -9,22 +9,22 @@ export namespace random {
 
     /// Allocate a deterministic random stream identifier.
     export function stream(): Result<RandomStream, PlatformError> {
-        platform.random.stream()
+        platform.random.stream();
     }
 
     /// Return a deterministic random uint64 from the current stream.
     export function nextU64(): Result<uint64, PlatformError> {
-        platform.random.nextU64()
+        platform.random.nextU64();
     }
 
     /// Return a deterministic random uint64 from a stream.
     export function nextU64From(stream: RandomStream): Result<uint64, PlatformError> {
-        platform.random.nextU64From(stream)
+        platform.random.nextU64From(stream);
     }
 
     /// Fill a slice with random bytes.
     export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError> {
-        platform.random.fillBytes(buffer)
+        platform.random.fillBytes(buffer);
     }
 
     /// Fill a slice with random bytes from a stream.
@@ -32,11 +32,11 @@ export namespace random {
         stream: RandomStream,
         buffer: Slice<uint8>,
     ): Result<void, PlatformError> {
-        platform.random.fillBytesFrom(stream, buffer)
+        platform.random.fillBytesFrom(stream, buffer);
     }
 
     /// Fill a slice with cryptographically secure random bytes.
     export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError> {
-        platform.random.secureBytes(buffer)
+        platform.random.secureBytes(buffer);
     }
 }

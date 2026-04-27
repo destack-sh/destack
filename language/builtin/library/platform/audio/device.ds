@@ -228,7 +228,9 @@ declare namespace audio {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
+    export function deviceList(
+        request: AudioDeviceListRequest,
+    ): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
 
     /// Read one default device identifier for the selected direction.
     ///
@@ -323,7 +325,9 @@ declare namespace audio {
         blocking: "never",
         affinity: "any",
     })
-    export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>;
+    export function deviceDescriptor(
+        handle: AudioDeviceHandle,
+    ): Result<AudioDeviceDescriptor, PlatformError>;
 
     /// Close one audio device endpoint.
     ///
@@ -358,7 +362,8 @@ declare namespace audio {
 /// Default list behavior.
 export const AUDIO_DEVICE_LIST_NONE: AudioDeviceListFlags = AudioDeviceListFlags(0x0);
 /// Include disconnected or unavailable endpoints when possible.
-export const AUDIO_DEVICE_LIST_INCLUDE_DISCONNECTED: AudioDeviceListFlags = AudioDeviceListFlags(0x1);
+export const AUDIO_DEVICE_LIST_INCLUDE_DISCONNECTED: AudioDeviceListFlags =
+    AudioDeviceListFlags(0x1);
 /// Include raw endpoints when the backend exposes separate raw rows.
 export const AUDIO_DEVICE_LIST_INCLUDE_RAW: AudioDeviceListFlags = AudioDeviceListFlags(0x2);
 /// Include loopback endpoints when the backend exposes loopback rows.
@@ -372,26 +377,38 @@ export const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags
 export const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
 
 /// Device supports shared stream mode.
-export const AUDIO_DEVICE_CAP_SHARED_MODE: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x1);
+export const AUDIO_DEVICE_CAP_SHARED_MODE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x1);
 /// Device supports exclusive stream mode.
-export const AUDIO_DEVICE_CAP_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x2);
+export const AUDIO_DEVICE_CAP_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x2);
 /// Device supports loopback capture.
-export const AUDIO_DEVICE_CAP_LOOPBACK: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x4);
+export const AUDIO_DEVICE_CAP_LOOPBACK: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x4);
 /// Device supports full-duplex stream lanes.
-export const AUDIO_DEVICE_CAP_FULL_DUPLEX: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x8);
+export const AUDIO_DEVICE_CAP_FULL_DUPLEX: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x8);
 /// Device supports stream gain controls.
-export const AUDIO_DEVICE_CAP_STREAM_VOLUME: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x10);
+export const AUDIO_DEVICE_CAP_STREAM_VOLUME: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x10);
 /// Device supports stream mute controls.
-export const AUDIO_DEVICE_CAP_STREAM_MUTE: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x20);
+export const AUDIO_DEVICE_CAP_STREAM_MUTE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x20);
 /// Device supports scheduled write submission.
-export const AUDIO_DEVICE_CAP_SCHEDULED_WRITE: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x40);
+export const AUDIO_DEVICE_CAP_SCHEDULED_WRITE: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x40);
 /// Device supports device-clock or hardware timestamp correlation.
-export const AUDIO_DEVICE_CAP_DEVICE_CLOCK: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x80);
+export const AUDIO_DEVICE_CAP_DEVICE_CLOCK: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x80);
 /// Device supports backend reroute notifications.
-export const AUDIO_DEVICE_CAP_REROUTE_EVENTS: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x100);
+export const AUDIO_DEVICE_CAP_REROUTE_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x100);
 /// Device supports interruption notifications.
-export const AUDIO_DEVICE_CAP_INTERRUPTION_EVENTS: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x200);
+export const AUDIO_DEVICE_CAP_INTERRUPTION_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x200);
 /// Device supports backend disconnect notifications.
-export const AUDIO_DEVICE_CAP_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x400);
+export const AUDIO_DEVICE_CAP_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x400);
 /// Device supports bit-exact PCM without backend-side format conversion.
-export const AUDIO_DEVICE_CAP_BIT_EXACT_PCM: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x800);
+export const AUDIO_DEVICE_CAP_BIT_EXACT_PCM: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x800);

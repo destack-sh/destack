@@ -177,7 +177,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function pointerState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>;
+    export function pointerState(
+        handle: InputDeviceHandle,
+    ): Result<InputPointerState, PlatformError>;
 
     /// Read one relative pointer state snapshot.
     ///
@@ -206,7 +208,9 @@ declare namespace input {
         blocking: "never",
         affinity: "any",
     })
-    export function pointerRelativeState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>;
+    export function pointerRelativeState(
+        handle: InputDeviceHandle,
+    ): Result<InputPointerState, PlatformError>;
 
     /// Enable or disable relative pointer mode.
     ///

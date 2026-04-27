@@ -45,15 +45,20 @@ export enum GpuCompositeAlphaMode {
 export newtype GpuSurfaceTimingCapabilityFlags = uint32;
 
 /// Timing capability bit for presentation streams.
-export const GPU_SURFACE_TIMING_CAP_PRESENTATION_STREAM: GpuSurfaceTimingCapabilityFlags = GpuSurfaceTimingCapabilityFlags(0x1);
+export const GPU_SURFACE_TIMING_CAP_PRESENTATION_STREAM: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(0x1);
 /// Timing capability bit for actual presented timestamps.
-export const GPU_SURFACE_TIMING_CAP_PRESENTED_TIMESTAMP: GpuSurfaceTimingCapabilityFlags = GpuSurfaceTimingCapabilityFlags(0x2);
+export const GPU_SURFACE_TIMING_CAP_PRESENTED_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(0x2);
 /// Timing capability bit for refresh-interval reporting.
-export const GPU_SURFACE_TIMING_CAP_REFRESH_INTERVAL: GpuSurfaceTimingCapabilityFlags = GpuSurfaceTimingCapabilityFlags(0x4);
+export const GPU_SURFACE_TIMING_CAP_REFRESH_INTERVAL: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(0x4);
 /// Timing capability bit for compositor-latency reporting.
-export const GPU_SURFACE_TIMING_CAP_COMPOSITOR_LATENCY: GpuSurfaceTimingCapabilityFlags = GpuSurfaceTimingCapabilityFlags(0x8);
+export const GPU_SURFACE_TIMING_CAP_COMPOSITOR_LATENCY: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(0x8);
 /// Timing capability bit for requested presentation timestamps.
-export const GPU_SURFACE_TIMING_CAP_DESIRED_PRESENTATION_TIMESTAMP: GpuSurfaceTimingCapabilityFlags = GpuSurfaceTimingCapabilityFlags(0x10);
+export const GPU_SURFACE_TIMING_CAP_DESIRED_PRESENTATION_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(0x10);
 
 /// Surface capabilities snapshot.
 export struct GpuSurfaceCapabilities {

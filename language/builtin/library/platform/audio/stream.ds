@@ -477,7 +477,9 @@ declare namespace audio {
         blocking: "never",
         affinity: "any",
     })
-    export function streamDescriptor(handle: AudioStreamHandle): Result<AudioStreamDescriptor, PlatformError>;
+    export function streamDescriptor(
+        handle: AudioStreamHandle,
+    ): Result<AudioStreamDescriptor, PlatformError>;
 
     /// Read one stream timing sample.
     ///
@@ -507,7 +509,9 @@ declare namespace audio {
         blocking: "never",
         affinity: "any",
     })
-    export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>;
+    export function streamTiming(
+        handle: AudioStreamHandle,
+    ): Result<AudioStreamTiming, PlatformError>;
 
     /// Read one stream immediate availability sample.
     ///
@@ -536,7 +540,9 @@ declare namespace audio {
         blocking: "never",
         affinity: "any",
     })
-    export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>;
+    export function streamAvailability(
+        handle: AudioStreamHandle,
+    ): Result<AudioStreamAvailability, PlatformError>;
 
     /// Flush buffered stream data.
     ///
@@ -1034,30 +1040,42 @@ export const AUDIO_STREAM_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0
 export const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x20);
 
 /// Default stream requirement behavior.
-export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x0);
+export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x0);
 /// Require non-interleaved stream buffers.
-export const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x1);
+export const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x1);
 /// Require scheduled write submission support.
-export const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x2);
+export const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x2);
 /// Require pause and resume support.
-export const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x4);
+export const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x4);
 /// Require hardware timestamp correlation support.
-export const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x8);
+export const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x8);
 /// Require bit-exact PCM with no backend-side conversion.
-export const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x10);
+export const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x10);
 
 /// Input underflow status bit.
-export const AUDIO_STREAM_STATUS_INPUT_UNDERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(0x1);
+export const AUDIO_STREAM_STATUS_INPUT_UNDERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x1);
 /// Input overflow status bit.
-export const AUDIO_STREAM_STATUS_INPUT_OVERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(0x2);
+export const AUDIO_STREAM_STATUS_INPUT_OVERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x2);
 /// Output underflow status bit.
-export const AUDIO_STREAM_STATUS_OUTPUT_UNDERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(0x4);
+export const AUDIO_STREAM_STATUS_OUTPUT_UNDERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x4);
 /// Output overflow status bit.
-export const AUDIO_STREAM_STATUS_OUTPUT_OVERFLOW: AudioStreamStatusFlags = AudioStreamStatusFlags(0x8);
+export const AUDIO_STREAM_STATUS_OUTPUT_OVERFLOW: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x8);
 /// Output priming status bit.
-export const AUDIO_STREAM_STATUS_PRIMING_OUTPUT: AudioStreamStatusFlags = AudioStreamStatusFlags(0x10);
+export const AUDIO_STREAM_STATUS_PRIMING_OUTPUT: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x10);
 /// Device-changed status bit.
-export const AUDIO_STREAM_STATUS_DEVICE_CHANGED: AudioStreamStatusFlags = AudioStreamStatusFlags(0x20);
+export const AUDIO_STREAM_STATUS_DEVICE_CHANGED: AudioStreamStatusFlags =
+    AudioStreamStatusFlags(0x20);
 /// Rerouted status bit.
 export const AUDIO_STREAM_STATUS_REROUTED: AudioStreamStatusFlags = AudioStreamStatusFlags(0x40);
 /// Interrupted status bit.

@@ -209,7 +209,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>;
+    export function deviceFeatures(
+        device: GpuDeviceHandle,
+    ): Result<Slice<GpuFeatureId>, PlatformError>;
 
     /// Read a device limits snapshot.
     ///

@@ -1176,5 +1176,7 @@ declare namespace gpu {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function externalTextureDestroy(handle: GpuExternalTextureHandle): Result<void, PlatformError>;
+    export function externalTextureDestroy(
+        handle: GpuExternalTextureHandle,
+    ): Result<void, PlatformError>;
 }

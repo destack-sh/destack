@@ -342,7 +342,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>;
+    export function backgroundEventOpen(
+        options: BackgroundEventOpenOptions,
+    ): Result<BackgroundEventHandle, PlatformError>;
 
     /// Close one background-task event stream.
     ///
@@ -370,7 +372,9 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function backgroundEventClose(handle: BackgroundEventHandle): Result<void, PlatformError>;
+    export function backgroundEventClose(
+        handle: BackgroundEventHandle,
+    ): Result<void, PlatformError>;
 
     /// Wait for one background-task event.
     ///
@@ -429,5 +433,7 @@ declare namespace os {
         blocking: "never",
         affinity: "any",
     })
-    export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>;
+    export function backgroundEventTryRead(
+        handle: BackgroundEventHandle,
+    ): Result<BackgroundEvent, PlatformError>;
 }

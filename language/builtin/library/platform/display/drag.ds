@@ -273,7 +273,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function dragSessionClose(session: DisplayDragSessionHandle): Result<void, PlatformError>;
+    export function dragSessionClose(
+        session: DisplayDragSessionHandle,
+    ): Result<void, PlatformError>;
 
     /// Begin one source-side drag session.
     ///

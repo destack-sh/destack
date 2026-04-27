@@ -57,7 +57,7 @@ export function formatWithOptions(options: InspectOptions | null, ...values: unk
 
 /// Format values using the default inspect options.
 export function format(...values: unknown[]): string {
-    formatWithOptions(null, ...values)
+    formatWithOptions(null, ...values);
 }
 
 /// Inspect a single value for debugging.
@@ -66,7 +66,7 @@ export function inspect(value: unknown, options?: InspectOptions): string {
     const ctx = createContext(options);
 
     // format the value with depth control
-    formatValue(value, ctx, ctx.depth, 0)
+    formatValue(value, ctx, ctx.depth, 0);
 }
 
 /// Inspect namespace properties.
@@ -151,12 +151,12 @@ function createContext(options?: InspectOptions): InspectContext {
     // select stylize function based on color mode
     const stylize = resolved.colors ? stylizeWithColor : stylizeNoColor;
 
-    InspectContext {
+    (InspectContext {
         options: resolved,
         seen: [],
         depth,
         stylize,
-    }
+    });
 }
 
 /// Normalize options by filling defaults.
@@ -168,7 +168,7 @@ function normalizeOptions(options: InspectOptions | null | undefined): InspectOp
 
     // merge with defaults
     const defaults = inspect.defaultOptions;
-    InspectOptions {
+    (InspectOptions {
         showHidden: options.showHidden ?? defaults.showHidden,
         depth: options.depth ?? defaults.depth,
         colors: options.colors ?? defaults.colors,
@@ -180,7 +180,7 @@ function normalizeOptions(options: InspectOptions | null | undefined): InspectOp
         sorted: options.sorted ?? defaults.sorted,
         getters: options.getters ?? defaults.getters,
         numericSeparator: options.numericSeparator ?? defaults.numericSeparator,
-    }
+    });
 }
 
 /// Resolve depth with null treated as unlimited.
@@ -190,7 +190,7 @@ function resolveDepth(depth: int | null | undefined): int {
         return 1_000_000;
     }
 
-    depth
+    depth;
 }
 
 /// Join a list of values for format output.
@@ -209,11 +209,15 @@ function joinValues(values: readonly unknown[], options: InspectOptions): string
     }
 
     // join with spaces
-    parts.join(" ")
+    parts.join(" ");
 }
 
 /// Format a string with util style specifiers.
-function formatString(format: string, values: readonly unknown[], options: InspectOptions): FormattedString {
+function formatString(
+    format: string,
+    values: readonly unknown[],
+    options: InspectOptions,
+): FormattedString {
     // initialize output state
     let out = "";
     let index = 0;
@@ -280,10 +284,10 @@ function formatString(format: string, values: readonly unknown[], options: Inspe
         index += 2;
     }
 
-    FormattedString {
+    (FormattedString {
         text: out,
         remaining: values.slice(valueIndex),
-    }
+    });
 }
 
 /// Format a value for the %s placeholder.
@@ -316,7 +320,7 @@ function formatStringValue(value: unknown): string {
         return "undefined";
     }
 
-    "[object]"
+    "[object]";
 }
 
 /// Format a value for the %d or %i placeholders.
@@ -329,7 +333,7 @@ function formatNumberValue(value: unknown, options: InspectOptions): string {
         return (value as bigint).toString();
     }
 
-    formatStringValue(value)
+    formatStringValue(value);
 }
 
 /// Format a value for the %f placeholder.
@@ -339,7 +343,7 @@ function formatFloatValue(value: unknown, options: InspectOptions): string {
         return formatNumber(value as number, options.numericSeparator ?? false);
     }
 
-    formatStringValue(value)
+    formatStringValue(value);
 }
 
 /// Format a value for the %j placeholder.
@@ -376,7 +380,10 @@ function formatValue(value: unknown, ctx: InspectContext, depth: int, level: int
 
     // handle numeric values
     if (valueType == "number") {
-        return ctx.stylize(formatNumber(value as number, ctx.options.numericSeparator ?? false), "number");
+        return ctx.stylize(
+            formatNumber(value as number, ctx.options.numericSeparator ?? false),
+            "number",
+        );
     }
     if (valueType == "bigint") {
         return ctx.stylize((value as bigint).toString() + "n", "bigint");
@@ -397,7 +404,7 @@ function formatValue(value: unknown, ctx: InspectContext, depth: int, level: int
         return formatFunction(value as Function, ctx);
     }
 
-    formatObject(value, ctx, depth, level)
+    formatObject(value, ctx, depth, level);
 }
 
 /// Format non primitive values.
@@ -476,8 +483,7 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
                     ctx.seen.pop();
                     return result;
                 }
-            } catch {
-            }
+            } catch {}
         }
     }
 
@@ -491,8 +497,7 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
                     ctx.seen.pop();
                     return result;
                 }
-            } catch {
-            }
+            } catch {}
         }
     }
 
@@ -506,15 +511,14 @@ function formatObject(value: unknown, ctx: InspectContext, depth: int, level: in
                     ctx.seen.pop();
                     return result;
                 }
-            } catch {
-            }
+            } catch {}
         }
     }
 
     // fall back to record formatting
     const rendered = formatRecord(value, ctx, depth, level);
     ctx.seen.pop();
-    rendered
+    rendered;
 }
 
 /// Format tuples.
@@ -527,7 +531,7 @@ function formatTuple(values: unknown[], ctx: InspectContext, depth: int, level: 
         entries[0] = entries[0] + ",";
     }
 
-    formatCollection(entries, "(", ")", ctx, level)
+    formatCollection(entries, "(", ")", ctx, level);
 }
 
 /// Format arrays.
@@ -535,11 +539,16 @@ function formatArray(values: unknown[], ctx: InspectContext, depth: int, level: 
     // format entries
     const entries = formatArrayEntries(values, ctx, depth, level);
 
-    formatCollection(entries, "[", "]", ctx, level)
+    formatCollection(entries, "[", "]", ctx, level);
 }
 
 /// Format array entries.
-function formatArrayEntries(values: unknown[], ctx: InspectContext, depth: int, level: int): string[] {
+function formatArrayEntries(
+    values: unknown[],
+    ctx: InspectContext,
+    depth: int,
+    level: int,
+): string[] {
     // determine output bounds
     const maxLen = ctx.options.maxArrayLength ?? 100;
     const length = values.length;
@@ -563,11 +572,16 @@ function formatArrayEntries(values: unknown[], ctx: InspectContext, depth: int, 
         entries.push(ctx.stylize(`... ${length - limit} more items`, "special"));
     }
 
-    entries
+    entries;
 }
 
 /// Format maps.
-function formatMap(values: Map<unknown, unknown>, ctx: InspectContext, depth: int, level: int): string {
+function formatMap(
+    values: Map<unknown, unknown>,
+    ctx: InspectContext,
+    depth: int,
+    level: int,
+): string {
     // prepare iteration state
     const entries: string[] = [];
     let count = 0;
@@ -582,13 +596,15 @@ function formatMap(values: Map<unknown, unknown>, ctx: InspectContext, depth: in
         }
 
         entries.push(
-            formatValue(key, ctx, depth - 1, level + 1) + " => " + formatValue(value, ctx, depth - 1, level + 1)
+            formatValue(key, ctx, depth - 1, level + 1) +
+                " => " +
+                formatValue(value, ctx, depth - 1, level + 1),
         );
         count += 1;
     }
 
     const label = `Map(${values.size})`;
-    formatCollection(entries, `${label} {`, "}", ctx, level)
+    formatCollection(entries, `${label} {`, "}", ctx, level);
 }
 
 /// Format sets.
@@ -611,7 +627,7 @@ function formatSet(values: Set<unknown>, ctx: InspectContext, depth: int, level:
     }
 
     const label = `Set(${values.size})`;
-    formatCollection(entries, `${label} {`, "}", ctx, level)
+    formatCollection(entries, `${label} {`, "}", ctx, level);
 }
 
 /// Format object records.
@@ -649,7 +665,7 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
             }
             if (a < b) return -1;
             if (a > b) return 1;
-            0
+            0;
         });
     }
 
@@ -660,7 +676,7 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
     const entries: string[] = [];
     for (const key of allKeys) {
         // format the key name
-        const keyText = typeof key == "symbol" ? (key as symbol).toString() : key as string;
+        const keyText = typeof key == "symbol" ? (key as symbol).toString() : (key as string);
 
         // format the value based on getter options
         let valueText = "";
@@ -687,11 +703,17 @@ function formatRecord(value: unknown, ctx: InspectContext, depth: int, level: in
     // render the record with a type label
     const typeName = readTypeName(value);
     const prefix = typeName == "Object" ? "{" : `${typeName} {`;
-    formatCollection(entries, prefix, "}", ctx, level)
+    formatCollection(entries, prefix, "}", ctx, level);
 }
 
 /// Format a property descriptor value.
-function formatDescriptorValue(owner: object, descriptor: any, ctx: InspectContext, depth: int, level: int): string {
+function formatDescriptorValue(
+    owner: object,
+    descriptor: any,
+    ctx: InspectContext,
+    depth: int,
+    level: int,
+): string {
     // handle value descriptors
     if ("value" in descriptor) {
         return formatValue(descriptor.value, ctx, depth - 1, level + 1);
@@ -726,7 +748,7 @@ function formatDescriptorValue(owner: object, descriptor: any, ctx: InspectConte
         }
     }
 
-    ctx.stylize("[Getter/Setter]", "special")
+    ctx.stylize("[Getter/Setter]", "special");
 }
 
 /// Format functions.
@@ -737,7 +759,7 @@ function formatFunction(value: Function, ctx: InspectContext): string {
         return ctx.stylize(`[Function: ${name}]`, "special");
     }
 
-    ctx.stylize("[Function]", "special")
+    ctx.stylize("[Function]", "special");
 }
 
 /// Format string literals.
@@ -751,7 +773,7 @@ function formatStringLiteral(value: string, ctx: InspectContext): string {
 
     // escape for display
     const escaped = escapeString(text);
-    ctx.stylize("'" + escaped + "'", "string")
+    ctx.stylize("'" + escaped + "'", "string");
 }
 
 /// Escape a string for display.
@@ -784,7 +806,7 @@ function escapeString(value: string): string {
         }
     }
 
-    out
+    out;
 }
 
 /// Format a number with optional separators.
@@ -830,11 +852,17 @@ function insertNumericSeparator(text: string): string {
         count += 1;
     }
 
-    out
+    out;
 }
 
 /// Render a collection as either single or multi line text.
-function formatCollection(entries: string[], open: string, close: string, ctx: InspectContext, level: int): string {
+function formatCollection(
+    entries: string[],
+    open: string,
+    close: string,
+    ctx: InspectContext,
+    level: int,
+): string {
     // handle empty collections
     if (entries.length == 0) {
         return open + close;
@@ -859,7 +887,7 @@ function formatCollection(entries: string[], open: string, close: string, ctx: I
 
 /// Return the string unchanged.
 function stylizeNoColor(text: string, _style: string): string {
-    text
+    text;
 }
 
 /// Apply an ANSI style to a string.
@@ -876,7 +904,7 @@ function stylizeWithColor(text: string, style: string): string {
         return text;
     }
 
-    "\u001b[" + codes[0].toString() + "m" + text + "\u001b[" + codes[1].toString() + "m"
+    "\u001b[" + codes[0].toString() + "m" + text + "\u001b[" + codes[1].toString() + "m";
 }
 
 /// Read the tuple descriptor when available.
@@ -887,7 +915,7 @@ function readTupleType(value: unknown): any | null {
         return valueType as any;
     }
 
-    null
+    null;
 }
 
 /// Read the friendly type name for a value.
@@ -898,5 +926,5 @@ function readTypeName(value: unknown): string {
         return "Object";
     }
 
-    type.name
+    type.name;
 }

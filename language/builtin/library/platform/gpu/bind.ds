@@ -286,7 +286,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>;
+    export function bindGroupLayoutDestroy(
+        handle: GpuBindGroupLayoutHandle,
+    ): Result<void, PlatformError>;
 
     /// Create a pipeline layout.
     ///
@@ -347,7 +349,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>;
+    export function pipelineLayoutDestroy(
+        handle: GpuPipelineLayoutHandle,
+    ): Result<void, PlatformError>;
 
     /// Create a bind group.
     ///

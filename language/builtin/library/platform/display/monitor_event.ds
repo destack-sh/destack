@@ -124,15 +124,20 @@ export newtype DisplayMonitorEvent =
 export newtype DisplayMonitorEventKindMask = uint32;
 
 /// Event kind bit for `added`.
-export const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x1);
+export const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(0x1);
 /// Event kind bit for `removed`.
-export const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x2);
+export const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(0x2);
 /// Event kind bit for `primaryChanged`.
-export const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x4);
+export const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(0x4);
 /// Event kind bit for `descriptorChanged`.
-export const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x8);
+export const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(0x8);
 /// Event kind bit for `modeChanged`.
-export const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x10);
+export const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(0x10);
 
 /// Monitor-event stream filter options.
 export struct DisplayMonitorEventFilter {
@@ -184,7 +189,9 @@ declare namespace display {
         blocking: "sometimes",
         affinity: "eventLoop",
     })
-    export function monitorEventOpen(options: DisplayMonitorEventOpenOptions): Result<DisplayEventHandle, PlatformError>;
+    export function monitorEventOpen(
+        options: DisplayMonitorEventOpenOptions,
+    ): Result<DisplayEventHandle, PlatformError>;
 
     /// Close a global monitor-event stream.
     ///
@@ -272,7 +279,9 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>;
+    export function monitorEventTryRead(
+        handle: DisplayEventHandle,
+    ): Result<DisplayMonitorEvent, PlatformError>;
 
     /// Wait for a batch of monitor events.
     ///

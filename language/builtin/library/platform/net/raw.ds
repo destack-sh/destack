@@ -65,17 +65,23 @@ export struct PacketBackendDescriptor {
 }
 
 /// Backend capability flag bit for packet capture operations.
-export const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x1);
+export const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x1);
 /// Backend capability flag bit for packet send operations.
-export const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x2);
+export const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x2);
 /// Backend capability flag bit for timestamp configuration.
-export const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x4);
+export const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x4);
 /// Backend capability flag bit for packet filter programs.
-export const PACKET_BACKEND_CAP_FILTER: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x8);
+export const PACKET_BACKEND_CAP_FILTER: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x8);
 /// Backend capability flag bit for packet fanout operations.
-export const PACKET_BACKEND_CAP_FANOUT: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x10);
+export const PACKET_BACKEND_CAP_FANOUT: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x10);
 /// Backend capability flag bit for packet ring operations.
-export const PACKET_BACKEND_CAP_RING: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x20);
+export const PACKET_BACKEND_CAP_RING: PacketBackendCapabilityFlags =
+    PacketBackendCapabilityFlags(0x20);
 
 /// Packet capture options.
 export struct PacketCaptureOptions {

@@ -256,7 +256,9 @@ declare namespace process {
         blocking: "never",
         affinity: "any",
     })
-    export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>;
+    export function processFdTryWait(
+        handle: ProcessFdHandle,
+    ): Result<ProcessWaitStatus, PlatformError>;
 
     /// Open one signal descriptor for the provided signal mask.
     ///

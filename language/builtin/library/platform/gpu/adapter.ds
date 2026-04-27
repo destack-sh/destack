@@ -203,27 +203,38 @@ export enum GpuFeatureId {
 export newtype GpuTextureFormatFeatureFlags = uint32;
 
 /// Texture-format feature bit for filterable sampling.
-export const GPU_TEXTURE_FORMAT_FEATURE_FILTERABLE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x1);
+export const GPU_TEXTURE_FORMAT_FEATURE_FILTERABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x1);
 /// Texture-format feature bit for sample count 2.
-export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X2: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x2);
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X2: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x2);
 /// Texture-format feature bit for sample count 4.
-export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X4: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x4);
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X4: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x4);
 /// Texture-format feature bit for sample count 8.
-export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X8: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x8);
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X8: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x8);
 /// Texture-format feature bit for sample count 16.
-export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X16: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x10);
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X16: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x10);
 /// Texture-format feature bit for multisample resolve targets.
-export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_RESOLVE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x20);
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_RESOLVE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x20);
 /// Texture-format feature bit for read-only storage access.
-export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_ONLY: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x40);
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x40);
 /// Texture-format feature bit for write-only storage access.
-export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_WRITE_ONLY: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x80);
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_WRITE_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x80);
 /// Texture-format feature bit for read-write storage access.
-export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_WRITE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x100);
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_WRITE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x100);
 /// Texture-format feature bit for atomic storage access.
-export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_ATOMIC: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x200);
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_ATOMIC: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x200);
 /// Texture-format feature bit for blendable render attachments.
-export const GPU_TEXTURE_FORMAT_FEATURE_BLENDABLE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x400);
+export const GPU_TEXTURE_FORMAT_FEATURE_BLENDABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x400);
 
 /// Adapter discovery options.
 export struct GpuAdapterRequest {
@@ -423,7 +434,9 @@ declare namespace gpu {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>;
+    export function adapterList(
+        request: GpuAdapterRequest,
+    ): Result<Array<GpuAdapterInfo>, PlatformError>;
 
     /// Open a GPU adapter.
     ///
@@ -508,7 +521,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>;
+    export function adapterFeatures(
+        handle: GpuAdapterHandle,
+    ): Result<Slice<GpuFeatureId>, PlatformError>;
 
     /// Read an adapter limits snapshot.
     ///
@@ -537,7 +552,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>;
+    export function adapterLimits(
+        handle: GpuAdapterHandle,
+    ): Result<GpuAdapterLimits, PlatformError>;
 
     /// Check whether an adapter supports a feature.
     ///

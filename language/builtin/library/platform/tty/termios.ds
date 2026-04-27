@@ -82,7 +82,9 @@ declare namespace tty {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>;
+    export function termiosGetAttributes(
+        handle: TtyHandle,
+    ): Result<TtyTermiosAttributes, PlatformError>;
 
     /// Apply full termios attributes to one terminal handle.
     ///

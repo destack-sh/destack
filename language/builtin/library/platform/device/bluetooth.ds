@@ -394,7 +394,10 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothAdapterList(): Result<Slice<BluetoothAdapterDescriptor>, PlatformError>;
+    export function bluetoothAdapterList(): Result<
+        Slice<BluetoothAdapterDescriptor>,
+        PlatformError
+    >;
 
     /// Open a Bluetooth adapter watch stream.
     ///
@@ -452,7 +455,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothAdapterWatchClose(handle: BluetoothAdapterWatchHandle): Result<void, PlatformError>;
+    export function bluetoothAdapterWatchClose(
+        handle: BluetoothAdapterWatchHandle,
+    ): Result<void, PlatformError>;
 
     /// Read one Bluetooth adapter event.
     ///
@@ -513,7 +518,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function bluetoothAdapterWatchTryRead(handle: BluetoothAdapterWatchHandle): Result<BluetoothAdapterEvent, PlatformError>;
+    export function bluetoothAdapterWatchTryRead(
+        handle: BluetoothAdapterWatchHandle,
+    ): Result<BluetoothAdapterEvent, PlatformError>;
 
     /// Open a Bluetooth scan session.
     ///
@@ -635,7 +642,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function bluetoothScanTryReadEvent(handle: BluetoothScanHandle): Result<BluetoothScanEvent, PlatformError>;
+    export function bluetoothScanTryReadEvent(
+        handle: BluetoothScanHandle,
+    ): Result<BluetoothScanEvent, PlatformError>;
 
     /// Open a Bluetooth device session.
     ///
@@ -725,7 +734,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothDescriptor(handle: BluetoothDeviceHandle): Result<BluetoothDeviceDescriptor, PlatformError>;
+    export function bluetoothDescriptor(
+        handle: BluetoothDeviceHandle,
+    ): Result<BluetoothDeviceDescriptor, PlatformError>;
 
     /// Read one Bluetooth session event.
     ///
@@ -786,7 +797,9 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function bluetoothSessionTryReadEvent(handle: BluetoothDeviceHandle): Result<BluetoothSessionEvent, PlatformError>;
+    export function bluetoothSessionTryReadEvent(
+        handle: BluetoothDeviceHandle,
+    ): Result<BluetoothSessionEvent, PlatformError>;
 
     /// Pair one Bluetooth device.
     ///
@@ -911,7 +924,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattService>, PlatformError>;
+    export function bluetoothGattServiceList(
+        handle: BluetoothDeviceHandle,
+    ): Result<Slice<BluetoothGattService>, PlatformError>;
 
     /// List discovered GATT characteristics for one service.
     ///
@@ -1200,7 +1215,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothGattUnsubscribe(handle: BluetoothSubscriptionHandle): Result<void, PlatformError>;
+    export function bluetoothGattUnsubscribe(
+        handle: BluetoothSubscriptionHandle,
+    ): Result<void, PlatformError>;
 
     /// Read one GATT value event.
     ///
@@ -1261,5 +1278,7 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function bluetoothGattTryReadEvent(handle: BluetoothSubscriptionHandle): Result<BluetoothGattValueEvent, PlatformError>;
+    export function bluetoothGattTryReadEvent(
+        handle: BluetoothSubscriptionHandle,
+    ): Result<BluetoothGattValueEvent, PlatformError>;
 }

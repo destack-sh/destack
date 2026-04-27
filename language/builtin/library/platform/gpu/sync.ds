@@ -466,7 +466,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
+    export function commandEndOcclusionQuery(
+        renderPass: GpuRenderPassHandle,
+    ): Result<void, PlatformError>;
 
     /// Begin a pipeline-statistics query in a render pass.
     ///
@@ -528,7 +530,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
+    export function commandEndRenderPipelineStatisticsQuery(
+        renderPass: GpuRenderPassHandle,
+    ): Result<void, PlatformError>;
 
     /// Begin a pipeline-statistics query in a compute pass.
     ///
@@ -590,7 +594,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>;
+    export function commandEndComputePipelineStatisticsQuery(
+        computePass: GpuComputePassHandle,
+    ): Result<void, PlatformError>;
 
     /// Resolve one query range into one destination buffer.
     ///

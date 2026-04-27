@@ -273,7 +273,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandEncoderClose(handle: GpuCommandEncoderHandle): Result<void, PlatformError>;
+    export function commandEncoderClose(
+        handle: GpuCommandEncoderHandle,
+    ): Result<void, PlatformError>;
 
     /// Finish one command encoder.
     ///
@@ -334,7 +336,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandBufferDestroy(handle: GpuCommandBufferHandle): Result<void, PlatformError>;
+    export function commandBufferDestroy(
+        handle: GpuCommandBufferHandle,
+    ): Result<void, PlatformError>;
 
     /// Open a render-bundle encoder.
     ///
@@ -395,7 +399,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
+    export function renderBundleEncoderClose(
+        handle: GpuRenderBundleEncoderHandle,
+    ): Result<void, PlatformError>;
 
     /// Finish one render-bundle encoder.
     ///
@@ -489,7 +495,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>;
+    export function commandComputePassEnd(
+        handle: GpuComputePassHandle,
+    ): Result<void, PlatformError>;
 
     /// Begin a render pass.
     ///
@@ -1015,7 +1023,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>;
+    export function renderBundlePopDebugGroup(
+        handle: GpuRenderBundleEncoderHandle,
+    ): Result<void, PlatformError>;
 
     /// Bind one compute pipeline.
     ///
@@ -1449,7 +1459,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandPopDebugGroup(handle: GpuCommandEncoderHandle): Result<void, PlatformError>;
+    export function commandPopDebugGroup(
+        handle: GpuCommandEncoderHandle,
+    ): Result<void, PlatformError>;
 
     /// Insert one debug marker in one compute-pass scope.
     ///
@@ -1542,7 +1554,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>;
+    export function commandComputePassPopDebugGroup(
+        handle: GpuComputePassHandle,
+    ): Result<void, PlatformError>;
 
     /// Insert one debug marker in one render-pass scope.
     ///
@@ -1635,7 +1649,9 @@ declare namespace gpu {
         blocking: "never",
         affinity: "any",
     })
-    export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>;
+    export function commandRenderPassPopDebugGroup(
+        handle: GpuRenderPassHandle,
+    ): Result<void, PlatformError>;
 
     /// Dispatch one compute workgroup grid.
     ///
