@@ -1,6 +1,6 @@
 use crate::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumField, FunctionCardinality,
-    Keyword, LocalNodeId, TypeExpression, Visibility,
+    InterfaceHeritage, Keyword, LocalNodeId, TypeExpression, Visibility,
 };
 use destack_fir::format::FormatResult;
 
@@ -38,6 +38,39 @@ pub(crate) fn format_super_type_clause<'ast>(
                 if_group_breaks(&token(")")),
             ]),
         ]
+    )
+}
+
+/// Format an interface heritage clause.
+pub(crate) fn format_interface_heritage_clause<'ast>(
+    f: &mut JsFormatter<'ast, '_>,
+    heritage_items: &[InterfaceHeritage],
+) -> FormatResult<()> {
+    assert!(!heritage_items.is_empty());
+
+    write!(f, [space(), Keyword::Extends, space()])?;
+    write!(
+        f,
+        [group(&format_args![
+            if_group_breaks(&token("(")),
+            soft_block_indent(&format_with(|f| {
+                for (index, heritage) in heritage_items.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [token(","), soft_line_break_or_space()])?;
+                    }
+
+                    write!(f, [heritage.expression])?;
+
+                    if !heritage.type_arguments.is_empty() {
+                        write!(f, [list_like("<", ">", ",", &heritage.type_arguments)])?;
+                    }
+                }
+
+                write!(f, [if_group_breaks(&token(","))])?;
+                Ok(())
+            })),
+            if_group_breaks(&token(")")),
+        ])]
     )
 }
 
@@ -222,7 +255,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             Declaration::Interface(interface) => {
                 let descriptor = &interface.descriptor;
                 let generic_parameters = &interface.generic_parameters;
-                let extends_types = &interface.extends_types;
+                let extends = &interface.extends;
                 let members = &interface.members;
 
                 // export
@@ -248,9 +281,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     format_type_parameter_list(generic_parameters, f)?;
                 }
 
-                // extends types
-                if !extends_types.is_empty() {
-                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
+                // extends
+                if !extends.is_empty() {
+                    format_interface_heritage_clause(f, extends)?;
                 }
 
                 // body

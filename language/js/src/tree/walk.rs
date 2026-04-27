@@ -887,15 +887,20 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         Declaration::Interface(InterfaceDeclaration {
             descriptor,
             generic_parameters,
-            extends_types,
+            extends,
             members,
         }) => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generic_parameters(visitor, tree, generic_parameters);
 
-            for extends_type_id in extends_types {
-                let extends_type = tree.get(*extends_type_id);
-                visitor.visit_type_expression(tree, *extends_type_id, extends_type);
+            for heritage in extends {
+                let expression = tree.get(heritage.expression);
+                visitor.visit_expression(tree, heritage.expression, expression);
+
+                for type_argument_id in &heritage.type_arguments {
+                    let type_argument = tree.get(*type_argument_id);
+                    visitor.visit_type_expression(tree, *type_argument_id, type_argument);
+                }
             }
 
             for member_id in members {
