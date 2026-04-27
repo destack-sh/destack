@@ -9,7 +9,6 @@ use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, T
 use destack_workspace::{ProfileId, Repository, Revision};
 use std::path::PathBuf;
 
-use crate::CallableAbstraction;
 use destack_query::format::{format_global_type, format_symbol_name, format_type};
 
 /// Trait for formatting types in diagnostic messages. Should not fail.
@@ -307,22 +306,6 @@ impl DiagnosticFormat for Visibility {
             Visibility::Public => "public".to_string(),
             Visibility::Protected => "protected".to_string(),
             Visibility::Private => "private".to_string(),
-        }
-    }
-}
-
-impl DiagnosticFormat for CallableAbstraction {
-    fn diagnostic_fmt(
-        &self,
-        _revision: Revision,
-        _repository: &Repository,
-        _artifacts: &ArtifactStore,
-    ) -> String {
-        match self {
-            CallableAbstraction::Abstract => "abstract".to_string(),
-            CallableAbstraction::AbstractOverride => "abstract override".to_string(),
-            CallableAbstraction::Override => "override".to_string(),
-            CallableAbstraction::Concrete => "concrete".to_string(),
         }
     }
 }

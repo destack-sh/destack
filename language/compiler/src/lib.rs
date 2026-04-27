@@ -6,6 +6,7 @@
 
 mod analyze;
 mod cache;
+mod common;
 mod compile;
 mod elaborate;
 mod emit;
@@ -19,7 +20,6 @@ mod resolve;
 mod unbind;
 
 pub use analyze::*;
-pub(crate) use analyze::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub use compile::*;
 pub use elaborate::*;
 pub use emit::*;

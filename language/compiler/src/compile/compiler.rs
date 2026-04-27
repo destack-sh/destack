@@ -84,6 +84,7 @@ impl std::fmt::Debug for Compiler {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 impl Compiler {
     /// Create a new Compiler.
     pub fn new(repository: Arc<Repository>, options: CompilerOptions) -> Self {

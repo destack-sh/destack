@@ -211,14 +211,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
             };
 
             // resolve a static key for the field
-            let Some(key) = self.compiler.static_key_from_key(
-                self.revision,
-                self.profile,
-                tree,
-                symbols,
-                types,
-                *key,
-            ) else {
+            let Some(key) = self.compiler.static_key_from_key(tree, *key) else {
                 continue;
             };
 

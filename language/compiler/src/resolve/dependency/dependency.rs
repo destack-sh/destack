@@ -9,12 +9,11 @@ use destack_source::ModuleId;
 use destack_workspace::workspace::{Module, ProfileId};
 use rustc_hash::FxHashSet;
 
+use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::resolve::binding::ResolveState;
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
 use crate::timing::tags;
-use crate::{
-    Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
-};
+use crate::{Compiler, ImportError, ResolveError, ResolveResult};
 
 /// A resolved export symbol with its originating export space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

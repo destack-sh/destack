@@ -17,6 +17,47 @@ pub enum ResolveMode {
     Lenient,
 }
 
+/// Language compatibility options for one module.
+#[derive(Debug, Clone, Copy)]
+pub struct ModuleCheckOptions {
+    /// Allow TypeScript modules.
+    pub allow_ts: bool,
+    /// Type check TypeScript modules.
+    pub check_ts: bool,
+    /// Allow JavaScript modules.
+    pub allow_js: bool,
+    /// Type check JavaScript modules.
+    pub check_js: bool,
+    /// Skip declaration module checks.
+    pub skip_lib_check: bool,
+}
+
+impl Default for ModuleCheckOptions {
+    fn default() -> Self {
+        Self::from_workspace(&destack_workspace::CompilerOptions::default())
+    }
+}
+
+impl ModuleCheckOptions {
+    /// Build module compatibility options from workspace compiler options.
+    pub fn from_workspace(options: &destack_workspace::CompilerOptions) -> Self {
+        Self {
+            allow_ts: options.allow_ts,
+            check_ts: options.check_ts,
+            allow_js: options.allow_js,
+            check_js: options.check_js,
+            skip_lib_check: options.skip_lib_check,
+        }
+    }
+
+    /// Apply TypeScript compiler option overrides.
+    pub fn apply_typescript(&mut self, options: &destack_workspace::TsCompilerOptions) {
+        self.allow_js = options.allow_js;
+        self.check_js = options.check_js;
+        self.skip_lib_check = options.skip_lib_check;
+    }
+}
+
 /// The options for compiling a Workspace.
 #[derive(Clone)]
 pub struct CompilerOptions {

@@ -7,7 +7,7 @@ use destack_workspace::{
     TsCompilerOptions, TsConfigDeclaration, TsConfigOptions,
 };
 
-use super::Compiler;
+use super::{Compiler, ModuleCheckOptions};
 
 /// One pinned compiler execution view for one retained repository revision.
 #[derive(Debug, Clone)]
@@ -127,6 +127,25 @@ impl<'a> CompilerContext<'a> {
     pub fn ts_compiler_options_for_module(&self, module: &Module) -> Option<TsCompilerOptions> {
         self.tsconfig_options_for_module(module)
             .map(|options| options.compiler)
+    }
+
+    /// Return module compatibility options for one module.
+    pub(crate) fn module_check_options_for_module(
+        &self,
+        module_id: ModuleId,
+    ) -> ModuleCheckOptions {
+        let module = self.module(module_id);
+        let module = module.as_ref();
+        let mut options = self
+            .compiler_options_for_module(module)
+            .map(|options| ModuleCheckOptions::from_workspace(&options))
+            .unwrap_or_default();
+
+        if let Some(ts_options) = self.ts_compiler_options_for_module(module) {
+            options.apply_typescript(&ts_options);
+        }
+
+        options
     }
 
     /// Resolve the default profile for one module in this pinned revision.

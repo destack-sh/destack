@@ -10,7 +10,7 @@ use destack_dir::{
 use destack_workspace::Module;
 use std::str::FromStr;
 
-use crate::import::{SymbolDescriptor, can_merge_declarations};
+use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
 
 /// The export category used for duplicate export checks.

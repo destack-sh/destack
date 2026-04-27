@@ -8,8 +8,12 @@ use destack_artifact::{
 };
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
-use crate::{Compiler, CompilerContext, RequirementError};
+use crate::{
+    ArtifactRequirement, Compiler, CompilerContext, DiagnosticAnchor, RequirementError,
+    RequirementSet,
+};
 
+#[allow(dead_code)]
 impl Compiler {
     /// Return one current live artifact payload and retain its exact version for this scope.
     fn current_artifact<T>(
@@ -87,6 +91,32 @@ impl Compiler {
         self.current_artifact(ArtifactKey::dir_base(module), |artifacts, version| {
             artifacts.dir_base(version)
         })
+    }
+
+    /// Read one committed base DIR artifact when available.
+    pub(crate) fn artifact_dir_base(&self, module: ModuleId) -> Option<Arc<DirBase>> {
+        self.dir_base(module)
+    }
+
+    /// Build one failed requirement set for one missing committed artifact.
+    pub(crate) fn missing_artifact_requirement(
+        &self,
+        revision: destack_workspace::Revision,
+        artifact_key: ArtifactKey,
+    ) -> RequirementSet {
+        let anchor = match &artifact_key {
+            ArtifactKey::DirBase { module }
+            | ArtifactKey::DirPrepared { module, .. }
+            | ArtifactKey::DirResolved { module, .. }
+            | ArtifactKey::DirDeclared { module, .. }
+            | ArtifactKey::DirInterface { module, .. }
+            | ArtifactKey::DirAnalyzed { module, .. } => DiagnosticAnchor::from(*module),
+            _ => DiagnosticAnchor::Global,
+        };
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+        let requirement = ArtifactRequirement::new(anchor, version);
+
+        RequirementSet::one(requirement)
     }
 
     /// Return the current prepared DIR for one module profile.
@@ -221,6 +251,123 @@ impl Compiler {
             ArtifactKey::package_output(package, *target),
             |artifacts, version| artifacts.package_output(version),
         )
+    }
+}
+
+#[allow(dead_code)]
+impl Compiler {
+    /// Require and read one prepared DIR artifact.
+    pub(crate) fn require_artifact_dir_prepared(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirPrepared>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_prepared(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_prepared(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
+    }
+
+    /// Require and read one resolved DIR artifact.
+    pub(crate) fn require_artifact_dir_resolved(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirResolved>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_resolved(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_resolved(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
+    }
+
+    /// Require and read one declared DIR artifact.
+    pub(crate) fn require_artifact_dir_declared(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirDeclared>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_declared(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_declared(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
+    }
+
+    /// Require and read one analyzed DIR artifact.
+    pub(crate) fn require_artifact_dir_analyzed(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirAnalyzed>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_analyzed(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_analyzed(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
+    }
+
+    /// Require and read one elaborated DIR artifact.
+    pub(crate) fn require_artifact_dir_elaborated(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirElaborated>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_elaborated(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_elaborated(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
+    }
+
+    /// Require and read one patched DIR artifact.
+    pub(crate) fn require_artifact_dir_patched(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirPatched>, RequirementError> {
+        let artifact_key = ArtifactKey::dir_patched(module, profile);
+        let version = self.artifact_version_for_revision(revision, &artifact_key);
+
+        self.require_artifact(revision, artifact_key)?;
+
+        self.artifacts
+            .dir_patched(&version)
+            .ok_or_else(|| RequirementError::Failed {
+                requirement: self.missing_artifact_requirement(revision, artifact_key),
+            })
     }
 }
 

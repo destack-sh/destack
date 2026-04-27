@@ -2,7 +2,6 @@ use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::lower::TypeLowerer;
-use crate::analyze::StaticArgumentResolver;
 use crate::{LowerError, LowerResult};
 
 impl TypeLowerer {
@@ -31,7 +30,7 @@ impl TypeLowerer {
 
         // resolve element and lane arguments
         let (element_expression, lane_expression) =
-            self.vector_static_argument_pair(type_id, module_id, node, generic_arguments, builder)?;
+            self.vector_static_argument_pair(node, generic_arguments)?;
 
         // parse lane count
         let lanes = self.vector_lane_count(type_id, module_id, node, &lane_expression)?;
@@ -50,48 +49,37 @@ impl TypeLowerer {
     /// Resolve evaluated static arguments for Vector<T, N>.
     fn vector_static_argument_pair(
         &self,
-        _type_id: dir::LocalTypeId,
-        _module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         generic_arguments: &[dir::StaticArgument],
-        builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<(dir::StaticExpression, dir::StaticExpression)> {
-        let element_name = builder.strings().intern("T");
-        let lane_name = builder.strings().intern("N");
+        let [element_argument, lane_argument] = generic_arguments else {
+            return Err(LowerError::InvalidStaticArgument {
+                node,
+                message: "Vector<T, N> expects exactly two static arguments".to_string(),
+            });
+        };
 
-        let resolver =
-            StaticArgumentResolver::new(generic_arguments, "Vector<T, N>").map_err(|error| {
-                LowerError::InvalidStaticArgument {
-                    node,
-                    message: error.to_string(),
-                }
-            })?;
+        let dir::StaticArgument::Evaluated {
+            name: None,
+            value: element_expression,
+        } = element_argument
+        else {
+            return Err(LowerError::InvalidStaticArgument {
+                node,
+                message: "Vector<T, N> requires positional evaluated static arguments".to_string(),
+            });
+        };
 
-        resolver
-            .ensure_exact_arity(2)
-            .map_err(|error| LowerError::InvalidStaticArgument {
+        let dir::StaticArgument::Evaluated {
+            name: None,
+            value: lane_expression,
+        } = lane_argument
+        else {
+            return Err(LowerError::InvalidStaticArgument {
                 node,
-                message: error.to_string(),
-            })?;
-        resolver
-            .ensure_only_names(&[(element_name, "T"), (lane_name, "N")])
-            .map_err(|error| LowerError::InvalidStaticArgument {
-                node,
-                message: error.to_string(),
-            })?;
-
-        let element_expression = resolver
-            .argument_by_name_or_index((element_name, "T"), 0)
-            .map_err(|error| LowerError::InvalidStaticArgument {
-                node,
-                message: error.to_string(),
-            })?;
-        let lane_expression = resolver
-            .argument_by_name_or_index((lane_name, "N"), 1)
-            .map_err(|error| LowerError::InvalidStaticArgument {
-                node,
-                message: error.to_string(),
-            })?;
+                message: "Vector<T, N> requires positional evaluated static arguments".to_string(),
+            });
+        };
 
         Ok((element_expression.clone(), lane_expression.clone()))
     }

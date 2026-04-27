@@ -14,6 +14,7 @@ use crate::timing::tags;
 use crate::{Compiler, RequirementCollector, RequirementError, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 impl Compiler {
     /// Return true when one builtin library module contributes to the early language surface.
     pub fn is_standard_library_environment_module(&self, module_id: ModuleId) -> bool {

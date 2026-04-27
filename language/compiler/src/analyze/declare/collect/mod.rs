@@ -1,2 +1,0 @@
-mod declaration;
-mod namespace;

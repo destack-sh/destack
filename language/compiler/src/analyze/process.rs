@@ -1,10 +1,77 @@
-use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext};
-use destack_artifact::{ArtifactKey, DirAnalyzed, DirDeclared};
+use destack_artifact::{ArtifactKey, DirAnalyzed, DirDeclared, DirInterface, IntrinsicEnvironment};
 use destack_dir::CaptureTable;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
+
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext, RequirementError};
 
 impl Compiler {
+    /// Map one build requirement failure into an analyze error.
+    pub(crate) fn analyze_error_from_requirement(&self, error: RequirementError) -> AnalyzeError {
+        match error {
+            RequirementError::NotReady { requirement } => AnalyzeError::Yield { requirement },
+            RequirementError::Failed { requirement } => {
+                AnalyzeError::UnsatisfiedRequirement { requirement }
+            }
+        }
+    }
+
+    /// Build the intrinsic environment for one profile.
+    pub(crate) fn process_intrinsic_environment(
+        &self,
+        profile: ProfileId,
+        context: &CompilerContext<'_>,
+    ) -> AnalyzeResult<()> {
+        let revision = context.revision();
+        let artifact_key = ArtifactKey::intrinsic_environment(profile);
+
+        // publish the currently authoritative intrinsic environment
+        let environment = IntrinsicEnvironment::default();
+        context.publish_artifact(
+            artifact_key,
+            environment.clone(),
+            |store, version, payload| store.publish_intrinsic_environment(version, payload),
+        );
+        context.store_artifact(
+            &artifact_key,
+            &environment,
+            |compiler, _artifact_stamp, environment| {
+                compiler.store_intrinsic_environment_image(revision, profile, environment.clone())
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Require the intrinsic environment for one profile.
+    pub(crate) fn require_intrinsic_environment(
+        &self,
+        revision: Revision,
+        profile: ProfileId,
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::intrinsic_environment(profile))
+    }
+
+    /// Ensure declared DIR exists for one module.
+    pub fn require_dir_declared(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::dir_declared(module, profile))
+    }
+
+    /// Ensure analyzed DIR exists for one module.
+    pub fn require_dir_analyzed(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::dir_analyzed(module, profile))
+    }
+
     /// Build declared DIR for one module.
     pub fn process_dir_declared(
         &self,
@@ -30,24 +97,15 @@ impl Compiler {
             return Ok(());
         }
 
-        // transient declared builder
+        // declared DIR currently preserves resolved symbols and starts capture ownership
         let resolved = context
             .require_artifact_dir_resolved(module, profile)
-            .map_err(AnalyzeError::from)?;
-        let mut symbols = resolved.symbols.as_ref().clone();
-        let mut types = resolved.types.as_ref().clone();
-        let mut captures = CaptureTable::new();
-        self.analyze_module_declare(
-            resolved.as_ref(),
-            &mut symbols,
-            &mut types,
-            &mut captures,
-            module,
-            profile,
-            context,
-        )?;
-
+            .map_err(|error| self.analyze_error_from_requirement(error))?;
+        let symbols = resolved.symbols.as_ref().clone();
+        let types = resolved.types.as_ref().clone();
+        let captures = CaptureTable::new();
         let payload = DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures);
+
         context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
             store.publish_dir_declared(version, payload)
         });
@@ -93,37 +151,32 @@ impl Compiler {
             return Ok(());
         }
 
-        let entries = self.analyze_module_interface(module, profile, context)?;
+        // interface DIR is the exported resolved surface over declared locals
+        let resolved = context
+            .require_artifact_dir_resolved(module, profile)
+            .map_err(|error| self.analyze_error_from_requirement(error))?;
+        let declared = context
+            .require_artifact_dir_declared(module, profile)
+            .map_err(|error| self.analyze_error_from_requirement(error))?;
+        let payload =
+            DirInterface::from_resolved_and_declared(resolved.as_ref(), declared.as_ref());
 
-        for (module_id, profile_id, dir) in entries {
-            let artifact_key = ArtifactKey::DirInterface {
-                module: module_id,
-                profile: profile_id,
-            };
-
-            context.publish_artifact(
-                ArtifactKey::DirInterface {
-                    module: module_id,
-                    profile: profile_id,
-                },
-                dir.clone(),
-                |store, version, payload| store.publish_dir_interface(version, payload),
-            );
-
-            context.store_artifact(
-                &artifact_key,
-                dir.as_ref(),
-                |compiler, artifact_stamp, dir| {
-                    compiler.store_dir_interface_image(
-                        revision,
-                        module_id,
-                        profile_id,
-                        artifact_stamp,
-                        dir,
-                    )
-                },
-            );
-        }
+        context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
+            store.publish_dir_interface(version, payload)
+        });
+        context.store_artifact(
+            &artifact_key,
+            &payload,
+            |compiler, artifact_stamp, payload| {
+                compiler.store_dir_interface_image(
+                    revision,
+                    module,
+                    profile,
+                    artifact_stamp,
+                    payload,
+                )
+            },
+        );
 
         Ok(())
     }
@@ -153,78 +206,21 @@ impl Compiler {
             return Ok(());
         }
 
-        // transient analyzed builder
+        // analyzed DIR preserves interface types until the next semantic model exists
         let interface = context
             .require_artifact_dir_interface(module, profile)
-            .map_err(AnalyzeError::from)?;
+            .map_err(|error| self.analyze_error_from_requirement(error))?;
         let declared = context
             .require_artifact_dir_declared(module, profile)
-            .map_err(AnalyzeError::from)?;
-        let tree = interface.tree.clone();
-        let symbols = interface.symbols.clone();
-        let roots = interface.roots.clone();
-        let anchor_node = interface.anchor_node;
-        let default_symbol = declared.default_symbol;
-        let mut types = interface.types.as_ref().clone();
-        let mut captures = declared.captures.as_ref().clone();
-        let mut infer_table = self.analyze_module_infer(
-            tree.as_ref(),
-            symbols.as_ref(),
-            roots.as_ref(),
-            &mut types,
-            default_symbol,
-            anchor_node,
-            module,
-            profile,
-            context,
-        )?;
-        self.analyze_module_solve(
-            tree.as_ref(),
-            symbols.as_ref(),
-            &mut types,
-            infer_table.as_mut(),
-            module,
-            profile,
-            context,
-        )?;
-        self.analyze_module_commit(
-            tree.as_ref(),
-            symbols.as_ref(),
-            &mut types,
-            infer_table.as_mut(),
-            module,
-            profile,
-            context,
-        )?;
-        self.analyze_module_capture(
-            tree.as_ref(),
-            symbols.as_ref(),
-            &mut captures,
-            module,
-            profile,
-            context,
-        )?;
-        self.analyze_module_validate(
-            tree.as_ref(),
-            symbols.as_ref(),
-            &mut types,
-            anchor_node,
-            module,
-            profile,
-            context,
-        )?;
-
-        // publish the analyzed artifact from interface inputs plus local semantic tables
+            .map_err(|error| self.analyze_error_from_requirement(error))?;
+        let types = interface.types.as_ref().clone();
+        let captures = declared.captures.as_ref().clone();
         let payload = DirAnalyzed::from_interface_and_declared_with(
             interface.as_ref(),
             declared.as_ref(),
             types,
             captures,
         );
-
-        if context.is_code_module(module) {
-            self.stats.record_analyze();
-        }
 
         context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
             store.publish_dir_analyzed(version, payload)

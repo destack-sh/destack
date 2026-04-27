@@ -1,5 +1,4 @@
 use destack_artifact::EmitFormat;
-use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
 use dir::{
     Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind, LocalNodeId, Mutability,
@@ -7,7 +6,6 @@ use dir::{
     TypeLiteral,
 };
 
-use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -544,27 +542,15 @@ impl Compiler {
         };
         let left_type_id = state.types.unwrap_value_type_id(left_type_id);
 
-        let options = state.ctx.options;
-        let ctx = TypeContext::new(
-            state.ctx.compiler_context,
-            state.ctx.module,
-            state.ctx.profile,
-            &options,
-            state.tree,
-            state.symbols,
-            state.types,
-            AnalyzeIndex::default(),
-        );
-
         let mut candidates = Vec::new();
-        match ctx.types.get_type(left_type_id) {
+        match state.types.get_type(left_type_id) {
             Type::Union { elements } => candidates.extend(elements.iter().copied()),
             _ => candidates.push(left_type_id),
         }
 
         for candidate_id in candidates {
-            let candidate_id = ctx.types.unwrap_value_type_id(candidate_id);
-            let candidate = ctx.types.get_type(candidate_id);
+            let candidate_id = state.types.unwrap_value_type_id(candidate_id);
+            let candidate = state.types.get_type(candidate_id);
             if matches!(
                 candidate,
                 Type::TypeLiteral {
@@ -572,11 +558,6 @@ impl Compiler {
                 }
             ) {
                 continue;
-            }
-
-            if self.is_interface_implemented(ctx.symbol_type_view(), candidate, LanguageSymbol::Try)
-            {
-                return true;
             }
         }
 
