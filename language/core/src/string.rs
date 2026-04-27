@@ -1,66 +1,69 @@
 use parking_lot::RwLock;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
-use std::hash::{Hash, Hasher};
 use std::mem::size_of;
-use std::num::NonZeroU32;
 
-/// Unique identifier for interned strings in a StringPool.
+use crate::{StableHasher, stable_hash_text_128};
+
+/// Stable content identity for one interned string.
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub struct StringId(pub NonZeroU32);
+pub struct StringId(pub u128);
 
-impl std::fmt::Debug for StringId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+impl Debug for StringId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "#{:032x}", self.0)
     }
 }
 
 impl std::fmt::Display for StringId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "#{:032x}", self.0)
     }
 }
 
 impl StringId {
-    /// Create one string id from a zero-based pool index.
+    /// Create the stable id for one string.
     #[inline]
-    pub fn from_zero_based_index(index: usize) -> Self {
-        // index is zero-based: stored id is non-zero, index + 1
-        let value = u32::try_from(index.saturating_add(1))
-            .expect("StringPool exhausted u32 address space for identifiers");
-        let nonzero =
-            NonZeroU32::new(value).expect("internal error: NonZeroU32 received zero value");
-        Self(nonzero)
+    pub fn for_text(text: &str) -> Self {
+        Self(stable_hash_text_128(text))
     }
 
+    /// Return the raw stable hash bits.
     #[inline]
-    pub fn as_usize(self) -> usize {
-        (self.0.get() - 1) as usize
+    pub fn raw(self) -> u128 {
+        self.0
     }
 }
 
-/// Arena-based string pool for single-threaded use. NOT THREAD-SAFE.
-///
-/// Uses a contiguous buffer for all string data, avoiding per-string allocations.
-/// This is the core implementation used by both LocalStringPool operations and
-/// as the backing store for thread-safe StringPool.
+/// Dense storage entry for one interned string.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+struct StringEntry {
+    /// Stable content id.
+    id: StringId,
+    /// Byte offset into the contiguous buffer.
+    offset: u32,
+    /// Byte length in the contiguous buffer.
+    len: u32,
+}
+
+/// Serialized string pool representation.
+#[derive(Serialize, Deserialize)]
+struct LocalStringPoolData {
+    /// Stored strings sorted by stable id.
+    strings: Vec<(StringId, String)>,
+}
+
+/// Arena-based string pool for single-threaded use.
 #[derive(Clone, Default)]
 pub struct LocalStringPool {
     /// Contiguous buffer containing all interned string bytes.
     buffer: String,
-    /// (offset, length) pairs for each StringId, indexing into buffer.
-    spans: Vec<(u32, u32)>,
-    /// Hash -> bucket of candidate StringIds for deduplication.
-    index: FxHashMap<u64, Vec<StringId>>,
-}
-
-// serde representation for LocalStringPool
-#[derive(Serialize, Deserialize)]
-struct LocalStringPoolData {
-    buffer: String,
-    spans: Vec<(u32, u32)>,
+    /// Dense entries for stored strings.
+    entries: Vec<StringEntry>,
+    /// Dense entry index by stable string id.
+    slot_by_id: FxHashMap<StringId, usize>,
 }
 
 impl Serialize for LocalStringPool {
@@ -68,11 +71,7 @@ impl Serialize for LocalStringPool {
     where
         S: Serializer,
     {
-        let data = LocalStringPoolData {
-            buffer: self.buffer.clone(),
-            spans: self.spans.clone(),
-        };
-        data.serialize(serializer)
+        self.to_serialized_data().serialize(serializer)
     }
 }
 
@@ -82,20 +81,14 @@ impl<'de> Deserialize<'de> for LocalStringPool {
         D: Deserializer<'de>,
     {
         let data = LocalStringPoolData::deserialize(deserializer)?;
-        let mut pool = Self {
-            buffer: data.buffer,
-            spans: data.spans,
-            index: FxHashMap::default(),
-        };
-        pool.rebuild_index();
-        Ok(pool)
+        Self::from_serialized_data(data).map_err(serde::de::Error::custom)
     }
 }
 
 impl Debug for LocalStringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalStringPool")
-            .field("length", &self.spans.len())
+            .field("length", &self.entries.len())
             .field("buffer_size", &self.buffer.len())
             .finish()
     }
@@ -107,8 +100,8 @@ impl LocalStringPool {
     pub fn new() -> Self {
         Self {
             buffer: String::new(),
-            spans: Vec::new(),
-            index: FxHashMap::default(),
+            entries: Vec::new(),
+            slot_by_id: FxHashMap::default(),
         }
     }
 
@@ -117,107 +110,87 @@ impl LocalStringPool {
     pub fn with_capacity(string_count: usize, total_bytes: usize) -> Self {
         Self {
             buffer: String::with_capacity(total_bytes),
-            spans: Vec::with_capacity(string_count),
-            index: FxHashMap::with_capacity_and_hasher(string_count, FxBuildHasher),
-        }
-    }
-
-    #[inline]
-    fn hash_str(s: &str) -> u64 {
-        let mut h = FxHasher::default();
-        s.hash(&mut h);
-        h.finish()
-    }
-
-    fn rebuild_index(&mut self) {
-        self.index.clear();
-        for (idx, _) in self.spans.iter().enumerate() {
-            let id = StringId::from_zero_based_index(idx);
-            let s = self.get(id);
-            let hash = Self::hash_str(s);
-            self.index.entry(hash).or_default().push(id);
+            entries: Vec::with_capacity(string_count),
+            slot_by_id: FxHashMap::with_capacity_and_hasher(string_count, Default::default()),
         }
     }
 
     /// Get the string associated with the given StringId.
     #[inline]
     pub fn get(&self, id: StringId) -> &str {
-        let (offset, len) = self.spans[id.as_usize()];
-        &self.buffer[offset as usize..(offset + len) as usize]
+        let slot = self
+            .slot_by_id
+            .get(&id)
+            .copied()
+            .unwrap_or_else(|| panic!("string id {id} is not present in this string pool"));
+        let entry = self.entries[slot];
+
+        &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize]
     }
 
     /// Check if the pool contains the given StringId.
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {
-        self.spans.len() > id.as_usize()
+        self.slot_by_id.contains_key(&id)
     }
 
     /// Intern a string, storing only one owned copy of bytes.
-    /// Returns the same StringId for identical strings.
     #[inline]
-    pub fn intern<S: AsRef<str>>(&mut self, s: S) -> StringId {
-        let s = s.as_ref();
-        let hash = Self::hash_str(s);
+    pub fn intern<S: AsRef<str>>(&mut self, text: S) -> StringId {
+        let text = text.as_ref();
+        let id = StringId::for_text(text);
 
-        // check for existing string
-        if let Some(bucket) = self.index.get(&hash) {
-            for &candidate_id in bucket {
-                if self.get(candidate_id) == s {
-                    return candidate_id;
-                }
-            }
+        if let Some(slot) = self.slot_by_id.get(&id).copied() {
+            let entry = self.entries[slot];
+            let existing = &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize];
+            assert_eq!(
+                existing, text,
+                "string id collision for {id}: existing {existing:?}, new {text:?}",
+            );
+
+            return id;
         }
 
-        // not found: append to buffer and index
-        let offset = self.buffer.len() as u32;
-        let len = s.len() as u32;
-        self.buffer.push_str(s);
-        let id = StringId::from_zero_based_index(self.spans.len());
-        self.spans.push((offset, len));
-        self.index.entry(hash).or_default().push(id);
-        id
-    }
-
-    /// Intern a string without deduplication.
-    ///
-    /// This appends new bytes even when identical content already exists.
-    /// It is useful in high-throughput paths where dedupe lookup cost dominates.
-    #[inline]
-    pub fn intern_no_dedupe<S: AsRef<str>>(&mut self, s: S) -> StringId {
-        let s = s.as_ref();
-        let offset = self.buffer.len() as u32;
-        let len = s.len() as u32;
-        self.buffer.push_str(s);
-        let id = StringId::from_zero_based_index(self.spans.len());
-        self.spans.push((offset, len));
-
-        // keep index coherent for future intern() lookups
-        let hash = Self::hash_str(s);
-        self.index.entry(hash).or_default().push(id);
+        self.insert_verified(id, text);
 
         id
     }
 
-    /// Intern a string from another pool.
+    /// Ensure this pool contains one string from another pool.
     #[inline]
-    pub fn intern_from(&mut self, other: &LocalStringPool, string_id: StringId) -> StringId {
-        let s = other.get(string_id);
-        self.intern(s)
+    pub fn ensure_from(&mut self, other: &LocalStringPool, string_id: StringId) {
+        let text = other.get(string_id);
+
+        self.ensure_text(string_id, text);
+    }
+
+    /// Ensure this pool contains every string from another pool.
+    pub fn ensure_all_from(&mut self, other: &LocalStringPool) {
+        for (id, text) in other.iter() {
+            self.ensure_text(id, text);
+        }
+    }
+
+    /// Iterate stored strings in dense storage order.
+    pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
+        self.entries
+            .iter()
+            .map(|entry| (entry.id, self.get(entry.id)))
     }
 
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
-        self.spans.len()
+        self.entries.len()
     }
 
     /// Check if the pool contains no strings.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.spans.is_empty()
+        self.entries.is_empty()
     }
 
-    /// Convert to an immutable pool (zero-cost, just type change).
+    /// Convert to an immutable pool.
     #[inline]
     pub fn into_immutable(self) -> ImmutableStringPool {
         ImmutableStringPool { inner: self }
@@ -227,19 +200,87 @@ impl LocalStringPool {
     pub fn owned_bytes(&self) -> usize {
         let mut owned_bytes = size_of::<Self>();
         owned_bytes += self.buffer.capacity() * size_of::<u8>();
-        owned_bytes += self.spans.capacity() * size_of::<(u32, u32)>();
-        owned_bytes += self.index.capacity() * size_of::<(u64, Vec<StringId>)>();
-
-        for ids in self.index.values() {
-            owned_bytes += ids.capacity() * size_of::<StringId>();
-        }
+        owned_bytes += self.entries.capacity() * size_of::<StringEntry>();
+        owned_bytes += self.slot_by_id.capacity() * size_of::<(StringId, usize)>();
 
         owned_bytes
+    }
+
+    /// Create the canonical serialized representation.
+    fn to_serialized_data(&self) -> LocalStringPoolData {
+        let mut strings = self
+            .entries
+            .iter()
+            .map(|entry| (entry.id, self.get(entry.id).to_string()))
+            .collect::<Vec<_>>();
+        strings.sort_by_key(|(id, _)| *id);
+
+        LocalStringPoolData { strings }
+    }
+
+    /// Build one pool from its canonical serialized representation.
+    fn from_serialized_data(data: LocalStringPoolData) -> Result<Self, String> {
+        let mut pool = Self::with_capacity(
+            data.strings.len(),
+            data.strings.iter().map(|(_, string)| string.len()).sum(),
+        );
+
+        for (id, string) in data.strings {
+            let actual_id = StringId::for_text(&string);
+            if actual_id != id {
+                return Err(format!(
+                    "string pool entry id {id} does not match content id {actual_id}"
+                ));
+            }
+
+            if pool.contains(id) {
+                return Err(format!("duplicate string pool entry id {id}"));
+            }
+
+            pool.insert_verified(id, &string);
+        }
+
+        Ok(pool)
+    }
+
+    /// Insert one string after its stable id has already been checked.
+    fn insert_verified(&mut self, id: StringId, text: &str) {
+        let offset = u32::try_from(self.buffer.len())
+            .expect("StringPool exhausted u32 address space for byte offsets");
+        let len = u32::try_from(text.len())
+            .expect("StringPool exhausted u32 address space for string lengths");
+
+        self.buffer.push_str(text);
+
+        let slot = self.entries.len();
+        self.entries.push(StringEntry { id, offset, len });
+        self.slot_by_id.insert(id, slot);
+    }
+
+    /// Ensure one checked string is present in the pool.
+    fn ensure_text(&mut self, id: StringId, text: &str) {
+        let actual_id = StringId::for_text(text);
+        assert_eq!(
+            actual_id, id,
+            "string id {id} does not match copied text id {actual_id}",
+        );
+
+        if let Some(slot) = self.slot_by_id.get(&id).copied() {
+            let entry = self.entries[slot];
+            let existing = &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize];
+            assert_eq!(
+                existing, text,
+                "string id collision for {id}: existing {existing:?}, new {text:?}",
+            );
+
+            return;
+        }
+
+        self.insert_verified(id, text);
     }
 }
 
 /// Thread-safe string interning with stable identifiers.
-/// Wraps LocalStringPool with RwLock for concurrent access.
 pub struct StringPool {
     inner: RwLock<LocalStringPool>,
 }
@@ -274,6 +315,7 @@ impl Serialize for StringPool {
         S: Serializer,
     {
         let state = self.inner.read();
+
         state.serialize(serializer)
     }
 }
@@ -284,6 +326,7 @@ impl<'de> Deserialize<'de> for StringPool {
         D: Deserializer<'de>,
     {
         let state = LocalStringPool::deserialize(deserializer)?;
+
         Ok(Self {
             inner: RwLock::new(state),
         })
@@ -309,6 +352,7 @@ impl StringPool {
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {
         let state = self.inner.read();
+
         state.contains(id)
     }
 
@@ -316,91 +360,103 @@ impl StringPool {
     #[inline]
     pub fn get(&self, id: StringId) -> StringRef<'_> {
         let state = self.inner.read();
+
         StringRef { pool: state, id }
     }
 
     /// Intern a string, storing only one owned copy of bytes.
-    /// Returns the same StringId for identical strings.
-    ///
-    /// Uses read-before-write optimization: checks with read lock first,
-    /// only takes write lock if the string is not already interned.
-    pub fn intern(&self, s: &str) -> StringId {
-        let hash = LocalStringPool::hash_str(s);
+    pub fn intern(&self, text: &str) -> StringId {
+        let id = StringId::for_text(text);
 
-        // fast path: check with read lock (most strings are duplicates)
         {
             let state = self.inner.read();
-            if let Some(bucket) = state.index.get(&hash) {
-                for &candidate_id in bucket {
-                    if state.get(candidate_id) == s {
-                        return candidate_id;
-                    }
-                }
+            if state.contains(id) {
+                let existing = state.get(id);
+                assert_eq!(
+                    existing, text,
+                    "string id collision for {id}: existing {existing:?}, new {text:?}",
+                );
+
+                return id;
             }
         }
 
-        // slow path: need to insert, take write lock
         let mut state = self.inner.write();
+        if state.contains(id) {
+            let existing = state.get(id);
+            assert_eq!(
+                existing, text,
+                "string id collision for {id}: existing {existing:?}, new {text:?}",
+            );
 
-        // double-check (another thread might have added it)
-        if let Some(bucket) = state.index.get(&hash) {
-            for &candidate_id in bucket {
-                if state.get(candidate_id) == s {
-                    return candidate_id;
-                }
-            }
+            return id;
         }
 
-        // actually insert
-        let offset = state.buffer.len() as u32;
-        let len = s.len() as u32;
-        state.buffer.push_str(s);
-        let id = StringId::from_zero_based_index(state.spans.len());
-        state.spans.push((offset, len));
-        state.index.entry(hash).or_default().push(id);
+        state.insert_verified(id, text);
+
         id
     }
 
-    /// Intern a string from another pool.
+    /// Ensure this pool contains one string from another pool.
     #[inline]
-    pub fn intern_from(&self, other: &StringPool, string_id: StringId) -> StringId {
-        let s = other.get(string_id);
-        self.intern(&s)
+    pub fn ensure_from(&self, other: &StringPool, string_id: StringId) {
+        let text = other.get(string_id).to_string();
+        let mut state = self.inner.write();
+
+        state.ensure_text(string_id, text.as_str());
+    }
+
+    /// Ensure this pool contains every string from another pool.
+    pub fn ensure_all_from(&self, other: &StringPool) {
+        let strings = {
+            let other = other.inner.read();
+            other
+                .iter()
+                .map(|(id, text)| (id, text.to_string()))
+                .collect::<Vec<_>>()
+        };
+
+        let mut state = self.inner.write();
+        for (id, text) in strings {
+            state.ensure_text(id, text.as_str());
+        }
     }
 
     /// Copy all strings from an immutable pool into this pool.
-    ///
-    /// Strings are interned in order, preserving StringId mappings as long as
-    /// this pool was empty before the call.
     pub fn copy_from_immutable(&self, other: &ImmutableStringPool) {
-        for i in 0..other.len() {
-            let id = StringId::from_zero_based_index(i);
-            self.intern(other.get(id));
+        for (_, text) in other.iter() {
+            self.intern(text);
         }
     }
 
     /// Replace the entire pool contents from another pool.
-    ///
-    /// This preserves the other pool's StringId mapping exactly.
     pub fn replace_from(&self, other: &StringPool) {
         let next_state = other.inner.read().clone();
         let mut state = self.inner.write();
+
         *state = next_state;
     }
 
     /// Return one stable hash for the current pool contents.
     pub fn stable_hash(&self) -> u64 {
         let state = self.inner.read();
-        let mut hasher = FxHasher::default();
-        state.buffer.hash(&mut hasher);
-        state.spans.hash(&mut hasher);
-        hasher.finish()
+        let mut hasher = StableHasher::new();
+        let mut entries = state.iter().collect::<Vec<_>>();
+        entries.sort_by_key(|(id, _)| *id);
+
+        for (id, text) in entries {
+            hasher.update(&id.raw().to_le_bytes());
+            hasher.update_len_prefixed(text.as_bytes());
+        }
+
+        hasher.finish_u64()
     }
 
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
         let state = self.inner.read();
+
         state.len()
     }
 
@@ -408,6 +464,7 @@ impl StringPool {
     #[inline]
     pub fn is_empty(&self) -> bool {
         let state = self.inner.read();
+
         state.is_empty()
     }
 
@@ -419,14 +476,14 @@ impl StringPool {
     }
 }
 
-/// A reference to a string in a StringPool (holds read lock).
+/// A reference to a string in a StringPool.
 #[derive(Debug)]
 pub struct StringRef<'a> {
     pool: parking_lot::RwLockReadGuard<'a, LocalStringPool>,
     id: StringId,
 }
 
-impl<'a> std::ops::Deref for StringRef<'a> {
+impl std::ops::Deref for StringRef<'_> {
     type Target = str;
 
     fn deref(&self) -> &str {
@@ -434,13 +491,13 @@ impl<'a> std::ops::Deref for StringRef<'a> {
     }
 }
 
-impl<'a> AsRef<str> for StringRef<'a> {
+impl AsRef<str> for StringRef<'_> {
     fn as_ref(&self) -> &str {
         self.pool.get(self.id)
     }
 }
 
-impl<'a> std::cmp::PartialEq<&str> for StringRef<'a> {
+impl std::cmp::PartialEq<&str> for StringRef<'_> {
     fn eq(&self, other: &&str) -> bool {
         &**self == *other
     }
@@ -467,6 +524,7 @@ impl<'de> Deserialize<'de> for ImmutableStringPool {
         D: Deserializer<'de>,
     {
         let inner = LocalStringPool::deserialize(deserializer)?;
+
         Ok(Self { inner })
     }
 }
@@ -491,6 +549,11 @@ impl ImmutableStringPool {
     #[inline]
     pub fn get(&self, id: StringId) -> &str {
         self.inner.get(id)
+    }
+
+    /// Iterate stored strings in dense storage order.
+    pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
+        self.inner.iter()
     }
 
     /// Get the number of unique strings stored in this pool.
@@ -520,9 +583,12 @@ mod tests {
         let mut pool = LocalStringPool::new();
         let a = pool.intern("hello");
         let b = pool.intern("hello");
+
         assert_eq!(a, b);
+        assert_eq!(a, StringId::for_text("hello"));
         assert_eq!(pool.len(), 1);
         assert_eq!(pool.get(a), "hello");
+        assert_eq!(size_of::<StringId>(), 16);
     }
 
     #[test]
@@ -530,6 +596,7 @@ mod tests {
         let mut pool = LocalStringPool::new();
         let a = pool.intern("alpha");
         let b = pool.intern("beta");
+
         assert_ne!(a, b);
         assert_eq!(pool.len(), 2);
         assert_eq!(pool.get(a), "alpha");
@@ -541,6 +608,7 @@ mod tests {
         let mut pool = LocalStringPool::new();
         let id1 = pool.intern("");
         let id2 = pool.intern("");
+
         assert_eq!(id1, id2);
         assert_eq!(pool.len(), 1);
         assert_eq!(pool.get(id1), "");
@@ -551,6 +619,7 @@ mod tests {
         let pool = StringPool::new();
         let a = pool.intern("hello");
         let b = pool.intern("hello");
+
         assert_eq!(a, b);
         assert_eq!(pool.len(), 1);
         assert_eq!(pool.get(a).as_ref(), "hello");
@@ -561,6 +630,7 @@ mod tests {
         let pool = StringPool::new();
         let a = pool.intern("alpha");
         let b = pool.intern("beta");
+
         assert_ne!(a, b);
         assert_eq!(pool.len(), 2);
         assert_eq!(pool.get(a).as_ref(), "alpha");
@@ -574,8 +644,81 @@ mod tests {
         let b = local.intern("bar");
 
         let immutable = local.into_immutable();
+
         assert_eq!(immutable.get(a), "foo");
         assert_eq!(immutable.get(b), "bar");
         assert_eq!(immutable.len(), 2);
+    }
+
+    #[test]
+    fn test_pool_serialized_data_is_sorted_by_string_id() {
+        let mut pool = LocalStringPool::new();
+        pool.intern("zeta");
+        pool.intern("alpha");
+        pool.intern("middle");
+
+        let data = pool.to_serialized_data();
+        let mut expected = data.strings.clone();
+        expected.sort_by_key(|(id, _)| *id);
+
+        assert_eq!(data.strings, expected);
+    }
+
+    #[test]
+    fn test_pool_deserialize_rejects_duplicate_id() {
+        let id = StringId::for_text("alpha");
+        let data = LocalStringPoolData {
+            strings: vec![(id, "alpha".to_string()), (id, "alpha".to_string())],
+        };
+
+        let result = LocalStringPool::from_serialized_data(data);
+
+        assert_eq!(
+            result.unwrap_err(),
+            format!("duplicate string pool entry id {id}")
+        );
+    }
+
+    #[test]
+    fn test_pool_deserialize_rejects_mismatched_id() {
+        let id = StringId::for_text("beta");
+        let actual_id = StringId::for_text("alpha");
+        let data = LocalStringPoolData {
+            strings: vec![(id, "alpha".to_string())],
+        };
+
+        let result = LocalStringPool::from_serialized_data(data);
+
+        assert_eq!(
+            result.unwrap_err(),
+            format!("string pool entry id {id} does not match content id {actual_id}")
+        );
+    }
+
+    #[test]
+    fn test_pool_deserialize_restores_strings() {
+        let mut pool = LocalStringPool::new();
+        let alpha = pool.intern("alpha");
+        let beta = pool.intern("beta");
+        let data = pool.to_serialized_data();
+
+        let restored = LocalStringPool::from_serialized_data(data).unwrap();
+
+        assert_eq!(restored.get(alpha), "alpha");
+        assert_eq!(restored.get(beta), "beta");
+        assert_eq!(restored.len(), 2);
+    }
+
+    #[test]
+    fn test_pool_stable_hash_ignores_insertion_order() {
+        let first = StringPool::new();
+        first.intern("alpha");
+        first.intern("beta");
+
+        let second = StringPool::new();
+        second.intern("beta");
+        second.intern("alpha");
+
+        assert_eq!(first.stable_hash(), second.stable_hash());
     }
 }
