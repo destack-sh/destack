@@ -7,7 +7,7 @@ use crate::program::{
 };
 use crate::{RawPointer, Word};
 
-use super::{access, collect_values};
+use super::{access, bytes, collect_values};
 use crate::interpreter::DispatchState;
 
 /// Execute intrinsic call.
@@ -1066,16 +1066,15 @@ impl DispatchState<'_, '_> {
     ) -> RuntimeResult<Word> {
         let layout = self.intrinsic_layout(intrinsic, arguments, 0)?;
 
-        if matches!(intrinsic, mir::Intrinsic::Abs) {
-            if let ValueRepr::Int {
+        if matches!(intrinsic, mir::Intrinsic::Abs)
+            && let ValueRepr::Int {
                 width,
                 signed: true,
             } = layout
-            {
-                let value = self.intrinsic_value(intrinsic, args, 0)?.as_int();
+        {
+            let value = self.intrinsic_value(intrinsic, args, 0)?.as_int();
 
-                return Ok(Word::int(value.abs(), width));
-            }
+            return Ok(Word::int(value.abs(), width));
         }
 
         let (arg, width) = self.float_argument(intrinsic, arguments, args, 0)?;
@@ -1112,7 +1111,7 @@ impl DispatchState<'_, '_> {
         if width != middle_width || width != right_width {
             return Err(self.make_error(Error::TypeMismatch {
                 expected: "matching float types".to_string(),
-                actual: format!("{:?}", arguments),
+                actual: format!("{arguments:?}"),
             }));
         }
 
@@ -1187,7 +1186,7 @@ impl DispatchState<'_, '_> {
             return Ok(Word::VOID);
         }
 
-        self.set_memory(destination, byte, len)?;
+        self.write_memory(destination, byte, len)?;
 
         Ok(Word::VOID)
     }
@@ -1222,7 +1221,7 @@ impl DispatchState<'_, '_> {
             .map_err(Error::from)
             .map_err(|error| self.make_error(error))?;
         self.heap_mut()
-            .set_raw_bytes(destination, 0, &bytes)
+            .write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
             .map_err(|error| self.make_error(error))?;
 
@@ -1230,11 +1229,11 @@ impl DispatchState<'_, '_> {
     }
 
     /// Set one raw byte range.
-    fn set_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
+    fn write_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
         let bytes = vec![byte; len];
 
         self.heap_mut()
-            .set_raw_bytes(destination, 0, &bytes)
+            .write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
             .map_err(|error| self.make_error(error))?;
 
@@ -1289,32 +1288,30 @@ impl DispatchState<'_, '_> {
         };
 
         let tree = self.tree();
-        let byte_len =
-            access::raw_type_size(tree, raw_pointee).map_err(|error| self.make_error(error))?;
-        let raw_byte_len = self.heap().raw_byte_len(raw_pointer).map_err(Error::from)?;
-        let end = byte_len.checked_add(0).ok_or_else(|| {
-            self.make_error(Error::InvalidFieldAccess {
-                index: 0,
-                field_count: raw_byte_len,
-            })
-        })?;
+        let byte_len = access::word_type_byte_len(tree, raw_pointee)
+            .map_err(|error| self.make_error(error))?;
+        if byte_len > Word::BYTE_LEN {
+            return Err(self.make_error(Error::InvalidInstruction));
+        }
 
-        if end > raw_byte_len {
+        let raw_byte_len = self.heap().raw_byte_len(raw_pointer).map_err(Error::from)?;
+        if byte_len > raw_byte_len {
             return Err(self.make_error(Error::InvalidFieldAccess {
                 index: 0,
                 field_count: raw_byte_len,
             }));
         }
 
-        let mut bytes = vec![0u8; byte_len];
+        let mut bytes = [0u8; Word::BYTE_LEN];
+        let bytes = &mut bytes[..byte_len];
 
         // read the exact atomic window without materializing the whole raw payload
         self.heap()
-            .read_raw_bytes_into(raw_pointer, 0, &mut bytes)
+            .read_raw_bytes_into(raw_pointer, 0, bytes)
             .map_err(Error::from)
             .map_err(|error| self.make_error(error))?;
 
-        access::decode_raw_value(tree, raw_pointee, &bytes).map_err(|error| self.make_error(error))
+        access::decode_raw_value(tree, raw_pointee, bytes).map_err(|error| self.make_error(error))
     }
 
     /// Write one atomic value to memory.
@@ -1336,29 +1333,20 @@ impl DispatchState<'_, '_> {
         };
 
         let tree = self.tree();
-        let bytes = access::encode_raw_value(tree, raw_pointee, value)
+        let bytes = bytes::encode_word_bytes(tree, raw_pointee, value)
             .map_err(|error| self.make_error(error))?;
         let byte_len = self.heap().raw_byte_len(raw_pointer).map_err(Error::from)?;
-        let end = bytes.len().checked_add(0).ok_or_else(|| {
-            self.make_error(Error::InvalidFieldAccess {
-                index: 0,
-                field_count: byte_len,
-            })
-        })?;
-
-        if end > byte_len {
+        if bytes.len() > byte_len {
             return Err(self.make_error(Error::InvalidFieldAccess {
                 index: 0,
                 field_count: byte_len,
             }));
         }
 
-        for (index, byte) in bytes.into_iter().enumerate() {
-            self.heap_mut()
-                .set_raw_byte(raw_pointer, index, byte)
-                .map_err(Error::from)
-                .map_err(|error| self.make_error(error))?;
-        }
+        self.heap_mut()
+            .write_raw_bytes(raw_pointer, 0, bytes.as_slice())
+            .map_err(Error::from)
+            .map_err(|error| self.make_error(error))?;
 
         Ok(())
     }

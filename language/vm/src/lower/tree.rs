@@ -12,8 +12,7 @@ pub(crate) fn analyze_value_types(function: &mir::Function) -> Vec<ValueType> {
     function
         .value_types
         .iter()
-        .enumerate()
-        .filter_map(|(_index, ty)| {
+        .filter_map(|ty| {
             let ty = (*ty)?;
 
             Some(ValueType { ty })

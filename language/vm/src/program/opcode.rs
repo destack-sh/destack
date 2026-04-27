@@ -271,8 +271,12 @@ pub(crate) enum Opcode {
     StoreStatic,
     /// The `store_heap` opcode.
     StoreHeap,
+    /// The `store_heap_bytes` opcode.
+    StoreHeapBytes,
     /// The `store_shared_heap` opcode.
     StoreSharedHeap,
+    /// The `store_shared_heap_bytes` opcode.
+    StoreSharedHeapBytes,
     /// The `store_raw` opcode.
     StoreRaw,
     /// The `store_shared_raw` opcode.

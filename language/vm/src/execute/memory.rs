@@ -1,7 +1,9 @@
-use super::bytes::{decode_raw_value, encode_raw_value, write_value_bytes};
+use std::ptr;
+
+use super::bytes::{checked_frame_value_byte_range, decode_raw_value, encode_word_bits};
 use super::prelude::*;
 use crate::program::{PointerClass, ValueRepr, value_repr_from_type};
-use destack_heap::{HeapError, Payload};
+use destack_heap::{HeapError, Payload, SharedRawPointer};
 
 /// Load one heap array length operand as a host usize.
 #[inline(always)]
@@ -48,6 +50,29 @@ fn load_static_value(
     }
 
     Ok(())
+}
+
+/// Write one little-endian u64 prefix into one byte range.
+#[inline(always)]
+fn write_u64_le_to_bytes(target: &mut [u8], raw: u64, byte_len: usize) {
+    let target = target.as_mut_ptr();
+
+    // use native unaligned stores for normal scalar widths
+    unsafe {
+        match byte_len {
+            0 => {}
+            1 => ptr::write_unaligned(target, raw as u8),
+            2 => ptr::write_unaligned(target.cast::<u16>(), (raw as u16).to_le()),
+            4 => ptr::write_unaligned(target.cast::<u32>(), (raw as u32).to_le()),
+            8 => ptr::write_unaligned(target.cast::<u64>(), raw.to_le()),
+            _ => {
+                for byte_index in 0..byte_len {
+                    let byte = ((raw >> (byte_index * 8)) & 0xFF) as u8;
+                    ptr::write_unaligned(target.add(byte_index), byte);
+                }
+            }
+        }
+    }
 }
 
 /// Execute local variable load.
@@ -187,8 +212,6 @@ pub(crate) fn execute_static_load(
         unreachable!()
     };
 
-    // track loads
-
     // load static value directly
     match load_static_value(state, *dest, *global) {
         Ok(()) => {}
@@ -216,14 +239,6 @@ pub(crate) fn execute_static_store(
         unreachable!()
     };
 
-    // track stores
-
-    // load value to store
-    let value = match state.value_operand(*value) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
-
     // check mutability via reference metadata
     let global_id = global_id(*global);
     let global_def = state.program.tree.get(global_id);
@@ -242,36 +257,54 @@ pub(crate) fn execute_static_store(
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let bytes = if state.layout(ty).is_ok_and(|layout| layout.is_scalar()) {
-        match encode_raw_value(state.tree(), ty, value) {
-            Ok(bytes) => bytes,
-            Err(error) => return Transfer::Error(error),
-        }
-    } else {
-        let byte_len = match state.layout(ty) {
-            Ok(layout) => layout.byte_len,
+    let static_id = state.program.static_id(global_id);
+    let layout = match state.layout(ty) {
+        Ok(layout) => layout,
+        Err(error) => return Transfer::Error(error),
+    };
+    let is_scalar = layout.is_scalar();
+    let static_byte_len = layout.byte_len;
+
+    // write scalar statics without materializing a byte vector
+    if is_scalar {
+        let value = state.get(*value);
+        let (raw, byte_len) = match encode_word_bits(state.tree(), ty, value) {
+            Ok(encoded) => encoded,
             Err(error) => return Transfer::Error(error),
         };
-        let mut bytes = vec![0u8; byte_len];
-        if let Err(error) = write_value_bytes(state, ty, value, &mut bytes) {
-            return Transfer::Error(error);
+        let Some(target) = state.statics.bytes_mut(static_id) else {
+            return Transfer::Error(Error::UndefinedGlobal { global: global_id });
+        };
+        if target.len() != byte_len {
+            return Transfer::Error(Error::InvalidInstruction);
         }
 
-        bytes
+        write_u64_le_to_bytes(target, raw, byte_len);
+
+        return Transfer::Continue;
+    }
+
+    // copy frame bytes into the static region
+    let (source, source_len) = match checked_frame_value_byte_range(state, *value, static_byte_len)
+    {
+        Ok(source) => source,
+        Err(error) => return Transfer::Error(error),
     };
-    let Some(target) = state.statics.bytes_mut(state.program.static_id(global_id)) else {
+    let Some(target) = state.statics.bytes_mut(static_id) else {
         return Transfer::Error(Error::UndefinedGlobal { global: global_id });
     };
-    if target.len() != bytes.len() {
+    if target.len() != source_len {
         return Transfer::Error(Error::InvalidInstruction);
     }
-    target.copy_from_slice(&bytes);
+    unsafe {
+        ptr::copy_nonoverlapping(source, target.as_mut_ptr(), source_len);
+    }
 
     // continue to next instruction
     Transfer::Continue
 }
 
-/// Return the destination bytes for one non-scalar load.
+/// Return the destination frame bytes for one byte load.
 #[inline(always)]
 fn load_destination(
     state: &mut DispatchState<'_, '_>,
@@ -284,6 +317,23 @@ fn load_destination(
     }
 
     Ok((target.as_mut_ptr(), target.len()))
+}
+
+/// Return the immutable static region for one static address.
+#[inline(always)]
+fn immutable_static_region_for_pointer(
+    state: &DispatchState<'_, '_>,
+    pointer: StaticPointer,
+) -> Option<mir::LocalNodeId<mir::Global>> {
+    let region = state
+        .statics
+        .region_for_pointer(pointer)
+        .or_else(|| state.program.statics.region_for_pointer(pointer))?;
+    if region.is_mutable {
+        return None;
+    }
+
+    Some(mir::LocalNodeId::new(region.id.0))
 }
 
 /// Execute atomic load.
@@ -522,25 +572,11 @@ pub(crate) fn execute_load_heap(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    if access.is_scalar {
-        let value = match access::load_heap_reference(state, ptr, *access) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
-        state.set_word(*dest, value);
-
-        return Transfer::Continue;
-    }
-
-    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
-        Ok(target) => target,
+    let value = match access::load_heap_reference(state, ptr, *access) {
+        Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    if let Err(error) =
-        access::load_heap_reference_bytes_into(state, ptr, *access, target, target_len)
-    {
-        return Transfer::Error(error);
-    }
+    state.set_word(*dest, value);
 
     Transfer::Continue
 }
@@ -565,25 +601,11 @@ pub(crate) fn execute_load_shared_heap(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    if access.is_scalar {
-        let value = match access::load_shared_heap_reference(state, ptr, *access) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
-        state.set_word(*dest, value);
-
-        return Transfer::Continue;
-    }
-
-    let (target, target_len) = match load_destination(state, *dest, access.byte_len) {
-        Ok(target) => target,
+    let value = match access::load_shared_heap_reference(state, ptr, *access) {
+        Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
-    if let Err(error) =
-        access::load_shared_heap_reference_bytes_into(state, ptr, *access, target, target_len)
-    {
-        return Transfer::Error(error);
-    }
+    state.set_word(*dest, value);
 
     Transfer::Continue
 }
@@ -832,21 +854,59 @@ pub(crate) fn execute_store_heap(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
         return Transfer::Error(error);
     }
 
-    // write through heap reference
-    if let Err(e) = access::store_heap_reference(state, ptr, *access, val) {
-        return Transfer::Error(e);
+    let value = state.get(*value);
+    if let Err(error) = access::store_heap_reference(state, ptr, *access, value) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
+    Transfer::Continue
+}
+
+/// Execute heap reference byte store.
+#[inline(always)]
+pub(crate) fn execute_store_heap_bytes(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Store {
+        pointer,
+        value,
+        reference,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
+    };
+
+    // load pointer
+    let ptr = state.get(*pointer);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return Transfer::Error(error);
+    }
+
+    let (source, source_len) = match checked_frame_value_byte_range(state, *value, access.byte_len)
+    {
+        Ok(source) => source,
+        Err(error) => return Transfer::Error(error),
+    };
+    let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+    if let Err(error) = access::store_heap_reference_bytes(state, ptr, *access, bytes) {
+        return Transfer::Error(error);
+    }
+
     Transfer::Continue
 }
 
@@ -868,21 +928,59 @@ pub(crate) fn execute_store_shared_heap(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
         return Transfer::Error(error);
     }
 
-    // write through shared heap reference
-    if let Err(e) = access::store_shared_heap_reference(state, ptr, *access, val) {
-        return Transfer::Error(e);
+    let value = state.get(*value);
+    if let Err(error) = access::store_shared_heap_reference(state, ptr, *access, value) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
+    Transfer::Continue
+}
+
+/// Execute shared heap reference byte store.
+#[inline(always)]
+pub(crate) fn execute_store_shared_heap_bytes(
+    state: &mut DispatchState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction operands
+    let Operands::Store {
+        pointer,
+        value,
+        reference,
+        access,
+    } = &block[pc].operands
+    else {
+        unreachable!()
+    };
+
+    // load pointer
+    let ptr = state.get(*pointer);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return Transfer::Error(error);
+    }
+
+    let (source, source_len) = match checked_frame_value_byte_range(state, *value, access.byte_len)
+    {
+        Ok(source) => source,
+        Err(error) => return Transfer::Error(error),
+    };
+    let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+    if let Err(error) = access::store_shared_heap_reference_bytes(state, ptr, *access, bytes) {
+        return Transfer::Error(error);
+    }
+
     Transfer::Continue
 }
 
@@ -904,18 +1002,29 @@ pub(crate) fn execute_store_raw(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
         return Transfer::Error(error);
     }
-
     // write through raw pointer
-    if let Err(e) = access::store_raw_pointer(state, ptr, *access, val) {
-        return Transfer::Error(e);
+    if access.is_scalar {
+        let value = state.get(*value);
+        if let Err(error) = access::store_raw_pointer(state, ptr, *access, value) {
+            return Transfer::Error(error);
+        }
+    } else {
+        let (source, source_len) =
+            match checked_frame_value_byte_range(state, *value, access.byte_len) {
+                Ok(source) => source,
+                Err(error) => return Transfer::Error(error),
+            };
+        let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+        if let Err(error) = access::store_raw_pointer_bytes(state, ptr, *access, bytes) {
+            return Transfer::Error(error);
+        }
     }
 
     // continue to next instruction
@@ -940,9 +1049,8 @@ pub(crate) fn execute_store_shared_raw(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
@@ -950,8 +1058,21 @@ pub(crate) fn execute_store_shared_raw(
     }
 
     // write through shared raw pointer
-    if let Err(e) = access::store_shared_raw_pointer(state, ptr, *access, val) {
-        return Transfer::Error(e);
+    if access.is_scalar {
+        let value = state.get(*value);
+        if let Err(error) = access::store_shared_raw_pointer(state, ptr, *access, value) {
+            return Transfer::Error(error);
+        }
+    } else {
+        let (source, source_len) =
+            match checked_frame_value_byte_range(state, *value, access.byte_len) {
+                Ok(source) => source,
+                Err(error) => return Transfer::Error(error),
+            };
+        let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+        if let Err(error) = access::store_shared_raw_pointer_bytes(state, ptr, *access, bytes) {
+            return Transfer::Error(error);
+        }
     }
 
     // continue to next instruction
@@ -976,9 +1097,8 @@ pub(crate) fn execute_store_stack(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
@@ -987,8 +1107,21 @@ pub(crate) fn execute_store_stack(
 
     // write through stack pointer
     let pointer = ptr.as_stack_pointer();
-    if let Err(e) = access::store_stack_pointer(state, pointer, *access, val) {
-        return Transfer::Error(e);
+    if access.is_scalar {
+        let value = state.get(*value);
+        if let Err(error) = access::store_stack_pointer(state, pointer, *access, value) {
+            return Transfer::Error(error);
+        }
+    } else {
+        let (source, source_len) =
+            match checked_frame_value_byte_range(state, *value, access.byte_len) {
+                Ok(source) => source,
+                Err(error) => return Transfer::Error(error),
+            };
+        let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+        if let Err(error) = access::store_stack_pointer_bytes(state, pointer, *access, bytes) {
+            return Transfer::Error(error);
+        }
     }
 
     // continue to next instruction
@@ -1013,9 +1146,8 @@ pub(crate) fn execute_store_frame(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
     let pointer = ptr.as_frame_pointer();
 
     // validate reference kind
@@ -1024,8 +1156,21 @@ pub(crate) fn execute_store_frame(
     }
 
     // write through frame pointer
-    if let Err(e) = access::store_frame_pointer(state, pointer, *access, val) {
-        return Transfer::Error(e);
+    if access.is_scalar {
+        let value = state.get(*value);
+        if let Err(error) = access::store_frame_pointer(state, pointer, *access, value) {
+            return Transfer::Error(error);
+        }
+    } else {
+        let (source, source_len) =
+            match checked_frame_value_byte_range(state, *value, access.byte_len) {
+                Ok(source) => source,
+                Err(error) => return Transfer::Error(error),
+            };
+        let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+        if let Err(error) = access::store_frame_pointer_bytes(state, pointer, *access, bytes) {
+            return Transfer::Error(error);
+        }
     }
 
     // continue to next instruction
@@ -1050,33 +1195,41 @@ pub(crate) fn execute_store_static(
         unreachable!()
     };
 
-    // load values
+    // load pointer
     let ptr = state.get(*pointer);
-    let val = state.get(*value);
     let pointer = ptr.as_static_pointer();
 
     // validate reference kind
     if let Err(error) = check_reference_kind(state, *reference, ptr) {
         return Transfer::Error(error);
     }
-    if let Some(region) = state.statics.region_for_pointer(pointer)
-        && !region.is_mutable
-    {
-        let global = mir::LocalNodeId::new(region.id.0);
-
+    if let Some(global) = immutable_static_region_for_pointer(state, pointer) {
         return Transfer::Error(Error::ImmutableGlobalWrite { global });
     }
 
     // write through static pointer
-    if let Err(e) = access::store_static_pointer(state, pointer, *access, val) {
-        return Transfer::Error(e);
+    if access.is_scalar {
+        let value = state.get(*value);
+        if let Err(error) = access::store_static_pointer(state, pointer, *access, value) {
+            return Transfer::Error(error);
+        }
+    } else {
+        let (source, source_len) =
+            match checked_frame_value_byte_range(state, *value, access.byte_len) {
+                Ok(source) => source,
+                Err(error) => return Transfer::Error(error),
+            };
+        let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+        if let Err(error) = access::store_static_pointer_bytes(state, pointer, *access, bytes) {
+            return Transfer::Error(error);
+        }
     }
 
     // continue to next instruction
     Transfer::Continue
 }
 
-/// Execute typed allocation.
+/// Execute heap allocation.
 pub(crate) fn execute_new(
     state: &mut DispatchState<'_, '_>,
     block: &[Instruction],
@@ -1399,13 +1552,24 @@ fn drop_value(
 
     match pointer_class {
         PointerClass::Heap | PointerClass::SharedHeap => Ok(()),
-        PointerClass::Raw | PointerClass::SharedRaw => {
+        PointerClass::Raw => {
             let pointer = RawPointer::from_bits(value.bits() as usize);
             let heap = state.heap_mut();
             match heap.free_raw(pointer) {
                 Ok(true) => Ok(()),
                 Ok(false) => Err(Error::InvalidRawPointer),
                 Err(HeapError::InvalidRawPointer { .. }) => Err(Error::InvalidRawPointer),
+                Err(error) => Err(Error::from(error)),
+            }
+        }
+        PointerClass::SharedRaw => {
+            let pointer = SharedRawPointer::from_bits(value.bits() as usize);
+            match state.shared().free_raw(pointer) {
+                Ok(true) => Ok(()),
+                Ok(false) => Err(Error::InvalidSharedRawPointer),
+                Err(HeapError::InvalidSharedRawPointer { .. }) => {
+                    Err(Error::InvalidSharedRawPointer)
+                }
                 Err(error) => Err(Error::from(error)),
             }
         }

@@ -160,6 +160,28 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         Ok(Word::frame_pointer(self.value_address(value)?))
     }
 
+    /// Borrow one SSA value's bytes.
+    #[inline]
+    pub(crate) fn value_bytes(&self, value: mir::Value) -> Result<&[u8], Error> {
+        let region = self.value_region(value)?;
+        let frame = unsafe { &*self.frame };
+
+        Ok(frame.region_bytes(region))
+    }
+
+    /// Return one SSA value's frame byte range.
+    #[inline]
+    pub(crate) fn frame_value_byte_range(
+        &self,
+        value: mir::Value,
+    ) -> Result<(*const u8, usize), Error> {
+        let region = self.value_region(value)?;
+        let frame = unsafe { &*self.frame };
+        let bytes = frame.region_bytes(region);
+
+        Ok((bytes.as_ptr(), bytes.len()))
+    }
+
     /// Borrow one SSA value's bytes mutably.
     #[inline]
     pub(crate) fn value_bytes_mut(&mut self, value: mir::Value) -> Result<&mut [u8], Error> {
@@ -279,17 +301,6 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             .read_heap_bytes_into(reference, start, &mut bytes)?;
 
         Ok(bytes)
-    }
-
-    /// Write one managed byte range through the interpreter mutator path.
-    pub(crate) fn write_heap_bytes(
-        &mut self,
-        reference: HeapReference,
-        start: usize,
-        bytes: &[u8],
-    ) -> HeapResult<()> {
-        self.heap_mut().write_heap_bytes(reference, start, bytes)?;
-        self.heap_mut().write_barrier(reference, start, bytes.len())
     }
 
     /// Execute one intrinsic against the current interpreter and heap state.

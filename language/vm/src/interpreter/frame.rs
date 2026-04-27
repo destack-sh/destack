@@ -354,7 +354,7 @@ impl Frame {
         Ok(())
     }
 
-    /// Visit one heap root stored in one typed value.
+    /// Visit one heap root stored in one word.
     pub(crate) fn visit_value_root(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
@@ -493,7 +493,7 @@ impl Frame {
         }
     }
 
-    /// Visit heap roots from one typed byte range.
+    /// Visit heap roots from one byte range.
     pub(crate) fn visit_byte_roots(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
@@ -519,7 +519,7 @@ impl Frame {
         Self::collect_type_roots(program, ty, bytes, 0, roots)
     }
 
-    /// Visit local root slots from one typed byte range.
+    /// Visit local root slots from one byte range.
     pub(crate) fn visit_byte_root_slots(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
@@ -545,7 +545,7 @@ impl Frame {
         Self::visit_type_root_slots(program, ty, bytes, 0, visit)
     }
 
-    /// Visit heap roots from one typed byte range.
+    /// Visit heap roots from one byte range.
     fn collect_type_roots(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,
@@ -593,7 +593,7 @@ impl Frame {
         Ok(())
     }
 
-    /// Visit local root slots from one typed byte range.
+    /// Visit local root slots from one byte range.
     fn visit_type_root_slots(
         program: &Program,
         ty: mir::LocalNodeId<mir::Type>,

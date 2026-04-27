@@ -156,7 +156,7 @@ fn validate_indirect_signature(
         }
     }
 
-    if function.return_type != (*result).into() {
+    if function.return_type != *result {
         return Err(Error::TypeMismatch {
             expected: format!("function signature {signature:?}"),
             actual: format!("function {function_id:?}"),
@@ -206,12 +206,11 @@ pub(crate) fn execute_callable_bind(
     // allocate the erased callable payload
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let environment_value = state.get(*environment);
     let ty = match state.value_type(*dest) {
         Ok(ty) => ty,
         Err(error) => return Transfer::Error(error),
     };
-    let value = match access::allocate_callable(state, ty, function, environment_value) {
+    let value = match access::allocate_callable(state, ty, function, *environment) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
