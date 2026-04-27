@@ -374,7 +374,7 @@ impl Interpreter {
                 }
 
                 let ty = state.value_type(*param).map_err(RuntimeError::new)?;
-                let bytes = super::bytes::encode_value_bytes(&mut state, ty, value)
+                let bytes = super::bytes::encode_argument_bytes(&mut state, ty, value)
                     .map_err(RuntimeError::new)?;
                 let target = state.value_bytes_mut(*param).map_err(RuntimeError::new)?;
                 if target.len() != bytes.len() {

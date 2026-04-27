@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::program::{Opcode, PointerClass, ValueRepr};
+use crate::program::{Opcode, PointeeAccess, PointerClass, ValueRepr};
 
 use super::repr::ValueReprMap;
 
@@ -148,9 +148,20 @@ pub(super) fn select_unary_opcode(
     }
 }
 
-/// Pick a load handler for one known pointer class.
-pub(super) fn select_load_opcode(pointer_class: PointerClass) -> Result<Opcode, Error> {
-    match pointer_class {
+/// Pick a load handler for one known pointer access.
+pub(super) fn select_load_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
+    if matches!(
+        access.pointer_class,
+        PointerClass::Heap | PointerClass::SharedHeap
+    ) && !access.is_scalar
+    {
+        return Err(Error::TypeMismatch {
+            expected: "scalar managed heap load".to_string(),
+            actual: format!("{:?}", access.value_type),
+        });
+    }
+
+    match access.pointer_class {
         PointerClass::Heap => Ok(Opcode::LoadHeap),
         PointerClass::SharedHeap => Ok(Opcode::LoadSharedHeap),
         PointerClass::Raw => Ok(Opcode::LoadRaw),
@@ -162,17 +173,19 @@ pub(super) fn select_load_opcode(pointer_class: PointerClass) -> Result<Opcode, 
     }
 }
 
-/// Pick a store handler for one known pointer class.
-pub(super) fn select_store_opcode(pointer_class: PointerClass) -> Result<Opcode, Error> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Opcode::StoreHeap),
-        PointerClass::SharedHeap => Ok(Opcode::StoreSharedHeap),
-        PointerClass::Raw => Ok(Opcode::StoreRaw),
-        PointerClass::SharedRaw => Ok(Opcode::StoreSharedRaw),
-        PointerClass::Stack => Ok(Opcode::StoreStack),
-        PointerClass::Frame => Ok(Opcode::StoreFrame),
-        PointerClass::Static => Ok(Opcode::StoreStatic),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+/// Pick a store handler for one known pointer access.
+pub(super) fn select_store_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
+    match (access.pointer_class, access.is_scalar) {
+        (PointerClass::Heap, true) => Ok(Opcode::StoreHeap),
+        (PointerClass::Heap, false) => Ok(Opcode::StoreHeapBytes),
+        (PointerClass::SharedHeap, true) => Ok(Opcode::StoreSharedHeap),
+        (PointerClass::SharedHeap, false) => Ok(Opcode::StoreSharedHeapBytes),
+        (PointerClass::Raw, _) => Ok(Opcode::StoreRaw),
+        (PointerClass::SharedRaw, _) => Ok(Opcode::StoreSharedRaw),
+        (PointerClass::Stack, _) => Ok(Opcode::StoreStack),
+        (PointerClass::Frame, _) => Ok(Opcode::StoreFrame),
+        (PointerClass::Static, _) => Ok(Opcode::StoreStatic),
+        (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
     }
 }
 

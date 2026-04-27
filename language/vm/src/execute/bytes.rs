@@ -7,6 +7,28 @@ use destack_mir as mir;
 use super::access::decode_pointer_bits;
 use crate::interpreter::DispatchState;
 
+/// Encoded bytes for one VM word.
+pub(crate) struct WordBytes {
+    /// The byte buffer.
+    bytes: [u8; Word::BYTE_LEN],
+    /// The number of initialized bytes.
+    len: usize,
+}
+
+impl WordBytes {
+    /// Return the initialized bytes.
+    #[inline(always)]
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        &self.bytes[..self.len]
+    }
+
+    /// Return the initialized byte count.
+    #[inline(always)]
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+}
+
 /// Align one byte offset up to the requested alignment.
 #[inline(always)]
 fn align_offset(offset: usize, alignment: usize) -> usize {
@@ -94,8 +116,8 @@ fn decode_callable_box(
     Ok((function, environment_value))
 }
 
-/// Encode one typed value into its byte representation.
-pub(crate) fn encode_value_bytes(
+/// Encode one function entry argument into frame bytes.
+pub(crate) fn encode_argument_bytes(
     state: &mut DispatchState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
@@ -104,31 +126,78 @@ pub(crate) fn encode_value_bytes(
 
     // scalars
     if layout.is_scalar() {
-        return encode_scalar_bytes(state, ty, value);
+        return Ok(encode_word_bytes(state.tree(), ty, value)?
+            .as_slice()
+            .to_vec());
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
-    write_value_bytes(state, ty, value, &mut bytes)?;
+    write_argument_bytes(state, ty, value, &mut bytes)?;
 
     Ok(bytes)
+}
+
+/// Encode one SSA value into its byte representation.
+pub(crate) fn encode_frame_value_bytes(
+    state: &mut DispatchState<'_, '_>,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: mir::Value,
+) -> Result<Vec<u8>, Error> {
+    let layout = state.layout(ty)?.clone();
+    if layout.is_scalar() {
+        return Ok(encode_word_bytes(state.tree(), ty, state.get(value))?
+            .as_slice()
+            .to_vec());
+    }
+
+    let bytes = state.value_bytes(value)?;
+    if bytes.len() != layout.byte_len {
+        return Err(Error::TypeMismatch {
+            expected: format!("{} value bytes", layout.byte_len),
+            actual: format!("{} value bytes", bytes.len()),
+        });
+    }
+
+    Ok(bytes.to_vec())
+}
+
+/// Return one frame byte range with the expected size.
+#[inline(always)]
+pub(crate) fn checked_frame_value_byte_range(
+    state: &DispatchState<'_, '_>,
+    value: mir::Value,
+    byte_len: usize,
+) -> Result<(*const u8, usize), Error> {
+    let (bytes, actual_byte_len) = state.frame_value_byte_range(value)?;
+    if actual_byte_len != byte_len {
+        return Err(Error::InvalidInstruction);
+    }
+
+    Ok((bytes, actual_byte_len))
 }
 
 /// Encode one callable environment value.
 fn encode_callable_environment(
     state: &mut DispatchState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
-    environment_value: Word,
+    environment_value: mir::Value,
 ) -> Result<Vec<u8>, Error> {
     let environment_type = callable_environment_type(state.tree(), function_id)?;
     if state.layout(environment_type)?.is_scalar() {
-        return encode_scalar_bytes(state, environment_type, environment_value);
+        return Ok(encode_word_bytes(
+            state.tree(),
+            environment_type,
+            state.get(environment_value),
+        )?
+        .as_slice()
+        .to_vec());
     }
 
     let environment_layout_id = state
         .program
         .layout_id_for_type(environment_type)
         .ok_or(Error::InvalidInstruction)?;
-    let environment_bytes = encode_value_bytes(state, environment_type, environment_value)?;
+    let environment_bytes = encode_frame_value_bytes(state, environment_type, environment_value)?;
     let environment_handle =
         state.allocate_heap_layout(environment_layout_id, Payload::Bytes(&environment_bytes))?;
 
@@ -143,7 +212,7 @@ pub(crate) fn allocate_callable(
     state: &mut DispatchState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     function: Word,
-    environment_value: Word,
+    environment_value: mir::Value,
 ) -> Result<Word, Error> {
     let (function_offset, environment_offset, byte_len) = callable_box_layout(state.tree());
     let function = function.as_function_pointer();
@@ -231,8 +300,8 @@ pub(super) fn check_array_index(
     Ok(())
 }
 
-/// Resolve the byte size for one raw pointee type.
-pub(crate) fn raw_type_size(
+/// Return the byte width of a type that fits in one VM word.
+pub(crate) fn word_type_byte_len(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<usize, Error> {
@@ -262,13 +331,12 @@ pub(crate) fn raw_type_size(
         | mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => tree
-            .type_layout(ty)
-            .map(|layout| layout.size as usize)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "layout-backed raw type".to_string(),
+        | mir::Type::Tensor { .. } => {
+            return Err(Error::TypeMismatch {
+                expected: "word-sized type".to_string(),
                 actual: format!("{ty:?}"),
-            })?,
+            });
+        }
     };
 
     Ok(size)
@@ -298,7 +366,7 @@ fn write_raw_bytes(
 
     state
         .heap_mut()
-        .set_raw_bytes(pointer, byte_offset, bytes)
+        .write_raw_bytes(pointer, byte_offset, bytes)
         .map_err(Error::from)?;
 
     Ok(())
@@ -310,7 +378,7 @@ pub(crate) fn decode_raw_value(
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Word, Error> {
-    let byte_len = raw_type_size(tree, ty)?;
+    let byte_len = word_type_byte_len(tree, ty)?;
     if bytes.len() != byte_len {
         return Err(Error::TypeMismatch {
             expected: format!("{byte_len} raw bytes"),
@@ -318,77 +386,58 @@ pub(crate) fn decode_raw_value(
         });
     }
 
+    let mut raw = [0u8; Word::BYTE_LEN];
+    raw[..bytes.len()].copy_from_slice(bytes);
+    let raw = u64::from_le_bytes(raw);
+
+    decode_raw_bits(tree, ty, raw, byte_len)
+}
+
+/// Decode one raw scalar bit pattern into a VM word.
+pub(crate) fn decode_raw_bits(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+    raw: u64,
+    byte_len: usize,
+) -> Result<Word, Error> {
+    let expected_byte_len = word_type_byte_len(tree, ty)?;
+    if byte_len != expected_byte_len {
+        return Err(Error::TypeMismatch {
+            expected: format!("{expected_byte_len} raw bytes"),
+            actual: format!("{byte_len} raw bytes"),
+        });
+    }
+
     let ty = repr_type(tree, ty);
 
     match tree.get(ty) {
         mir::Type::Void => Ok(Word::VOID),
-        mir::Type::Boolean => Ok(Word::bool(bytes[0] != 0)),
+        mir::Type::Boolean => Ok(Word::bool(raw != 0)),
         mir::Type::Int { width, is_signed } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            let raw = u64::from_le_bytes(raw);
             if *is_signed {
                 Ok(Word::int(raw as i64, *width as u8))
             } else {
                 Ok(Word::uint(raw, *width as u8))
             }
         }
-        mir::Type::Isize => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Word::int(
-                u64::from_le_bytes(raw) as i64,
-                tree.pointer_bits() as u8,
-            ))
-        }
+        mir::Type::Isize => Ok(Word::int(raw as i64, tree.pointer_bits() as u8)),
         mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Word::uint(
-                u64::from_le_bytes(raw),
-                tree.pointer_bits() as u8,
-            ))
+            Ok(Word::uint(raw, tree.pointer_bits() as u8))
         }
-        mir::Type::Float { width: 32 } => {
-            let mut raw = [0u8; 4];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Word::float32(f32::from_bits(u32::from_le_bytes(raw))))
-        }
-        mir::Type::Float { width: 64 } => {
-            let mut raw = [0u8; 8];
-            raw.copy_from_slice(bytes);
-            Ok(Word::float64(f64::from_bits(u64::from_le_bytes(raw))))
-        }
+        mir::Type::Float { width: 32 } => Ok(Word::float32(f32::from_bits(raw as u32))),
+        mir::Type::Float { width: 64 } => Ok(Word::float64(f64::from_bits(raw))),
         mir::Type::Float { width } => Err(Error::TypeMismatch {
             expected: "supported float width".to_string(),
             actual: width.to_string(),
         }),
-        mir::Type::Reference { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            let raw = u64::from_le_bytes(raw);
-
-            decode_pointer_bits(raw, tree.get(ty))
-        }
+        mir::Type::Reference { .. } => decode_pointer_bits(raw, tree.get(ty)),
         mir::Type::Callable { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Word::heap_reference(HeapReference::from_bits(
-                u64::from_le_bytes(raw) as usize,
-            )))
+            Ok(Word::heap_reference(HeapReference::from_bits(raw as usize)))
         }
-        mir::Type::FunctionSignature { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            Ok(Word::function_pointer(FunctionPointer::from_bits(
-                u64::from_le_bytes(raw) as usize,
-            )))
-        }
-        mir::Type::FunctionPointer { .. } => {
-            let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
-            decode_pointer_bits(u64::from_le_bytes(raw), tree.get(ty))
-        }
+        mir::Type::FunctionSignature { .. } => Ok(Word::function_pointer(
+            FunctionPointer::from_bits(raw as usize),
+        )),
+        mir::Type::FunctionPointer { .. } => decode_pointer_bits(raw, tree.get(ty)),
         mir::Type::Newtype { .. } => Err(Error::TypeMismatch {
             expected: "runtime representation type".to_string(),
             actual: format!("{ty:?}"),
@@ -440,7 +489,11 @@ where
                     field_count: layout.byte_len,
                 })?;
 
-        write_value_bytes(state, field.ty, value, value_window)?;
+        let value_bytes = encode_word_bytes(state.tree(), field.ty, value)?;
+        if value_bytes.len() != value_window.len() {
+            return Err(Error::InvalidInstruction);
+        }
+        value_window.copy_from_slice(value_bytes.as_slice());
     }
 
     let destination_bytes = state.value_bytes_mut(destination)?;
@@ -493,7 +546,11 @@ where
             })?;
 
         let value = element_value(state, index, element.ty)?;
-        write_value_bytes(state, element.ty, value, value_window)?;
+        let value_bytes = encode_word_bytes(state.tree(), element.ty, value)?;
+        if value_bytes.len() != value_window.len() {
+            return Err(Error::InvalidInstruction);
+        }
+        value_window.copy_from_slice(value_bytes.as_slice());
     }
 
     let destination_bytes = state.value_bytes_mut(destination)?;
@@ -505,32 +562,40 @@ where
     Ok(())
 }
 
-/// Encode one VM value into raw bytes for the given type.
-pub(crate) fn encode_raw_value(
+/// Encode one VM word into raw bytes for the given type.
+fn encode_word_raw_bytes(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
-) -> Result<Vec<u8>, Error> {
-    let byte_len = raw_type_size(tree, ty)?;
+) -> Result<WordBytes, Error> {
+    let (raw, byte_len) = encode_word_bits(tree, ty, value)?;
 
-    let bytes = match tree.get(ty) {
-        mir::Type::Void => Vec::new(),
-        mir::Type::Boolean => vec![u8::from(value.as_bool())],
-        mir::Type::Int { .. } | mir::Type::Isize => {
-            let raw = value.bits();
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-            let raw = value.as_uint();
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
+    Ok(WordBytes {
+        bytes: raw.to_le_bytes(),
+        len: byte_len,
+    })
+}
+
+/// Encode one VM word into raw bits for the given type.
+pub(crate) fn encode_word_bits(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Word,
+) -> Result<(u64, usize), Error> {
+    let byte_len = word_type_byte_len(tree, ty)?;
+
+    let raw = match tree.get(ty) {
+        mir::Type::Void => 0u64,
+        mir::Type::Boolean => u64::from(value.as_bool()),
+        mir::Type::Int { .. } | mir::Type::Isize => value.bits(),
+        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => value.as_uint(),
         mir::Type::Float { width: 32 } => {
             let raw = value.as_float32();
-            raw.to_bits().to_le_bytes().to_vec()
+            raw.to_bits() as u64
         }
         mir::Type::Float { width: 64 } => {
             let raw = value.as_float64();
-            raw.to_bits().to_le_bytes().to_vec()
+            raw.to_bits()
         }
         mir::Type::Float { width } => {
             return Err(Error::TypeMismatch {
@@ -538,23 +603,17 @@ pub(crate) fn encode_raw_value(
                 actual: width.to_string(),
             });
         }
-        mir::Type::Reference { .. } => {
-            let raw = value.bits();
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
-        mir::Type::Callable { .. } => {
-            let raw = value.as_heap_reference().bits() as u64;
-            raw.to_le_bytes()[..byte_len].to_vec()
-        }
+        mir::Type::Reference { .. } => value.bits(),
+        mir::Type::Callable { .. } => value.as_heap_reference().bits() as u64,
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             let raw = value.as_function_pointer();
-            (raw.bits() as u64).to_le_bytes()[..byte_len].to_vec()
+            raw.bits() as u64
         }
         mir::Type::Newtype { inner, .. } => {
             let inner = (*inner).ty().ok_or_else(|| Error::ConcreteMirRequired {
                 context: "newtype inner".to_string(),
             })?;
-            return encode_raw_value(tree, inner, value);
+            return encode_word_bits(tree, inner, value);
         }
         _ => {
             return Err(Error::TypeMismatch {
@@ -564,40 +623,41 @@ pub(crate) fn encode_raw_value(
         }
     };
 
-    Ok(bytes)
+    Ok((raw, byte_len))
 }
 
-/// Encode one scalar VM value into its byte representation.
-pub(crate) fn encode_scalar_bytes(
-    state: &mut DispatchState<'_, '_>,
+/// Encode one VM value into raw bytes for the given type.
+pub(crate) fn encode_raw_value(
+    tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<Vec<u8>, Error> {
-    let layout = state.layout(ty)?;
-    if !layout.is_scalar() {
-        return Err(Error::TypeMismatch {
-            expected: "scalar type".to_string(),
-            actual: format!("{ty:?}"),
-        });
-    }
-
-    encode_raw_value(state.tree(), ty, value)
+    Ok(encode_word_raw_bytes(tree, ty, value)?.as_slice().to_vec())
 }
 
-/// Write one value into one typed byte range.
-pub(crate) fn write_value_bytes(
+/// Encode one VM word into scalar bytes.
+pub(crate) fn encode_word_bytes(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Word,
+) -> Result<WordBytes, Error> {
+    encode_word_raw_bytes(tree, ty, value)
+}
+
+/// Write one function entry argument into one byte range.
+fn write_argument_bytes(
     state: &mut DispatchState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
     destination: &mut [u8],
 ) -> Result<(), Error> {
     if state.layout(ty)?.is_scalar() {
-        let bytes = encode_scalar_bytes(state, ty, value)?;
+        let bytes = encode_word_bytes(state.tree(), ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::InvalidHeapReference);
         }
 
-        destination.copy_from_slice(&bytes);
+        destination.copy_from_slice(bytes.as_slice());
         return Ok(());
     }
 
@@ -621,34 +681,8 @@ pub(crate) fn write_value_bytes(
         return Ok(());
     }
 
-    let pointer = value.as_frame_pointer();
-    if state.owns_frame_range(pointer, destination.len()) {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                pointer.address() as *const u8,
-                destination.as_mut_ptr(),
-                destination.len(),
-            );
-        }
-
-        return Ok(());
-    }
-
-    let pointer = value.as_static_pointer();
-    if state.owns_static_range(pointer, destination.len()) {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                pointer.address() as *const u8,
-                destination.as_mut_ptr(),
-                destination.len(),
-            );
-        }
-
-        return Ok(());
-    }
-
     Err(Error::TypeMismatch {
-        expected: "scalar or addressable byte value".to_string(),
+        expected: "scalar or heap-backed argument".to_string(),
         actual: format!("{value:?}"),
     })
 }
@@ -680,20 +714,9 @@ pub(crate) fn load_raw_pointer(
         return Err(Error::NullPointerDereference);
     }
 
-    let byte_len = state.heap().raw_byte_len(pointer)?;
-
-    // reject reads that extend past the raw allocation
-    let end = access.byte_offset.saturating_add(access.byte_len);
-    if end > byte_len {
-        return Err(Error::InvalidFieldAccess {
-            index: access.byte_offset as u32,
-            field_count: byte_len,
-        });
-    }
-
     if !access.is_scalar {
         return Err(Error::TypeMismatch {
-            expected: "scalar raw load".to_string(),
+            expected: "word raw load".to_string(),
             actual: format!("{:?}", access.value_type),
         });
     }
@@ -701,14 +724,13 @@ pub(crate) fn load_raw_pointer(
         return Err(Error::InvalidInstruction);
     }
 
-    let mut bytes = [0u8; Word::BYTE_LEN];
-    let bytes = &mut bytes[..access.byte_len];
-    state
+    let address = state
         .heap()
-        .read_raw_bytes_into(pointer, access.byte_offset, bytes)
+        .raw_address(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
+    let raw = super::access::read_word_bits(address as usize, access.byte_len);
 
-    decode_raw_value(state.tree(), access.value_type, bytes)
+    decode_raw_bits(state.tree(), access.value_type, raw, access.byte_len)
 }
 
 /// Load one value from shared raw heap bytes.
@@ -722,18 +744,9 @@ pub(crate) fn load_shared_raw_pointer(
         return Err(Error::NullPointerDereference);
     }
 
-    let byte_len = state.shared().raw_byte_len(pointer)?;
-    let end = access.byte_offset.saturating_add(access.byte_len);
-    if end > byte_len {
-        return Err(Error::InvalidFieldAccess {
-            index: access.byte_offset as u32,
-            field_count: byte_len,
-        });
-    }
-
     if !access.is_scalar {
         return Err(Error::TypeMismatch {
-            expected: "scalar shared raw load".to_string(),
+            expected: "word shared raw load".to_string(),
             actual: format!("{:?}", access.value_type),
         });
     }
@@ -741,14 +754,13 @@ pub(crate) fn load_shared_raw_pointer(
         return Err(Error::InvalidInstruction);
     }
 
-    let mut bytes = [0u8; Word::BYTE_LEN];
-    let bytes = &mut bytes[..access.byte_len];
-    state
+    let address = state
         .shared()
-        .read_raw_bytes_into(pointer, access.byte_offset, bytes)
+        .raw_address(pointer, access.byte_offset, access.byte_len)
         .map_err(Error::from)?;
+    let raw = super::access::read_word_bits(address as usize, access.byte_len);
 
-    decode_raw_value(state.tree(), access.value_type, bytes)
+    decode_raw_bits(state.tree(), access.value_type, raw, access.byte_len)
 }
 
 /// Store one value into raw heap bytes.
@@ -758,14 +770,42 @@ pub(crate) fn store_raw_pointer(
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
+    let (raw, byte_len) = encode_word_bits(state.tree(), access.value_type, value)?;
+    if byte_len != access.byte_len {
+        return Err(Error::InvalidInstruction);
+    }
+
     let pointer = ptr.as_raw_pointer();
     if state.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    let bytes = encode_value_bytes(state, access.value_type, value)?;
+    let address = state
+        .heap_mut()
+        .raw_address_mut(pointer, access.byte_offset, byte_len)
+        .map_err(Error::from)?;
+    super::access::write_word_bits(address as usize, raw, byte_len);
 
-    write_raw_bytes(state, pointer, access.byte_offset, &bytes)
+    Ok(())
+}
+
+/// Store bytes into raw heap bytes.
+pub(crate) fn store_raw_pointer_bytes(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    bytes: &[u8],
+) -> Result<(), Error> {
+    if bytes.len() != access.byte_len {
+        return Err(Error::InvalidInstruction);
+    }
+
+    let pointer = ptr.as_raw_pointer();
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    write_raw_bytes(state, pointer, access.byte_offset, bytes)
 }
 
 /// Store one value into shared raw heap bytes.
@@ -775,15 +815,43 @@ pub(crate) fn store_shared_raw_pointer(
     access: PointeeAccess,
     value: Word,
 ) -> Result<(), Error> {
+    let (raw, byte_len) = encode_word_bits(state.tree(), access.value_type, value)?;
+    if byte_len != access.byte_len {
+        return Err(Error::InvalidInstruction);
+    }
+
     let pointer = ptr.as_shared_raw_pointer();
     if state.null_checks && pointer.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    let bytes = encode_value_bytes(state, access.value_type, value)?;
+    let address = state
+        .shared()
+        .raw_address_mut(pointer, access.byte_offset, byte_len)
+        .map_err(Error::from)?;
+    super::access::write_word_bits(address as usize, raw, byte_len);
+
+    Ok(())
+}
+
+/// Store bytes into shared raw heap bytes.
+pub(crate) fn store_shared_raw_pointer_bytes(
+    state: &mut DispatchState<'_, '_>,
+    ptr: Word,
+    access: PointeeAccess,
+    bytes: &[u8],
+) -> Result<(), Error> {
+    if bytes.len() != access.byte_len {
+        return Err(Error::InvalidInstruction);
+    }
+
+    let pointer = ptr.as_shared_raw_pointer();
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
 
     state
         .shared()
-        .write_raw_bytes(pointer, access.byte_offset, &bytes)
+        .write_raw_bytes(pointer, access.byte_offset, bytes)
         .map_err(Error::from)
 }

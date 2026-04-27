@@ -207,7 +207,10 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Return the current shared raw-space budget.
     fn shared_raw_budget(&self) -> SharedRawBudget {
-        SharedRawBudget::new(self.shared_raw_limits, self.shared_ref().raw_active_bytes())
+        SharedRawBudget::new(
+            self.shared_raw_limits,
+            self.shared_ref().raw_retained_bytes(),
+        )
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
@@ -308,9 +311,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Allocate a shared heap byte region and return its pointer.
     pub fn allocate_shared_bytes(&mut self, bytes: &[u8]) -> Result<SharedRawPointer, Error> {
-        let mapped_delta = self.shared().raw_alloc_mapped_byte_delta(bytes.len());
+        let retained_delta = self.shared().raw_alloc_retained_byte_delta(bytes.len());
         self.shared_raw_budget()
-            .check_mapped_byte_delta(mapped_delta)?;
+            .check_retained_byte_delta(retained_delta)?;
 
         self.shared()
             .allocate_raw(bytes.len(), Payload::Bytes(bytes))
@@ -421,7 +424,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             })?;
 
         self.heap()
-            .set_raw_bytes(pointer, start, &value.to_byte_array())
+            .write_raw_bytes(pointer, start, &value.to_byte_array())
             .map_err(Error::from)
     }
 
@@ -433,7 +436,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         byte: u8,
     ) -> Result<(), Error> {
         self.heap()
-            .set_raw_byte(pointer, index, byte)
+            .write_raw_byte(pointer, index, byte)
             .map_err(Error::from)
     }
 
@@ -443,11 +446,11 @@ impl<'ctx> ExternalCallContext<'ctx> {
         pointer: SharedRawPointer,
         bytes: &[u8],
     ) -> Result<SharedRawPointer, Error> {
-        let mapped_delta = self
+        let retained_delta = self
             .shared()
-            .raw_replace_mapped_byte_delta(pointer, bytes.len())?;
+            .raw_replace_retained_byte_delta(pointer, bytes.len())?;
         self.shared_raw_budget()
-            .check_mapped_byte_delta(mapped_delta)?;
+            .check_retained_byte_delta(retained_delta)?;
 
         self.shared()
             .replace_raw_bytes(pointer, bytes)

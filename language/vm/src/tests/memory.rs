@@ -154,7 +154,7 @@ fn test_shared_heap_reference_value_roundtrip() {
     );
 }
 
-/// Share unchanged shared allocations across image roundtrips and detach only touched allocations.
+/// Preserve shared raw bytes across image roundtrips and later writes.
 #[test]
 fn test_roundtrip_shared_memory_image() {
     let options = destack_heap::HeapOptions::shared();
@@ -169,7 +169,7 @@ fn test_roundtrip_shared_memory_image() {
     )
     .expect("shared heap should build");
 
-    // capture two allocations so only one has to detach later
+    // capture two allocations and mutate only one after restore
     let first = shared
         .allocate_raw(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
         .expect("shared allocation should succeed");
@@ -180,36 +180,33 @@ fn test_roundtrip_shared_memory_image() {
     let restored =
         SharedHeap::from_image_with_limits(&image, destack_heap::SharedHeapLimits::default())
             .expect("shared image restore should succeed");
-    let restored_image = restored.image().expect("shared image should succeed");
 
-    // untouched pages should still share after restore
-    assert_eq!(
-        image.raw().allocation(0).unwrap().pages,
-        restored_image.raw().allocation(0).unwrap().pages
-    );
-    assert_eq!(
-        image.raw().allocation(1).unwrap().pages,
-        restored_image.raw().allocation(1).unwrap().pages
-    );
-
-    // mutating one allocation should detach only that allocation
-    let first = restored
-        .replace_raw_bytes(first, &[9, 2, 3, 4, 5, 6])
-        .expect("shared replace should succeed");
-    let mutated_image = restored.image().expect("shared image should succeed");
-
-    assert_ne!(
-        image.raw().allocation(0).unwrap().pages,
-        mutated_image.raw().allocation(0).unwrap().pages
-    );
-    assert_eq!(
-        image.raw().allocation(1).unwrap().pages,
-        mutated_image.raw().allocation(1).unwrap().pages
-    );
-    assert_eq!(restored.read_raw_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
+    // restored bytes match the captured image
+    assert_eq!(restored.read_raw_bytes(first), Ok(vec![1, 2, 3, 4, 5, 6]));
     assert_eq!(
         restored.read_raw_bytes(second),
         Ok(vec![7, 8, 9, 10, 11, 12])
+    );
+
+    // mutating one allocation must not rewrite the captured image
+    let replaced_first = restored
+        .replace_raw_bytes(first, &[9, 2, 3, 4, 5, 6])
+        .expect("shared replace should succeed");
+    assert_eq!(
+        restored.read_raw_bytes(replaced_first),
+        Ok(vec![9, 2, 3, 4, 5, 6])
+    );
+    assert_eq!(
+        restored.read_raw_bytes(second),
+        Ok(vec![7, 8, 9, 10, 11, 12])
+    );
+
+    let restored_again =
+        SharedHeap::from_image_with_limits(&image, destack_heap::SharedHeapLimits::default())
+            .expect("shared image restore should succeed");
+    assert_eq!(
+        restored_again.read_raw_bytes(first),
+        Ok(vec![1, 2, 3, 4, 5, 6])
     );
 }
 
@@ -235,12 +232,13 @@ fn test_shared_raw_budget_tracks_committed_usage() {
         .expect("nested shared allocation should succeed");
 
     // the next allocation must see the committed usage immediately
-    let mapped_delta = shared.raw_alloc_mapped_byte_delta(5);
-    let mapped_bytes = u64::try_from(mapped_delta).expect("allocation should map more bytes");
-    let used_bytes = shared.raw_active_bytes() + mapped_bytes;
-    let budget = SharedRawBudget::new(limits, shared.raw_active_bytes());
+    let retained_delta = shared.raw_alloc_retained_byte_delta(5);
+    let retained_bytes =
+        u64::try_from(retained_delta).expect("allocation should retain more bytes");
+    let used_bytes = shared.raw_retained_bytes() + retained_bytes;
+    let budget = SharedRawBudget::new(limits, shared.raw_retained_bytes());
     let error = budget
-        .check_mapped_byte_delta(mapped_delta)
+        .check_retained_byte_delta(retained_delta)
         .expect_err("outer shared allocation should honor nested usage");
 
     assert_eq!(

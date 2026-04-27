@@ -943,7 +943,7 @@ impl<'a> BlockLowerer<'a> {
                     .ok_or(Error::InvalidInstruction)?;
 
                 Instruction {
-                    opcode: select_load_opcode(access.pointer_class)?,
+                    opcode: select_load_opcode(access)?,
                     operands: Operands::Load {
                         dest: destination,
                         pointer,
@@ -974,7 +974,7 @@ impl<'a> BlockLowerer<'a> {
                     .ok_or(Error::InvalidInstruction)?;
 
                 Instruction {
-                    opcode: select_store_opcode(access.pointer_class)?,
+                    opcode: select_store_opcode(access)?,
                     operands: Operands::Store {
                         pointer,
                         value,
@@ -2630,7 +2630,7 @@ impl<'a> BlockLowerer<'a> {
         let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
         let field = layout
             .field(index)
-            .ok_or_else(|| Error::InvalidFieldAccess { index, field_count })?;
+            .ok_or(Error::InvalidFieldAccess { index, field_count })?;
         let whole = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -2705,7 +2705,7 @@ impl<'a> BlockLowerer<'a> {
                 let index = index as u32;
                 let field = layout
                     .field(index)
-                    .ok_or_else(|| Error::InvalidFieldAccess { index, field_count })?;
+                    .ok_or(Error::InvalidFieldAccess { index, field_count })?;
                 ranges.push(FrameRange {
                     value_type: field.ty,
                     byte_offset: field.offset,

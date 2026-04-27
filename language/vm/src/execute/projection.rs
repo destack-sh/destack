@@ -1,5 +1,6 @@
 use super::prelude::*;
 use crate::diagnostic::Error;
+use crate::execute::bytes::checked_frame_value_byte_range;
 
 /// Load one array index operand as an unsigned value.
 #[inline(always)]
@@ -7,13 +8,13 @@ fn load_array_index(state: &DispatchState<'_, '_>, index: mir::Value) -> u64 {
     state.get(index).as_u64()
 }
 
-/// Return one typed field access.
+/// Return one lowered field access.
 #[inline(always)]
 fn field_access(field: Option<FieldAccess>) -> Result<FieldAccess, Error> {
     field.ok_or(Error::InvalidInstruction)
 }
 
-/// Return one typed element access.
+/// Return one lowered element access.
 #[inline(always)]
 fn element_access(element: Option<ElementAccess>) -> Result<ElementAccess, Error> {
     element.ok_or(Error::InvalidInstruction)
@@ -40,9 +41,16 @@ fn field_addr(
             index,
             field_count,
         )?,
-        PointerClass::Raw | PointerClass::SharedRaw => {
+        PointerClass::Raw => {
             access::field_addr_raw(state, base.as_raw_pointer(), field, index, field_count)?
         }
+        PointerClass::SharedRaw => access::field_addr_shared_raw(
+            state,
+            base.as_shared_raw_pointer(),
+            field,
+            index,
+            field_count,
+        )?,
         PointerClass::Stack => {
             access::field_addr_stack(state, base.as_stack_pointer(), field, index, field_count)?
         }
@@ -87,9 +95,16 @@ fn field_load(
             index,
             field_count,
         ),
-        PointerClass::Raw | PointerClass::SharedRaw => {
+        PointerClass::Raw => {
             access::load_field_raw(state, base.as_raw_pointer(), field, index, field_count)
         }
+        PointerClass::SharedRaw => access::load_field_shared_raw(
+            state,
+            base.as_shared_raw_pointer(),
+            field,
+            index,
+            field_count,
+        ),
         PointerClass::Stack => {
             access::load_field_stack(state, base.as_stack_pointer(), field, index, field_count)
         }
@@ -110,7 +125,7 @@ fn field_store(
     state: &mut DispatchState<'_, '_>,
     base: Word,
     index: u32,
-    value: Word,
+    value: mir::Value,
     reference: ReferenceMeta,
     field_count: Option<u32>,
     field: FieldAccess,
@@ -118,50 +133,126 @@ fn field_store(
     check_reference_kind(state, reference, base)?;
     check_reference_mutability(state, reference)?;
 
+    if field.is_scalar {
+        let value = state.get(value);
+
+        return match field.pointer_class {
+            PointerClass::Heap => access::store_field_heap(
+                state,
+                base.as_heap_reference(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::SharedHeap => access::store_field_shared_heap(
+                state,
+                base.as_shared_heap_reference(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::Raw => access::store_field_raw(
+                state,
+                base.as_raw_pointer(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::SharedRaw => access::store_field_shared_raw(
+                state,
+                base.as_shared_raw_pointer(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::Stack => access::store_field_stack(
+                state,
+                base.as_stack_pointer(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::Frame => {
+                let pointer = base.as_frame_pointer();
+                access::store_frame_pointer(state, pointer, field.into(), value)
+            }
+            PointerClass::Static => access::store_field_static(
+                state,
+                base.as_static_pointer(),
+                field,
+                index,
+                field_count,
+                value,
+            ),
+            PointerClass::Unknown => Err(access::invalid_pointer_type(base)),
+        };
+    }
+
+    if field.pointer_class == PointerClass::Heap {
+        return Err(Error::TypeMismatch {
+            expected: "scalar heap field store".to_string(),
+            actual: format!("{:?}", field.value_type),
+        });
+    }
+    if field.pointer_class == PointerClass::SharedHeap {
+        return Err(Error::TypeMismatch {
+            expected: "scalar shared heap field store".to_string(),
+            actual: format!("{:?}", field.value_type),
+        });
+    }
+
+    let (source, source_len) = checked_frame_value_byte_range(state, value, field.byte_len)?;
+    let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+
     match field.pointer_class {
-        PointerClass::Heap => access::store_field_heap(
-            state,
-            base.as_heap_reference(),
-            field,
-            index,
-            field_count,
-            value,
-        ),
-        PointerClass::SharedHeap => access::store_field_shared_heap(
-            state,
-            base.as_shared_heap_reference(),
-            field,
-            index,
-            field_count,
-            value,
-        ),
-        PointerClass::Raw | PointerClass::SharedRaw => access::store_field_raw(
+        PointerClass::Heap => Err(Error::TypeMismatch {
+            expected: "scalar heap field store".to_string(),
+            actual: format!("{:?}", field.value_type),
+        }),
+        PointerClass::SharedHeap => Err(Error::TypeMismatch {
+            expected: "scalar shared heap field store".to_string(),
+            actual: format!("{:?}", field.value_type),
+        }),
+        PointerClass::Raw => access::store_field_raw_bytes(
             state,
             base.as_raw_pointer(),
             field,
             index,
             field_count,
-            value,
+            bytes,
         ),
-        PointerClass::Stack => access::store_field_stack(
+        PointerClass::SharedRaw => access::store_field_shared_raw_bytes(
+            state,
+            base.as_shared_raw_pointer(),
+            field,
+            index,
+            field_count,
+            bytes,
+        ),
+        PointerClass::Stack => access::store_field_stack_bytes(
             state,
             base.as_stack_pointer(),
             field,
             index,
             field_count,
-            value,
+            bytes,
         ),
         PointerClass::Frame => {
             let pointer = base.as_frame_pointer();
-            access::store_frame_pointer(state, pointer, field.into(), value)
+            access::store_frame_pointer_bytes(state, pointer, field.into(), bytes)
         }
-        PointerClass::Static => access::store_field_static(
+        PointerClass::Static => access::store_field_static_bytes(
             state,
             base.as_static_pointer(),
             field,
             index,
             field_count,
-            value,
+            bytes,
         ),
         PointerClass::Unknown => Err(access::invalid_pointer_type(base)),
     }
@@ -192,9 +283,16 @@ fn element_addr(
             index,
             array_length,
         )?,
-        PointerClass::Raw | PointerClass::SharedRaw => {
+        PointerClass::Raw => {
             access::element_addr_raw(state, array.as_raw_pointer(), element, index, array_length)?
         }
+        PointerClass::SharedRaw => access::element_addr_shared_raw(
+            state,
+            array.as_shared_raw_pointer(),
+            element,
+            index,
+            array_length,
+        )?,
         PointerClass::Stack => access::element_addr_stack(
             state,
             array.as_stack_pointer(),
@@ -253,9 +351,16 @@ fn element_load(
             index,
             array_length,
         ),
-        PointerClass::Raw | PointerClass::SharedRaw => {
+        PointerClass::Raw => {
             access::load_element_raw(state, array.as_raw_pointer(), element, index, array_length)
         }
+        PointerClass::SharedRaw => access::load_element_shared_raw(
+            state,
+            array.as_shared_raw_pointer(),
+            element,
+            index,
+            array_length,
+        ),
         PointerClass::Stack => access::load_element_stack(
             state,
             array.as_stack_pointer(),
@@ -293,7 +398,7 @@ fn element_store(
     state: &mut DispatchState<'_, '_>,
     array: Word,
     index: u64,
-    value: Word,
+    value: mir::Value,
     reference: ReferenceMeta,
     array_length: Option<u64>,
     element: ElementAccess,
@@ -301,38 +406,123 @@ fn element_store(
     check_reference_kind(state, reference, array)?;
     check_reference_mutability(state, reference)?;
 
+    if element.is_scalar {
+        let value = state.get(value);
+
+        return match element.pointer_class {
+            PointerClass::Heap => access::store_element_heap(
+                state,
+                array.as_heap_reference(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::SharedHeap => access::store_element_shared_heap(
+                state,
+                array.as_shared_heap_reference(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::Raw => access::store_element_raw(
+                state,
+                array.as_raw_pointer(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::SharedRaw => access::store_element_shared_raw(
+                state,
+                array.as_shared_raw_pointer(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::Stack => access::store_element_stack(
+                state,
+                array.as_stack_pointer(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::Frame => {
+                let length = array_length.ok_or(Error::InvalidInstruction)?;
+                let offset = usize::try_from(index)
+                    .ok()
+                    .and_then(|index| index.checked_mul(element.byte_stride))
+                    .ok_or(Error::InvalidArrayAccess { index, length })?;
+                let pointer = array
+                    .as_frame_pointer()
+                    .add_bytes(offset)
+                    .ok_or(Error::InvalidArrayAccess { index, length })?;
+
+                access::store_frame_pointer(state, pointer, element.into(), value)
+            }
+            PointerClass::Static => access::store_element_static(
+                state,
+                array.as_static_pointer(),
+                element,
+                index,
+                array_length,
+                value,
+            ),
+            PointerClass::Unknown => Err(access::invalid_pointer_type(array)),
+        };
+    }
+
+    if element.pointer_class == PointerClass::Heap {
+        return Err(Error::TypeMismatch {
+            expected: "scalar heap element store".to_string(),
+            actual: format!("{:?}", element.value_type),
+        });
+    }
+    if element.pointer_class == PointerClass::SharedHeap {
+        return Err(Error::TypeMismatch {
+            expected: "scalar shared heap element store".to_string(),
+            actual: format!("{:?}", element.value_type),
+        });
+    }
+
+    let (source, source_len) = checked_frame_value_byte_range(state, value, element.byte_len)?;
+    let bytes = unsafe { std::slice::from_raw_parts(source, source_len) };
+
     match element.pointer_class {
-        PointerClass::Heap => access::store_element_heap(
-            state,
-            array.as_heap_reference(),
-            element,
-            index,
-            array_length,
-            value,
-        ),
-        PointerClass::SharedHeap => access::store_element_shared_heap(
-            state,
-            array.as_shared_heap_reference(),
-            element,
-            index,
-            array_length,
-            value,
-        ),
-        PointerClass::Raw | PointerClass::SharedRaw => access::store_element_raw(
+        PointerClass::Heap => Err(Error::TypeMismatch {
+            expected: "scalar heap element store".to_string(),
+            actual: format!("{:?}", element.value_type),
+        }),
+        PointerClass::SharedHeap => Err(Error::TypeMismatch {
+            expected: "scalar shared heap element store".to_string(),
+            actual: format!("{:?}", element.value_type),
+        }),
+        PointerClass::Raw => access::store_element_raw_bytes(
             state,
             array.as_raw_pointer(),
             element,
             index,
             array_length,
-            value,
+            bytes,
         ),
-        PointerClass::Stack => access::store_element_stack(
+        PointerClass::SharedRaw => access::store_element_shared_raw_bytes(
+            state,
+            array.as_shared_raw_pointer(),
+            element,
+            index,
+            array_length,
+            bytes,
+        ),
+        PointerClass::Stack => access::store_element_stack_bytes(
             state,
             array.as_stack_pointer(),
             element,
             index,
             array_length,
-            value,
+            bytes,
         ),
         PointerClass::Frame => {
             let length = array_length.ok_or(Error::InvalidInstruction)?;
@@ -345,15 +535,15 @@ fn element_store(
                 .add_bytes(offset)
                 .ok_or(Error::InvalidArrayAccess { index, length })?;
 
-            access::store_frame_pointer(state, pointer, element.into(), value)
+            access::store_frame_pointer_bytes(state, pointer, element.into(), bytes)
         }
-        PointerClass::Static => access::store_element_static(
+        PointerClass::Static => access::store_element_static_bytes(
             state,
             array.as_static_pointer(),
             element,
             index,
             array_length,
-            value,
+            bytes,
         ),
         PointerClass::Unknown => Err(access::invalid_pointer_type(array)),
     }
@@ -775,8 +965,7 @@ pub(crate) fn execute_field_store(
         Err(error) => return Transfer::Error(error),
     };
     let base = state.get(*base);
-    let value = state.get(*value);
-    if let Err(error) = field_store(state, base, *index, value, *reference, *field_count, field) {
+    if let Err(error) = field_store(state, base, *index, *value, *reference, *field_count, field) {
         return Transfer::Error(error);
     }
 
@@ -806,21 +995,7 @@ pub(crate) fn execute_field_store_heap(
         Err(error) => return Transfer::Error(error),
     };
     let base = state.get(*base);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, base) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_field_heap(
-        state,
-        base.as_heap_reference(),
-        field,
-        *index,
-        *field_count,
-        value,
-    ) {
+    if let Err(error) = field_store(state, base, *index, *value, *reference, *field_count, field) {
         return Transfer::Error(error);
     }
 
@@ -850,21 +1025,7 @@ pub(crate) fn execute_field_store_raw(
         Err(error) => return Transfer::Error(error),
     };
     let base = state.get(*base);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, base) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_field_raw(
-        state,
-        base.as_raw_pointer(),
-        field,
-        *index,
-        *field_count,
-        value,
-    ) {
+    if let Err(error) = field_store(state, base, *index, *value, *reference, *field_count, field) {
         return Transfer::Error(error);
     }
 
@@ -894,21 +1055,7 @@ pub(crate) fn execute_field_store_stack(
         Err(error) => return Transfer::Error(error),
     };
     let base = state.get(*base);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, base) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_field_stack(
-        state,
-        base.as_stack_pointer(),
-        field,
-        *index,
-        *field_count,
-        value,
-    ) {
+    if let Err(error) = field_store(state, base, *index, *value, *reference, *field_count, field) {
         return Transfer::Error(error);
     }
 
@@ -938,21 +1085,7 @@ pub(crate) fn execute_field_store_static(
         Err(error) => return Transfer::Error(error),
     };
     let base = state.get(*base);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, base) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_field_static(
-        state,
-        base.as_static_pointer(),
-        field,
-        *index,
-        *field_count,
-        value,
-    ) {
+    if let Err(error) = field_store(state, base, *index, *value, *reference, *field_count, field) {
         return Transfer::Error(error);
     }
 
@@ -1413,12 +1546,11 @@ pub(crate) fn execute_element_store(
     };
     let array = state.get(*array);
     let index = load_array_index(state, *index);
-    let value = state.get(*value);
     if let Err(error) = element_store(
         state,
         array,
         index,
-        value,
+        *value,
         *reference,
         *array_length,
         element,
@@ -1453,20 +1585,14 @@ pub(crate) fn execute_element_store_heap(
     };
     let array = state.get(*array);
     let index = load_array_index(state, *index);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, array) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_element_heap(
+    if let Err(error) = element_store(
         state,
-        array.as_heap_reference(),
-        element,
+        array,
         index,
+        *value,
+        *reference,
         *array_length,
-        value,
+        element,
     ) {
         return Transfer::Error(error);
     }
@@ -1498,20 +1624,14 @@ pub(crate) fn execute_element_store_raw(
     };
     let array = state.get(*array);
     let index = load_array_index(state, *index);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, array) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_element_raw(
+    if let Err(error) = element_store(
         state,
-        array.as_raw_pointer(),
-        element,
+        array,
         index,
+        *value,
+        *reference,
         *array_length,
-        value,
+        element,
     ) {
         return Transfer::Error(error);
     }
@@ -1543,20 +1663,14 @@ pub(crate) fn execute_element_store_stack(
     };
     let array = state.get(*array);
     let index = load_array_index(state, *index);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, array) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_element_stack(
+    if let Err(error) = element_store(
         state,
-        array.as_stack_pointer(),
-        element,
+        array,
         index,
+        *value,
+        *reference,
         *array_length,
-        value,
+        element,
     ) {
         return Transfer::Error(error);
     }
@@ -1588,20 +1702,14 @@ pub(crate) fn execute_element_store_static(
     };
     let array = state.get(*array);
     let index = load_array_index(state, *index);
-    let value = state.get(*value);
-    if let Err(error) = check_reference_kind(state, *reference, array) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = access::store_element_static(
+    if let Err(error) = element_store(
         state,
-        array.as_static_pointer(),
-        element,
+        array,
         index,
+        *value,
+        *reference,
         *array_length,
-        value,
+        element,
     ) {
         return Transfer::Error(error);
     }
