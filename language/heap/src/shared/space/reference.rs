@@ -13,10 +13,10 @@ impl SharedHeapReference {
     /// The packed byte width of one shared heap reference.
     pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
 
-    /// Create a shared heap reference from one raw address.
+    /// Create a shared heap reference from one space offset.
     #[inline]
-    pub const fn new(address: usize) -> Self {
-        Self(address)
+    pub const fn new(offset: usize) -> Self {
+        Self(offset)
     }
 
     /// Report whether this reference is null.
@@ -62,23 +62,17 @@ impl SharedHeapReference {
         Ok(())
     }
 
-    /// Return the raw address.
+    /// Return the space offset.
     #[inline]
-    pub const fn address(self) -> usize {
+    pub const fn offset(self) -> usize {
         self.0
-    }
-
-    /// Return the referenced pointer.
-    #[inline]
-    pub const fn as_ptr(self) -> *mut u8 {
-        self.address() as *mut u8
     }
 
     /// Return one reference advanced by the given byte offset.
     #[inline]
     pub fn add_bytes(self, byte_len: usize) -> Option<Self> {
-        let address = self.address().checked_add(byte_len)?;
+        let offset = self.offset() + byte_len;
 
-        Some(Self::new(address))
+        Some(Self::new(offset))
     }
 }

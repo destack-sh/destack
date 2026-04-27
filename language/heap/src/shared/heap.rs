@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     AllocationLayout, Allocator, AllocatorImage, GcPacer, GcProgress, GcState, GcStats, HeapError,
-    HeapOptions, HeapResult, PageId, PageView, Payload, SharedHeapReference, SharedRawPointer,
+    HeapOptions, HeapResult, PageId, PageRun, Payload, SharedHeapReference, SharedRawPointer,
     apply_byte_delta,
 };
 
@@ -27,7 +27,7 @@ impl SharedGcPacer {
     fn add_assist_debt(&self, byte_len: usize) {
         loop {
             let pending = self.assist_debt_bytes.load(Ordering::Acquire);
-            let next = pending.saturating_add(byte_len);
+            let next = pending + byte_len;
 
             if self
                 .assist_debt_bytes
@@ -106,8 +106,8 @@ struct SharedHeapImageRoot {
     heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
     raw: SharedRawSpaceImage,
-    /// The retained shared page views owned by this image.
-    retained_page_views: Box<[PageView]>,
+    /// The shared page runs owned by this image.
+    page_runs: Box<[PageRun]>,
 }
 
 /// One serialized shared heap snapshot.
@@ -125,7 +125,7 @@ pub struct SharedHeapSnapshot {
 
 impl Drop for SharedHeapImageRoot {
     fn drop(&mut self) {
-        let _ = self.allocator.release_page_views(&self.retained_page_views);
+        let _ = self.allocator.release_page_runs(&self.page_runs);
     }
 }
 
@@ -137,18 +137,15 @@ impl SharedHeapImage {
         heap: SharedHeapSpaceImage,
         raw: SharedRawSpaceImage,
     ) -> HeapResult<Self> {
-        let page_views = heap
-            .page_views()
-            .into_iter()
-            .chain(raw.page_views())
-            .collect::<Vec<_>>();
-        let retained_page_views = allocator.retain_page_views(page_views)?.into_boxed_slice();
+        let mut page_runs = heap.page_runs();
+        page_runs.extend(raw.page_runs());
+
         let root = SharedHeapImageRoot {
             allocator,
             options,
             heap,
             raw,
-            retained_page_views,
+            page_runs: page_runs.into_boxed_slice(),
         };
 
         Ok(Self {
@@ -232,7 +229,7 @@ impl SharedHeap {
 
         let shared = Self {
             heap: SharedHeapSpace::with_options(allocator.clone(), &options)?,
-            raw: SharedRawSpace::with_allocator(allocator.clone()),
+            raw: SharedRawSpace::with_options(allocator.clone(), &options)?,
             allocator,
             options,
             collection_requested: AtomicBool::new(false),
@@ -268,9 +265,9 @@ impl SharedHeap {
         }
     }
 
-    /// Return the exact active shared heap bytes.
-    pub fn active_bytes(&self) -> u64 {
-        self.heap.active_bytes() + self.raw.active_bytes()
+    /// Return the exact retained shared allocator-page bytes.
+    pub fn retained_bytes(&self) -> u64 {
+        self.heap.retained_bytes() + self.raw.retained_bytes()
     }
 
     /// Return the current shared heap collector state.
@@ -299,14 +296,14 @@ impl SharedHeap {
         let heap_pages = self.heap_pages();
         let heap_spans = heap_pages.div_ceil(span_pages).max(1);
         let span_slots = self.options.minimum_small_span_slots();
-        let worker_work = worker_count.saturating_mul(span_slots);
+        let worker_work = worker_count * span_slots;
 
         // sweep can spend the whole span budget on reclamation
         if self.gc_phase() == SharedGcPhase::Sweep {
-            return worker_work.saturating_add(heap_spans);
+            return worker_work + heap_spans;
         }
 
-        worker_work.saturating_add(heap_spans)
+        worker_work + heap_spans
     }
 
     /// Return and consume one bounded shared collection budget for the current world step.
@@ -318,9 +315,9 @@ impl SharedHeap {
         let page_bytes = self.page_bytes().max(1);
         let assist_steps = self
             .gc_pacer
-            .take_assist_work(base_budget.saturating_mul(page_bytes), page_bytes);
+            .take_assist_work(base_budget * page_bytes, page_bytes);
 
-        base_budget.saturating_add(assist_steps)
+        base_budget + assist_steps
     }
 
     /// Return and consume one bounded shared assist budget for one allocator step.
@@ -335,14 +332,14 @@ impl SharedHeap {
         let page_bytes = self.page_bytes().max(1);
 
         self.gc_pacer
-            .take_assist_work(assist_budget.saturating_mul(page_bytes), page_bytes)
+            .take_assist_work(assist_budget * page_bytes, page_bytes)
     }
 
     /// Return the bounded local-to-shared edge scan budget for one worker step.
     pub fn edge_scan_budget(&self, worker_count: usize) -> usize {
         let worker_count = worker_count.max(1);
 
-        worker_count.saturating_mul(self.options.minimum_small_span_slots())
+        worker_count * self.options.minimum_small_span_slots()
     }
 
     /// Return the current shared heap size in allocator pages.
@@ -357,33 +354,23 @@ impl SharedHeap {
         self.heap.gc_phase()
     }
 
-    /// Return the exact mapped shared heap bytes.
-    pub fn mapped_bytes(&self) -> u64 {
-        self.heap.mapped_bytes() + self.raw.mapped_bytes()
+    /// Return the exact retained shared raw allocator-page bytes.
+    pub fn raw_retained_bytes(&self) -> u64 {
+        self.raw.retained_bytes()
     }
 
-    /// Return the exact borrowed shared heap bytes.
-    pub fn borrowed_bytes(&self) -> u64 {
-        self.heap.borrowed_bytes() + self.raw.borrowed_bytes()
+    /// Return the projected retained-byte delta for one shared raw allocation.
+    pub fn raw_alloc_retained_byte_delta(&self, byte_len: usize) -> i64 {
+        self.raw.alloc_retained_byte_delta(byte_len)
     }
 
-    /// Return the exact active shared raw-space bytes.
-    pub fn raw_active_bytes(&self) -> u64 {
-        self.raw.active_bytes()
-    }
-
-    /// Return the projected mapped-byte delta for one shared raw allocation.
-    pub fn raw_alloc_mapped_byte_delta(&self, byte_len: usize) -> i64 {
-        self.raw.alloc_mapped_byte_delta(byte_len)
-    }
-
-    /// Return the projected mapped-byte delta for one shared raw replacement.
-    pub fn raw_replace_mapped_byte_delta(
+    /// Return the projected retained-byte delta for one shared raw replacement.
+    pub fn raw_replace_retained_byte_delta(
         &self,
         pointer: SharedRawPointer,
         next_byte_len: usize,
     ) -> HeapResult<i64> {
-        self.raw.replace_mapped_byte_delta(pointer, next_byte_len)
+        self.raw.replace_retained_byte_delta(pointer, next_byte_len)
     }
 
     /// Allocate one shared raw allocation.
@@ -392,7 +379,7 @@ impl SharedHeap {
         byte_len: usize,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedRawPointer> {
-        self.check_raw_mapped_byte_delta(self.raw.alloc_mapped_byte_delta(byte_len))?;
+        self.check_raw_retained_byte_delta(self.raw.alloc_retained_byte_delta(byte_len))?;
 
         self.raw.allocate(byte_len, allocation)
     }
@@ -403,8 +390,8 @@ impl SharedHeap {
         pointer: SharedRawPointer,
         bytes: &[u8],
     ) -> HeapResult<SharedRawPointer> {
-        self.check_raw_mapped_byte_delta(
-            self.raw.replace_mapped_byte_delta(pointer, bytes.len())?,
+        self.check_raw_retained_byte_delta(
+            self.raw.replace_retained_byte_delta(pointer, bytes.len())?,
         )?;
 
         self.raw.replace_bytes(pointer, bytes)
@@ -430,6 +417,26 @@ impl SharedHeap {
         self.raw.byte_len(pointer)
     }
 
+    /// Return one checked address for a shared raw byte range.
+    pub fn raw_address(
+        &self,
+        pointer: SharedRawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.raw.address(pointer, start, byte_len)
+    }
+
+    /// Return one checked mutable address for a shared raw byte range.
+    pub fn raw_address_mut(
+        &self,
+        pointer: SharedRawPointer,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.raw.address_mut(pointer, start, byte_len)
+    }
+
     /// Overwrite one shared raw byte range.
     pub fn write_raw_bytes(
         &self,
@@ -438,6 +445,11 @@ impl SharedHeap {
         bytes: &[u8],
     ) -> HeapResult<()> {
         self.raw.write_bytes(pointer, start, bytes)
+    }
+
+    /// Free one shared raw allocation.
+    pub fn free_raw(&self, pointer: SharedRawPointer) -> HeapResult<bool> {
+        self.raw.free(pointer)
     }
 
     /// Create one shared heap allocator front end.
@@ -452,8 +464,8 @@ impl SharedHeap {
         layout: AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        let mapped_byte_delta = self.heap.mapped_byte_delta(allocator, layout)?;
-        self.check_heap_mapped_byte_delta(mapped_byte_delta)?;
+        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
+        self.check_heap_retained_byte_delta(retained_byte_delta)?;
 
         let reference = self.heap.allocate(allocator, layout, allocation)?;
         self.accrue_assist_debt(layout.byte_len);
@@ -485,6 +497,26 @@ impl SharedHeap {
         target: &mut [u8],
     ) -> HeapResult<()> {
         self.heap.read_bytes_into(reference, start, target)
+    }
+
+    /// Return one checked address for a shared heap byte range.
+    pub fn heap_address(
+        &self,
+        reference: SharedHeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.heap.address(reference, start, byte_len)
+    }
+
+    /// Return one checked writable address for a shared heap byte range.
+    pub fn heap_address_mut(
+        &self,
+        reference: SharedHeapReference,
+        start: usize,
+        byte_len: usize,
+    ) -> HeapResult<*mut u8> {
+        self.heap.address_mut(reference, start, byte_len)
     }
 
     /// Return the scan metadata for one shared heap reference.
@@ -679,30 +711,30 @@ impl SharedHeap {
     fn check_limits(&self) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
-            let active_bytes = self.active_bytes();
-            if active_bytes > max_bytes {
+            let retained_bytes = self.retained_bytes();
+            if retained_bytes > max_bytes {
                 return Err(HeapError::TotalLimitExceeded {
-                    used_bytes: active_bytes,
+                    used_bytes: retained_bytes,
                     max_bytes,
                 });
             }
         }
 
         // per-space limits
-        self.limits.heap.check(self.heap.active_bytes())?;
-        self.limits.raw.check(self.raw.active_bytes())?;
+        self.limits.heap.check(self.heap.retained_bytes())?;
+        self.limits.raw.check(self.raw.retained_bytes())?;
 
         Ok(())
     }
 
-    /// Check one projected mapped-byte delta against shared heap limits.
-    fn check_heap_mapped_byte_delta(&self, mapped_byte_delta: i64) -> HeapResult<()> {
+    /// Check one projected retained-byte delta against shared heap limits.
+    fn check_heap_retained_byte_delta(&self, retained_byte_delta: i64) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
-            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_byte_delta)?;
-            if active_bytes > max_bytes {
+            let retained_bytes = apply_byte_delta(self.retained_bytes(), retained_byte_delta);
+            if retained_bytes > max_bytes {
                 return Err(HeapError::TotalLimitExceeded {
-                    used_bytes: active_bytes,
+                    used_bytes: retained_bytes,
                     max_bytes,
                 });
             }
@@ -711,17 +743,17 @@ impl SharedHeap {
         // heap limit
         self.limits
             .heap
-            .check_mapped_byte_delta(self.heap.active_bytes(), mapped_byte_delta)
+            .check_retained_byte_delta(self.heap.retained_bytes(), retained_byte_delta)
     }
 
-    /// Check one projected mapped-byte delta against shared raw limits.
-    fn check_raw_mapped_byte_delta(&self, mapped_byte_delta: i64) -> HeapResult<()> {
+    /// Check one projected retained-byte delta against shared raw limits.
+    fn check_raw_retained_byte_delta(&self, retained_byte_delta: i64) -> HeapResult<()> {
         // total limit
         if let Some(max_bytes) = self.limits.max_bytes {
-            let active_bytes = apply_byte_delta(self.active_bytes(), mapped_byte_delta)?;
-            if active_bytes > max_bytes {
+            let retained_bytes = apply_byte_delta(self.retained_bytes(), retained_byte_delta);
+            if retained_bytes > max_bytes {
                 return Err(HeapError::TotalLimitExceeded {
-                    used_bytes: active_bytes,
+                    used_bytes: retained_bytes,
                     max_bytes,
                 });
             }
@@ -730,13 +762,13 @@ impl SharedHeap {
         // raw limit
         self.limits
             .raw
-            .check_mapped_byte_delta(self.raw.active_bytes(), mapped_byte_delta)
+            .check_retained_byte_delta(self.raw.retained_bytes(), retained_byte_delta)
     }
 
     /// Return one frozen shared heap image.
     pub fn image(&self) -> HeapResult<SharedHeapImage> {
-        let heap = self.heap.image();
-        let raw = self.raw.image();
+        let heap = self.heap.image()?;
+        let raw = self.raw.image()?;
 
         SharedHeapImage::new(self.allocator.clone(), self.options.clone(), heap, raw)
     }

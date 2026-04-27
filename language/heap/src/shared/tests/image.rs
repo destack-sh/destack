@@ -1,78 +1,110 @@
 use std::sync::Arc;
 
 use crate::{
-    HeapOptions, Payload, SharedHeapSpace, SharedRawSpace, SizeClassTable, test_allocator,
-    test_layouts,
+    Allocator, HeapOptions, PageRun, Payload, SharedHeapSpace, SharedRawSpace, SizeClassTable,
+    test_allocator, test_layouts,
 };
 use destack_mir::ReferenceMap;
 
-/// Share unchanged shared allocations across image and fork boundaries.
+/// The allocator chunk size for small-page shared image fixtures.
+const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
+
+/// Return the bytes from one shared image page run.
+fn read_page_run_bytes(allocator: &Allocator, page_run: &PageRun, byte_len: usize) -> Vec<u8> {
+    allocator
+        .bytes_to_vec_from(page_run, 0, byte_len)
+        .expect("shared image bytes should resolve")
+}
+
+/// Preserve shared allocation bytes across image and fork boundaries.
 #[test]
 fn test_roundtrip_shared_memory_image_and_fork() {
     let options = HeapOptions {
         page_bytes: 4,
+        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
         heap_small_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::shared()
     };
     let allocator = test_allocator(&options);
-    let shared = SharedRawSpace::with_allocator(allocator);
+    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
 
-    // capture two allocations so only one has to detach later
+    // capture two allocations so only one changes later
     let first = shared
         .allocate(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
         .expect("shared allocation should succeed");
     let second = shared
         .allocate(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
         .expect("shared allocation should succeed");
-    let image = shared.image();
+    let image = shared.image().expect("shared raw image should capture");
     let forked = shared.fork().expect("shared fork should retain live pages");
     let restored = SharedRawSpace::from_image_with_allocator(shared.allocator.clone(), &image)
         .expect("shared image restore should succeed");
-    let forked_image = forked.image();
-    let restored_image = restored.image();
+    let forked_image = forked.image().expect("shared raw image should capture");
+    let restored_image = restored.image().expect("shared raw image should capture");
 
-    // untouched pages should still share after fork and restore
+    // forked and restored bytes should match the captured image
     assert_eq!(
-        image.allocation(0).unwrap().pages,
-        forked_image.allocation(0).unwrap().pages
+        read_page_run_bytes(
+            &shared.allocator,
+            &forked_image.allocation(0).unwrap().pages,
+            6
+        ),
+        vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        image.allocation(1).unwrap().pages,
-        forked_image.allocation(1).unwrap().pages
+        read_page_run_bytes(
+            &shared.allocator,
+            &forked_image.allocation(1).unwrap().pages,
+            6
+        ),
+        vec![7, 8, 9, 10, 11, 12]
     );
     assert_eq!(
-        image.allocation(0).unwrap().pages,
-        restored_image.allocation(0).unwrap().pages
+        read_page_run_bytes(
+            &shared.allocator,
+            &restored_image.allocation(0).unwrap().pages,
+            6,
+        ),
+        vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        image.allocation(1).unwrap().pages,
-        restored_image.allocation(1).unwrap().pages
+        read_page_run_bytes(
+            &shared.allocator,
+            &restored_image.allocation(1).unwrap().pages,
+            6,
+        ),
+        vec![7, 8, 9, 10, 11, 12]
     );
 
-    // mutating one allocation should detach only that allocation
+    // mutating one allocation should not affect the captured image
     let first = restored
         .replace_bytes(first, &[9, 2, 3, 4, 5, 6])
         .expect("shared replace should succeed");
-    let mutated_image = restored.image();
+    let mutated_image = restored.image().expect("shared raw image should capture");
 
-    assert_ne!(
-        image.allocation(0).unwrap().pages,
-        mutated_image.allocation(0).unwrap().pages
+    assert_eq!(
+        read_page_run_bytes(&shared.allocator, &image.allocation(0).unwrap().pages, 6),
+        vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        image.allocation(1).unwrap().pages,
-        mutated_image.allocation(1).unwrap().pages
+        read_page_run_bytes(
+            &shared.allocator,
+            &mutated_image.allocation(0).unwrap().pages,
+            6,
+        ),
+        vec![9, 2, 3, 4, 5, 6]
     );
     assert_eq!(restored.read_bytes(first), Ok(vec![9, 2, 3, 4, 5, 6]));
     assert_eq!(restored.read_bytes(second), Ok(vec![7, 8, 9, 10, 11, 12]));
 }
 
-/// Preserve shared heap metadata across image roundtrips and detach only touched allocations.
+/// Preserve shared heap metadata and bytes across image roundtrips.
 #[test]
 fn test_roundtrip_shared_heap_space_image() {
     let options = HeapOptions {
         page_bytes: 4,
+        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
         heap_small_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::shared()
@@ -102,21 +134,60 @@ fn test_roundtrip_shared_heap_space_image() {
             Payload::Bytes(&second_bytes),
         )
         .expect("shared heap allocation should succeed");
-    let image = heap.image();
+    let image = heap.image().expect("shared heap image should capture");
     let restored = SharedHeapSpace::from_image_with_allocator(allocator.clone(), &image)
         .expect("shared heap image restore should succeed");
-    let restored_image = restored.image();
+    let restored_image = restored.image().expect("shared heap image should capture");
 
-    // restored metadata should match and untouched pages should still share
+    // restored metadata should match the captured image
     assert_eq!(restored.scan(first), Ok(ReferenceMap::empty()));
     assert!(Arc::ptr_eq(&restored.allocator, &allocator));
-    assert_eq!(image.spans()[0].pages, restored_image.spans()[0].pages);
+    assert_eq!(image.spans().len(), restored_image.spans().len());
 
-    // mutating one slot should detach the owning span
+    // restored bytes should match the captured shared heap
+    assert_eq!(
+        restored
+            .read_bytes(first)
+            .map(|bytes| bytes[..first_bytes.len()].to_vec()),
+        Ok(first_bytes.clone())
+    );
+    assert_eq!(
+        read_page_run_bytes(
+            allocator.as_ref(),
+            &restored_image.spans()[0].pages,
+            restored_image.spans()[0].class.size_class,
+        )[..first_bytes.len()],
+        first_bytes
+    );
+
+    // mutating one slot should not affect the captured image
     restored
         .write_bytes(first, 0, &[0xFE])
         .expect("shared heap byte write should succeed");
-    let mutated_image = restored.image();
+    let mutated_image = restored.image().expect("shared heap image should capture");
+    let mut expected_first = first_bytes.clone();
+    expected_first[0] = 0xFE;
 
-    assert_ne!(image.spans()[0].pages, mutated_image.spans()[0].pages);
+    assert_eq!(
+        restored
+            .read_bytes(first)
+            .map(|bytes| bytes[..expected_first.len()].to_vec()),
+        Ok(expected_first.clone())
+    );
+    assert_eq!(
+        read_page_run_bytes(
+            allocator.as_ref(),
+            &mutated_image.spans()[0].pages,
+            mutated_image.spans()[0].class.size_class,
+        )[..expected_first.len()],
+        expected_first
+    );
+    assert_eq!(
+        read_page_run_bytes(
+            allocator.as_ref(),
+            &image.spans()[0].pages,
+            image.spans()[0].class.size_class,
+        )[..first_bytes.len()],
+        first_bytes
+    );
 }
