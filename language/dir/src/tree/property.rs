@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +9,7 @@ use crate::{
 /// Static property in some static context.
 /// Static evaluation supports all constructs, this is for the resulting static value.
 /// This is a plain value type, not a tree node, so that we can pass it around directly.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticProperty {
     /// Unevaluated property.
     Unevaluated { node: LocalNodeId<Property> },
@@ -48,7 +47,7 @@ impl StaticProperty {
 }
 
 /// Variance annotation for generic parameters.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VarianceModifier {
     /// Contravariant parameter.
     In,
@@ -59,7 +58,7 @@ pub enum VarianceModifier {
 }
 
 /// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionMode {
     /// Getter function.
     Getter,
@@ -74,7 +73,7 @@ pub enum FunctionMode {
 }
 
 /// A property of an object-like literal.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Property {
     /// Named field.
     Field {
@@ -133,7 +132,7 @@ impl Property {
 }
 
 /// A member of a declaration body.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Member {
     /// Associated type alias.
     AssociatedType {

@@ -1,4 +1,4 @@
-use destack_source::{AdaptImage, NodeSpanList, NodeSpanType};
+use destack_source::{NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// One type-surface member.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeMember {
     /// Named field.
     Field {
@@ -122,7 +122,7 @@ impl TypeMember {
 }
 
 /// A mapped type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeMappedParameter {
     /// The parameter name.
     pub name: StringId,
@@ -135,7 +135,7 @@ pub struct TypeMappedParameter {
 }
 
 /// A mapped-type modifier sign.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeModifier {
     /// The plain modifier without an explicit sign.
     Present,
@@ -148,7 +148,7 @@ pub enum TypeModifier {
 }
 
 /// A type predicate subject.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypePredicateSubject {
     /// Identifier subject.
     Identifier(StringId),
@@ -157,7 +157,7 @@ pub enum TypePredicateSubject {
 }
 
 /// One function type declaration in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionTypeDeclaration {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
@@ -172,7 +172,7 @@ pub struct FunctionTypeDeclaration {
 }
 
 /// One constructor type declaration in type space.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConstructorTypeDeclaration {
     /// Whether the constructor type is abstract.
     pub is_abstract: bool,
@@ -187,7 +187,7 @@ pub struct ConstructorTypeDeclaration {
 }
 
 /// A type-space syntax node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
     /// Parenthesized type expression.
     Parenthesized {

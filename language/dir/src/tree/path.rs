@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{
@@ -8,7 +7,7 @@ use std::ops::{
 use crate::StringId;
 
 /// Path to something.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Path {
     /// The segments of the path.
     pub segments: SmallVec<[StringId; 3]>,

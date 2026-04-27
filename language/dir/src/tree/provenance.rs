@@ -1,12 +1,9 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// One DIR provenance record identifier.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ProvenanceId(pub u32);
 
 impl ProvenanceId {
@@ -22,9 +19,7 @@ impl ProvenanceId {
 }
 
 /// The reason one DIR provenance record was created.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ProvenanceReason {
     /// The node was synthesized during binding.
     Bound,
@@ -43,7 +38,7 @@ pub enum ProvenanceReason {
 }
 
 /// One DIR provenance record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProvenanceRecord {
     /// The primary AST source id for this DIR node.
     pub source_id: u32,
@@ -54,14 +49,14 @@ pub struct ProvenanceRecord {
 }
 
 /// Provenance metadata for one DIR tree.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Provenance {
     /// The provenance id for each DIR node id.
     pub provenance_by_node_id: Vec<ProvenanceId>,
     /// Canonical provenance records.
     pub record_by_id: Vec<ProvenanceRecord>,
     /// Reverse index from AST source id to provenance records.
-    pub record_by_source_id: HashMap<u32, Vec<ProvenanceId>>,
+    pub record_by_source_id: BTreeMap<u32, Vec<ProvenanceId>>,
 }
 
 impl Provenance {

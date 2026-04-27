@@ -1,10 +1,9 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// The position of one decorator relative to its owner.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DecoratorPosition {
     /// Decorator inside the node without a following owner slot.
     BlockInfix,
@@ -19,7 +18,7 @@ pub enum DecoratorPosition {
 }
 
 /// A decorator attached to a DIR node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Decorator {
     /// The decorator expression.
     pub expression: LocalNodeId<Expression>,

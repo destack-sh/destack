@@ -1,8 +1,7 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// The operator used to perform a cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CastOperator {
     /// Preserve the representation without conversion.
     Identity,
@@ -63,7 +62,7 @@ pub enum CastOperator {
 }
 
 /// The source of a cast expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CastSource {
     /// Casts written explicitly in source.
     Explicit,

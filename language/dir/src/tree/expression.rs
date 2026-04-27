@@ -1,5 +1,4 @@
 use destack_core::StringId;
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,7 +13,7 @@ use crate::{
 use destack_source::{NodeSpanList, NodeSpanType};
 
 /// An Expression is a generic container for all constructs.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
     /// Declaration as a value (with a name or anonymous).
     Declaration(LocalNodeId<Declaration>),
@@ -626,7 +625,7 @@ impl Expression {
 /// Static value form of an expression in some static context.
 /// Static evaluation supports all constructs, this is for the resulting static value.
 /// This is a plain value type, not a tree node so we can pass it around freely.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticExpression {
     /// Unevaluated expression (needs compile-time evaluation).
     Unevaluated { node: LocalNodeId<Expression> },
@@ -679,7 +678,7 @@ impl StaticExpression {
 }
 
 /// The kind of a loop expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LoopKind {
     /// No-test loop (like `loop <body>`)
     NoTest,
@@ -690,7 +689,7 @@ pub enum LoopKind {
 }
 
 /// The style of if expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum IfKind {
     /// If expression.
     If,
@@ -699,7 +698,7 @@ pub enum IfKind {
 }
 
 /// The kind of a let/var/const binding.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LetKind {
     /// `let` binding.
     Let,
@@ -710,7 +709,7 @@ pub enum LetKind {
 }
 
 /// The condition for an if expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum IfCondition {
     /// A regular condition expression.
     Expression { condition: LocalNodeId<Expression> },
@@ -726,7 +725,7 @@ pub enum IfCondition {
 }
 
 /// The kind of a while expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum WhileKind {
     /// While expression.
     While,
@@ -735,7 +734,7 @@ pub enum WhileKind {
 }
 
 /// The kind of a for each expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ForEachKind {
     /// In expression.
     In,
@@ -744,7 +743,7 @@ pub enum ForEachKind {
 }
 
 /// The declaration keyword used by a for each pattern binding.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ForEachDeclarationKind {
     /// `var` declaration keyword.
     Var,
@@ -755,7 +754,7 @@ pub enum ForEachDeclarationKind {
 }
 
 /// The binding of a for each expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ForEachBinding {
     /// A normal pattern binding.
     Pattern {
@@ -770,7 +769,7 @@ pub enum ForEachBinding {
 }
 
 /// The kind of a yield expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum YieldCardinality {
     /// Generator yield expression.
     Generator,
@@ -779,7 +778,7 @@ pub enum YieldCardinality {
 }
 
 /// A WhereClause is a single clause in a where type declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WhereClause {
     /// The target to constrain (like `T` in `T: int32`).
     pub left: StringId,
@@ -792,7 +791,7 @@ impl Node for WhereClause {
 }
 
 /// The addressability of an expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Addressability {
     /// A place expression that refers to storage.
     Place,

@@ -1,10 +1,9 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, LocalScopeId, Node, NodeType};
 
 /// How a block is defined.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BlockFormat {
     /// Explicit blocks with { ... }
     Explicit,
@@ -13,7 +12,7 @@ pub enum BlockFormat {
 }
 
 /// How a block is interpreted.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockContext {
     /// The block is expression-position and may keep a value tail.
     Expression,
@@ -22,7 +21,7 @@ pub enum BlockContext {
 }
 
 /// A block of expressions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// The block context.
     pub context: BlockContext,

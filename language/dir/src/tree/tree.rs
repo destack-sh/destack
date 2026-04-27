@@ -1,6 +1,5 @@
 use destack_core::StringId;
-use destack_source::AdaptImage;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_source::ModuleId;
@@ -16,14 +15,14 @@ use crate::{
 };
 
 /// Normalized semantic documentation attached to one DIR node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Documentation {
     /// The normalized documentation text.
     pub text: StringId,
 }
 
 /// Dense metadata for one global DIR node id.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,
@@ -92,7 +91,7 @@ impl NodeIndexEntry {
 }
 
 /// Mutable DIR tree across a set of related source units.
-#[derive(Clone, Serialize, Deserialize, AdaptImage)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Tree {
     /// The module id of the tree.
     pub module_id: ModuleId,
@@ -139,15 +138,15 @@ pub struct Tree {
     /// Provenance metadata for all nodes.
     provenance: Provenance,
     /// The alias node id by AST node id.
-    alias_node_id_by_source_id: HashMap<u32, u32>,
+    alias_node_id_by_source_id: BTreeMap<u32, u32>,
     /// The alias node id by DIR node id.
-    alias_node_id_by_node_id: HashMap<u32, u32>,
+    alias_node_id_by_node_id: BTreeMap<u32, u32>,
     /// The decorators attached to nodes.
-    decorators_by_node_id: HashMap<u32, Vec<LocalNodeId<Decorator>>>,
+    decorators_by_node_id: BTreeMap<u32, Vec<LocalNodeId<Decorator>>>,
     /// The normalized documentation attached to nodes.
-    documentation_by_node_id: HashMap<u32, Documentation>,
+    documentation_by_node_id: BTreeMap<u32, Documentation>,
     /// The node ids explicitly marked inactive.
-    inactive_node_ids: HashSet<u32>,
+    inactive_node_ids: BTreeSet<u32>,
 }
 
 impl Debug for Tree {
@@ -202,11 +201,11 @@ impl Tree {
                 provenance_by_node_id: Vec::with_capacity(capacity),
                 ..Provenance::default()
             },
-            alias_node_id_by_source_id: HashMap::new(),
-            alias_node_id_by_node_id: HashMap::new(),
-            decorators_by_node_id: HashMap::new(),
-            documentation_by_node_id: HashMap::new(),
-            inactive_node_ids: HashSet::new(),
+            alias_node_id_by_source_id: BTreeMap::new(),
+            alias_node_id_by_node_id: BTreeMap::new(),
+            decorators_by_node_id: BTreeMap::new(),
+            documentation_by_node_id: BTreeMap::new(),
+            inactive_node_ids: BTreeSet::new(),
         }
     }
 
@@ -269,6 +268,12 @@ impl Tree {
     /// Check whether a node id is inactive.
     pub fn is_inactive(&self, node_id: u32) -> bool {
         self.inactive_node_ids.contains(&node_id)
+    }
+
+    /// Iterate inactive node ids.
+    #[inline]
+    pub fn inactive_node_ids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.inactive_node_ids.iter().copied()
     }
 
     /// Reserve a new node slot in the tree for a node lowered from an AST node.
@@ -1068,7 +1073,7 @@ impl Tree {
             );
         }
 
-        let preserved_alias_targets: HashSet<u32> =
+        let preserved_alias_targets: BTreeSet<u32> =
             self.alias_node_id_by_node_id.values().copied().collect();
 
         let mut validator = DebugParentValidator {

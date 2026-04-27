@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
 };
 
 /// The source keyword used for a namespace declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum NamespaceKind {
     /// `namespace Foo {}`.
     #[default]
@@ -18,7 +17,7 @@ pub enum NamespaceKind {
 }
 
 /// The target of an import-alias declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImportAliasTarget {
     /// A require-based alias target.
     Require { target: StringId },
@@ -27,7 +26,7 @@ pub enum ImportAliasTarget {
 }
 
 /// A global augmentation declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalDeclaration {
     /// Whether the declaration is ambient.
     pub ambient: Ambientness,
@@ -40,7 +39,7 @@ pub struct GlobalDeclaration {
 }
 
 /// A namespace declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceDeclaration {
     /// The namespace name.
     pub name: Name,
@@ -63,7 +62,7 @@ pub struct NamespaceDeclaration {
 }
 
 /// A type declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeDeclaration {
     /// The declared name.
     pub name: Name,
@@ -88,7 +87,7 @@ pub struct TypeDeclaration {
 }
 
 /// An import-alias declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportAliasDeclaration {
     /// The declared name.
     pub name: Name,
@@ -105,7 +104,7 @@ pub struct ImportAliasDeclaration {
 }
 
 /// A struct declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StructDeclaration {
     /// The declared name.
     pub name: Name,
@@ -130,7 +129,7 @@ pub struct StructDeclaration {
 }
 
 /// A class declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -161,7 +160,7 @@ pub struct ClassDeclaration {
 }
 
 /// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum EnumKind {
     /// A regular enum.
     #[default]
@@ -171,7 +170,7 @@ pub enum EnumKind {
 }
 
 /// An enum declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -198,7 +197,7 @@ pub struct EnumDeclaration {
 }
 
 /// One interface heritage clause item.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InterfaceHeritage {
     /// The extended interface expression.
     pub expression: LocalNodeId<Expression>,
@@ -207,7 +206,7 @@ pub struct InterfaceHeritage {
 }
 
 /// An interface declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InterfaceDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -232,7 +231,7 @@ pub struct InterfaceDeclaration {
 }
 
 /// An extension declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtensionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -259,7 +258,7 @@ pub struct ExtensionDeclaration {
 }
 
 /// A function declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionDeclaration {
     /// The declared name.
     pub name: Option<Name>,
@@ -280,7 +279,7 @@ pub struct FunctionDeclaration {
 }
 
 /// Declaration introduces a type or function into its scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
     /// Global augmentation declaration.
     Global(GlobalDeclaration),
@@ -428,7 +427,7 @@ impl Declaration {
 }
 
 /// An enum field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: Name,

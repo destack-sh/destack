@@ -1,11 +1,10 @@
 use destack_core::StringId;
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Name, ScalarLiteral};
 
 /// The source of an import or dependency declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ImportSource {
     /// Standard import statement.
     ImportStatement,
@@ -30,7 +29,7 @@ pub enum ImportSource {
 }
 
 /// The target of an import declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImportTarget {
     /// Static import target string (like `"foo"`).
     String(StringId),
@@ -39,14 +38,14 @@ pub enum ImportTarget {
 }
 
 /// The kind of one import attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImportAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
 }
 
 /// One import attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportAttributeClause {
     /// The clause introducer.
     pub kind: ImportAttributeClauseKind,
@@ -55,7 +54,7 @@ pub struct ImportAttributeClause {
 }
 
 /// One import attribute entry.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportAttribute {
     /// The attribute key.
     pub key: Name,
@@ -64,7 +63,7 @@ pub struct ImportAttribute {
 }
 
 /// One static import attribute value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImportAttributeValue {
     /// A scalar literal value.
     ScalarLiteral(ScalarLiteral),

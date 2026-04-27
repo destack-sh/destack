@@ -1,10 +1,10 @@
-use destack_source::{AdaptImage, ModuleId};
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeIdAny, Tree};
+use crate::{LocalNodeIdAny, LocalSymbolId, Tree};
 
 /// A durable structural overlay over one base DIR tree.
-#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Patch {
     /// The owning module id.
     pub module_id: ModuleId,
@@ -14,6 +14,8 @@ pub struct Patch {
     pub replace: Vec<(LocalNodeIdAny, LocalNodeIdAny)>,
     /// Node ids hidden by this patch.
     pub dead: Vec<LocalNodeIdAny>,
+    /// Symbol ids hidden by this patch.
+    pub inactive_symbols: Vec<LocalSymbolId>,
     /// Parent overrides keyed by the visible child node.
     pub parent: Vec<(LocalNodeIdAny, Option<LocalNodeIdAny>)>,
 }
@@ -26,6 +28,7 @@ impl Patch {
             tree: Tree::with_first_global_id(base.module_id, base.next_global_id(), 0),
             replace: Vec::new(),
             dead: Vec::new(),
+            inactive_symbols: Vec::new(),
             parent: Vec::new(),
         }
     }
@@ -66,6 +69,20 @@ impl Patch {
     #[inline]
     pub fn is_dead(&self, node_id: LocalNodeIdAny) -> bool {
         self.dead.contains(&node_id)
+    }
+
+    /// Hide one symbol from this patch.
+    #[inline]
+    pub fn deactivate_symbol(&mut self, symbol_id: LocalSymbolId) {
+        if !self.inactive_symbols.contains(&symbol_id) {
+            self.inactive_symbols.push(symbol_id);
+        }
+    }
+
+    /// Return whether one symbol is hidden by this patch.
+    #[inline]
+    pub fn symbol_is_inactive(&self, symbol_id: LocalSymbolId) -> bool {
+        self.inactive_symbols.contains(&symbol_id)
     }
 
     /// Return the parent override for one node.

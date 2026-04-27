@@ -1,4 +1,3 @@
-use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,7 +5,7 @@ use crate::{
 };
 
 /// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionCardinality {
     /// Scalar function.
     Scalar,
@@ -15,7 +14,7 @@ pub enum FunctionCardinality {
 }
 
 /// The style of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionKind {
     /// A normal function.
     Function,
@@ -24,7 +23,7 @@ pub enum FunctionKind {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
     /// Whether the function is abstract.
     pub is_abstract: bool,
