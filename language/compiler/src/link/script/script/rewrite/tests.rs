@@ -230,13 +230,8 @@ impl TestModuleBuilder {
 
         self.tree.insert_from_source_any(
             js::Statement::Let {
-                descriptor: js::DeclarationDescriptor {
-                    kind: js::DeclarationKind::Declaration,
-                    abstraction: js::DeclarationAbstraction::Concrete,
-                    anchor: js::BindingAnchor::Instance,
-                    name: None,
-                    export: None,
-                },
+                export: None,
+                is_ambient: true,
                 mutability: js::Mutability::Mutable,
                 declarators: vec![declarator],
             },
@@ -256,13 +251,10 @@ impl TestModuleBuilder {
 
         self.tree.insert_from_source_any(
             js::Declaration::Function(js::FunctionDeclaration {
-                descriptor: js::DeclarationDescriptor {
-                    kind: js::DeclarationKind::Declaration,
-                    abstraction: js::DeclarationAbstraction::Concrete,
-                    anchor: js::BindingAnchor::Instance,
-                    name: None,
-                    export: None,
-                },
+                name: None,
+                export: None,
+                is_ambient: true,
+                is_abstract: false,
                 signature: js::FunctionSignature {
                     is_abstract: false,
                     is_override: false,

@@ -20,36 +20,6 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower one ambientness flag into a declaration kind.
-    fn lower_declaration_kind(&self, ambient: dir::Ambientness) -> js::DeclarationKind {
-        if ambient.is_ambient() {
-            js::DeclarationKind::Declaration
-        } else {
-            js::DeclarationKind::Definition
-        }
-    }
-
-    /// Lower one declaration descriptor from flattened DIR fields.
-    pub(crate) fn lower_declaration_descriptor(
-        &mut self,
-        name: Option<dir::Name>,
-        export: Option<dir::ExportMode>,
-        ambient: dir::Ambientness,
-        is_abstract: bool,
-    ) -> js::DeclarationDescriptor {
-        js::DeclarationDescriptor {
-            kind: self.lower_declaration_kind(ambient),
-            abstraction: if is_abstract {
-                js::DeclarationAbstraction::Abstract
-            } else {
-                js::DeclarationAbstraction::Concrete
-            },
-            anchor: js::BindingAnchor::Instance,
-            name: name.map(|name| self.lower_name(name)),
-            export: export.map(|export| self.lower_export_type(export)),
-        }
-    }
-
     /// Lower one interface heritage item from DIR into JS AST.
     pub(crate) fn lower_interface_heritage(
         &mut self,
@@ -78,9 +48,6 @@ impl ModuleLowerer<'_> {
         let declaration_symbol = Some(declaration.symbol());
         let declaration = match declaration {
             dir::Declaration::Global(declaration) => {
-                let descriptor =
-                    self.lower_declaration_descriptor(None, None, declaration.ambient, false);
-
                 // body
                 let statements = declaration
                     .expressions
@@ -95,20 +62,13 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let declaration = js::GlobalDeclaration {
-                    descriptor,
+                    is_ambient: declaration.ambient.is_ambient(),
                     statements,
                 };
 
                 js::Declaration::Global(declaration)
             }
             dir::Declaration::Namespace(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    Some(declaration.name),
-                    declaration.export,
-                    declaration.ambient,
-                    false,
-                );
-
                 // body
                 let statements = declaration
                     .expressions
@@ -123,20 +83,17 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let declaration = js::NamespaceDeclaration {
-                    descriptor,
+                    name: Some(self.lower_name(declaration.name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
                     statements,
                 };
 
                 js::Declaration::Namespace(declaration)
             }
             dir::Declaration::Type(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    Some(declaration.name),
-                    declaration.export,
-                    declaration.ambient,
-                    false,
-                );
-
                 // generic parameters
                 let generic_parameters =
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
@@ -156,7 +113,11 @@ impl ModuleLowerer<'_> {
                 let value = self.lower_type(declared_type_id)?;
 
                 let declaration = js::TypeDeclaration {
-                    descriptor,
+                    name: Some(self.lower_name(declaration.name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
                     generic_parameters,
                     value,
                 };
@@ -164,13 +125,6 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Type(declaration)
             }
             dir::Declaration::Struct(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    Some(declaration.name),
-                    declaration.export,
-                    declaration.ambient,
-                    false,
-                );
-
                 // generic parameters
                 let generic_parameters =
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
@@ -189,7 +143,12 @@ impl ModuleLowerer<'_> {
                 // struct declarations currently lower through class form
 
                 let declaration = js::ClassDeclaration {
-                    descriptor,
+                    name: Some(self.lower_name(declaration.name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
+                    is_abstract: false,
                     generic_parameters,
                     extends_expression: None,
                     extends_generic_arguments: Vec::new(),
@@ -200,13 +159,6 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Class(declaration)
             }
             dir::Declaration::Class(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    declaration.name,
-                    declaration.export,
-                    declaration.ambient,
-                    declaration.is_abstract,
-                );
-
                 // generic parameters
                 let generic_parameters =
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
@@ -237,7 +189,12 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let declaration = js::ClassDeclaration {
-                    descriptor,
+                    name: declaration.name.map(|name| self.lower_name(name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
+                    is_abstract: declaration.is_abstract,
                     generic_parameters,
                     extends_expression,
                     extends_generic_arguments,
@@ -248,13 +205,6 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Class(declaration)
             }
             dir::Declaration::Interface(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    declaration.name,
-                    declaration.export,
-                    declaration.ambient,
-                    false,
-                );
-
                 // generic parameters
                 let generic_parameters =
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
@@ -274,7 +224,11 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let declaration = js::InterfaceDeclaration {
-                    descriptor,
+                    name: declaration.name.map(|name| self.lower_name(name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
                     generic_parameters,
                     extends,
                     members,
@@ -283,13 +237,6 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Interface(declaration)
             }
             dir::Declaration::Enum(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    declaration.name,
-                    declaration.export,
-                    declaration.ambient,
-                    false,
-                );
-
                 // fields
                 let fields = declaration
                     .fields
@@ -297,18 +244,18 @@ impl ModuleLowerer<'_> {
                     .map(|field| self.lower_enum_field(*field))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
-                let declaration = js::EnumDeclaration { descriptor, fields };
+                let declaration = js::EnumDeclaration {
+                    name: declaration.name.map(|name| self.lower_name(name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
+                    fields,
+                };
 
                 js::Declaration::Enum(declaration)
             }
             dir::Declaration::Function(declaration) => {
-                let descriptor = self.lower_declaration_descriptor(
-                    declaration.name,
-                    declaration.export,
-                    declaration.ambient,
-                    declaration.signature.is_abstract,
-                );
-
                 // signature
                 let signature = self.lower_function_signature(&declaration.signature)?;
 
@@ -319,7 +266,12 @@ impl ModuleLowerer<'_> {
                     .transpose()?;
 
                 let declaration = js::FunctionDeclaration {
-                    descriptor,
+                    name: declaration.name.map(|name| self.lower_name(name)),
+                    export: declaration
+                        .export
+                        .map(|export| self.lower_export_type(export)),
+                    is_ambient: declaration.ambient.is_ambient(),
+                    is_abstract: declaration.signature.is_abstract,
                     signature,
                     body,
                 };

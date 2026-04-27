@@ -52,13 +52,8 @@ fn insert_bound_value_statement(
 
     tree.insert_from_source_any(
         js::Statement::Let {
-            descriptor: js::DeclarationDescriptor {
-                kind: js::DeclarationKind::Definition,
-                abstraction: js::DeclarationAbstraction::Concrete,
-                anchor: js::BindingAnchor::Instance,
-                name: None,
-                export: None,
-            },
+            export: None,
+            is_ambient: false,
             mutability: js::Mutability::Immutable,
             declarators: vec![declarator],
         },

@@ -132,7 +132,7 @@ impl Rewriter<'_, '_> {
         }
     }
 
-    /// Merge adjacent binding statements that share the same descriptor and mutability.
+    /// Merge adjacent binding statements that share declaration fields and mutability.
     pub(super) fn merge_adjacent_binding_statements(module: &mut js::ScriptModule) {
         let roots = std::mem::take(&mut module.roots);
         module.roots = Self::merge_adjacent_root_binding_statements(module, roots);
@@ -218,7 +218,8 @@ impl Rewriter<'_, '_> {
         right_statement_id: js::LocalNodeId<js::Statement>,
     ) -> bool {
         let js::Statement::Let {
-            descriptor: left_descriptor,
+            export: left_export,
+            is_ambient: left_is_ambient,
             mutability: left_mutability,
             declarators: _,
         } = module.tree.get(left_statement_id).clone()
@@ -227,7 +228,8 @@ impl Rewriter<'_, '_> {
         };
 
         let js::Statement::Let {
-            descriptor: right_descriptor,
+            export: right_export,
+            is_ambient: right_is_ambient,
             mutability: right_mutability,
             declarators: right_declarators,
         } = module.tree.get(right_statement_id).clone()
@@ -235,7 +237,10 @@ impl Rewriter<'_, '_> {
             return false;
         };
 
-        if left_mutability != right_mutability || left_descriptor != right_descriptor {
+        if left_mutability != right_mutability
+            || left_export != right_export
+            || left_is_ambient != right_is_ambient
+        {
             return false;
         }
 
@@ -415,37 +420,52 @@ impl Rewriter<'_, '_> {
     }
 }
 
-/// Return the descriptor for one declaration node.
-pub(super) trait DeclarationDescriptorAccess {
-    /// Return the declaration descriptor.
-    fn descriptor(&self) -> &js::DeclarationDescriptor;
+/// Access declaration binding fields.
+pub(super) trait DeclarationBindingAccess {
+    /// Return the declaration name.
+    fn name(&self) -> Option<js::Name>;
 
-    /// Return the declaration descriptor mutably.
-    fn descriptor_mut(&mut self) -> &mut js::DeclarationDescriptor;
+    /// Return the mutable declaration name.
+    fn name_mut(&mut self) -> Option<&mut Option<js::Name>>;
+
+    /// Return the declaration export mode.
+    fn export(&self) -> Option<js::DependencyMode>;
 }
 
-impl DeclarationDescriptorAccess for js::Declaration {
-    fn descriptor(&self) -> &js::DeclarationDescriptor {
+impl DeclarationBindingAccess for js::Declaration {
+    fn name(&self) -> Option<js::Name> {
         match self {
-            js::Declaration::Global(js::GlobalDeclaration { descriptor, .. })
-            | js::Declaration::Namespace(js::NamespaceDeclaration { descriptor, .. })
-            | js::Declaration::Type(js::TypeDeclaration { descriptor, .. })
-            | js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
-            | js::Declaration::Interface(js::InterfaceDeclaration { descriptor, .. })
-            | js::Declaration::Enum(js::EnumDeclaration { descriptor, .. })
-            | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => descriptor,
+            js::Declaration::Global(_) => None,
+            js::Declaration::Namespace(declaration) => declaration.name,
+            js::Declaration::Type(declaration) => declaration.name,
+            js::Declaration::Class(declaration) => declaration.name,
+            js::Declaration::Interface(declaration) => declaration.name,
+            js::Declaration::Enum(declaration) => declaration.name,
+            js::Declaration::Function(declaration) => declaration.name,
         }
     }
 
-    fn descriptor_mut(&mut self) -> &mut js::DeclarationDescriptor {
+    fn name_mut(&mut self) -> Option<&mut Option<js::Name>> {
         match self {
-            js::Declaration::Global(js::GlobalDeclaration { descriptor, .. })
-            | js::Declaration::Namespace(js::NamespaceDeclaration { descriptor, .. })
-            | js::Declaration::Type(js::TypeDeclaration { descriptor, .. })
-            | js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
-            | js::Declaration::Interface(js::InterfaceDeclaration { descriptor, .. })
-            | js::Declaration::Enum(js::EnumDeclaration { descriptor, .. })
-            | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => descriptor,
+            js::Declaration::Global(_) => None,
+            js::Declaration::Namespace(declaration) => Some(&mut declaration.name),
+            js::Declaration::Type(declaration) => Some(&mut declaration.name),
+            js::Declaration::Class(declaration) => Some(&mut declaration.name),
+            js::Declaration::Interface(declaration) => Some(&mut declaration.name),
+            js::Declaration::Enum(declaration) => Some(&mut declaration.name),
+            js::Declaration::Function(declaration) => Some(&mut declaration.name),
+        }
+    }
+
+    fn export(&self) -> Option<js::DependencyMode> {
+        match self {
+            js::Declaration::Global(_) => None,
+            js::Declaration::Namespace(declaration) => declaration.export,
+            js::Declaration::Type(declaration) => declaration.export,
+            js::Declaration::Class(declaration) => declaration.export,
+            js::Declaration::Interface(declaration) => declaration.export,
+            js::Declaration::Enum(declaration) => declaration.export,
+            js::Declaration::Function(declaration) => declaration.export,
         }
     }
 }

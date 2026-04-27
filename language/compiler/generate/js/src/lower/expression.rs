@@ -642,7 +642,6 @@ impl ModuleLowerer<'_> {
                 mutability,
                 declarators: dir_declarators,
             } => {
-                let descriptor = self.lower_declaration_descriptor(None, *export, *ambient, false);
                 let mutability = self.lower_mutability(*mutability);
 
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
@@ -673,7 +672,8 @@ impl ModuleLowerer<'_> {
                 }
 
                 let statement = js::Statement::Let {
-                    descriptor,
+                    export: export.map(|export| self.lower_export_type(export)),
+                    is_ambient: ambient.is_ambient(),
                     mutability,
                     declarators,
                 };
@@ -688,7 +688,6 @@ impl ModuleLowerer<'_> {
                 declarators: dir_declarators,
             } => {
                 let asynchrony = self.lower_asynchrony(*asynchrony);
-                let descriptor = self.lower_declaration_descriptor(None, *export, *ambient, false);
 
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
                 for dir_declarator_id in dir_declarators {
@@ -719,7 +718,8 @@ impl ModuleLowerer<'_> {
 
                 let statement = js::Statement::Using {
                     asynchrony,
-                    descriptor,
+                    export: export.map(|export| self.lower_export_type(export)),
+                    is_ambient: ambient.is_ambient(),
                     declarators,
                 };
                 self.tree
