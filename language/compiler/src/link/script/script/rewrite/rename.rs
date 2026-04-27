@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use super::super::linker::OutputModule;
 use super::linker::Rewriter;
 use super::source::{MinifySourceContext, OutputScopeId};
-use super::statement::DeclarationDescriptorAccess;
+use super::statement::DeclarationBindingAccess;
 use crate::{LinkError, LinkResult, ScriptLinker};
 
 /// The first character alphabet for minified identifiers.
@@ -288,7 +288,7 @@ impl ScriptLinker<'_> {
                 }
 
                 let declaration = module.tree.get(declaration_id);
-                let Some(js::Name::Identifier(name)) = declaration.descriptor().name else {
+                let Some(js::Name::Identifier(name)) = declaration.name() else {
                     continue;
                 };
 
@@ -420,13 +420,13 @@ impl ScriptLinker<'_> {
             };
 
             let declaration = module.tree.get(declaration_id);
-            let Some(js::Name::Identifier(name)) = declaration.descriptor().name else {
+            let Some(js::Name::Identifier(name)) = declaration.name() else {
                 continue;
             };
 
             let name = module.strings.get(name).to_string();
-            let is_preserved = declaration.descriptor().export.is_some()
-                || self.declaration_keeps_name(declaration);
+            let is_preserved =
+                declaration.export().is_some() || self.declaration_keeps_name(declaration);
             self.record_binding_symbol(symbol_id, name, is_preserved, source_contexts, bindings)?;
         }
 
@@ -526,20 +526,21 @@ impl ScriptLinker<'_> {
 
                 // keep direct exported declarator bindings stable
                 js::Statement::Let {
-                    descriptor,
+                    export,
                     declarators,
                     ..
                 }
                 | js::Statement::Var {
-                    descriptor,
+                    export,
                     declarators,
+                    ..
                 }
                 | js::Statement::Using {
-                    descriptor,
+                    export,
                     declarators,
                     ..
                 } => {
-                    if descriptor.export.is_none() {
+                    if export.is_none() {
                         continue;
                     }
 
@@ -953,9 +954,7 @@ impl ScriptLinker<'_> {
             };
 
             let declaration = module.tree.get_mut(declaration_id);
-            if let Some(js::Name::Identifier(identifier)) =
-                declaration.descriptor_mut().name.as_mut()
-            {
+            if let Some(Some(js::Name::Identifier(identifier))) = declaration.name_mut() {
                 *identifier = module.strings.intern(name);
             }
         }
@@ -1118,15 +1117,15 @@ impl ScriptLinker<'_> {
                 continue;
             }
             let declaration = module.tree.get(declaration_id);
-            let Some(js::Name::Identifier(_)) = declaration.descriptor().name else {
+            let Some(js::Name::Identifier(_)) = declaration.name() else {
                 continue;
             };
 
             let declaration = module.tree.get_mut(declaration_id);
             match declaration {
-                js::Declaration::Class(js::ClassDeclaration { descriptor, .. })
-                | js::Declaration::Function(js::FunctionDeclaration { descriptor, .. }) => {
-                    descriptor.name = None;
+                js::Declaration::Class(js::ClassDeclaration { name, .. })
+                | js::Declaration::Function(js::FunctionDeclaration { name, .. }) => {
+                    *name = None;
                 }
                 _ => {}
             }

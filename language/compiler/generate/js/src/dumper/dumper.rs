@@ -494,8 +494,6 @@ impl_dump_display! {
     js::BindingKind,
     js::BindingOperator,
     js::BindingAnchor,
-    js::DeclarationAbstraction,
-    js::DeclarationKind,
     js::DependencyKind,
     js::DependencyMode,
     js::FunctionCardinality,
@@ -650,20 +648,6 @@ impl Dump for js::BindingModifier {
     }
 }
 
-/// Dump one JS declaration descriptor.
-impl Dump for js::DeclarationDescriptor {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("js::DeclarationDescriptor")
-            .field("kind", &self.kind)
-            .field("abstraction", &self.abstraction)
-            .field("anchor", &self.anchor)
-            .field_optional("name", &self.name)
-            .field_optional("export", &self.export)
-            .end();
-    }
-}
-
 impl<'a> js::NodeVisitor for Dumper<'a> {
     #[inline]
     fn options(&self) -> &js::NodeVisitorOptions {
@@ -747,31 +731,37 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .end();
             }
             js::Statement::Let {
-                descriptor,
+                export,
+                is_ambient,
                 mutability,
                 declarators: _,
             } => {
                 self.node("js::Statement::Let", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .field("mutability", mutability)
                     .end();
             }
             js::Statement::Var {
-                descriptor,
+                export,
+                is_ambient,
                 declarators: _,
             } => {
                 self.node("js::Statement::Var", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Statement::Using {
                 asynchrony,
-                descriptor,
+                export,
+                is_ambient,
                 declarators: _,
             } => {
                 self.node("js::Statement::Using", id.id)
                     .field("asynchrony", asynchrony)
-                    .field("descriptor", descriptor)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Statement::Assign {
@@ -1099,32 +1089,43 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
     ) {
         match declaration {
             js::Declaration::Global(js::GlobalDeclaration {
-                descriptor,
+                is_ambient,
                 statements: _,
             }) => {
                 self.node("js::Declaration::Global", id.id)
-                    .field("descriptor", descriptor)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Declaration::Namespace(js::NamespaceDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
                 statements: _,
             }) => {
                 self.node("js::Declaration::Namespace", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Declaration::Type(js::TypeDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
                 generic_parameters: _,
                 value: _,
             }) => {
                 self.node("js::Declaration::Type", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Declaration::Class(js::ClassDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
+                is_abstract,
                 generic_parameters: _,
                 extends_expression: _,
                 extends_generic_arguments: _,
@@ -1132,34 +1133,51 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                 members: _,
             }) => {
                 self.node("js::Declaration::Class", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
+                    .field("is_abstract", is_abstract)
                     .end();
             }
             js::Declaration::Interface(js::InterfaceDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
                 generic_parameters: _,
                 extends: _,
                 members: _,
             }) => {
                 self.node("js::Declaration::Interface", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Declaration::Enum(js::EnumDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
                 fields: _,
             }) => {
                 self.node("js::Declaration::Enum", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
                     .end();
             }
             js::Declaration::Function(js::FunctionDeclaration {
-                descriptor,
+                name,
+                export,
+                is_ambient,
+                is_abstract,
                 signature,
                 body: _,
             }) => {
                 self.node("js::Declaration::Function", id.id)
-                    .field("descriptor", descriptor)
+                    .field_optional("name", name)
+                    .field_optional("export", export)
+                    .field("is_ambient", is_ambient)
+                    .field("is_abstract", is_abstract)
                     .field("signature", signature)
                     .end();
             }

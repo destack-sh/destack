@@ -138,13 +138,8 @@ impl Compiler {
         }
 
         let replacement = js::Statement::Let {
-            descriptor: js::DeclarationDescriptor {
-                kind: js::DeclarationKind::Definition,
-                abstraction: js::DeclarationAbstraction::Concrete,
-                anchor: js::BindingAnchor::Instance,
-                name: None,
-                export: None,
-            },
+            export: None,
+            is_ambient: false,
             mutability: js::Mutability::Immutable,
             declarators,
         };
@@ -294,13 +289,8 @@ impl Compiler {
         }
 
         let replacement = js::Statement::Let {
-            descriptor: js::DeclarationDescriptor {
-                kind: js::DeclarationKind::Definition,
-                abstraction: js::DeclarationAbstraction::Concrete,
-                anchor: js::BindingAnchor::Instance,
-                name: None,
-                export: None,
-            },
+            export: None,
+            is_ambient: false,
             mutability: js::Mutability::Immutable,
             declarators,
         };
