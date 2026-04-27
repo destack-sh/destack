@@ -315,7 +315,7 @@ impl<Context> Format<Context> for Dedent<'_, Context> {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartDedent(self.mode)));
         Arguments::from(&self.content).format(f)?;
-        f.write_node(FormatNode::Tag(EndDedent));
+        f.write_node(FormatNode::Tag(EndDedent(self.mode)));
 
         Ok(())
     }
@@ -799,7 +799,7 @@ impl<Context> Format<Context> for IndentIfGroupBreaks<'_, Context> {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartIndentIfGroupBreaks(self.group_id)));
         Arguments::from(&self.content).format(f)?;
-        f.write_node(FormatNode::Tag(EndIndentIfGroupBreaks));
+        f.write_node(FormatNode::Tag(EndIndentIfGroupBreaks(self.group_id)));
 
         Ok(())
     }

@@ -3,8 +3,12 @@ pub enum Indentation {
     /// Indent the content by `count` levels by using the indentation sequence specified by the printer options.
     Level(u16),
 
-    /// Indent the content by n-`level`s using the indentation sequence specified by the printer options and `align` spaces.
-    Align { level: u16, align: u8 },
+    /// Indent the content by `level`s plus `align` spaces.
+    Align {
+        level: u16,
+        align: u8,
+        align_depth: u16,
+    },
 }
 
 impl Indentation {
@@ -43,46 +47,41 @@ impl Indentation {
         match self {
             Indentation::Level(count) => Indentation::Level(count + 1),
             // increase the indent AND convert the align to an indent
-            Indentation::Align { level, .. } if indent_style.is_tab() => {
-                Indentation::Level(level + 2)
-            }
+            Indentation::Align {
+                level, align_depth, ..
+            } if indent_style.is_tab() => Indentation::Level(level + align_depth + 1),
             Indentation::Align {
                 level: indent,
                 align,
+                align_depth,
             } => Indentation::Align {
                 level: indent + 1,
                 align,
+                align_depth,
             },
-        }
-    }
-
-    /// Decrement the indent by one.
-    ///
-    /// - Reducing the level by one if this is [`Indentation::Level`]
-    /// - Removing the `align` if this is [`Indentation::Align`]
-    ///
-    /// No-op if the level is already zero.
-    pub(crate) fn decrement(self) -> Self {
-        match self {
-            Indentation::Level(level) => Indentation::Level(level.saturating_sub(1)),
-            Indentation::Align { level, .. } => Indentation::Level(level),
         }
     }
 
     /// Add an `align` of `count` spaces to the current indentation.
     ///
-    /// It increments the `level` value if the current value is [`Indentation::Align`].
+    /// Nested aligns accumulate their space widths on the current indentation.
     pub(crate) fn set_align(self, count: u8) -> Self {
         match self {
             Indentation::Level(indent_count) => Indentation::Align {
                 level: indent_count,
                 align: count,
+                align_depth: 1,
             },
 
-            // convert the existing align to an indent
-            Indentation::Align { level: indent, .. } => Indentation::Align {
-                level: indent + 1,
-                align: count,
+            // nested aligns accumulate without becoming full indent levels
+            Indentation::Align {
+                level,
+                align,
+                align_depth,
+            } => Indentation::Align {
+                level,
+                align: align.saturating_add(count),
+                align_depth: align_depth + 1,
             },
         }
     }
