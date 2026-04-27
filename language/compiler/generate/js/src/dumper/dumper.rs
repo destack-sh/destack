@@ -1138,7 +1138,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Declaration::Interface(js::InterfaceDeclaration {
                 descriptor,
                 generic_parameters: _,
-                extends_types: _,
+                extends: _,
                 members: _,
             }) => {
                 self.node("js::Declaration::Interface", id.id)
