@@ -21,7 +21,7 @@ fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<TestLayout>) {
     };
     let layouts = test_layouts(layouts);
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let heap =
@@ -99,7 +99,10 @@ fn test_collect_minor_promotes_reachable_entries() {
     let image = heap.image().expect("heap image should capture");
     let young = image.young();
 
-    assert_eq!(young.next_offset(), 0);
+    assert_eq!(
+        young.next_offset(),
+        options.small_allocation_alignment_bytes
+    );
     assert_eq!(
         young.pages().len(),
         young.capacity_bytes().div_ceil(young.page_bytes())
@@ -390,7 +393,7 @@ fn test_scan_shared_roots_survives_active_root_removal() {
 fn test_heap_gc_step_stays_idle_without_request() {
     let options = HeapOptions::local();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let mut heap =
@@ -430,7 +433,7 @@ fn test_heap_gc_step_honors_manual_full_request() {
     let layout = test_layout(3, ReferenceMap::empty());
     let options = HeapOptions::local();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
     let mut heap =

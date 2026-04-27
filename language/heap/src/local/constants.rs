@@ -4,6 +4,13 @@ use crate::allocator::DEFAULT_PAGE_BYTES;
 /// The standard small-span width for size-classed allocation.
 pub const DEFAULT_SMALL_BYTES: usize = DEFAULT_PAGE_BYTES * 10;
 
+/// The standard virtual byte capacity for one forkable heap space.
+pub const DEFAULT_SPACE_BYTES: usize = if cfg!(target_pointer_width = "64") {
+    64 * 1024 * 1024 * 1024
+} else {
+    256 * 1024 * 1024
+};
+
 /// The standard remembered-card width for local write tracking.
 pub(crate) const DEFAULT_CARD_BYTES: usize = DEFAULT_PAGE_BYTES / 32;
 

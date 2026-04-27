@@ -4,7 +4,7 @@ use super::{
     CardSet, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocation, LargeAllocationId, SmallSpan,
     YoungRange,
 };
-use crate::allocator::{PageView, SpanSlot};
+use crate::allocator::{PageRun, SpanSlot};
 use crate::{
     AccountingRegion, AllocationLayout, Bitmap, HeapError, HeapReference, HeapResult, Payload,
     SmallSpanClass, clear_allocation_reference_bits, clear_slot_reference_bits,
@@ -12,9 +12,9 @@ use crate::{
 };
 
 impl HeapSpace {
-    /// Return the projected mapped-byte delta for one managed allocation.
-    pub(crate) fn mapped_byte_delta(&self, layout: AllocationLayout<'_>) -> HeapResult<i64> {
-        // zero sized allocations should already be rejected upstream (?)
+    /// Return the projected retained-byte delta for one managed allocation.
+    pub(crate) fn retained_byte_delta(&self, layout: AllocationLayout<'_>) -> HeapResult<i64> {
+        // reject empty managed heap allocations
         if layout.byte_len == 0 {
             return Err(HeapError::ZeroSizeAllocation);
         }
@@ -121,7 +121,8 @@ impl HeapSpace {
                     });
                 };
 
-                let pages = allocation.pages.clone();
+                let first_offset = allocation.first_offset;
+                let pages = allocation.pages;
 
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
                     return Err(HeapError::MissingLargeAllocation {
@@ -138,8 +139,8 @@ impl HeapSpace {
                 self.usage.free(freed_bytes, AccountingRegion::Heap);
                 self.remove_shared_edge_root(reference)?;
 
-                self.unmap_page_view(&pages)?;
-                self.release_page_view(pages)?;
+                self.unmap_page_run(first_offset, &pages);
+                self.release_page_run(pages)?;
 
                 Ok(true)
             }
@@ -188,9 +189,40 @@ impl HeapSpace {
         }
         // otherwise allocate one dedicated large allocation
         else {
-            let pages = self.allocate_large_pages(byte_len, payload)?;
+            let pages = self.allocate_large_pages(byte_len)?;
             let allocation_id =
                 self.insert_large_allocation(byte_len, pages, reference_map.clone(), true)?;
+            let Some(allocation) = self.large_allocation(allocation_id) else {
+                return Err(HeapError::MissingLargeAllocation {
+                    allocation_id: allocation_id.id(),
+                });
+            };
+            let first_offset = allocation.first_offset;
+
+            // initialize bytes before returning the allocation reference
+            let initialize = match payload {
+                Payload::Bytes(bytes) => self.mapping.write(first_offset, bytes),
+                Payload::Zeroed => self.mapping.zero(first_offset, byte_len),
+            };
+            if let Err(error) = initialize {
+                let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+                    self.unmap_page_run(first_offset, &pages);
+                    self.release_page_run(pages)?;
+
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+
+                allocation.retire();
+                self.large
+                    .free_large_allocation_ids
+                    .push(allocation_id.id());
+                self.unmap_page_run(first_offset, &pages);
+                self.release_page_run(pages)?;
+
+                return Err(error);
+            }
 
             Ok((HeapPlace::Large(allocation_id), byte_len))
         }
@@ -242,10 +274,11 @@ impl HeapSpace {
                 span.dirty_cards.clear();
                 span.is_dirty_queued = false;
 
-                let pages = span.pages.clone();
-                span.pages = PageView::empty();
+                let pages = span.pages;
+                let first_offset = span.first_offset;
+                span.pages = PageRun::empty();
 
-                Some(pages)
+                Some((first_offset, pages))
             }
             // otherwise requeue the span if it was full before the free
             else {
@@ -263,9 +296,9 @@ impl HeapSpace {
             self.small.partial_spans[bucket_index].push(slot.span_index());
         }
 
-        if let Some(pages) = pages {
-            self.unmap_page_view(&pages)?;
-            self.release_page_view(pages)?;
+        if let Some((first_offset, pages)) = pages {
+            self.unmap_page_run(first_offset, &pages);
+            self.release_page_run(pages)?;
         }
 
         Ok(())
@@ -292,9 +325,11 @@ impl HeapSpace {
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
         );
-        write_offset
-            .checked_add(byte_len)
-            .is_some_and(|next_offset| next_offset <= self.young.capacity_bytes)
+        if write_offset > self.young.capacity_bytes {
+            return false;
+        }
+
+        byte_len <= self.young.capacity_bytes - write_offset
     }
 
     /// Return one small-span size and scan class for the given payload when it fits.
@@ -313,7 +348,7 @@ impl HeapSpace {
         })
     }
 
-    /// Return the page-rounded mapped bytes for one heap large allocation.
+    /// Return the page-rounded retained bytes for one heap large allocation.
     fn round_up_large_allocation_bytes(&self, byte_len: usize) -> u64 {
         let page_bytes = self.large.page_bytes as u64;
         let byte_len = byte_len as u64;
@@ -325,7 +360,7 @@ impl HeapSpace {
     pub(crate) fn insert_large_allocation(
         &mut self,
         len: usize,
-        pages: PageView,
+        pages: PageRun,
         reference_map: ReferenceMap,
         remember: bool,
     ) -> HeapResult<LargeAllocationId> {
@@ -337,13 +372,7 @@ impl HeapSpace {
             // otherwise allocate from the unused tail
             else {
                 let allocation_id = self.large.next_unused_large_allocation_id;
-                let Some(next_allocation_id) =
-                    self.large.next_unused_large_allocation_id.checked_add(1)
-                else {
-                    self.release_page_view(pages)?;
-
-                    return Err(HeapError::InvalidLargeAllocationId { id: allocation_id });
-                };
+                let next_allocation_id = self.large.next_unused_large_allocation_id + 1;
 
                 self.large.next_unused_large_allocation_id = next_allocation_id;
                 (allocation_id, false)
@@ -354,7 +383,7 @@ impl HeapSpace {
                 self.large.free_large_allocation_ids.push(allocation_id);
             }
 
-            self.release_page_view(pages)?;
+            self.release_page_run(pages)?;
 
             return Err(HeapError::InvalidLargeAllocationId { id: allocation_id });
         }
@@ -362,28 +391,21 @@ impl HeapSpace {
         let allocation_id = LargeAllocationId::new(allocation_id);
         let index = allocation_id.index()?;
 
-        if let Err(error) =
-            self.map_page_view(&pages, |logical_page_index| HeapPageMapEntry::Large {
+        let first_offset = self.reserve_space_range(pages.len() * self.allocator.page_bytes())?;
+
+        self.map_page_run(first_offset, &pages, |logical_page_index| {
+            HeapPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
-            })
-        {
-            if reused_allocation_id {
-                self.large
-                    .free_large_allocation_ids
-                    .push(allocation_id.id());
             }
-
-            self.release_page_view(pages)?;
-
-            return Err(error);
-        }
+        });
 
         // materialize the allocation record
         let allocation = LargeAllocation {
             is_live: true,
+            first_offset,
             len,
-            pages: pages.clone(),
+            pages,
             reference_map,
             is_marked: false,
             dirty_cards: CardSet::with_len(len),
@@ -397,8 +419,8 @@ impl HeapSpace {
                     .push(allocation_id.id());
             }
 
-            self.unmap_page_view(&pages)?;
-            self.release_page_view(pages)?;
+            self.unmap_page_run(first_offset, &pages);
+            self.release_page_run(pages)?;
 
             return Err(error);
         }
@@ -422,9 +444,11 @@ impl HeapSpace {
             return Ok(None);
         };
 
-        // initialize the reserved young range
-        self.allocator
-            .write_payload(&mut self.young.pages, write_offset, payload)?;
+        // initialize the live mapping
+        match payload {
+            Payload::Bytes(bytes) => self.mapping.write(write_offset, bytes)?,
+            Payload::Zeroed => self.mapping.zero(write_offset, byte_len)?,
+        }
 
         Ok(Some(write_offset))
     }
@@ -440,12 +464,14 @@ impl HeapSpace {
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
         );
-        let Some(end_offset) = write_offset.checked_add(byte_len) else {
-            return Ok(None);
-        };
-        if end_offset > self.young.capacity_bytes {
+        if write_offset > self.young.capacity_bytes {
             return Ok(None);
         }
+        if byte_len > self.young.capacity_bytes - write_offset {
+            return Ok(None);
+        }
+
+        let end_offset = write_offset + byte_len;
 
         // append one young range
         let range_index = self.young.ranges.len();
@@ -474,15 +500,14 @@ impl HeapSpace {
         Ok(Some(write_offset))
     }
 
-    /// Allocate one copied small payload from explicit runtime facts.
-    pub(crate) fn allocate_small_payload_from_page_view(
+    /// Allocate one copied small payload from explicit bytes.
+    pub(crate) fn allocate_small_payload_from_bytes(
         &mut self,
-        source_page_view: &PageView,
-        source_start: usize,
-        byte_len: usize,
+        bytes: &[u8],
         reference_map: &ReferenceMap,
         remember: bool,
     ) -> HeapResult<Option<SpanSlot>> {
+        let byte_len = bytes.len();
         let Some((class, span_index, slot_index)) =
             self.reserve_small_payload(byte_len, reference_map)?
         else {
@@ -495,36 +520,15 @@ impl HeapSpace {
             slot_index,
             byte_len,
             reference_map,
-            Payload::PageView {
-                page_view: source_page_view,
-                start: source_start,
-                byte_len,
-            },
+            Payload::Bytes(bytes),
             remember,
         )
         .map(Some)
     }
 
-    /// Allocate one dedicated large-allocation page view for the given payload source.
-    fn allocate_large_pages(
-        &mut self,
-        byte_len: usize,
-        payload: Payload<'_>,
-    ) -> HeapResult<PageView> {
-        match payload {
-            Payload::Bytes(bytes) => self.allocate_page_view_bytes(bytes),
-            Payload::Zeroed => self.allocate_page_view_zeroed(byte_len),
-            Payload::PageView { .. } => {
-                let mut pages = self.allocate_page_view_zeroed(byte_len)?;
-                if let Err(error) = self.allocator.write_payload(&mut pages, 0, payload) {
-                    self.release_page_view(pages)?;
-
-                    return Err(error);
-                }
-
-                Ok(pages)
-            }
-        }
+    /// Allocate one dedicated large-allocation page run.
+    fn allocate_large_pages(&mut self, byte_len: usize) -> HeapResult<PageRun> {
+        self.allocate_page_run_zeroed(byte_len)
     }
 
     /// Reserve one small-span payload location for the given runtime facts.
@@ -558,20 +562,24 @@ impl HeapSpace {
 
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
-                    let pages = self.allocate_page_view_zeroed(class.span_bytes)?;
-                    self.map_page_view(&pages, |logical_page_index| HeapPageMapEntry::Small {
-                        span_index,
-                        logical_page_index,
-                    })?;
+                    let first_offset = span.first_offset;
+                    let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+
+                    self.map_page_run(first_offset, &pages, |logical_page_index| {
+                        HeapPageMapEntry::Small {
+                            span_index,
+                            logical_page_index,
+                        }
+                    });
 
                     let Some(span) = self.small.spans.get_mut(span_index) else {
-                        self.unmap_page_view(&pages)?;
-                        self.release_page_view(pages)?;
+                        self.unmap_page_run(first_offset, &pages);
+                        self.release_page_run(pages)?;
 
                         return Err(HeapError::MissingSpan { span_index });
                     };
 
-                    span.pages = pages.clone();
+                    span.pages = pages;
                 }
 
                 return Ok(span_index);
@@ -581,14 +589,11 @@ impl HeapSpace {
         // otherwise allocate one fresh span for the size class
         let slot_count = (class.span_bytes / class.size_class).max(1);
         let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
-        let dirty_card_bytes =
-            slot_count
-                .checked_mul(class.size_class)
-                .ok_or(HeapError::InvariantOverflow {
-                    context: "heap span dirty-card bytes",
-                })?;
-        let pages = self.allocate_page_view_zeroed(class.span_bytes)?;
+        let dirty_card_bytes = slot_count * class.size_class;
+        let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+        let first_offset = self.reserve_space_range(class.span_bytes)?;
         let span = SmallSpan {
+            first_offset,
             class: class.clone(),
             slot_count,
             occupied_count: 0,
@@ -597,28 +602,19 @@ impl HeapSpace {
             local_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             shared_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             marked: Bitmap::with_capacity(slot_count),
-            pages: pages.clone(),
+            pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
         };
         let span_index = self.small.spans.len();
-        if let Err(error) =
-            self.map_page_view(&pages, |logical_page_index| HeapPageMapEntry::Small {
+        self.map_page_run(first_offset, &pages, |logical_page_index| {
+            HeapPageMapEntry::Small {
                 span_index,
                 logical_page_index,
-            })
-        {
-            self.release_page_view(pages)?;
+            }
+        });
 
-            return Err(error);
-        }
-
-        if let Err(error) = self.small.spans.push(span) {
-            self.unmap_page_view(&pages)?;
-            self.release_page_view(pages)?;
-
-            return Err(error);
-        }
+        self.small.spans.push(span);
 
         Ok(span_index)
     }
@@ -634,62 +630,51 @@ impl HeapSpace {
         init: Payload<'_>,
         remember: bool,
     ) -> HeapResult<SpanSlot> {
-        let should_requeue;
-        let init_error;
+        let span = self
+            .small
+            .spans
+            .get(span_index)
+            .ok_or(HeapError::MissingSpan { span_index })?;
+        let slot_offset = span.class.size_class * slot_index;
+        let mapping_offset = span.first_offset + slot_offset;
 
-        // initialize and install the reserved slot while the span is borrowed
-        if let Some(span) = self.small.spans.get_mut(span_index) {
-            let slot_offset = span.class.size_class.checked_mul(slot_index).ok_or(
-                HeapError::InvalidSmallSlot {
-                    span_index,
-                    slot_index,
-                },
-            )?;
-
-            if let Err(error) = self
-                .allocator
-                .write_payload(&mut span.pages, slot_offset, init)
-            {
-                should_requeue = span.occupied_count < span.slot_count;
-                init_error = Some(error);
-            } else {
-                span.occupied.set(slot_index);
-                span.marked.clear(slot_index);
-                let size_class = span.class.size_class;
-                let local_reference_bits = &mut span.local_reference_bits;
-                let shared_reference_bits = &mut span.shared_reference_bits;
-                write_slot_reference_bits(
-                    reference_map,
-                    local_reference_bits,
-                    shared_reference_bits,
-                    slot_index,
-                    size_class,
-                )?;
-                span.occupied_count =
-                    span.occupied_count
-                        .checked_add(1)
-                        .ok_or(HeapError::InvariantOverflow {
-                            context: "heap span occupancy",
-                        })?;
-                span.free_cursor = span
-                    .occupied
-                    .first_clear_from(slot_index)
-                    .unwrap_or(span.slot_count);
-                should_requeue = span.occupied_count < span.slot_count;
-                init_error = None;
-            }
-        } else {
-            return Err(HeapError::MissingSpan { span_index });
+        // initialize the live mapping before publishing the slot
+        match init {
+            Payload::Bytes(bytes) => self.mapping.write(mapping_offset, bytes)?,
+            Payload::Zeroed => self.mapping.zero(mapping_offset, byte_len)?,
         }
+
+        let span = self
+            .small
+            .spans
+            .get_mut(span_index)
+            .ok_or(HeapError::MissingSpan { span_index })?;
+
+        // publish the initialized slot metadata
+        let size_class = span.class.size_class;
+        let local_reference_bits = &mut span.local_reference_bits;
+        let shared_reference_bits = &mut span.shared_reference_bits;
+        write_slot_reference_bits(
+            reference_map,
+            local_reference_bits,
+            shared_reference_bits,
+            slot_index,
+            size_class,
+        )?;
+
+        span.occupied.set(slot_index);
+        span.marked.clear(slot_index);
+        span.occupied_count += 1;
+        span.free_cursor = span
+            .occupied
+            .first_clear_from(slot_index)
+            .unwrap_or(span.slot_count);
+        let should_requeue = span.occupied_count < span.slot_count;
 
         // requeue the reserved span when it still has capacity
         if should_requeue {
             let bucket_index = self.small_span_bucket(class)?;
             self.small.partial_spans[bucket_index].push(span_index);
-        }
-
-        if let Some(error) = init_error {
-            return Err(error);
         }
 
         let slot = SpanSlot::new(span_index, slot_index)?;
@@ -707,5 +692,5 @@ impl HeapSpace {
 fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
     let alignment_bytes = alignment_bytes.max(1);
 
-    byte_len.saturating_add(alignment_bytes.saturating_sub(1)) / alignment_bytes * alignment_bytes
+    byte_len.div_ceil(alignment_bytes) * alignment_bytes
 }

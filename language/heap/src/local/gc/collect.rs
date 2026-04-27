@@ -5,7 +5,7 @@ use destack_mir::ReferenceMap;
 use super::Promotion;
 use crate::local::space::{
     GcKind, GcStats, HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId,
-    LocalGcPhase, LocalTraceWork,
+    LocalGcPhase, LocalTraceWork, YoungSpace,
 };
 use crate::{
     AccountingRegion, GcProgress, HeapError, HeapReference, HeapResult, RootSlot, RootSlots,
@@ -34,11 +34,8 @@ impl HeapSpace {
             let allocation = &self.young.ranges[allocation_index];
 
             let allocation_offset = self.young_range_offset(allocation);
-            let base_address =
-                self.allocator()
-                    .page_view_ptr(&self.young.pages, allocation_offset)? as usize;
 
-            references.push(HeapReference::new(base_address));
+            references.push(HeapReference::new(allocation_offset));
         }
 
         for span in self.small.spans.iter() {
@@ -47,15 +44,10 @@ impl HeapSpace {
                     continue;
                 }
 
-                let slot_offset = span.class.size_class.checked_mul(slot_index).ok_or(
-                    HeapError::InvariantOverflow {
-                        context: "heap slot base offset",
-                    },
-                )?;
-                let base_address =
-                    self.allocator().page_view_ptr(&span.pages, slot_offset)? as usize;
+                let slot_offset = span.class.size_class * slot_index;
+                let base_offset = span.first_offset + slot_offset;
 
-                references.push(HeapReference::new(base_address));
+                references.push(HeapReference::new(base_offset));
             }
         }
 
@@ -64,8 +56,7 @@ impl HeapSpace {
                 continue;
             }
 
-            let base_address = self.allocator().page_view_ptr(&allocation.pages, 0)? as usize;
-            references.push(HeapReference::new(base_address));
+            references.push(HeapReference::new(allocation.first_offset));
         }
 
         Ok(references)
@@ -193,7 +184,7 @@ impl HeapSpace {
             byte_offset: 0,
             byte_len: self.place_byte_len(place)?,
         };
-        let scan_len = byte_len.min(location.byte_len.saturating_sub(byte_offset));
+        let scan_len = byte_len.min(location.byte_len - byte_offset);
         let mut references = Vec::new();
         let result = visit_heap_references_in_reader_range(
             &reference_map,
@@ -372,7 +363,7 @@ impl HeapSpace {
         // finalize the completed minor-cycle statistics
         let stats = self.stats_after_collection(freed_allocations, freed_bytes);
 
-        self.gc.record_cycle(GcKind::Minor, stats)?;
+        self.gc.record_cycle(GcKind::Minor, stats);
 
         Ok(stats)
     }
@@ -424,7 +415,7 @@ impl HeapSpace {
                     self.major_sweep_cursor = 0;
                     self.major_phase = LocalGcPhase::Sweep;
 
-                    let sweep_work = step_budget.saturating_sub(mark_work);
+                    let sweep_work = step_budget - mark_work;
                     if sweep_work > 0 {
                         return Ok(self.sweep_unreachable_references_step(sweep_work)?);
                     }
@@ -462,7 +453,7 @@ impl HeapSpace {
         let stats =
             self.stats_after_collection(self.major_freed_allocations, self.major_freed_bytes);
 
-        self.gc.record_cycle(GcKind::Full, stats)?;
+        self.gc.record_cycle(GcKind::Full, stats);
         self.major_phase = LocalGcPhase::Idle;
         self.major_trace_queue.clear();
         self.major_sweep_references.clear();
@@ -501,7 +492,7 @@ impl HeapSpace {
         })?;
 
         // then rewrite every pinned reference
-        self.pins.rewrite(&references)?;
+        self.pins.rewrite(&references);
 
         // then rewrite every mature payload that may still contain young references
         self.rewrite_live_heap_references(&references)?;
@@ -583,18 +574,10 @@ impl HeapSpace {
                 ..
             } => {
                 for index in 0..*count as usize {
-                    let element_start = index.checked_mul(*stride as usize).ok_or(
-                        HeapError::InvariantOverflow {
-                            context: "repeated local reference rewrite",
-                        },
-                    )?;
+                    let element_start = index * *stride as usize;
 
                     for offset in local_offsets.iter().copied() {
-                        let start = element_start.checked_add(offset as usize).ok_or(
-                            HeapError::InvariantOverflow {
-                                context: "repeated local reference rewrite",
-                            },
-                        )?;
+                        let start = element_start + offset as usize;
 
                         self.rewrite_location_heap_reference_word(location, start, references)?;
                     }
@@ -704,9 +687,15 @@ impl HeapSpace {
         };
         let allocation = allocation.clone();
 
-        // resolve the shared source range once before relocating the allocation
+        // copy the young bytes before relocating the allocation
         let young_offset = self.young_range_offset(&allocation);
-        let young_pages = self.young.pages.clone();
+        let bytes = self
+            .mapping
+            .bytes(young_offset, allocation.byte_len)
+            .map_err(|error| HeapError::HeapPromotionFailed {
+                reference,
+                error: Box::new(error),
+            })?;
         let reference_map = self
             .young_range_reference_map(first_offset)
             .map_err(|error| HeapError::HeapPromotionFailed {
@@ -722,13 +711,7 @@ impl HeapSpace {
             .is_some()
         {
             let slot = self
-                .allocate_small_payload_from_page_view(
-                    &young_pages,
-                    young_offset,
-                    allocation.byte_len,
-                    &reference_map,
-                    false,
-                )
+                .allocate_small_payload_from_bytes(&bytes, &reference_map, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -744,37 +727,29 @@ impl HeapSpace {
         }
         // otherwise copy the payload directly into one mature large allocation
         else {
-            let mut pages = self
-                .allocate_page_view_zeroed(allocation.byte_len)
+            let pages = self
+                .allocate_page_run_zeroed(allocation.byte_len)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
                 })?;
 
-            let allocator = self.allocator().clone();
-
-            // copy the young payload into the new large allocation
-            if let Err(error) = allocator.copy_bytes_between_page_views(
-                &young_pages,
-                young_offset,
-                &mut pages,
-                0,
-                allocation.byte_len,
-            ) {
-                self.release_page_view(pages)
-                    .map_err(|error| HeapError::HeapPromotionFailed {
-                        reference,
-                        error: Box::new(error),
-                    })?;
-
-                return Err(HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                });
-            }
-
             let allocation_id = self
                 .insert_large_allocation(allocation.byte_len, pages, reference_map, false)
+                .map_err(|error| HeapError::HeapPromotionFailed {
+                    reference,
+                    error: Box::new(error),
+                })?;
+            let Some(allocation) = self.large_allocation(allocation_id) else {
+                return Err(HeapError::HeapPromotionFailed {
+                    reference,
+                    error: Box::new(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    }),
+                });
+            };
+            self.mapping
+                .write(allocation.first_offset, &bytes)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -829,14 +804,14 @@ impl HeapSpace {
                         });
                     }
 
-                    let pages = allocation.pages.clone();
+                    let pages = allocation.pages;
                     allocation.retire();
                     self.large
                         .free_large_allocation_ids
                         .push(allocation_id.id());
 
                     // release the unpublished target pages after discarding the slot
-                    self.release_page_view(pages)?;
+                    self.release_page_run(pages)?;
 
                     Ok(())
                 }
@@ -893,17 +868,8 @@ impl HeapSpace {
             };
 
             if did_free {
-                freed_allocations =
-                    freed_allocations
-                        .checked_add(1)
-                        .ok_or(HeapError::InvariantOverflow {
-                            context: "young gc freed allocation count",
-                        })?;
-                freed_bytes = freed_bytes.checked_add(location.byte_len as u64).ok_or(
-                    HeapError::InvariantOverflow {
-                        context: "young gc freed bytes",
-                    },
-                )?;
+                freed_allocations += 1;
+                freed_bytes += location.byte_len as u64;
             }
         }
 
@@ -967,17 +933,8 @@ impl HeapSpace {
                     error: Box::new(error),
                 })?
             {
-                self.major_freed_allocations = self.major_freed_allocations.checked_add(1).ok_or(
-                    HeapError::InvariantOverflow {
-                        context: "full gc freed allocation count",
-                    },
-                )?;
-                self.major_freed_bytes = self
-                    .major_freed_bytes
-                    .checked_add(location.byte_len as u64)
-                    .ok_or(HeapError::InvariantOverflow {
-                        context: "full gc freed bytes",
-                    })?;
+                self.major_freed_allocations += 1;
+                self.major_freed_bytes += location.byte_len as u64;
             }
         }
 
@@ -993,25 +950,25 @@ impl HeapSpace {
         let allocator = self.allocator().clone();
         let next_pages = self
             .page_run_cache
-            .allocate_zeroed(&allocator, self.young.capacity_bytes)
+            .allocate_pages(&allocator, self.young.capacity_bytes)
             .map_err(|error| HeapError::HeapYoungResetFailed {
                 error: Box::new(error),
             })?;
-        let previous_pages = self.young.pages.clone();
+        let previous_pages = self.young.pages;
 
         // remove the old nursery ownership before its pages reenter the allocator cache
-        self.unmap_page_view(&previous_pages)?;
+        self.unmap_page_run(0, &previous_pages);
 
         // release the old nursery pages once the page-map table is clean
         if let Err(error) = self
             .page_run_cache
-            .release_page_view(&allocator, previous_pages.clone())
+            .release_page_run(&allocator, previous_pages)
         {
-            self.map_page_view(&previous_pages, |logical_page_index| {
+            self.map_page_run(0, &previous_pages, |logical_page_index| {
                 HeapPageMapEntry::Young { logical_page_index }
-            })?;
+            });
             self.page_run_cache
-                .release_page_view(&allocator, next_pages)?;
+                .release_page_run(&allocator, next_pages)?;
 
             return Err(HeapError::HeapYoungResetFailed {
                 error: Box::new(error),
@@ -1019,14 +976,9 @@ impl HeapSpace {
         }
 
         // publish the fresh nursery state
-        self.young.generation =
-            self.young
-                .generation
-                .checked_add(1)
-                .ok_or(HeapError::InvariantOverflow {
-                    context: "heap young generation",
-                })?;
-        self.young.next_offset = 0;
+        self.young.generation += 1;
+        self.young.next_offset =
+            YoungSpace::first_allocation_offset(self.young.allocation_alignment_bytes);
         self.young.pages = next_pages;
         self.young.ranges.clear();
         self.young.live.clear_all();
@@ -1034,11 +986,13 @@ impl HeapSpace {
         self.young.local_reference_bits.clear_all();
         self.young.shared_reference_bits.clear_all();
 
-        let next_pages = self.young.pages.clone();
+        let next_pages = self.young.pages;
 
-        self.map_page_view(&next_pages, |logical_page_index| HeapPageMapEntry::Young {
-            logical_page_index,
-        })
+        self.map_page_run(0, &next_pages, |logical_page_index| {
+            HeapPageMapEntry::Young { logical_page_index }
+        });
+
+        Ok(())
     }
 
     /// Mark every reachable young reference.
@@ -1217,12 +1171,7 @@ impl HeapSpace {
         }
 
         // continue this large allocation on a later step
-        let next_start = start
-            .checked_add(range_len)
-            .ok_or(HeapError::TraceOffsetOverflow {
-                start,
-                width: range_len,
-            })?;
+        let next_start = start + range_len;
         if next_start < location.byte_len {
             self.major_trace_queue.push(LocalTraceWork::LargeRange {
                 reference,
@@ -1427,7 +1376,7 @@ impl HeapSpace {
         let size_class = span.class.size_class;
         let local_reference_bits = span.local_reference_bits.clone();
         let shared_reference_bits = span.shared_reference_bits.clone();
-        let pages = span.pages.clone();
+        let span_offset = span.first_offset;
         let dirty_cards = span.dirty_cards.clone();
 
         let mut first_error = None;
@@ -1438,11 +1387,11 @@ impl HeapSpace {
                 return;
             }
 
-            let card_end = card_start.saturating_add(card_len);
+            let card_end = card_start + card_len;
 
             let first_slot = card_start / size_class;
-            let last_slot = card_end.saturating_sub(1) / size_class;
-            let end_slot = last_slot.saturating_add(1).min(slot_count);
+            let last_slot = (card_end - 1) / size_class;
+            let end_slot = (last_slot + 1).min(slot_count);
 
             for slot_index in first_slot..end_slot {
                 if !occupied.contains(slot_index) {
@@ -1460,8 +1409,8 @@ impl HeapSpace {
                     continue;
                 }
 
-                let slot_start = size_class.saturating_mul(slot_index);
-                let slot_end = slot_start.saturating_add(size_class);
+                let slot_start = size_class * slot_index;
+                let slot_end = slot_start + size_class;
                 let overlap_start = card_start.max(slot_start);
                 let overlap_end = card_end.min(slot_end);
 
@@ -1469,19 +1418,16 @@ impl HeapSpace {
                     continue;
                 }
 
-                let local_start = overlap_start.saturating_sub(slot_start);
-                let local_len = overlap_end.saturating_sub(overlap_start);
+                let local_start = overlap_start - slot_start;
+                let local_len = overlap_end - overlap_start;
                 let mut references = Vec::new();
                 let result = visit_heap_references_in_reader_range(
                     &reference_map,
                     local_start,
                     local_len,
                     |start, buffer| {
-                        self.allocator().fill_bytes_from(
-                            &pages,
-                            slot_start.saturating_add(start),
-                            buffer,
-                        )
+                        let offset = span_offset + slot_start + start;
+                        self.mapping.read(offset, buffer)
                     },
                     |reference| references.push(reference),
                 );
@@ -1530,7 +1476,7 @@ impl HeapSpace {
                 }),
             });
         };
-        let pages = allocation.pages.clone();
+        let allocation_offset = allocation.first_offset;
         let dirty_cards = allocation.dirty_cards.clone();
         let reference_map = allocation.reference_map.clone();
 
@@ -1547,7 +1493,7 @@ impl HeapSpace {
                 &reference_map,
                 card_start,
                 card_len,
-                |start, buffer| self.allocator().fill_bytes_from(&pages, start, buffer),
+                |start, buffer| self.mapping.read(allocation_offset + start, buffer),
                 |reference| references.push(reference),
             );
 
@@ -1587,7 +1533,7 @@ impl HeapSpace {
             live_allocations: self.usage.allocation_count(),
             freed_bytes,
             allocated_bytes: self.usage.allocated_bytes(),
-            active_bytes: self.active_bytes(),
+            retained_bytes: self.retained_bytes(),
         }
     }
 }

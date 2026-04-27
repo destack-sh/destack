@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::PageView;
+use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
 /// One frozen raw large-allocation root.
@@ -8,6 +8,8 @@ use crate::{HeapError, HeapResult};
 pub(crate) struct LargeAllocationImage {
     /// Whether this allocation slot is live.
     pub is_live: bool,
+    /// The first byte offset inside raw space.
+    pub first_offset: usize,
     /// The logical byte length of this allocation.
     pub len: usize,
     /// The full byte payload for this allocation.
@@ -44,17 +46,20 @@ impl LargeAllocationId {
 pub(crate) struct LargeAllocation {
     /// Whether this large-allocation slot is live.
     pub(crate) is_live: bool,
+    /// The first byte offset inside raw space.
+    pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
     pub(crate) len: usize,
     /// The allocator pages for this allocation.
-    pub(crate) pages: PageView,
+    pub(crate) pages: PageRun,
 }
 
 impl LargeAllocation {
     /// Retire this raw large-allocation slot.
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
+        self.first_offset = 0;
         self.len = 0;
-        self.pages = PageView::empty();
+        self.pages = PageRun::empty();
     }
 }

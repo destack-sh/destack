@@ -14,7 +14,7 @@ impl TestHeap {
     pub(crate) fn new() -> Self {
         let options = HeapOptions::local();
         let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
                 .expect("default allocator should build"),
         );
 
@@ -36,7 +36,7 @@ impl TestHeap {
     /// Create one test heap with explicit limits and options.
     pub(crate) fn with_limits_and_options(limits: HeapLimits, options: HeapOptions) -> Self {
         let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
                 .expect("explicit allocator should build"),
         );
 

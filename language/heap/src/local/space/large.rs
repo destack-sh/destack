@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_mir::ReferenceMap;
 
 use super::CardSet;
-use crate::allocator::PageView;
+use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
 /// One frozen heap large-allocation root.
@@ -11,10 +11,12 @@ use crate::{HeapError, HeapResult};
 pub(crate) struct LargeAllocationImage {
     /// Whether this allocation slot is live.
     pub is_live: bool,
+    /// The first byte offset inside heap space.
+    pub first_offset: usize,
     /// The logical byte length of this allocation.
     pub len: usize,
     /// The allocator pages for this allocation.
-    pub pages: PageView,
+    pub pages: PageRun,
     /// The reference map for this allocation.
     pub reference_map: ReferenceMap,
 }
@@ -49,10 +51,12 @@ impl LargeAllocationId {
 pub(crate) struct LargeAllocation {
     /// Whether this large-allocation slot is live.
     pub(crate) is_live: bool,
+    /// The first byte offset inside heap space.
+    pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
     pub(crate) len: usize,
     /// The allocator pages for this allocation.
-    pub(crate) pages: PageView,
+    pub(crate) pages: PageRun,
     /// The reference map for this allocation.
     pub(crate) reference_map: ReferenceMap,
     /// Whether this allocation is marked in the active cycle.
@@ -67,8 +71,9 @@ impl LargeAllocation {
     /// Retire this heap large-allocation slot.
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
+        self.first_offset = 0;
         self.len = 0;
-        self.pages = PageView::empty();
+        self.pages = PageRun::empty();
         self.is_marked = false;
         self.dirty_cards.clear();
         self.is_dirty_queued = false;

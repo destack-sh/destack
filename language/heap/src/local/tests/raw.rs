@@ -18,6 +18,45 @@ fn test_free_raw_reclaims_live_allocation() {
     assert!(!raw.is_live(pointer));
 }
 
+/// Clear bytes when reusing one freed raw slot for zeroed allocation.
+#[test]
+fn test_allocate_zeroed_raw_clears_reused_slot() {
+    let options = HeapOptions::local();
+    let mut raw =
+        RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
+    let pointer = raw
+        .allocate(2, Payload::Bytes(&[0xAB, 0xCD]))
+        .expect("raw allocation should succeed");
+
+    // reuse the freed slot with zeroed payload
+    assert!(raw.free(pointer).expect("raw free should succeed"));
+    let pointer = raw
+        .allocate(2, Payload::Zeroed)
+        .expect("zeroed raw allocation should succeed");
+
+    assert_eq!(raw.read_bytes(pointer), Ok(vec![0, 0]));
+}
+
+/// Keep raw fork writes independent from the parent mapping.
+#[test]
+fn test_fork_raw_write_is_independent() {
+    let options = HeapOptions::local();
+    let mut raw =
+        RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
+    let pointer = raw
+        .allocate(4, Payload::Bytes(&[1, 2, 3, 4]))
+        .expect("raw allocation should succeed");
+    let mut forked = raw.fork().expect("raw fork should succeed");
+
+    // mutate the fork through the same logical pointer
+    forked
+        .write_bytes(pointer, 1, &[9, 8])
+        .expect("forked raw write should succeed");
+
+    assert_eq!(raw.read_bytes(pointer), Ok(vec![1, 2, 3, 4]));
+    assert_eq!(forked.read_bytes(pointer), Ok(vec![1, 9, 8, 4]));
+}
+
 /// Reclaim one freed raw large allocation and allow another large allocation.
 #[test]
 fn test_free_raw_reclaims_large_allocation() {
@@ -47,6 +86,35 @@ fn test_free_raw_reclaims_large_allocation() {
         .expect("raw large allocation should succeed");
 
     assert!(raw.is_live(next_pointer));
+}
+
+/// Re-place one raw allocation when replacement bytes fit a smaller class.
+#[test]
+fn test_replace_large_raw_can_move_to_small() {
+    let options = HeapOptions {
+        heap_small_bytes: 32,
+        raw_small_bytes: 32,
+        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
+        ..HeapOptions::local()
+    };
+    let large_byte_len = options
+        .size_classes
+        .max_small_allocation_bytes()
+        .expect("size class table should not be empty")
+        + 1;
+    let mut raw =
+        RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
+    let pointer = raw
+        .allocate(large_byte_len, Payload::Bytes(&vec![0xAB; large_byte_len]))
+        .expect("raw large allocation should succeed");
+
+    // shrinking a raw allocation should use the normal placement path
+    let pointer = raw
+        .replace_bytes(pointer, &[0xCD])
+        .expect("raw replacement should succeed");
+
+    assert_eq!(raw.read_bytes(pointer), Ok(vec![0xCD]));
+    assert_eq!(raw.byte_len(pointer), Ok(1));
 }
 
 /// Reject one invalid raw pointer loudly.

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{
-    Allocator, DEFAULT_ALLOCATOR_ARENA_BYTES, DEFAULT_PAGE_BYTES, SizeClassPolicy, SizeClassTable,
+    Allocator, DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, SizeClassPolicy, SizeClassTable,
 };
 use crate::{GcOptions, HeapError};
 
 use super::constants::{
     DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES,
+    DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES, DEFAULT_YOUNG_BYTES,
 };
 
 /// Constructor policy for resolving heap options.
@@ -25,10 +25,14 @@ pub struct HeapPolicy {
     pub heap_small_bytes: usize,
     /// The byte size for raw small-allocation spans.
     pub raw_small_bytes: usize,
+    /// The virtual byte capacity for managed heap space.
+    pub heap_space_bytes: usize,
+    /// The virtual byte capacity for raw heap space.
+    pub raw_space_bytes: usize,
     /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte size for one physical allocator arena.
-    pub allocator_arena_bytes: usize,
+    /// The byte size for one physical allocator chunk.
+    pub allocator_chunk_bytes: usize,
 }
 
 impl Default for HeapPolicy {
@@ -40,8 +44,10 @@ impl Default for HeapPolicy {
             max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: DEFAULT_SPACE_BYTES,
+            raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
         }
     }
 }
@@ -56,8 +62,10 @@ impl HeapPolicy {
             max_heap_young_allocation_bytes: self.max_heap_young_allocation_bytes,
             heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: self.raw_small_bytes,
+            heap_space_bytes: self.heap_space_bytes,
+            raw_space_bytes: self.raw_space_bytes,
             page_bytes: self.page_bytes,
-            allocator_arena_bytes: self.allocator_arena_bytes,
+            allocator_chunk_bytes: self.allocator_chunk_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
         };
 
@@ -78,8 +86,12 @@ pub struct SharedHeapPolicy {
     pub heap_small_bytes: usize,
     /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte size for one physical allocator arena.
-    pub allocator_arena_bytes: usize,
+    /// The virtual byte capacity for shared heap space.
+    pub heap_space_bytes: usize,
+    /// The virtual byte capacity for shared raw space.
+    pub raw_space_bytes: usize,
+    /// The byte size for one physical allocator chunk.
+    pub allocator_chunk_bytes: usize,
 }
 
 impl Default for SharedHeapPolicy {
@@ -88,8 +100,10 @@ impl Default for SharedHeapPolicy {
             gc: GcOptions::shared(),
             small: SizeClassPolicy::default(),
             heap_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: DEFAULT_SPACE_BYTES,
+            raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
         }
     }
 }
@@ -104,8 +118,10 @@ impl SharedHeapPolicy {
             max_heap_young_allocation_bytes: 0,
             heap_small_bytes: self.heap_small_bytes,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: self.heap_space_bytes,
+            raw_space_bytes: self.raw_space_bytes,
             page_bytes: self.page_bytes,
-            allocator_arena_bytes: self.allocator_arena_bytes,
+            allocator_chunk_bytes: self.allocator_chunk_bytes,
             small_allocation_alignment_bytes: self.small.alignment_bytes,
         };
 
@@ -130,10 +146,14 @@ pub struct HeapOptions {
     pub heap_small_bytes: usize,
     /// The byte size for raw small-allocation spans.
     pub raw_small_bytes: usize,
+    /// The virtual byte capacity for managed heap space.
+    pub heap_space_bytes: usize,
+    /// The virtual byte capacity for raw heap space.
+    pub raw_space_bytes: usize,
     /// The byte size for allocator pages.
     pub page_bytes: usize,
-    /// The byte size for one physical allocator arena.
-    pub allocator_arena_bytes: usize,
+    /// The byte size for one physical allocator chunk.
+    pub allocator_chunk_bytes: usize,
     /// The required alignment for configured small-allocation classes.
     pub small_allocation_alignment_bytes: usize,
 }
@@ -148,8 +168,10 @@ impl HeapOptions {
             max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: DEFAULT_SPACE_BYTES,
+            raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
@@ -163,8 +185,10 @@ impl HeapOptions {
             max_heap_young_allocation_bytes: 0,
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
+            heap_space_bytes: DEFAULT_SPACE_BYTES,
+            raw_space_bytes: DEFAULT_SPACE_BYTES,
             page_bytes: DEFAULT_PAGE_BYTES,
-            allocator_arena_bytes: DEFAULT_ALLOCATOR_ARENA_BYTES,
+            allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
@@ -192,31 +216,50 @@ impl HeapOptions {
         }
     }
 
-    /// Validate one configured allocator arena size.
-    pub(crate) fn validate_allocator_arena_bytes(
+    /// Validate one configured allocator chunk size.
+    pub(crate) fn validate_allocator_chunk_bytes(
         page_bytes: usize,
-        allocator_arena_bytes: usize,
+        allocator_chunk_bytes: usize,
     ) -> Result<usize, HeapError> {
-        if allocator_arena_bytes == 0 {
-            return Err(HeapError::InvalidAllocatorArenaBytes {
-                bytes: allocator_arena_bytes,
+        if allocator_chunk_bytes == 0 {
+            return Err(HeapError::InvalidAllocatorChunkBytes {
+                bytes: allocator_chunk_bytes,
             });
         }
 
-        if !allocator_arena_bytes.is_power_of_two() {
-            return Err(HeapError::InvalidAllocatorArenaBytes {
-                bytes: allocator_arena_bytes,
+        if !allocator_chunk_bytes.is_power_of_two() {
+            return Err(HeapError::InvalidAllocatorChunkBytes {
+                bytes: allocator_chunk_bytes,
             });
         }
 
-        if !allocator_arena_bytes.is_multiple_of(page_bytes) {
-            return Err(HeapError::MisalignedAllocatorArenaBytes {
+        if !allocator_chunk_bytes.is_multiple_of(page_bytes) {
+            return Err(HeapError::MisalignedAllocatorChunkBytes {
                 page_bytes,
-                arena_bytes: allocator_arena_bytes,
+                chunk_bytes: allocator_chunk_bytes,
             });
         }
 
-        Ok(allocator_arena_bytes)
+        Ok(allocator_chunk_bytes)
+    }
+
+    /// Validate one configured virtual space size.
+    pub(crate) fn validate_space_bytes(
+        page_bytes: usize,
+        space_bytes: usize,
+    ) -> Result<usize, HeapError> {
+        if space_bytes == 0 {
+            return Err(HeapError::InvalidSpaceBytes { bytes: space_bytes });
+        }
+
+        if !space_bytes.is_multiple_of(page_bytes) {
+            return Err(HeapError::MisalignedSpaceBytes {
+                page_bytes,
+                space_bytes,
+            });
+        }
+
+        Ok(space_bytes)
     }
 
     /// Validate one configured small-allocation alignment.
@@ -232,11 +275,13 @@ impl HeapOptions {
         }
     }
 
-    /// Validate the common page and arena sizes shared by local and shared heaps.
+    /// Validate the common page and chunk sizes shared by local and shared heaps.
     fn validate_common(&self) -> Result<(), HeapError> {
         self.gc.validate()?;
         Self::validate_page_bytes(self.page_bytes)?;
-        Self::validate_allocator_arena_bytes(self.page_bytes, self.allocator_arena_bytes)?;
+        Self::validate_allocator_chunk_bytes(self.page_bytes, self.allocator_chunk_bytes)?;
+        Self::validate_space_bytes(self.page_bytes, self.heap_space_bytes)?;
+        Self::validate_space_bytes(self.page_bytes, self.raw_space_bytes)?;
         Self::validate_small_allocation_alignment_bytes(self.small_allocation_alignment_bytes)?;
 
         // keep all size classes aligned to the configured small-slot boundary
@@ -304,10 +349,10 @@ impl HeapOptions {
             });
         }
 
-        if allocator.arena_bytes() != self.allocator_arena_bytes {
-            return Err(HeapError::AllocatorArenaBytesMismatch {
-                option_arena_bytes: self.allocator_arena_bytes,
-                allocator_arena_bytes: allocator.arena_bytes(),
+        if allocator.chunk_bytes() != self.allocator_chunk_bytes {
+            return Err(HeapError::AllocatorChunkBytesMismatch {
+                option_chunk_bytes: self.allocator_chunk_bytes,
+                allocator_chunk_bytes: allocator.chunk_bytes(),
             });
         }
 
@@ -333,7 +378,7 @@ mod tests {
         };
 
         let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
                 .expect("allocator should build"),
         );
         let error =
@@ -353,7 +398,7 @@ mod tests {
         };
 
         let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
                 .expect("allocator should build"),
         );
         let error =
@@ -380,7 +425,7 @@ mod tests {
         };
 
         let allocator = Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_arena_bytes)
+            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
                 .expect("allocator should build"),
         );
         let error =

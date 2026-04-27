@@ -9,12 +9,8 @@ pub struct HeapSpaceUsage {
     pub allocation_count: usize,
     /// The logical live heap payload bytes.
     pub allocated_bytes: u64,
-    /// The exact active heap allocator bytes.
-    pub active_bytes: u64,
-    /// The exact mapped heap allocator page bytes.
-    pub mapped_bytes: u64,
-    /// The exact borrowed heap image bytes.
-    pub borrowed_bytes: u64,
+    /// The exact retained heap allocator-page bytes.
+    pub retained_bytes: u64,
 }
 
 /// Exact raw-space usage for one live heap.
@@ -24,12 +20,8 @@ pub struct RawSpaceUsage {
     pub allocation_count: usize,
     /// The logical live raw payload bytes.
     pub allocated_bytes: u64,
-    /// The exact active raw allocator bytes.
-    pub active_bytes: u64,
-    /// The exact mapped raw allocator page bytes.
-    pub mapped_bytes: u64,
-    /// The exact borrowed raw image bytes.
-    pub borrowed_bytes: u64,
+    /// The exact retained raw allocator-page bytes.
+    pub retained_bytes: u64,
 }
 
 /// Exact heap usage for one live heap.
@@ -47,19 +39,9 @@ impl HeapUsage {
         self.heap.allocated_bytes + self.raw.allocated_bytes
     }
 
-    /// Return the exact total active heap bytes.
-    pub fn active_bytes(&self) -> u64 {
-        self.heap.active_bytes + self.raw.active_bytes
-    }
-
-    /// Return the exact total mapped heap bytes.
-    pub fn mapped_bytes(&self) -> u64 {
-        self.heap.mapped_bytes + self.raw.mapped_bytes
-    }
-
-    /// Return the exact total borrowed image bytes.
-    pub fn borrowed_bytes(&self) -> u64 {
-        self.heap.borrowed_bytes + self.raw.borrowed_bytes
+    /// Return the exact total retained allocator-page bytes.
+    pub fn retained_bytes(&self) -> u64 {
+        self.heap.retained_bytes + self.raw.retained_bytes
     }
 }
 
