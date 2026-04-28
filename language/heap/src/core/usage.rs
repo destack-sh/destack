@@ -67,34 +67,29 @@ impl AllocationUsage {
     }
 
     /// Charge one allocation into this usage.
-    pub(crate) fn allocate(&mut self, byte_len: usize, _region: AccountingRegion) {
+    pub(crate) fn allocate(&mut self, byte_len: usize) {
         self.allocation_count += 1;
         self.allocated_bytes += byte_len as u64;
     }
 
     /// Replace one allocation byte count inside this usage.
-    pub(crate) fn resize(
-        &mut self,
-        previous_len: usize,
-        next_len: usize,
-        region: AccountingRegion,
-    ) {
+    pub(crate) fn resize(&mut self, previous_len: usize, next_len: usize) {
         let previous_len = previous_len as u64;
         let next_len = next_len as u64;
 
-        self.check_free(previous_len, region);
+        self.check_free(previous_len);
         self.allocated_bytes = self.allocated_bytes - previous_len + next_len;
     }
 
     /// Check whether this usage can release one allocation.
-    pub(crate) fn check_free(&self, freed_bytes: u64, _region: AccountingRegion) {
+    pub(crate) fn check_free(&self, freed_bytes: u64) {
         debug_assert!(self.allocation_count > 0);
         debug_assert!(self.allocated_bytes >= freed_bytes);
     }
 
     /// Release one allocation from this usage.
-    pub(crate) fn free(&mut self, freed_bytes: u64, region: AccountingRegion) {
-        self.check_free(freed_bytes, region);
+    pub(crate) fn free(&mut self, freed_bytes: u64) {
+        self.check_free(freed_bytes);
         self.allocation_count -= 1;
         self.allocated_bytes -= freed_bytes;
     }

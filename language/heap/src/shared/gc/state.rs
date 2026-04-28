@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 
 use crate::SharedHeapReference;
 
@@ -23,14 +23,12 @@ pub(crate) enum SharedTraceWork {
 }
 
 /// One registered shared GC worker handle.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SharedGcWorker {
     /// The worker registry key.
     index: usize,
     /// Work owned by this collector worker.
-    local: Arc<Mutex<Worker<SharedTraceWork>>>,
-    /// Public stealing handle for this worker.
-    stealer: Stealer<SharedTraceWork>,
+    local: Worker<SharedTraceWork>,
 }
 
 /// Shared trace queues for global work and worker-local work.
@@ -38,39 +36,27 @@ pub struct SharedGcWorker {
 pub(crate) struct SharedTraceQueue {
     /// Work published without a worker context.
     global: Injector<SharedTraceWork>,
-    /// Work owned by registered collector workers.
-    workers: RwLock<Vec<Option<SharedGcWorker>>>,
+    /// Stealing handles for registered collector workers.
+    stealers: Mutex<Vec<Option<Stealer<SharedTraceWork>>>>,
 }
 
 impl SharedTraceQueue {
     /// Return the GC worker registered for one runtime worker.
     pub(crate) fn worker(&self, worker_index: usize) -> SharedGcWorker {
-        {
-            let workers = self.workers.read();
-            if let Some(worker) = workers.get(worker_index).and_then(Option::as_ref) {
-                return worker.clone();
-            }
-        }
-
-        let mut workers = self.workers.write();
-        if let Some(worker) = workers.get(worker_index).and_then(Option::as_ref) {
-            return worker.clone();
-        }
-        if worker_index >= workers.len() {
-            workers.resize_with(worker_index + 1, || None);
-        }
-
         let local = Worker::new_fifo();
         let stealer = local.stealer();
-        let worker = SharedGcWorker {
+        let mut stealers = self.stealers.lock();
+
+        // preserve worker ids as direct indexes
+        if stealers.len() <= worker_index {
+            stealers.resize_with(worker_index + 1, || None);
+        }
+        stealers[worker_index] = Some(stealer);
+
+        SharedGcWorker {
             index: worker_index,
-            local: Arc::new(Mutex::new(local)),
-            stealer,
-        };
-
-        workers[worker_index] = Some(worker.clone());
-
-        worker
+            local,
+        }
     }
 
     /// Push one pending trace work item.
@@ -82,7 +68,7 @@ impl SharedTraceQueue {
         }
 
         if let Some(worker) = worker {
-            worker.local.lock().push(work);
+            worker.local.push(work);
 
             return;
         }
@@ -117,8 +103,9 @@ impl SharedTraceQueue {
             return false;
         }
 
-        for worker in self.workers.read().iter().filter_map(Option::as_ref) {
-            if !worker.stealer.is_empty() {
+        let stealers = self.stealers.lock().clone();
+        for stealer in stealers.into_iter().flatten() {
+            if !stealer.is_empty() {
                 return false;
             }
         }
@@ -130,8 +117,9 @@ impl SharedTraceQueue {
     pub(crate) fn clear(&self) {
         self.drain_global();
 
-        for worker in self.workers.read().iter().filter_map(Option::as_ref) {
-            self.drain_stealer(&worker.stealer);
+        let stealers = self.stealers_snapshot();
+        for stealer in stealers {
+            self.drain_stealer(&stealer);
         }
     }
 
@@ -142,10 +130,8 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
-        let local = worker.local.lock();
-
         while batch.len() < batch_len {
-            let Some(work) = local.pop() else {
+            let Some(work) = worker.local.pop() else {
                 break;
             };
 
@@ -167,10 +153,7 @@ impl SharedTraceQueue {
         };
 
         while batch.len() < batch_len {
-            let local = worker.local.lock();
-            let steal = self.global.steal_batch_and_pop(&local);
-            drop(local);
-
+            let steal = self.global.steal_batch_and_pop(&worker.local);
             match steal {
                 Steal::Success(work) => batch.push(work),
                 Steal::Empty => return,
@@ -217,17 +200,13 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
-        let workers = self.workers.read();
-        for (worker_index, worker) in workers.iter().enumerate() {
-            let Some(worker) = worker else {
-                continue;
-            };
-
-            if local_worker.is_some_and(|worker| worker.index == worker_index) {
+        let stealers = self.stealers_snapshot();
+        for (worker_index, stealer) in stealers.into_iter().enumerate() {
+            if local_worker.is_some_and(|local_worker| local_worker.index == worker_index) {
                 continue;
             }
 
-            self.steal_from_worker(local_worker, &worker.stealer, batch_len, batch);
+            self.steal_from_worker(local_worker, &stealer, batch_len, batch);
 
             if batch.len() == batch_len {
                 break;
@@ -256,9 +235,7 @@ impl SharedTraceQueue {
         };
 
         while batch.len() < batch_len {
-            let local = local_worker.local.lock();
-            let steal = stealer.steal_batch_and_pop(&local);
-            drop(local);
+            let steal = stealer.steal_batch_and_pop(&local_worker.local);
 
             match steal {
                 Steal::Success(work) => batch.push(work),
@@ -266,6 +243,15 @@ impl SharedTraceQueue {
                 Steal::Retry => continue,
             }
         }
+    }
+
+    /// Return the currently registered worker stealers.
+    fn stealers_snapshot(&self) -> Vec<Stealer<SharedTraceWork>> {
+        self.stealers
+            .lock()
+            .iter()
+            .filter_map(Clone::clone)
+            .collect()
     }
 }
 
@@ -370,9 +356,9 @@ mod tests {
     use super::{SharedTraceQueue, SharedTraceWork};
     use crate::SharedHeapReference;
 
-    /// Reuse worker-local queues for stable runtime worker ids.
+    /// Pop worker-local work before global work.
     #[test]
-    fn test_reuse_worker_queue_by_index() {
+    fn test_pop_worker_local_work_first() {
         let queue = SharedTraceQueue::default();
         let worker = queue.worker(7);
         queue.push(
@@ -382,16 +368,28 @@ mod tests {
                 start: 0,
             },
         );
+        queue.push(
+            None,
+            SharedTraceWork::Large {
+                reference: SharedHeapReference::new(13),
+                start: 0,
+            },
+        );
 
-        let worker = queue.worker(7);
-        let batch = queue.pop_batch(Some(&worker), 1);
+        let batch = queue.pop_batch(Some(&worker), 2);
 
         assert_eq!(
             batch,
-            vec![SharedTraceWork::Large {
-                reference: SharedHeapReference::new(11),
-                start: 0,
-            }]
+            vec![
+                SharedTraceWork::Large {
+                    reference: SharedHeapReference::new(11),
+                    start: 0,
+                },
+                SharedTraceWork::Large {
+                    reference: SharedHeapReference::new(13),
+                    start: 0,
+                },
+            ]
         );
     }
 }
