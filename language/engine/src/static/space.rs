@@ -109,6 +109,26 @@ impl StaticSpace {
         })
     }
 
+    /// Return whether static memory owns one mutable byte range.
+    pub fn owns_mutable_pointer_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
+        let address = pointer.address();
+        let Some(end) = address.checked_add(byte_len) else {
+            return false;
+        };
+
+        // mutable region ownership
+        self.regions.iter().any(|region| {
+            if !region.is_mutable {
+                return false;
+            }
+
+            let start = self.bytes.as_ptr() as usize + region.offset;
+            let region_end = start.saturating_add(region.byte_len);
+
+            start <= address && end <= region_end
+        })
+    }
+
     /// Return an iterator over static regions.
     pub fn iter_regions(&self) -> impl Iterator<Item = (StaticId, &StaticRegion, &[u8])> + '_ {
         self.regions.iter().filter_map(|region| {
