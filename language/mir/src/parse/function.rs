@@ -3,11 +3,11 @@ use destack_source::Span;
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, Block,
-    BlockTarget, Call, CallBehavior, CheckConstraint, ExecutionModel, ExecutionStage, Function,
-    FunctionHeaderSpans, Instruction, IntegerReference, Linkage, Local, LocalNodeId,
-    LocalReference, MemoryEffect, Mutability, Ownership, Parameter, PointerAttribute, SwitchCase,
-    Terminator, TrapKind, TypeReference, TypedValueSpan, Value, ValueReference,
+    AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
+    CallBehavior, CheckConstraint, Function, FunctionHeaderSpans, Instruction, IntegerReference,
+    Linkage, Local, LocalNodeId, LocalReference, MemoryEffect, Mutability, Ownership, Parameter,
+    PointerAttribute, SwitchCase, Terminator, TrapKind, TypeReference, TypedValueSpan, Value,
+    ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -19,16 +19,8 @@ impl Parser {
     pub(super) fn resolve_function_attributes(
         &mut self,
         attributes: &[Attribute],
-    ) -> ParseResult<(
-        Option<ExecutionModel>,
-        Option<ExecutionStage>,
-        Option<[u32; 3]>,
-        Option<TypeReference>,
-    )> {
-        // metadata outputs
-        let mut execution_model = None;
-        let mut execution_stage = None;
-        let mut workgroup_size = None;
+    ) -> ParseResult<Option<TypeReference>> {
+        // metadata output
         let mut environment_type = None;
 
         // inspect attributes
@@ -37,106 +29,28 @@ impl Parser {
                 crate::AttributeIdentifier::Identifier(name) => self.strings.get(name).to_string(),
                 crate::AttributeIdentifier::Missing | crate::AttributeIdentifier::Error => continue,
             };
-            match name.as_str() {
-                "executionModel" => {
-                    if execution_model.is_some() {
+            if name.as_str() == "environment" {
+                if environment_type.is_some() {
+                    return Err(ParseError::new(
+                        "duplicate environment attribute",
+                        self.pos(),
+                    ));
+                }
+
+                let env_type = match &attribute.args {
+                    AttributeArgs::Value(AttributeValue::Type(value)) => *value,
+                    _ => {
                         return Err(ParseError::new(
-                            "duplicate executionModel attribute",
+                            "environment expects a type value",
                             self.pos(),
                         ));
                     }
-
-                    let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(
-                            crate::AttributeIdentifier::Identifier(value),
-                        )) => self.strings.get(*value),
-                        AttributeArgs::Value(AttributeValue::String(value)) => {
-                            self.strings.get(*value)
-                        }
-                        _ => {
-                            return Err(ParseError::new(
-                                "executionModel expects an identifier",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    let model = ExecutionModel::try_from(value.as_ref()).map_err(|_| {
-                        ParseError::invalid(
-                            &format!("execution model '{}'", value.as_ref()),
-                            self.pos(),
-                        )
-                    })?;
-                    execution_model = Some(model);
-                }
-                "executionStage" => {
-                    if execution_stage.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate executionStage attribute",
-                            self.pos(),
-                        ));
-                    }
-
-                    let value = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Identifier(
-                            crate::AttributeIdentifier::Identifier(value),
-                        )) => self.strings.get(*value),
-                        AttributeArgs::Value(AttributeValue::String(value)) => {
-                            self.strings.get(*value)
-                        }
-                        _ => {
-                            return Err(ParseError::new(
-                                "executionStage expects an identifier",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    let stage = ExecutionStage::try_from(value.as_ref()).map_err(|_| {
-                        ParseError::invalid(
-                            &format!("execution stage '{}'", value.as_ref()),
-                            self.pos(),
-                        )
-                    })?;
-                    execution_stage = Some(stage);
-                }
-                "workgroupSize" => {
-                    if workgroup_size.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroupSize attribute",
-                            self.pos(),
-                        ));
-                    }
-
-                    workgroup_size = Some(self.parse_workgroup_size(&attribute.args)?);
-                }
-                "environment" => {
-                    if environment_type.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate environment attribute",
-                            self.pos(),
-                        ));
-                    }
-
-                    let env_type = match &attribute.args {
-                        AttributeArgs::Value(AttributeValue::Type(value)) => *value,
-                        _ => {
-                            return Err(ParseError::new(
-                                "environment expects a type value",
-                                self.pos(),
-                            ));
-                        }
-                    };
-                    environment_type = Some(env_type);
-                }
-                _ => {}
+                };
+                environment_type = Some(env_type);
             }
         }
 
-        Ok((
-            execution_model,
-            execution_stage,
-            workgroup_size,
-            environment_type,
-        ))
+        Ok(environment_type)
     }
 
     /// Parse a function definition or declaration.
@@ -164,8 +78,7 @@ impl Parser {
         self.reset_function_parse_state();
 
         // function metadata
-        let (execution_model, execution_stage, workgroup_size, environment_type) =
-            self.resolve_function_attributes(&attributes)?;
+        let environment_type = self.resolve_function_attributes(&attributes)?;
 
         // parameters
         let signature_start = self.pos();
@@ -193,9 +106,6 @@ impl Parser {
             let mut function =
                 Function::import(name_id, parameters, TypeReference::Type(return_type));
             function.parameter_names = parameter_names;
-            function.execution_model = execution_model;
-            function.execution_stage = execution_stage;
-            function.workgroup_size = workgroup_size;
             function.environment = environment_type;
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
 
@@ -264,9 +174,6 @@ impl Parser {
         function.allocation_size = None;
         function.parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         function.return_attribute = PointerAttribute::default();
-        function.execution_model = execution_model;
-        function.execution_stage = execution_stage;
-        function.workgroup_size = workgroup_size;
         function.environment = environment_type;
 
         // body
@@ -396,151 +303,6 @@ impl Parser {
             open_paren_span,
             close_paren_span,
         ))
-    }
-
-    /// Parse a workgroupSize attribute.
-    fn parse_workgroup_size(&mut self, args: &AttributeArgs) -> ParseResult<[u32; 3]> {
-        // list or key values
-        let dims = match args {
-            AttributeArgs::Value(AttributeValue::Integer(IntegerReference::Integer(value))) => {
-                [*value, 1, 1]
-            }
-            AttributeArgs::Values(values) => self.parse_workgroup_dims_from_values(values)?,
-            AttributeArgs::Value(AttributeValue::List(values)) => {
-                self.parse_workgroup_dims_from_values(values)?
-            }
-            AttributeArgs::KeyValues(pairs) => self.parse_workgroup_dims_from_pairs(pairs)?,
-            _ => {
-                return Err(ParseError::new(
-                    "workgroupSize expects one to three integer values",
-                    self.pos(),
-                ));
-            }
-        };
-
-        self.check_workgroup_size(dims)
-    }
-
-    /// Parse positional workgroup sizes into a full 3D array.
-    fn parse_workgroup_dims_from_values(
-        &mut self,
-        values: &[AttributeValue],
-    ) -> ParseResult<[i64; 3]> {
-        // require between one and three values
-        if values.is_empty() || values.len() > 3 {
-            return Err(ParseError::new(
-                "workgroupSize expects one to three integer values",
-                self.pos(),
-            ));
-        }
-
-        // default missing dimensions to 1
-        let mut dims = [1i64; 3];
-        for (index, value) in values.iter().enumerate() {
-            match value {
-                AttributeValue::Integer(IntegerReference::Integer(value)) => dims[index] = *value,
-                _ => {
-                    return Err(ParseError::new(
-                        "workgroupSize values must be integers",
-                        self.pos(),
-                    ));
-                }
-            }
-        }
-
-        Ok(dims)
-    }
-
-    /// Parse keyed workgroup sizes into a full 3D array.
-    fn parse_workgroup_dims_from_pairs(
-        &mut self,
-        pairs: &[AttributeKeyValue],
-    ) -> ParseResult<[i64; 3]> {
-        // collect keyed values
-        let mut x = None;
-        let mut y = None;
-        let mut z = None;
-        for pair in pairs {
-            let key = match pair.key {
-                crate::AttributeIdentifier::Identifier(key) => self.strings.get(key),
-                crate::AttributeIdentifier::Missing | crate::AttributeIdentifier::Error => {
-                    return Err(ParseError::new(
-                        "workgroupSize keys must be identifiers",
-                        self.pos(),
-                    ));
-                }
-            };
-            let value = match &pair.value {
-                AttributeValue::Integer(IntegerReference::Integer(value)) => *value,
-                _ => {
-                    return Err(ParseError::new(
-                        "workgroupSize values must be integers",
-                        self.pos(),
-                    ));
-                }
-            };
-
-            match key.as_ref() {
-                "x" => {
-                    if x.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroupSize x value",
-                            self.pos(),
-                        ));
-                    }
-                    x = Some(value);
-                }
-                "y" => {
-                    if y.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroupSize y value",
-                            self.pos(),
-                        ));
-                    }
-                    y = Some(value);
-                }
-                "z" => {
-                    if z.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate workgroupSize z value",
-                            self.pos(),
-                        ));
-                    }
-                    z = Some(value);
-                }
-                _ => {
-                    return Err(ParseError::invalid(
-                        &format!("workgroupSize key '{}'", key.as_ref()),
-                        self.pos(),
-                    ));
-                }
-            }
-        }
-
-        // require x and default missing dimensions to 1
-        let x = x.ok_or_else(|| ParseError::new("workgroupSize requires x", self.pos()))?;
-        let y = y.unwrap_or(1);
-        let z = z.unwrap_or(1);
-
-        Ok([x, y, z])
-    }
-
-    /// Validate and coerce workgroup size values.
-    fn check_workgroup_size(&mut self, dims: [i64; 3]) -> ParseResult<[u32; 3]> {
-        // validate dimensions
-        let mut size = [0u32; 3];
-        for (index, dim) in dims.into_iter().enumerate() {
-            if dim < 0 {
-                return Err(ParseError::new(
-                    "workgroupSize values must be non-negative",
-                    self.pos(),
-                ));
-            }
-
-            size[index] = dim as u32;
-        }
-
-        Ok(size)
     }
 
     /// Parse a local variable declaration.

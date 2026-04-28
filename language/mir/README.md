@@ -207,8 +207,7 @@ Functions contain basic blocks forming a CFG.
 Imported functions have no body (`entry: None`, empty blocks).
 
 ```mir
-@executionModel(kernel)
-@workgroupSize(8, 1, 1)
+@cold
 function kernel(): void {
 entry:
     return
@@ -240,8 +239,8 @@ The supported forms are `@name`, `@name(value)`, and `@name(key=value, ...)`.
 Attribute values support identifiers, integers, floats, strings, and lists.
 
 ```mir
-@executionModel(graphics)
-@executionStage(vertex)
+@cold
+@inline
 function vertexMain(): void {
 entry:
     return

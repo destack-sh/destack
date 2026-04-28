@@ -1,12 +1,12 @@
 use super::assert_format;
 
-/// Formats kernel metadata canonically.
+/// Formats function attributes canonically.
 #[test]
 fn test_format_function_metadata() {
     assert_format(
         r#"
-@executionModel(kernel)
-@workgroupSize(8, 1, 1)
+@cold
+@inline
 function kernel(): void {
 entry0:
     return
@@ -15,13 +15,13 @@ entry0:
     );
 }
 
-/// Formats graphics stage metadata canonically.
+/// Formats staged function attributes canonically.
 #[test]
 fn test_format_function_stage_metadata() {
     assert_format(
         r#"
-@executionModel(graphics)
-@executionStage(vertex)
+@profile("interactive")
+@priority(1)
 function vertexMain(): void {
 entry0:
     return

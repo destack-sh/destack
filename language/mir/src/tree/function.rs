@@ -75,119 +75,6 @@ impl SuspensionKind {
     }
 }
 
-/// Execution model for GPU and accelerator kernels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ExecutionModel {
-    /// General-purpose kernel entry point.
-    Kernel,
-    /// Graphics pipeline entry point.
-    Graphics,
-    /// Ray tracing pipeline entry point.
-    RayTracing,
-}
-
-impl ExecutionModel {
-    /// Text representation for formatting and parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            ExecutionModel::Kernel => "kernel",
-            ExecutionModel::Graphics => "graphics",
-            ExecutionModel::RayTracing => "rayTracing",
-        }
-    }
-}
-
-/// Parse execution models from their text identifiers.
-impl TryFrom<&str> for ExecutionModel {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "kernel" => Ok(ExecutionModel::Kernel),
-            "compute" => Ok(ExecutionModel::Kernel),
-            "graphics" => Ok(ExecutionModel::Graphics),
-            "rayTracing" => Ok(ExecutionModel::RayTracing),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Execution stage within a pipeline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ExecutionStage {
-    /// Vertex stage.
-    Vertex,
-    /// Tessellation control stage.
-    TessellationControl,
-    /// Tessellation evaluation stage.
-    TessellationEvaluation,
-    /// Geometry stage.
-    Geometry,
-    /// Fragment stage.
-    Fragment,
-    /// Task stage.
-    Task,
-    /// Mesh stage.
-    Mesh,
-    /// Ray generation stage.
-    RayGen,
-    /// Any hit stage.
-    AnyHit,
-    /// Closest hit stage.
-    ClosestHit,
-    /// Miss stage.
-    Miss,
-    /// Intersection stage.
-    Intersection,
-    /// Callable stage.
-    Callable,
-}
-
-impl ExecutionStage {
-    /// Text representation for formatting and parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            ExecutionStage::Vertex => "vertex",
-            ExecutionStage::TessellationControl => "tessellationControl",
-            ExecutionStage::TessellationEvaluation => "tessellationEvaluation",
-            ExecutionStage::Geometry => "geometry",
-            ExecutionStage::Fragment => "fragment",
-            ExecutionStage::Task => "task",
-            ExecutionStage::Mesh => "mesh",
-            ExecutionStage::RayGen => "raygen",
-            ExecutionStage::AnyHit => "anyHit",
-            ExecutionStage::ClosestHit => "closestHit",
-            ExecutionStage::Miss => "miss",
-            ExecutionStage::Intersection => "intersection",
-            ExecutionStage::Callable => "callable",
-        }
-    }
-}
-
-/// Parse execution stages from their text identifiers.
-impl TryFrom<&str> for ExecutionStage {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "vertex" => Ok(ExecutionStage::Vertex),
-            "tessellationControl" => Ok(ExecutionStage::TessellationControl),
-            "tessellationEvaluation" => Ok(ExecutionStage::TessellationEvaluation),
-            "geometry" => Ok(ExecutionStage::Geometry),
-            "fragment" => Ok(ExecutionStage::Fragment),
-            "task" => Ok(ExecutionStage::Task),
-            "mesh" => Ok(ExecutionStage::Mesh),
-            "raygen" => Ok(ExecutionStage::RayGen),
-            "anyHit" => Ok(ExecutionStage::AnyHit),
-            "closestHit" => Ok(ExecutionStage::ClosestHit),
-            "miss" => Ok(ExecutionStage::Miss),
-            "intersection" => Ok(ExecutionStage::Intersection),
-            "callable" => Ok(ExecutionStage::Callable),
-            _ => Err(()),
-        }
-    }
-}
-
 /// A function in MIR.
 ///
 /// Functions are the top-level compilation unit, containing:
@@ -241,13 +128,6 @@ pub struct Function {
     pub allocation: AllocationMode,
     /// The suspension kind when this function can suspend.
     pub suspension: Option<SuspensionKind>,
-
-    /// The execution model for GPU kernels.
-    pub execution_model: Option<ExecutionModel>,
-    /// The execution stage within the pipeline.
-    pub execution_stage: Option<ExecutionStage>,
-    /// The workgroup size for compute kernels.
-    pub workgroup_size: Option<[u32; 3]>,
 }
 
 impl Node for Function {
@@ -325,9 +205,6 @@ impl Function {
             linkage,
             allocation: AllocationMode::Any,
             suspension: None,
-            execution_model: None,
-            execution_stage: None,
-            workgroup_size: None,
             environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),

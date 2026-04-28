@@ -116,26 +116,6 @@ pub(super) fn format_function_attributes<'a>(
         }
     }
 
-    // derived metadata
-    if !has_attribute(attributes, "executionModel", f)
-        && let Some(model) = function.execution_model
-    {
-        write_simple_attribute("executionModel", model.to_str(), f)?;
-    }
-
-    if !has_attribute(attributes, "executionStage", f)
-        && let Some(stage) = function.execution_stage
-    {
-        write_simple_attribute("executionStage", stage.to_str(), f)?;
-    }
-
-    // derived workgroup size
-    if !has_attribute(attributes, "workgroupSize", f)
-        && let Some(size) = function.workgroup_size
-    {
-        write_workgroup_size_attribute(size, f)?;
-    }
-
     if !has_attribute(attributes, "environment", f)
         && let Some(environment) = function.environment
     {
@@ -171,49 +151,6 @@ fn has_attribute(attributes: &[crate::Attribute], name: &str, f: &MirFormatter<'
                 if f.context().strings.get(identifier) == name
         )
     })
-}
-
-/// Write one simple string attribute line.
-fn write_simple_attribute<'a>(
-    name: &str,
-    value: &str,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            token("@"),
-            text(name),
-            token("("),
-            text(value),
-            token(")"),
-            hard_line_break()
-        ]
-    )
-}
-
-/// Write one workgroup size attribute line.
-fn write_workgroup_size_attribute<'a>(
-    size: [u32; 3],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            token("@"),
-            token("workgroupSize"),
-            token("("),
-            text(&size[0].to_string()),
-            token(","),
-            space(),
-            text(&size[1].to_string()),
-            token(","),
-            space(),
-            text(&size[2].to_string()),
-            token(")"),
-            hard_line_break()
-        ]
-    )
 }
 
 /// Format the body of one local function.
