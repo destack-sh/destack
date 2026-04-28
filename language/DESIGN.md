@@ -4,33 +4,26 @@
 >
 > This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
 
-Destack is designed as a superset of TypeScript.
-Destack also supports compiling to JS/TS targets, and works with regular JS/TS dependencies when they fit Destack's strict typed model.
-So, if you don't need or want any additional features you can ignore the "++" part of Destack entirely, write completely standard `.ts` and `.tsx` files, and just stop reading right here.
-For most use cases, most of the time, the "++" is happily out of sight and out of mind.
+Destack (`.ds`) is a superset of "modern strict" TypeScript that natively supports reading `.ts` and `.tsx` files, and can also compile to JS/TS targets (including the web and Node-like runtimes).
+Regular TypeScript dependencies _just work_ **if** they fit Destack's strict TypeScript model.
+So, if you don't need or want any additional features you can ignore the "++" part of Destack entirely, write completely standard `.ts` and `.tsx` files.
 
 Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for truly full stack software systems.
 We support full `TSX` syntax, and modern `TS` code just works, because the Destack language ("TS++") is a superset of modern _TypeScript_.
 To enable truly universal programming with TypeScript, even in high performance ("systems") use cases, we support some _additional_ stuff like manual memory management features.
 
-Invariably, when starting with an existing language as feature rich as modern TypeScript, any _new_ additions risk becoming unpredictably combinatorial in their complexity (hello C++).
-We tried hard to keep the actual net new concepts to the minimal set required to express all the missing things we needed, while also filling some gaps we experienced in the language that TypeScript cannot address directly (mostly due to its commitment to type-free emit).
-
 ## "TypeScript++"
 
-We're very early in software.
-We want to make correct, optimal, integrated full-stack software systems simple and fast to build.
-We cannot confidently build the next generation of software without unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
+We're very early in field of software engineering.
+We want to make correct, optimal, integrated full-stack software systems simple and fast to build, and We cannot confidently do that by stringing together inefficient, fragmented systems.
+TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software well (because in many ways, it already is, albeit suboptimally).
 
-TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software (because in many ways, it already is, albeit suboptimally).
-Unlike Python (and Rust and Go and insert your favorite language), the TypeScript ecosystem also has a good answer to rich frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous execution platform.
+The TypeScript ecosystem also has a good answer to modern frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous software platform.
+Performance-wise, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already, sort of).
+Thus, by embracing TypeScript, we can build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, but is completely free of JS overhead and (some) of its baggage.
 
-So, TypeScript runs everywhere, everyone knows it, and it has a massive ecosystem.
-If you can compile to JS/TS, and behave like TS, you get a "new" language that doesn't actually feel new, but more like TSX or Svelte.
-Then, because modern TypeScript is very close to a fully AOT-compilable language, we can build a new toolchain completely free of JS runtimes and "legacy" code while staying true to the behavior most developers already know well.
-
-Thus, wherever Destack looks like TypeScript - e.g., `interface`, `class`, `async`/`await`, objects, templates, generics, types, everything! - it behaves like TypeScript, because it _is_ TypeScript.
-Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack, and the `++` features are opt-in and complementary.
+TypeScript is not a simple language, and any additional features risk becoming unpredictably combinatorial  (hello C++).
+However, we need to add _some_ stuff to actually solve systems programming in a serious way, and we wanted to take the opportunity to add some modern ergonomic wins like pattern matching.
 
 | Feature | What | Why |
 |---------|-------------|-----|
@@ -237,6 +230,7 @@ Class-shaped declarations can also declare associated compile-time constants wit
 Associated constants are static members, have no instance storage, and must be statically evaluable.
 When an associated constant is used in a type expression, its evaluated value participates in that resulting type.
 Associated constants do not otherwise become part of a type's identity merely by existing.
+If an associated constant affects a type, a member set, or layout, it has to fit the static path described below.
 
 ```ds
 interface LogStore<Record> {
@@ -366,6 +360,9 @@ enum OperatingSystem {
 ```
 
 `@if` is allowed on module declarations, class and struct members, interface members, enum fields, and other declaration-shaped nodes.
+`@if` can use whatever static facts are in scope.
+At module level, that mostly means `import.meta` and profile constants.
+Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
 Multiple `@if` annotations combine with logical AND.
 
 ## Expressions
@@ -723,18 +720,25 @@ const dynamicValue = factorial(getUserInput()); // runtime (in this case, at mod
 
 Functions are not marked explicitly as either "comptime" or "runtime" functions, instead, the call site determines when a function runs.
 
+### Static Evaluation
+
+Some compile-time questions come before comptime code can run at all.
+Destack has to know which declarations exist, what types mean, and what layout a generic instantiation has before it can lower that instantiation.
+That early path is **static evaluation**.
+
+Static evaluation is intentionally small and boring.
+It can fold literals, arithmetic and boolean logic on static values, `import.meta`, profile constants, substituted generic parameters, associated types and constants, type predicates like `T extends U`, and intrinsic type algebra queries like `SpaceOf<T>` and `SupportsSpace<T, S>`.
+Generic value parameters, associated constants in type positions, conditional types, `@if`, fixed array lengths, and layout decisions all go through this path.
+Runtime values do not, and neither does full comptime execution.
+
 ### Execution Model
 
-Destack distinguishes **static execution** and **comptime execution**:
+Static evaluation decides program shape during Analyze and generic instantiation.
+Full comptime execution is the more general path.
+It runs lowered MIR in the VM interpreter during Execute, writes the results back into the program as constants, and eliminates dead branches.
 
-- **Static execution** is a small, closed-form subset that can be evaluated during Analyze.
-  This includes literals, arithmetic on literals, known constants, generic value arguments, associated constants, and other syntax that can be folded without executing arbitrary user code.
-  These are required for generic value parameters and type-level arguments.
-- **Comptime execution** evaluates `comptime` expressions and blocks by running lowered MIR in the VM interpreter during Execute.
-  Results are written back into the program as constants and dead branches are eliminated.
-
-Static execution must not depend on full comptime execution.
-This avoids dependency cycles between generic solving, type normalization, and runtime-shaped comptime code.
+The separation matters.
+Without it, generic solving, type normalization, layout, and comptime code can all end up waiting on each other.
 Full comptime evaluation happens after monomorphization and lowering, with full type information available.
 
 ### Generic Evaluation
@@ -753,6 +757,38 @@ Associated constants must be statically evaluable.
 Conditional and mapped types run over normalized type algebra.
 Ownership and placement are part of that algebra through `Form<T, O, S, R>`, so `BaseOf`, `OwnershipOf`, `SpaceOf`, and `RegionOf` are ordinary type-level queries.
 `SupportsSpace<T, S>` is the corresponding intrinsic type-level placement predicate.
+
+`@if` follows the same rule.
+Inside a generic declaration, it is held until generic arguments are substituted.
+That means different generic instantiations may have different member sets and layouts.
+
+```ds
+struct Buffer<T, S: Space> {
+    @if(S extends "shared")
+    lock: SharedLock;
+
+    @if(S extends "local")
+    lock: LocalLock;
+
+    data: T[];
+}
+```
+
+Here `S` is the aggregate's placement parameter.
+Because `data` is ambient, it follows the containing placement, so it does not need `WithSpace<T, S>`.
+
+The same mechanism can select different library representations for different spaces, as long as the abstraction still means the same thing:
+
+```ds
+type Rc<T, S: Space = "local"> =
+    S extends "shared" ? AtomicRc<T> : LocalRc<T>;
+
+type Lock<T, S: Space = "local"> =
+    S extends "shared" ? SharedLock<T> : LocalLock<T>;
+```
+
+`Rc<T, "local">` and `Rc<T, "shared">` can have different costs and different internal machinery, but both still mean reference-counted shared ownership.
+That is the line: placement-aware aliases may choose the cheapest representation that preserves the abstraction, but ordinary data should not silently become a different concurrency protocol.
 
 Inference is local.
 The compiler infers generic arguments at the call site and inside the current module, but exported APIs must expose enough explicit shape for importing modules.
@@ -867,11 +903,9 @@ TypeScript does not encode "ownership" in its type system: all reference types a
 This is convenient, but sometimes we want to take direct ownership of memory, whether for better control and performance, or just to express and enforce invariants in the code.
 Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
 
-Further, as TS already has a strong notion of local memory as the implicit memory model, we also support explicit shared memory model as part of a generalized, explicit notion of "place" local to a worker, shared across workers, or another address space.
-On the shared heap side, this is basically a generalization around `SharedArrayBuffer`-like semantics.
-As with ownership, most of the time, developers don't need to think about placement, but it is very useful in certain situations.
-
-### Forms
+TypeScript inherits the JavaScript / web model of local, single-threaded execution.
+Destack embraces and extends this ambient model and also support more ergonomic shared memory as part of a generalized notion of "place": local to a Worker, shared across Workers, or in a different address space.
+For shared memory, this is conceptually like a proper object graph around `SharedArrayBuffer`-like semantics, except that all object and management features work the same.
 
 | Form | Ownership | Region | Place | Liveness | MIR shape | Value |
 |------|-----------|--------|-------|---------------|-----------|-------|
@@ -884,29 +918,29 @@ As with ownership, most of the time, developers don't need to think about placem
 | `*T` | raw | none | ambient | does not keep anything alive | `ref<T, raw, space(X)>` | unsafe raw typed pointer |
 | `*shared T` | raw | none | shared | does not keep anything alive | `ref<T, raw, space(shared)>` | unsafe shared raw typed pointer |
 
-Managed and owned values both live on the heap.
-
-Heap storage is traced whenever `T` may contain references.
-
-Raw storage is never traced.
 
 ### Local And Shared Space
 
-Local space is the default per-worker or per-isolate memory space.
+Following web tradition, a `Worker` is Destack's unit of concurrent execution.
+Local space is the current Worker's local heap.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space unless a type or binding says otherwise.
 
-Shared space is runtime-shared memory visible across workers or isolates.
+Shared space is runtime-shared memory visible to multiple Workers.
 It is the typed, generalized version of the `SharedArrayBuffer` idea rather than a separate language.
 `shared T` means `T` re-based into shared space, i.e. `WithSpace<T, "shared">`.
+Other spaces can use the same type algebra, for example device or GPU memory, as long as the target and library define what values and operations are valid there.
 `local` is not a surface keyword.
 The local space can be named explicitly through `WithSpace<T, "local">` or `@space("local")` where an explicit space annotation is needed.
 
 Local values may point to shared values.
-Shared values must not point into local memory.
+Shared values must not point directly into a Worker-local heap.
 That invariant is the core reason placement is in the type system.
 
 Shared placement is not synchronization.
-Cross-worker mutation still needs explicit atomics, locks, channels, or another library protocol.
+It does not imply atomic access, locking, actor isolation, or `Sync`.
+Ordinary reads and writes of shared values use ordinary syntax, but they do not establish cross-Worker ordering, mutual exclusion, or communication.
+Code that needs those guarantees uses atomics, locks, channels, actors, transactions, job systems, or another explicit protocol.
+Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values, but `shared` itself is only placement.
 
 Placement is contextual.
 An aggregate field with ambient placement is interpreted in the placement of the containing value.
@@ -933,7 +967,7 @@ It is structural for transparent values and compiler-defined for opaque or runti
 
 ### Relations
 
-The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory should not point into local memory.
+The rules for who can point into what mostly follow from the fact that references must always be valid, and shared memory should not point into a Worker-local heap.
 (And raw pointers are your own dangerous business.)
 
 | From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
@@ -1001,7 +1035,7 @@ That integration is required so ownership composes with ordinary managed program
 
 Types containing owned fields are affine and therefore do not silently copy.
 
-Ordinary borrows should not cross `await`, suspension, or worker transfer boundaries at first.
+Ordinary borrows should not cross `await`, suspension, or Worker transfer boundaries at first.
 Owned values may cross suspension points by moving into the coroutine frame.
 If an owned value is dead before suspension, cleanup is inserted before the suspend edge.
 
