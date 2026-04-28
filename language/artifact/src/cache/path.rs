@@ -1,38 +1,35 @@
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use rustc_hash::FxHasher;
+use destack_core::stable_hash_text_128;
 
-/// Directory name for persisted cache entries.
+/// Directory name for cache entries.
 pub const CACHE_DIR_NAME: &str = "cache";
 /// Directory name for language cache entries.
 pub const LANGUAGE_CACHE_DIR_NAME: &str = "language";
 /// Directory name for shared workspace partitions.
 pub const WORKSPACES_CACHE_DIR_NAME: &str = "workspaces";
-/// Directory name for persisted artifact image entries.
+/// Directory name for artifact image entries.
 pub const ARTIFACT_CACHE_DIR_NAME: &str = "artifacts";
-/// Directory name for persisted artifact content entries.
-pub const ARTIFACT_CONTENTS_DIR_NAME: &str = "contents";
-/// Directory name for current artifact content ids.
-pub const ARTIFACT_CACHE_CURRENT_DIR_NAME: &str = "current";
-/// Lock file name for current artifact updates.
-pub const ARTIFACT_CACHE_LOCK_FILE_NAME: &str = "artifacts.lock";
+/// Directory name for artifact images.
+pub const ARTIFACT_IMAGES_DIR_NAME: &str = "images";
+/// Lock file name for artifact image writes.
+pub const ARTIFACT_IMAGE_LOCK_FILE_NAME: &str = "images.lock";
 
-/// One persisted artifact cache layout.
+/// One artifact image cache layout.
 #[derive(Debug, Clone)]
-pub struct ArtifactCacheLayout {
+pub struct ArtifactImageCacheLayout {
     /// The `.destack` cache root.
     cache_root: PathBuf,
     /// The stable workspace root.
     workspace_root: PathBuf,
-    /// The persisted cache abi.
+    /// The cache ABI.
     cache_abi: String,
     /// Whether this root is shared across workspaces.
     is_shared_root: bool,
 }
 
-impl ArtifactCacheLayout {
-    /// Create a persisted artifact cache layout.
+impl ArtifactImageCacheLayout {
+    /// Create an artifact image cache layout.
     pub fn new(
         cache_root: &Path,
         workspace_root: &Path,
@@ -47,16 +44,16 @@ impl ArtifactCacheLayout {
         }
     }
 
-    /// Return the language cache abi.
+    /// Return the language cache ABI.
     fn cache_abi(&self) -> &str {
         &self.cache_abi
     }
 
     /// Return the stable workspace cache key.
     fn workspace_key(&self) -> String {
-        let mut hasher = FxHasher::default();
-        self.workspace_root.hash(&mut hasher);
-        format!("{:016x}", hasher.finish())
+        let workspace_root = self.workspace_root.to_string_lossy();
+
+        format!("{:032x}", stable_hash_text_128(&workspace_root))
     }
 
     /// Return the language cache root.
@@ -66,7 +63,7 @@ impl ArtifactCacheLayout {
             .join(LANGUAGE_CACHE_DIR_NAME)
     }
 
-    /// Return the cache abi root.
+    /// Return the cache ABI root.
     fn abi_root(&self) -> PathBuf {
         self.language_root().join(self.cache_abi())
     }
@@ -83,23 +80,18 @@ impl ArtifactCacheLayout {
         self.abi_root()
     }
 
-    /// Return the persisted artifact cache root.
+    /// Return the artifact cache root.
     fn artifact_root(&self) -> PathBuf {
         self.workspace_root().join(ARTIFACT_CACHE_DIR_NAME)
     }
 
-    /// Return the persisted artifact content root.
-    pub fn content_root(&self) -> PathBuf {
-        self.artifact_root().join(ARTIFACT_CONTENTS_DIR_NAME)
+    /// Return the artifact image root.
+    pub fn image_root(&self) -> PathBuf {
+        self.artifact_root().join(ARTIFACT_IMAGES_DIR_NAME)
     }
 
-    /// Return the current artifact root.
-    pub(crate) fn current_root(&self) -> PathBuf {
-        self.artifact_root().join(ARTIFACT_CACHE_CURRENT_DIR_NAME)
-    }
-
-    /// Return the artifact cache lock path.
-    pub(crate) fn artifact_lock_path(&self) -> PathBuf {
-        self.artifact_root().join(ARTIFACT_CACHE_LOCK_FILE_NAME)
+    /// Return the artifact image write lock path.
+    pub(crate) fn image_lock_path(&self) -> PathBuf {
+        self.artifact_root().join(ARTIFACT_IMAGE_LOCK_FILE_NAME)
     }
 }

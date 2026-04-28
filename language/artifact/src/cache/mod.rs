@@ -1,5 +1,4 @@
 mod artifact;
-mod hash;
 #[cfg(all(not(target_os = "wasi"), not(target_arch = "wasm32")))]
 mod host;
 mod memory;
@@ -10,7 +9,6 @@ mod store;
 mod wasi;
 
 pub use artifact::*;
-pub use hash::*;
 #[cfg(all(not(target_os = "wasi"), not(target_arch = "wasm32")))]
 pub use host::*;
 pub use memory::*;

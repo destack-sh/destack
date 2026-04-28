@@ -1,7 +1,7 @@
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::cache::{CacheMetadata, CacheStore, CacheStoreError};
+use crate::cache::{CacheStore, CacheStoreError};
 
 /// Cache store backed by disk on unsupported targets.
 #[derive(Debug, Default, Clone)]
@@ -15,7 +15,11 @@ impl DiskCacheStore {
 }
 
 impl CacheStore for DiskCacheStore {
-    fn with_lock(&self, _path: &Path, _operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
+    fn with_exclusive_lock(
+        &self,
+        _path: &Path,
+        _operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
         Err(unsupported())
     }
 
@@ -23,27 +27,11 @@ impl CacheStore for DiskCacheStore {
         Err(unsupported())
     }
 
-    fn write(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write_once(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
         Err(unsupported())
     }
 
-    fn touch(&self, _path: &Path) -> Result<(), CacheStoreError> {
-        Err(unsupported())
-    }
-
-    fn exists(&self, _path: &Path) -> Result<bool, CacheStoreError> {
-        Err(unsupported())
-    }
-
-    fn list(&self, _path: &Path) -> Result<Vec<std::path::PathBuf>, CacheStoreError> {
-        Err(unsupported())
-    }
-
-    fn remove(&self, _path: &Path) -> Result<(), CacheStoreError> {
-        Err(unsupported())
-    }
-
-    fn metadata(&self, _path: &Path) -> Result<Option<CacheMetadata>, CacheStoreError> {
+    fn byte_len(&self, _path: &Path) -> Result<Option<u64>, CacheStoreError> {
         Err(unsupported())
     }
 }

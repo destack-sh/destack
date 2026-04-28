@@ -3,107 +3,30 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{
-    ARTIFACT_IMAGE_HEADER_LENGTH_BYTES, ARTIFACT_IMAGE_LIMIT_BYTES, ARTIFACT_IMAGE_MAGIC,
-    ArtifactFamily, ArtifactImageKey,
-};
-use crate::ArtifactContentId;
+use crate::ArtifactVersion;
 
-/// Persisted dependency for one artifact image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ArtifactImageDependency {
-    /// The required artifact image key.
-    pub key: ArtifactImageKey,
-    /// The required dependency content id.
-    pub content_id: ArtifactContentId,
-}
+use super::{ARTIFACT_IMAGE_HEADER_LENGTH_BYTES, ARTIFACT_IMAGE_LIMIT_BYTES, ARTIFACT_IMAGE_MAGIC};
 
 /// Common header for one serialized artifact image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactImageHeader {
     /// The magic prefix used to identify artifact images.
-    pub magic: [u8; 4],
-    /// The stable artifact image key for the serialized payload.
-    pub artifact_image_key: ArtifactImageKey,
-    /// Hash of the effective non-artifact inputs.
-    pub input_hash: u64,
-    /// Persisted artifact image dependencies required to reuse this image safely.
-    pub dependencies: Vec<ArtifactImageDependency>,
+    pub(crate) magic: [u8; 4],
+    /// The exact artifact image version.
+    pub(crate) version: ArtifactVersion,
 }
 
 impl ArtifactImageHeader {
     /// Create a new artifact image header.
-    pub fn new(artifact_image_key: ArtifactImageKey, input_hash: u64) -> Self {
+    pub fn new(version: ArtifactVersion) -> Self {
         Self {
             magic: ARTIFACT_IMAGE_MAGIC,
-            artifact_image_key,
-            input_hash,
-            dependencies: Vec::new(),
+            version,
         }
-    }
-
-    /// Attach one persisted dependency list to this header.
-    pub fn with_dependencies(self, dependencies: Vec<ArtifactImageDependency>) -> Self {
-        Self {
-            dependencies,
-            ..self
-        }
-    }
-
-    /// Validate this header for one expected artifact family.
-    pub fn validate_for_family(
-        &self,
-        expected_family: ArtifactFamily,
-    ) -> Result<(), ArtifactImageError> {
-        if self.magic != ARTIFACT_IMAGE_MAGIC {
-            return Err(ArtifactImageError::InvalidMagic {
-                expected: ARTIFACT_IMAGE_MAGIC,
-                found: self.magic,
-            });
-        }
-
-        let found_family = self.artifact_image_key.family();
-        if found_family != expected_family {
-            return Err(ArtifactImageError::InvalidArtifactFamily {
-                expected: expected_family,
-                found: found_family,
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Compare this header with another header.
-    pub fn matches(&self, actual: &Self) -> bool {
-        self.magic == actual.magic
-            && self.artifact_image_key == actual.artifact_image_key
-            && self.input_hash == actual.input_hash
-    }
-
-    /// Canonicalize the persisted image dependencies on this header.
-    fn canonicalize_dependencies(&mut self) -> Result<(), ArtifactImageError> {
-        let mut keyed_dependencies = Vec::with_capacity(self.dependencies.len());
-
-        for dependency in self.dependencies.drain(..) {
-            let key_bytes =
-                postcard::to_allocvec(&dependency.key).map_err(ArtifactImageError::Serialize)?;
-            keyed_dependencies.push((key_bytes, dependency));
-        }
-
-        keyed_dependencies.sort_unstable_by(|left, right| left.0.cmp(&right.0));
-        keyed_dependencies.dedup_by(|left, right| left.1.key == right.1.key);
-        self.dependencies = keyed_dependencies
-            .into_iter()
-            .map(|(_, dependency)| dependency)
-            .collect();
-
-        Ok(())
     }
 
     /// Split one serialized image into the decoded header and payload bytes.
-    pub fn split_from_bytes(
-        bytes: &[u8],
-    ) -> Result<(ArtifactImageHeader, &[u8]), ArtifactImageError> {
+    fn split_from_bytes(bytes: &[u8]) -> Result<(ArtifactImageHeader, &[u8]), ArtifactImageError> {
         let (header, payload_offset) = Self::decode_prefixed(bytes)?;
         let payload_bytes = &bytes[payload_offset..];
 
@@ -144,7 +67,7 @@ impl ArtifactImageHeader {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactImage<T> {
     /// The image header.
-    pub header: ArtifactImageHeader,
+    pub(crate) header: ArtifactImageHeader,
     /// The serialized payload.
     pub payload: T,
 }
@@ -153,18 +76,9 @@ impl<T> ArtifactImage<T>
 where
     T: Serialize,
 {
-    /// Create one artifact image with a computed payload hash.
-    pub fn new(mut header: ArtifactImageHeader, payload: T) -> Result<Self, ArtifactImageError> {
-        header.canonicalize_dependencies()?;
-        Ok(Self { header, payload })
-    }
-
-    /// Validate the image header and payload hash for one expected family.
-    pub fn validate_for_family(
-        &self,
-        expected_family: ArtifactFamily,
-    ) -> Result<(), ArtifactImageError> {
-        self.header.validate_for_family(expected_family)
+    /// Create one artifact image.
+    pub fn new(header: ArtifactImageHeader, payload: T) -> Self {
+        Self { header, payload }
     }
 
     /// Serialize this artifact image to bytes.
@@ -220,10 +134,10 @@ where
 pub enum ArtifactImageError {
     /// The image header magic did not match.
     InvalidMagic { expected: [u8; 4], found: [u8; 4] },
-    /// The image header family did not match the expected payload family.
-    InvalidArtifactFamily {
-        expected: ArtifactFamily,
-        found: ArtifactFamily,
+    /// The image header version did not match the expected exact version.
+    UnexpectedImageVersion {
+        expected: ArtifactVersion,
+        found: ArtifactVersion,
     },
     /// The image failed to serialize.
     Serialize(PostcardError),
@@ -233,11 +147,10 @@ pub enum ArtifactImageError {
     InvalidLayout(&'static str),
     /// The image exceeded the configured size limit.
     SizeLimitExceeded { limit: u64, actual: u64 },
-    /// The stored content id did not match the persisted bytes.
-    InvalidContentId {
-        expected: ArtifactContentId,
-        found: ArtifactContentId,
-    },
+    /// The cache already has different bytes for the same exact version.
+    ConflictingImageVersion { version: ArtifactVersion },
+    /// The cache reported an inconsistent write conflict.
+    CacheConflict,
     /// The image failed to read or write.
     Io(std::io::Error),
 }
@@ -251,10 +164,10 @@ impl fmt::Display for ArtifactImageError {
                     "invalid artifact image magic, expected {expected:?}, found {found:?}"
                 )
             }
-            ArtifactImageError::InvalidArtifactFamily { expected, found } => {
+            ArtifactImageError::UnexpectedImageVersion { expected, found } => {
                 write!(
                     f,
-                    "invalid artifact family, expected {expected:?}, found {found:?}"
+                    "unexpected artifact image version, expected {expected:?}, found {found:?}"
                 )
             }
             ArtifactImageError::Serialize(error) => {
@@ -272,8 +185,11 @@ impl fmt::Display for ArtifactImageError {
                     "artifact image exceeded size limit, limit {limit}, actual {actual}"
                 )
             }
-            ArtifactImageError::InvalidContentId { expected, found } => {
-                write!(f, "invalid content id, expected {expected}, found {found}")
+            ArtifactImageError::ConflictingImageVersion { version } => {
+                write!(f, "conflicting artifact image bytes for {version:?}")
+            }
+            ArtifactImageError::CacheConflict => {
+                write!(f, "inconsistent artifact image cache conflict")
             }
             ArtifactImageError::Io(error) => write!(f, "artifact image io error: {error}"),
         }

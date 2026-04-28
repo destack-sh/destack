@@ -1,9 +1,12 @@
-use std::hash::{Hash, Hasher};
-
+use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
-use super::{EnvironmentStamp, normalize_profile_keys};
-use crate::{EmitFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor};
+use crate::{
+    EmitFormat, EnvironmentInput, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
+    normalize_profile_keys,
+};
+
+const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
 /// Flags that affect profile identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -87,15 +90,15 @@ pub struct ProfileKey {
     pub test: bool,
     /// Skip declaration diagnostics in compatibility mode.
     pub skip_lib_check: bool,
-    /// Comptime environment stamp for `import.meta.env`.
-    pub env: EnvironmentStamp,
+    /// Comptime environment input for `import.meta.env`.
+    pub env: EnvironmentInput,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl ProfileKey {
     /// Create a profile key with normalized library entries.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         emit: EmitFormat,
         runtime: Runtime,
@@ -107,7 +110,7 @@ impl ProfileKey {
         debug: bool,
         test: bool,
         skip_lib_check: bool,
-        env: EnvironmentStamp,
+        env: EnvironmentInput,
         flags: ProfileFlags,
     ) -> Self {
         let lib = normalize_profile_keys(lib);
@@ -129,9 +132,11 @@ impl ProfileKey {
     }
 
     /// Hash this profile key into one stable cache identity.
-    pub fn stable_hash(&self) -> u64 {
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.hash(&mut hasher);
-        hasher.finish()
+    pub fn stable_hash(&self) -> u128 {
+        let bytes = postcard::to_allocvec(self).unwrap_or_else(|error| {
+            panic!("failed to serialize profile key for stable hashing: {error}")
+        });
+
+        stable_hash_key_value_128(PROFILE_ID_DOMAIN, &bytes)
     }
 }

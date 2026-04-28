@@ -1,7 +1,5 @@
-use destack_core::StringPool;
 use destack_dir::{
-    GlobalSymbolId, StaticKey, SymbolKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol,
-    WellKnownSymbolKey,
+    GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -16,57 +14,11 @@ pub struct SymbolGroup {
     pub value: Option<GlobalSymbolId>,
 }
 
-/// A canonical symbol key that does not depend on ambient string identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CanonicalSymbolKey {
-    /// Unique symbol key from a declaration.
-    Unique(GlobalSymbolId),
-    /// Well known Symbol.* key.
-    WellKnown(WellKnownSymbolKey),
-    /// Symbol.for registry key.
-    Registry(String),
-}
-
-impl CanonicalSymbolKey {
-    /// Build one canonical symbol key from a live symbol key.
-    pub fn from_symbol_key(key: SymbolKey, strings: &StringPool) -> Self {
-        match key {
-            SymbolKey::Unique(symbol) => Self::Unique(symbol),
-            SymbolKey::WellKnown(symbol) => Self::WellKnown(symbol),
-            SymbolKey::Registry(name) => Self::Registry(strings.get(name).to_string()),
-        }
-    }
-}
-
-/// A canonical static key that does not depend on ambient string identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CanonicalStaticKey {
-    /// Regular name key.
-    Name(String),
-    /// Numeric name key.
-    Number(String),
-    /// Symbol key.
-    Symbol(CanonicalSymbolKey),
-}
-
-impl CanonicalStaticKey {
-    /// Build one canonical static key from a live static key.
-    pub fn from_static_key(key: StaticKey, strings: &StringPool) -> Self {
-        match key {
-            StaticKey::Name(name) => Self::Name(strings.get(name).to_string()),
-            StaticKey::Number(name) => Self::Number(strings.get(name).to_string()),
-            StaticKey::Symbol(symbol) => {
-                Self::Symbol(CanonicalSymbolKey::from_symbol_key(symbol, strings))
-            }
-        }
-    }
-}
-
-/// A symbol key for selected library sources.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LibrarySymbolKey {
-    /// The symbol key.
-    pub key: CanonicalStaticKey,
+/// A lookup key for selected ambient symbols.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AmbientLookupKey {
+    /// The static symbol key.
+    pub key: StaticKey,
     /// The symbol space.
     pub space: SymbolSpace,
 }

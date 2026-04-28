@@ -7,20 +7,20 @@ use serde::{Deserialize, Serialize};
 /// NOTE #Performance: revisit actually required AST state (tokens add ~10-20% memory overhead)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ast {
-    /// The id of the Module.
+    /// The module id.
     pub id: ModuleId,
 
-    /// The AST of the Module (may be empty).
+    /// The AST tree.
     pub tree: ast::Tree,
     /// The AST parent index.
     pub parents: ast::NodeParentIndex,
-    /// The top-level AST expressions of the Module.
+    /// The top-level AST expressions.
     pub roots: Vec<ast::LocalNodeId<ast::Expression>>,
-    /// The string pool of the Module.
+    /// The module string pool.
     pub strings: StringPool,
-    /// The tokens of the Module.
+    /// The module tokens.
     pub tokens: Vec<ast::TokenSpan>,
-    /// The side tokens (comments, whitespace) of the Module.
+    /// The module side tokens.
     pub side_tokens: Vec<ast::TokenSpan>,
     /// Stable anchor expression for diagnostics.
     pub anchor_expression: Option<ast::LocalNodeId<ast::Expression>>,
