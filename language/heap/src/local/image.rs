@@ -80,11 +80,37 @@ impl HeapImage {
 
     /// Build one heap image from one serialized payload.
     pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
-        let allocator = Arc::new(Allocator::from_image(&snapshot.allocator)?);
+        let allocator = Arc::new(Allocator::try_new(
+            snapshot.allocator.page_bytes as usize,
+            snapshot.allocator.chunk_bytes as usize,
+        )?);
+
+        Self::from_snapshot_with_allocator(snapshot, allocator)
+    }
+
+    /// Build one heap image from one serialized payload and allocator.
+    pub fn from_snapshot_with_allocator(
+        snapshot: &HeapSnapshot,
+        allocator: Arc<Allocator>,
+    ) -> Result<Self, HeapError> {
+        allocator.restore_image_pages(&snapshot.allocator)?;
         let heap = snapshot.heap.clone();
         let raw = snapshot.raw.clone();
+        let page_runs = heap.page_runs().into_boxed_slice();
 
-        Self::new(allocator, snapshot.options.clone(), heap, raw)
+        allocator.restore_page_run_refs(&page_runs)?;
+
+        let root = HeapImageRoot {
+            allocator,
+            options: snapshot.options.clone(),
+            heap,
+            raw,
+            page_runs,
+        };
+
+        Ok(Self {
+            inner: Arc::new(root),
+        })
     }
 
     /// Flatten one heap image into one serialized snapshot.
@@ -269,6 +295,17 @@ impl Heap {
         limits: HeapLimits,
     ) -> Result<Self, HeapError> {
         let image = HeapImage::from_snapshot(snapshot)?;
+
+        Self::from_image_with_limits(&image, limits)
+    }
+
+    /// Create one heap from one serialized heap snapshot, allocator, and explicit hard limits.
+    pub fn from_snapshot_with_allocator(
+        snapshot: &HeapSnapshot,
+        allocator: Arc<Allocator>,
+        limits: HeapLimits,
+    ) -> Result<Self, HeapError> {
+        let image = HeapImage::from_snapshot_with_allocator(snapshot, allocator)?;
 
         Self::from_image_with_limits(&image, limits)
     }

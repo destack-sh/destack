@@ -98,33 +98,6 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> HeapResult<VirtualSpace>
     })
 }
 
-/// Reserve one virtual byte range for allocator chunks.
-pub(crate) fn reserve_chunk_space(byte_len: usize) -> HeapResult<*mut u8> {
-    let data = vec![0; byte_len].into_boxed_slice();
-    let data = Box::into_raw(data);
-
-    Ok(data.cast())
-}
-
-/// Commit one chunk range for allocator payloads.
-pub(crate) const fn commit_chunk_space(_data: *mut u8, _byte_len: usize) -> HeapResult<()> {
-    Ok(())
-}
-
-/// Unmap one chunk range.
-pub(crate) fn unmap_chunk_space(data: *mut u8, byte_len: usize) -> HeapResult<()> {
-    if byte_len == 0 {
-        return Ok(());
-    }
-
-    let data = std::ptr::slice_from_raw_parts_mut(data, byte_len);
-    unsafe {
-        drop(Box::from_raw(data));
-    }
-
-    Ok(())
-}
-
 /// Map one page-store frame into a reserved virtual page.
 pub(crate) fn map_page(
     base: *mut u8,

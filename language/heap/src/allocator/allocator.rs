@@ -1,9 +1,9 @@
-use std::slice;
+use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 
 use parking_lot::Mutex;
 
-use super::chunk::{Chunk, ChunkIndex, ChunkReservation, max_chunk_count};
+use super::chunk::{Chunk, ChunkIndex, max_chunk_count};
 use super::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, PageId, PageRun, PageRunSet};
 use crate::{HeapError, HeapOptions, HeapResult};
 
@@ -19,8 +19,8 @@ struct AllocatorState {
     free_runs: PageRunSet,
     /// The chunk records, boxed so chunk index pointers stay stable.
     chunks: Vec<Box<Chunk>>,
-    /// The virtual memory ranges backing chunks.
-    reservations: Vec<ChunkReservation>,
+    /// The image bytes keyed by allocator page id.
+    image_pages: BTreeMap<PageId, Box<[u8]>>,
 }
 
 /// One branchable allocator of fixed-size pages.
@@ -46,15 +46,6 @@ unsafe impl Send for Allocator {}
 // payload access is external, allocator metadata is synchronized internally
 unsafe impl Sync for Allocator {}
 
-impl Drop for Allocator {
-    fn drop(&mut self) {
-        let state = self.state.get_mut();
-
-        state.chunks.clear();
-        state.reservations.clear();
-    }
-}
-
 impl Allocator {
     /// Create one allocator with the default page and chunk sizes.
     pub fn try_default() -> HeapResult<Self> {
@@ -79,7 +70,7 @@ impl Allocator {
                 current_chunk_index: None,
                 free_runs: PageRunSet::new(pages_per_chunk),
                 chunks: Vec::new(),
-                reservations: Vec::new(),
+                image_pages: BTreeMap::new(),
             }),
         })
     }
@@ -110,7 +101,7 @@ impl Allocator {
     pub fn allocate_zeroed(&self, byte_len: usize) -> HeapResult<PageRun> {
         let run = self.allocate_pages(byte_len)?;
 
-        // zero only for callers that read chunk bytes directly
+        // materialize image bytes only for callers that read allocator pages
         self.zero_run(run)?;
 
         Ok(run)
@@ -118,17 +109,17 @@ impl Allocator {
 
     /// Allocate pages and copy one byte slice into them.
     pub fn allocate_bytes(&self, bytes: &[u8]) -> HeapResult<PageRun> {
-        let mut page_run = self.allocate_zeroed(bytes.len())?;
+        let page_run = self.allocate_zeroed(bytes.len())?;
 
         // initialize the new logical page range
-        self.write_bytes(&mut page_run, 0, bytes)?;
+        self.write_bytes(&page_run, 0, bytes)?;
 
         Ok(page_run)
     }
 
     /// Release one page run after its metadata record drops it.
     pub fn release_page_run(&self, page_run: &PageRun) -> HeapResult<()> {
-        self.drop_run_owner(*page_run)
+        self.decrement_run_ref_count(*page_run)
     }
 
     /// Release every page run after its metadata records drop them.
@@ -141,9 +132,22 @@ impl Allocator {
         Ok(())
     }
 
+    /// Restore image-owned page-run reference counts.
+    pub(crate) fn restore_page_run_refs(&self, page_runs: &[PageRun]) -> HeapResult<()> {
+        for page_run in page_runs {
+            if page_run.is_empty() {
+                continue;
+            }
+
+            self.initialize_run_ref_count(*page_run)?;
+        }
+
+        Ok(())
+    }
+
     /// Share one page run with another metadata record.
     pub(crate) fn share_page_run(&self, page_run: PageRun) -> HeapResult<PageRun> {
-        self.add_run_owner(page_run)?;
+        self.increment_run_ref_count(page_run)?;
 
         Ok(page_run)
     }
@@ -158,7 +162,7 @@ impl Allocator {
         byte_len.div_ceil(self.page_bytes())
     }
 
-    /// Allocate one physical run.
+    /// Allocate one logical page run.
     pub(super) fn allocate_run(&self, page_count: usize) -> HeapResult<PageRun> {
         // empty runs do not touch allocator state
         if page_count == 0 {
@@ -167,7 +171,7 @@ impl Allocator {
 
         // reuse an existing run when possible
         if let Some(run) = self.allocate_free_run(page_count) {
-            self.initialize_run_owner_count(run)?;
+            self.initialize_run_ref_count(run)?;
 
             return Ok(run);
         }
@@ -183,26 +187,26 @@ impl Allocator {
             self.allocate_multi_chunk_run(page_count)?
         };
 
-        // publish ownership after the run is reserved
-        self.initialize_run_owner_count(run)?;
+        // publish the first metadata reference after the run is reserved
+        self.initialize_run_ref_count(run)?;
 
         Ok(run)
     }
 
-    /// Add one owner to an allocated physical run.
-    fn add_run_owner(&self, run: PageRun) -> HeapResult<()> {
-        // empty runs have no owner count
+    /// Increment one allocated run reference count.
+    fn increment_run_ref_count(&self, run: PageRun) -> HeapResult<()> {
+        // empty runs have no reference count
         if run.is_empty() {
             return Ok(());
         }
 
-        let owner_count = self.run_owner_count(run)?;
+        let ref_count = self.run_ref_count(run)?;
 
         loop {
-            // read the current owner count
-            let current_count = owner_count.load(Ordering::Acquire);
+            // read the current reference count
+            let current_count = ref_count.load(Ordering::Acquire);
 
-            // reject ownership after recycle
+            // reject sharing after recycle
             if current_count == 0 {
                 return Err(HeapError::InvariantViolation {
                     context: "allocator shared free run",
@@ -212,14 +216,14 @@ impl Allocator {
             // reject representational overflow
             if current_count == u32::MAX {
                 return Err(HeapError::InvariantOverflow {
-                    context: "allocator run owner count",
+                    context: "allocator run reference count",
                 });
             }
 
             let next_count = current_count + 1;
 
-            // publish one more owner
-            if owner_count
+            // publish one more reference
+            if ref_count
                 .compare_exchange(
                     current_count,
                     next_count,
@@ -233,18 +237,18 @@ impl Allocator {
         }
     }
 
-    /// Drop one owner from an allocated physical run.
-    pub(super) fn drop_run_owner(&self, run: PageRun) -> HeapResult<()> {
-        // empty runs have no owner count
+    /// Decrement one allocated run reference count.
+    pub(super) fn decrement_run_ref_count(&self, run: PageRun) -> HeapResult<()> {
+        // empty runs have no reference count
         if run.is_empty() {
             return Ok(());
         }
 
-        let owner_count = self.run_owner_count(run)?;
+        let ref_count = self.run_ref_count(run)?;
 
         loop {
-            // read the current owner count
-            let current_count = owner_count.load(Ordering::Acquire);
+            // read the current reference count
+            let current_count = ref_count.load(Ordering::Acquire);
 
             // reject double release
             if current_count == 0 {
@@ -255,8 +259,8 @@ impl Allocator {
 
             let next_count = current_count - 1;
 
-            // publish one fewer owner
-            if owner_count
+            // publish one fewer reference
+            if ref_count
                 .compare_exchange(
                     current_count,
                     next_count,
@@ -268,9 +272,9 @@ impl Allocator {
                 continue;
             }
 
-            // recycle only after the final owner drops
+            // recycle only after the final reference drops
             if next_count == 0 {
-                self.recycle_run(run);
+                self.recycle_run(run)?;
             }
 
             return Ok(());
@@ -284,9 +288,9 @@ impl Allocator {
             return Ok(true);
         }
 
-        let owner_count = self.run_owner_count(run)?;
+        let ref_count = self.run_ref_count(run)?;
 
-        Ok(owner_count.load(Ordering::Acquire) == 1)
+        Ok(ref_count.load(Ordering::Acquire) == 1)
     }
 
     /// Grow this allocator until it can address the given page count.
@@ -317,10 +321,7 @@ impl Allocator {
     pub(super) fn zero_run(&self, run: PageRun) -> HeapResult<()> {
         // clear each page in the run
         for page_id in run.page_ids() {
-            let page_ptr = self.page_slice_mut_ptr(page_id)?;
-            let page = unsafe { &mut *page_ptr };
-
-            page.fill(0);
+            self.store_page_bytes(page_id, vec![0; self.page_bytes()].into_boxed_slice())?;
         }
 
         Ok(())
@@ -450,8 +451,8 @@ impl Allocator {
         chunk.has_capacity(page_count, self.pages_per_chunk())
     }
 
-    /// Return one physical run owner count.
-    fn run_owner_count(&self, run: PageRun) -> HeapResult<&std::sync::atomic::AtomicU32> {
+    /// Return one logical run reference count.
+    fn run_ref_count(&self, run: PageRun) -> HeapResult<&std::sync::atomic::AtomicU32> {
         let (chunk_index, chunk_page_index) = self.chunk_position(run.first_page);
         let Some(chunk) = self.chunk(chunk_index) else {
             return Err(HeapError::MissingPage {
@@ -459,42 +460,56 @@ impl Allocator {
             });
         };
 
-        Ok(chunk.run_owner_count(chunk_page_index))
+        Ok(chunk.run_ref_count(chunk_page_index))
     }
 
-    /// Initialize one run owner count before exposing it.
-    fn initialize_run_owner_count(&self, run: PageRun) -> HeapResult<()> {
-        let owner_count = self.run_owner_count(run)?;
+    /// Initialize one run reference count before exposing it.
+    fn initialize_run_ref_count(&self, run: PageRun) -> HeapResult<()> {
+        let ref_count = self.run_ref_count(run)?;
 
-        owner_count.store(1, Ordering::Release);
+        ref_count.store(1, Ordering::Release);
 
         Ok(())
     }
 
-    /// Return one immutable physical page slice.
-    pub(crate) fn page_slice(&self, page_id: PageId) -> HeapResult<&[u8]> {
-        let (chunk_index, chunk_page_index) = self.chunk_position(page_id);
-        let Some(chunk) = self.chunk(chunk_index) else {
-            return Err(HeapError::MissingPage { page_id });
-        };
-        let data = chunk
-            .page_ptr(chunk_page_index, self.page_bytes())
-            .ok_or(HeapError::MissingPage { page_id })?;
+    /// Return one owned image page.
+    pub(crate) fn page_bytes_box(&self, page_id: PageId) -> HeapResult<Box<[u8]>> {
+        self.check_page_id(page_id)?;
+        let state = self.state.lock();
 
-        Ok(unsafe { slice::from_raw_parts(data, self.page_bytes()) })
+        Ok(state
+            .image_pages
+            .get(&page_id)
+            .cloned()
+            .unwrap_or_else(|| vec![0; self.page_bytes()].into_boxed_slice()))
     }
 
-    /// Return one mutable physical page slice pointer.
-    pub(crate) fn page_slice_mut_ptr(&self, page_id: PageId) -> HeapResult<*mut [u8]> {
-        let (chunk_index, chunk_page_index) = self.chunk_position(page_id);
-        let Some(chunk) = self.chunk(chunk_index) else {
-            return Err(HeapError::MissingPage { page_id });
-        };
-        let data = chunk
-            .page_ptr(chunk_page_index, self.page_bytes())
-            .ok_or(HeapError::MissingPage { page_id })?;
+    /// Store one owned image page.
+    pub(crate) fn store_page_bytes(&self, page_id: PageId, bytes: Box<[u8]>) -> HeapResult<()> {
+        if bytes.len() != self.page_bytes() {
+            return Err(HeapError::ImageInvalidPageBytes {
+                page_id,
+                expected: self.page_bytes(),
+                actual: bytes.len(),
+            });
+        }
 
-        Ok(std::ptr::slice_from_raw_parts_mut(data, self.page_bytes()))
+        self.check_page_id(page_id)?;
+        let mut state = self.state.lock();
+
+        state.image_pages.insert(page_id, bytes);
+
+        Ok(())
+    }
+
+    /// Check that one page id belongs to a published chunk.
+    fn check_page_id(&self, page_id: PageId) -> HeapResult<()> {
+        let (chunk_index, _) = self.chunk_position(page_id);
+        if self.chunk(chunk_index).is_none() {
+            return Err(HeapError::MissingPage { page_id });
+        }
+
+        Ok(())
     }
 
     /// Report whether one chunk index is addressable.
@@ -518,10 +533,17 @@ impl Allocator {
     }
 
     /// Recycle one dead run into the allocator free-run index.
-    fn recycle_run(&self, run: PageRun) {
+    fn recycle_run(&self, run: PageRun) -> HeapResult<()> {
         let mut state = self.state.lock();
 
+        // discard any frozen image bytes tied to the recycled run
+        for page_id in run.page_ids() {
+            state.image_pages.remove(&page_id);
+        }
+
         state.free_runs.free(run);
+
+        Ok(())
     }
 
     /// Recycle one cache-owned run into the allocator free-run index.
@@ -531,17 +553,17 @@ impl Allocator {
             return Ok(());
         }
 
-        let owner_count = self.run_owner_count(run)?;
-        let current_count = owner_count.swap(0, Ordering::AcqRel);
+        let ref_count = self.run_ref_count(run)?;
+        let current_count = ref_count.swap(0, Ordering::AcqRel);
 
         // cached runs must be uniquely owned
         if current_count != 1 {
             return Err(HeapError::InvariantViolation {
-                context: "allocator cached run owner count",
+                context: "allocator cached run reference count",
             });
         }
 
-        self.recycle_run(run);
+        self.recycle_run(run)?;
 
         Ok(())
     }
@@ -589,20 +611,14 @@ impl Allocator {
                 continue;
             }
 
-            let required_chunk_count = end_chunk_index - chunk_index;
-            self.allocate_chunk(state, chunk_index, required_chunk_count)?;
+            self.allocate_chunk(state, chunk_index)?;
         }
 
         Ok(())
     }
 
     /// Allocate and publish one chunk.
-    fn allocate_chunk(
-        &self,
-        state: &mut AllocatorState,
-        chunk_index: usize,
-        required_chunk_count: usize,
-    ) -> HeapResult<()> {
+    fn allocate_chunk(&self, state: &mut AllocatorState, chunk_index: usize) -> HeapResult<()> {
         if chunk_index >= self.max_chunk_count() {
             return Err(HeapError::AllocatorChunkLimitExceeded {
                 required_chunks: chunk_index + 1,
@@ -615,38 +631,13 @@ impl Allocator {
             return Ok(());
         }
 
-        // commit chunk bytes
-        let base = self.commit_chunk_base(state, required_chunk_count)?;
-        let mut chunk = Box::new(Chunk::new(base, self.pages_per_chunk()));
+        // allocate chunk metadata
+        let mut chunk = Box::new(Chunk::new(self.pages_per_chunk()));
         let chunk_ptr = chunk.as_mut() as *mut Chunk;
 
         self.chunk_index.insert(chunk_index, chunk_ptr)?;
         state.chunks.push(chunk);
 
         Ok(())
-    }
-
-    /// Commit one chunk inside the current reservation.
-    fn commit_chunk_base(
-        &self,
-        state: &mut AllocatorState,
-        required_chunk_count: usize,
-    ) -> HeapResult<*mut u8> {
-        if let Some(reservation) = state.reservations.last_mut()
-            && reservation.remaining_chunk_count(self.chunk_bytes()) >= required_chunk_count
-            && let Some(base) = reservation.commit_chunk(self.chunk_bytes())?
-        {
-            return Ok(base);
-        }
-
-        let mut reservation = ChunkReservation::reserve(self.chunk_bytes(), required_chunk_count)?;
-        let Some(base) = reservation.commit_chunk(self.chunk_bytes())? else {
-            return Err(HeapError::InvariantViolation {
-                context: "allocator empty chunk reservation",
-            });
-        };
-        state.reservations.push(reservation);
-
-        Ok(base)
     }
 }

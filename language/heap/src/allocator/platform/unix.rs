@@ -150,40 +150,6 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> HeapResult<VirtualSpace>
     })
 }
 
-/// Reserve one inaccessible virtual address range for allocator chunks.
-pub(crate) fn reserve_chunk_space(byte_len: usize) -> HeapResult<*mut u8> {
-    reserve_virtual_space(byte_len)
-        .map(|space| space.base())
-        .map_err(|_| HeapError::AllocatorChunkAllocationFailed { byte_len })
-}
-
-/// Commit one chunk range for allocator payloads.
-pub(crate) fn commit_chunk_space(data: *mut u8, byte_len: usize) -> HeapResult<()> {
-    let result =
-        unsafe { libc::mprotect(data.cast(), byte_len, libc::PROT_READ | libc::PROT_WRITE) };
-    if result == 0 {
-        return Ok(());
-    }
-
-    Err(HeapError::AllocatorChunkAllocationFailed { byte_len })
-}
-
-/// Unmap one chunk range and report unexpected OS failure.
-pub(crate) fn unmap_chunk_space(data: *mut u8, byte_len: usize) -> HeapResult<()> {
-    if byte_len == 0 {
-        return Ok(());
-    }
-
-    let result = unsafe { libc::munmap(data.cast(), byte_len) };
-    if result == 0 {
-        return Ok(());
-    }
-
-    Err(HeapError::InvariantViolation {
-        context: "allocator chunk unmap",
-    })
-}
-
 /// Map one page-store frame into a reserved virtual page.
 pub(crate) fn map_page(
     base: *mut u8,
