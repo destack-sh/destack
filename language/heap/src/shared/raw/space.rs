@@ -5,8 +5,8 @@ use parking_lot::{Mutex, RwLock};
 use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageMapEntry};
 use crate::allocator::{AddressSpace, PageRun, PageRunCache};
 use crate::{
-    AccountingRegion, AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload,
-    SharedRawPointer, SharedRawSpaceUsage,
+    AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload, SharedRawPointer,
+    SharedRawSpaceUsage,
 };
 
 /// Control state for one shared raw space.
@@ -166,7 +166,7 @@ impl SharedRawSpace {
         drop(allocations);
 
         let mut state = self.state.lock();
-        state.usage.allocate(byte_len, AccountingRegion::SharedRaw);
+        state.usage.allocate(byte_len);
         drop(state);
 
         Ok(SharedRawPointer::new(first_offset))
@@ -322,9 +322,7 @@ impl SharedRawSpace {
 
         drop(allocation);
 
-        state
-            .usage
-            .resize(previous_len, bytes.len(), AccountingRegion::SharedRaw);
+        state.usage.resize(previous_len, bytes.len());
         state
             .page_run_cache
             .release_page_run(&self.allocator, previous_pages)?;
@@ -347,15 +345,13 @@ impl SharedRawSpace {
         let first_offset = allocation.first_offset;
         let previous_len = allocation.len as u64;
 
-        state
-            .usage
-            .check_free(previous_len, AccountingRegion::SharedRaw);
+        state.usage.check_free(previous_len);
 
         allocation.retire();
         drop(allocation);
 
         self.unmap_page_run(first_offset, &pages);
-        state.usage.free(previous_len, AccountingRegion::SharedRaw);
+        state.usage.free(previous_len);
         state
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
@@ -485,10 +481,16 @@ impl SharedRawSpace {
         byte_len: usize,
     ) -> HeapResult<(SharedRawLocation, usize)> {
         let location = self.resolve_location(pointer)?;
+        debug_assert!(location.byte_offset <= location.byte_len);
+
+        let remaining = location.byte_len - location.byte_offset;
+        if start > remaining {
+            return Err(HeapError::InvalidSharedRawPointer { pointer });
+        }
+
         let byte_offset = location.byte_offset + start;
-        checked_remaining_byte_len(pointer, byte_offset, location.byte_len)?;
-        let end = byte_offset + byte_len;
-        if end > location.byte_len {
+        let remaining = location.byte_len - byte_offset;
+        if byte_len > remaining {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 

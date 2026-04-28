@@ -6,9 +6,9 @@ use super::{
 };
 use crate::allocator::{PageRun, SpanSlot};
 use crate::{
-    AccountingRegion, AllocationLayout, Bitmap, HeapError, HeapReference, HeapResult, Payload,
-    SmallSpanClass, clear_allocation_reference_bits, clear_slot_reference_bits,
-    write_allocation_reference_bits, write_slot_reference_bits,
+    AllocationLayout, Bitmap, HeapError, HeapReference, HeapResult, Payload, SmallSpanClass,
+    clear_allocation_reference_bits, clear_slot_reference_bits, write_allocation_reference_bits,
+    write_slot_reference_bits,
 };
 
 impl HeapSpace {
@@ -55,7 +55,7 @@ impl HeapSpace {
             self.allocate_place(layout.byte_len, reference_map, payload)?;
         let reference = self.base_reference(place)?;
 
-        self.usage.allocate(charged_bytes, AccountingRegion::Heap);
+        self.usage.allocate(charged_bytes);
 
         // track every live reference whose layout may contain shared edges
         if tracks_shared_edges {
@@ -78,7 +78,7 @@ impl HeapSpace {
             return Err(HeapError::InvalidHeapReference { reference });
         };
         let freed_bytes = location.byte_len as u64;
-        self.usage.check_free(freed_bytes, AccountingRegion::Heap);
+        self.usage.check_free(freed_bytes);
 
         match location.place {
             // retire one young range until the next scavenge
@@ -98,7 +98,7 @@ impl HeapSpace {
                     allocation.byte_len,
                 );
 
-                self.usage.free(freed_bytes, AccountingRegion::Heap);
+                self.usage.free(freed_bytes);
                 self.remove_shared_edge_root(reference)?;
 
                 Ok(true)
@@ -107,7 +107,7 @@ impl HeapSpace {
             // release one small-span slot
             HeapPlace::Small(slot) => {
                 self.release_small_slot(slot)?;
-                self.usage.free(freed_bytes, AccountingRegion::Heap);
+                self.usage.free(freed_bytes);
                 self.remove_shared_edge_root(reference)?;
 
                 Ok(true)
@@ -136,7 +136,7 @@ impl HeapSpace {
                     .free_large_allocation_ids
                     .push(allocation_id.id());
 
-                self.usage.free(freed_bytes, AccountingRegion::Heap);
+                self.usage.free(freed_bytes);
                 self.remove_shared_edge_root(reference)?;
 
                 self.unmap_page_run(first_offset, &pages);
@@ -638,10 +638,14 @@ impl HeapSpace {
         let slot_offset = span.class.size_class * slot_index;
         let mapping_offset = span.first_offset + slot_offset;
 
-        // initialize the live mapping before publishing the slot
+        // clear the full slot before publishing caller bytes
         match init {
+            Payload::Bytes(bytes) if bytes.len() < class.size_class => {
+                self.mapping.zero(mapping_offset, class.size_class)?;
+                self.mapping.write(mapping_offset, bytes)?;
+            }
             Payload::Bytes(bytes) => self.mapping.write(mapping_offset, bytes)?,
-            Payload::Zeroed => self.mapping.zero(mapping_offset, byte_len)?,
+            Payload::Zeroed => self.mapping.zero(mapping_offset, class.size_class)?,
         }
 
         let span = self

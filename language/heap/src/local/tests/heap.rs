@@ -42,6 +42,68 @@ fn test_free_heap_reclaims_live_allocation() {
     assert!(heap.is_live(next_reference));
 }
 
+/// Clear one reused small heap slot before writing a shorter payload.
+#[test]
+fn test_allocate_heap_clears_reused_small_slot_tail() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        heap_small_bytes: 16,
+        size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
+        ..HeapOptions::local()
+    };
+    let full_layout = test_layout(8, ReferenceMap::empty());
+    let short_layout = test_layout(1, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
+        .expect("heap space should build");
+
+    let first = heap
+        .allocate(full_layout.allocation(), Payload::Bytes(&[0xAA; 8]))
+        .expect("heap allocation should succeed");
+    let second = heap
+        .allocate(short_layout.allocation(), Payload::Bytes(&[0xBB]))
+        .expect("heap allocation should succeed");
+
+    assert!(heap.free(first).expect("heap free should succeed"));
+
+    let reused = heap
+        .allocate(short_layout.allocation(), Payload::Bytes(&[0xCC]))
+        .expect("heap allocation should succeed");
+
+    assert!(heap.is_live(second));
+    assert_eq!(heap.read_bytes(reused), Ok(vec![0xCC, 0, 0, 0, 0, 0, 0, 0]));
+}
+
+/// Reject one write that crosses allocation bounds from an interior reference.
+#[test]
+fn test_write_heap_rejects_interior_reference_crossing_bounds() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        heap_small_bytes: 8,
+        size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
+        ..HeapOptions::local()
+    };
+    let layout = test_layout(1, ReferenceMap::empty());
+    let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
+        .expect("heap space should build");
+    let reference = heap
+        .allocate(layout.allocation(), Payload::Bytes(&[0xAB]))
+        .expect("heap allocation should succeed");
+    let reference = reference.add_bytes(7);
+
+    let error = heap
+        .write_bytes(reference, 0, &[1, 2])
+        .expect_err("heap write should reject bounds crossing");
+
+    assert_eq!(
+        error,
+        HeapError::InvalidByteRange {
+            start: 7,
+            len: 2,
+            capacity: 8
+        }
+    );
+}
+
 /// Reclaim one freed heap large allocation and allow another large allocation.
 #[test]
 fn test_free_heap_reclaims_large_allocation() {

@@ -1,7 +1,10 @@
 use destack_mir::ReferenceMap;
 
 use super::{HeapLocation, HeapPlace, HeapSpace};
-use crate::{HeapError, HeapReference, HeapResult};
+use crate::{
+    HeapError, HeapReference, HeapResult, SharedHeapReference,
+    visit_shared_references_in_reader_range,
+};
 
 impl HeapSpace {
     /// Fill one caller-provided buffer from one heap allocation at one offset.
@@ -22,8 +25,8 @@ impl HeapSpace {
         self.resolve_location(reference).is_some()
     }
 
-    #[cfg(test)]
     /// Return the live place for one heap reference.
+    #[cfg(test)]
     pub(crate) fn place(&self, reference: HeapReference) -> Option<HeapPlace> {
         Some(self.resolve_location(reference)?.place)
     }
@@ -97,6 +100,62 @@ impl HeapSpace {
         self.write_shared_barrier(reference, location, byte_offset, byte_len)
     }
 
+    /// Return old and new shared edges for one heap store before it writes.
+    pub fn shared_write_barrier_bytes(
+        &self,
+        reference: HeapReference,
+        start: usize,
+        bytes: &[u8],
+    ) -> HeapResult<Vec<SharedHeapReference>> {
+        let (location, byte_offset) = self.checked_location_range(reference, start, bytes.len())?;
+        let reference_map = self.place_reference_map(location.place)?;
+        if !self.overlaps_shared_roots(&reference_map, byte_offset, bytes.len())? {
+            return Ok(Vec::new());
+        }
+
+        let mut edges = Vec::new();
+
+        // overwritten edges
+        visit_shared_references_in_reader_range(
+            &reference_map,
+            byte_offset,
+            bytes.len(),
+            |start, buffer| self.fill_location_bytes(location, start, buffer),
+            |reference| {
+                if !reference.is_null() {
+                    edges.push(reference);
+                }
+            },
+        )?;
+
+        // inserted edges
+        visit_shared_references_in_reader_range(
+            &reference_map,
+            byte_offset,
+            bytes.len(),
+            |start, buffer| {
+                let local_start = start - byte_offset;
+                let local_end = local_start + buffer.len();
+                let Some(window) = bytes.get(local_start..local_end) else {
+                    return Err(HeapError::TruncatedReferenceReaderWindow {
+                        start: local_start,
+                        width: buffer.len(),
+                    });
+                };
+
+                buffer.copy_from_slice(window);
+                Ok(())
+            },
+            |reference| {
+                if !reference.is_null() {
+                    edges.push(reference);
+                }
+            },
+        )?;
+
+        Ok(edges)
+    }
+
     /// Return one checked live location and byte offset for one heap range.
     fn checked_location_range(
         &self,
@@ -108,7 +167,7 @@ impl HeapSpace {
             return Err(HeapError::InvalidHeapReference { reference });
         };
         let byte_offset =
-            checked_byte_range(location.byte_offset, start, byte_len, location.byte_len)?;
+            allocation_byte_offset(location.byte_offset, start, byte_len, location.byte_len)?;
 
         Ok((location, byte_offset))
     }
@@ -193,11 +252,7 @@ impl HeapSpace {
                         });
                     };
                     let span_byte_len = span.pages.len() * page_bytes;
-                    let slot_offset = checked_slot_offset(
-                        slot.span_index(),
-                        span.class.size_class,
-                        slot.slot_index(),
-                    )?;
+                    let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                     let write_offset =
                         checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
@@ -253,11 +308,7 @@ impl HeapSpace {
                     });
                 };
                 let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 Ok(span.first_offset + read_offset)
@@ -324,11 +375,7 @@ impl HeapSpace {
                     });
                 };
                 let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.mapping
@@ -377,11 +424,7 @@ impl HeapSpace {
                     });
                 };
                 let span_byte_len = span.pages.len() * self.allocator().page_bytes();
-                let slot_offset = checked_slot_offset(
-                    slot.span_index(),
-                    span.class.size_class,
-                    slot.slot_index(),
-                )?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_byte_len)?;
 
                 self.mapping.read(span.first_offset + read_offset, target)
@@ -400,14 +443,17 @@ impl HeapSpace {
     }
 }
 
-/// Return one checked allocation-local byte range start.
-fn checked_byte_range(
+/// Return one allocation-local byte offset for one visible range.
+fn allocation_byte_offset(
     base_offset: usize,
     start: usize,
     len: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    if start > capacity || len > capacity - start {
+    debug_assert!(base_offset <= capacity);
+
+    let remaining = capacity - base_offset;
+    if start > remaining {
         return Err(HeapError::InvalidByteRange {
             start,
             len,
@@ -416,6 +462,14 @@ fn checked_byte_range(
     }
 
     let byte_offset = base_offset + start;
+    let remaining = capacity - byte_offset;
+    if len > remaining {
+        return Err(HeapError::InvalidByteRange {
+            start: byte_offset,
+            len,
+            capacity,
+        });
+    }
 
     Ok(byte_offset)
 }
@@ -452,13 +506,7 @@ fn checked_place_offset(
     Ok(offset)
 }
 
-/// Return one checked small-slot base offset.
-fn checked_slot_offset(
-    span_index: usize,
-    size_class: usize,
-    slot_index: usize,
-) -> HeapResult<usize> {
-    let _ = span_index;
-
-    Ok(size_class * slot_index)
+/// Return one small-slot base offset.
+fn small_slot_offset(size_class: usize, slot_index: usize) -> usize {
+    size_class * slot_index
 }
