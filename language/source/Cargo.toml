@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 # language
 destack_core = { workspace = true }
-destack_source_macros = { workspace = true }
 
 # general
 cfg-if = { workspace = true }

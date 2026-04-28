@@ -1,4 +1,5 @@
 mod file;
+mod hash;
 mod id;
 mod language;
 mod module;

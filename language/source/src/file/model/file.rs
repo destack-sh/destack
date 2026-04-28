@@ -1,18 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::{stable_hash_key_value_128, stable_nonzero_hash_key_value};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use super::hash::{stable_source_id, stable_source_path};
 use super::id;
 use crate::{FileType, Span, Uri};
 
-const FILE_ID_DOMAIN: &[u8] = b"file";
-const FILE_ORIGIN_ID_DOMAIN: &[u8] = b"file_origin";
-
-fn normalize_logical_path(value: &str) -> String {
-    value.replace('\\', "/")
-}
+const FILE_LOGICAL_ID_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
+const FILE_ORIGIN_ID_DOMAIN: &[u8] = b"destack.source.file.origin.v1";
 
 /// The id of a File.
 #[repr(transparent)]
@@ -39,13 +35,13 @@ impl<'de> Deserialize<'de> for FileId {
 
 impl std::fmt::Debug for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+        write!(f, "f{:032x}", self.0)
     }
 }
 
 impl std::fmt::Display for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+        write!(f, "f{:032x}", self.0)
     }
 }
 
@@ -63,18 +59,23 @@ impl FileId {
     /// This should be one repository or import relative path for physical files,
     /// or one explicit namespaced synthetic path for virtual files.
     pub fn from_logical_str(path: &str) -> Self {
-        let path = normalize_logical_path(path);
-        Self(stable_hash_key_value_128(FILE_ID_DOMAIN, path.as_bytes()))
+        let path = path.replace('\\', "/");
+        Self(stable_source_id(FILE_LOGICAL_ID_DOMAIN, &[path.as_bytes()]))
     }
 
     /// Create a file id from one logical source path.
     pub fn from_logical_path(path: &Path) -> Self {
-        Self::from_logical_str(&path.to_string_lossy())
+        let path = stable_source_path(path);
+
+        Self::from_logical_str(&path)
     }
 
     /// Create a file id from one explicit source origin payload.
     pub fn from_origin_bytes(bytes: &[u8]) -> Self {
-        Self(stable_nonzero_hash_key_value(FILE_ORIGIN_ID_DOMAIN, bytes))
+        let id = stable_source_id(FILE_ORIGIN_ID_DOMAIN, &[bytes]);
+        let id = if id == 0 { 1 } else { id };
+
+        Self(id)
     }
 }
 

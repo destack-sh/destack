@@ -52,7 +52,6 @@ members = [
 	"language/lsp/server",
 	"language/lsp/types",
 	"language/source",
-	"language/source/macros",
 	"language/test",
 	"language/unicode",
 	"language/workspace",
@@ -111,7 +110,6 @@ destack_runtime = { path = "language/runtime" }
 destack_runtime_abi = { path = "language/runtime/abi" }
 destack_session = { path = "language/session" }
 destack_source = { path = "language/source" }
-destack_source_macros = { path = "language/source/macros" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
 destack_service = { path = "language/service" }

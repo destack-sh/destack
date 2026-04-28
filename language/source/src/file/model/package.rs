@@ -1,17 +1,17 @@
 use std::path::Path;
 
-use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use super::hash::{stable_source_id, stable_source_path};
 use super::id;
 use crate::Uri;
 
-const PACKAGE_ID_DOMAIN: &[u8] = b"package";
+const PACKAGE_ID_DOMAIN: &[u8] = b"destack.source.package.v1";
+const PACKAGE_KIND_PHYSICAL: &[u8] = b"physical";
+const PACKAGE_KIND_SYNTHETIC: &[u8] = b"synthetic";
+const PACKAGE_KIND_URI: &[u8] = b"uri";
 
-/// Unique identifier for Packages.
-///
-/// PackageId is a stable hash based on the package's root path, making it
-/// deterministic across compiler runs on the same machine.
+/// Unique identifier for one source package.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PackageId(pub u128);
@@ -57,22 +57,28 @@ impl PackageId {
 
     /// Create a PackageId from a URI (deterministic).
     pub fn from_uri(uri: &Uri) -> Self {
-        Self(stable_hash_key_value_128(
+        Self(stable_source_id(
             PACKAGE_ID_DOMAIN,
-            uri.as_ref().as_bytes(),
+            &[PACKAGE_KIND_URI, uri.as_ref().as_bytes()],
         ))
     }
 
     /// Create a PackageId from a directory path (for physical packages).
     pub fn from_path(path: &Path) -> Self {
-        let key = format!("physical:{}", path.to_string_lossy());
-        Self(stable_hash_key_value_128(PACKAGE_ID_DOMAIN, key.as_bytes()))
+        let path = stable_source_path(path);
+        Self(stable_source_id(
+            PACKAGE_ID_DOMAIN,
+            &[PACKAGE_KIND_PHYSICAL, path.as_bytes()],
+        ))
     }
 
     /// Create a PackageId for a synthetic package (loose files in a directory).
     pub fn from_synthetic_path(path: &Path) -> Self {
-        let key = format!("synthetic:{}", path.to_string_lossy());
-        Self(stable_hash_key_value_128(PACKAGE_ID_DOMAIN, key.as_bytes()))
+        let path = stable_source_path(path);
+        Self(stable_source_id(
+            PACKAGE_ID_DOMAIN,
+            &[PACKAGE_KIND_SYNTHETIC, path.as_bytes()],
+        ))
     }
 
     /// Get the raw id value.
@@ -81,10 +87,10 @@ impl PackageId {
     }
 }
 
-/// Version of a package's compiled state (increments on recompilation).
+/// Repository-local package snapshot version.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct PackageVersion(pub u64);
+pub struct PackageVersion(pub u128);
 
 impl std::fmt::Debug for PackageVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -103,7 +109,7 @@ impl PackageVersion {
     pub const INITIAL: Self = Self(0);
 
     /// Create a new PackageVersion.
-    pub fn new(version: u64) -> Self {
+    pub fn new(version: u128) -> Self {
         Self(version)
     }
 
@@ -138,5 +144,20 @@ impl PackageStamp {
     /// Create a new PackageStamp.
     pub fn new(id: PackageId, version: PackageVersion) -> Self {
         Self { id, version }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::PackageId;
+
+    #[test]
+    fn test_distinguish_physical_and_synthetic_packages() {
+        let physical = PackageId::from_path(Path::new("workspace/app"));
+        let synthetic = PackageId::from_synthetic_path(Path::new("workspace/app"));
+
+        assert_ne!(physical, synthetic);
     }
 }

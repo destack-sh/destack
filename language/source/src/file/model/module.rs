@@ -1,17 +1,18 @@
 use std::path::Path;
 
-use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use super::hash::{stable_source_id, stable_source_path};
 use super::id;
 use crate::PackageId;
 
-const MODULE_KEY_DOMAIN: &[u8] = b"module";
+const MODULE_KEY_DOMAIN: &[u8] = b"destack.source.module.v1";
+const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 
-/// Version of a module's compiled state (increments on recompilation).
+/// Repository-local module snapshot version.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct ModuleVersion(pub u64);
+pub struct ModuleVersion(pub u128);
 
 impl std::fmt::Debug for ModuleVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,7 +31,7 @@ impl ModuleVersion {
     pub const INITIAL: Self = Self(0);
 
     /// Create a new ModuleVersion.
-    pub fn new(version: u64) -> Self {
+    pub fn new(version: u128) -> Self {
         Self(version)
     }
 
@@ -131,11 +132,13 @@ impl ModuleId {
 
     /// Create a ModuleId from a package and relative path within the package.
     pub fn from_relative_path(package: PackageId, relative_path: &Path) -> Self {
+        let relative_path = stable_source_path(relative_path);
+
         Self {
             package_id: package,
-            module_key: ModuleKey::new(stable_hash_key_value_128(
+            module_key: ModuleKey::new(stable_source_id(
                 MODULE_KEY_DOMAIN,
-                relative_path.to_string_lossy().as_bytes(),
+                &[relative_path.as_bytes(), MODULE_LOADER_DEFAULT],
             )),
         }
     }
@@ -163,17 +166,16 @@ impl ModuleId {
             path
         };
 
-        // include loader in hash if provided (for non-default loaders)
-        let hash_input = match loader_salt {
-            Some(salt) => format!("{}::{}", relative.to_string_lossy(), salt),
-            None => relative.to_string_lossy().into_owned(),
-        };
+        let relative = stable_source_path(relative);
+        let loader = loader_salt
+            .map(str::as_bytes)
+            .unwrap_or(MODULE_LOADER_DEFAULT);
 
         Self {
             package_id: package,
-            module_key: ModuleKey::new(stable_hash_key_value_128(
+            module_key: ModuleKey::new(stable_source_id(
                 MODULE_KEY_DOMAIN,
-                hash_input.as_bytes(),
+                &[relative.as_bytes(), loader],
             )),
         }
     }
@@ -204,5 +206,22 @@ impl ModuleStamp {
     /// Create a new ModuleStamp.
     pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
         Self { id, version }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::ModuleId;
+    use crate::PackageId;
+
+    #[test]
+    fn test_hash_module_loader_as_framed_component() {
+        let package = PackageId::new(1);
+        let left = ModuleId::from_path_with_loader(package, Path::new("a"), None, Some("b::c"));
+        let right = ModuleId::from_path_with_loader(package, Path::new("a::b"), None, Some("c"));
+
+        assert_ne!(left, right);
     }
 }
