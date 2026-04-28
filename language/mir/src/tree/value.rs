@@ -47,19 +47,19 @@ pub enum Constant {
     },
     /// Signed integer constant.
     Int {
-        /// The value, sign-extended to 64 bits.
-        value: i64,
+        /// The value, sign-extended to 128 bits.
+        value: i128,
         /// The bit width of the integer type.
-        width: u8,
+        width: u16,
         /// Whether this represents a signed integer type.
         is_signed: bool,
     },
     /// Unsigned integer constant.
     UInt {
-        /// The value, zero-extended to 64 bits.
-        value: u64,
+        /// The value, zero-extended to 128 bits.
+        value: u128,
         /// The bit width of the integer type.
-        width: u8,
+        width: u16,
     },
     /// Floating point constant.
     Float {
@@ -84,7 +84,7 @@ impl Constant {
     /// Create a new integer constant.
     pub fn int8(value: i8) -> Self {
         Self::Int {
-            value: value as i64,
+            value: value as i128,
             width: 8,
             is_signed: true,
         }
@@ -93,7 +93,7 @@ impl Constant {
     /// Create a new integer constant.
     pub fn int16(value: i16) -> Self {
         Self::Int {
-            value: value as i64,
+            value: value as i128,
             width: 16,
             is_signed: true,
         }
@@ -102,7 +102,7 @@ impl Constant {
     /// Create a new integer constant.
     pub fn int32(value: i32) -> Self {
         Self::Int {
-            value: value as i64,
+            value: value as i128,
             width: 32,
             is_signed: true,
         }
@@ -111,7 +111,7 @@ impl Constant {
     /// Create a new integer constant.
     pub fn int64(value: i64) -> Self {
         Self::Int {
-            value,
+            value: value as i128,
             width: 64,
             is_signed: true,
         }
@@ -120,7 +120,7 @@ impl Constant {
     /// Create a new unsigned integer constant.
     pub fn uint8(value: u8) -> Self {
         Self::UInt {
-            value: value as u64,
+            value: value as u128,
             width: 8,
         }
     }
@@ -128,7 +128,7 @@ impl Constant {
     /// Create a new unsigned integer constant.
     pub fn uint16(value: u16) -> Self {
         Self::UInt {
-            value: value as u64,
+            value: value as u128,
             width: 16,
         }
     }
@@ -136,14 +136,17 @@ impl Constant {
     /// Create a new unsigned integer constant.
     pub fn uint32(value: u32) -> Self {
         Self::UInt {
-            value: value as u64,
+            value: value as u128,
             width: 32,
         }
     }
 
     /// Create a new unsigned integer constant.
     pub fn uint64(value: u64) -> Self {
-        Self::UInt { value, width: 64 }
+        Self::UInt {
+            value: value as u128,
+            width: 64,
+        }
     }
 
     /// Create a new floating point constant.
