@@ -29,8 +29,9 @@ destack_source = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }
 
 # general
-smallvec = { workspace = true }
+markdown = { workspace = true }
 rustc-hash = { workspace = true }
+smallvec = { workspace = true }
 
 [dev-dependencies]
 clap = { workspace = true }
