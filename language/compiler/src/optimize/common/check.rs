@@ -10,7 +10,7 @@ pub(crate) struct IntegerRangeSnapshot {
     /// Maximum value in the range.
     pub(crate) max: i128,
     /// Bit width of the integer.
-    pub(crate) width: u8,
+    pub(crate) width: u16,
     /// Signedness of the integer.
     pub(crate) is_signed: bool,
 }
@@ -33,12 +33,12 @@ pub(crate) fn constraint_truth_value(
             value,
             bit_width,
             is_signed,
-        } => shift_constraint_truth(*value, *bit_width, *is_signed, ranges),
+        } => shift_constraint_truth(*value, u16::from(*bit_width), *is_signed, ranges),
         mir::CheckConstraint::Narrow {
             value,
             to_width,
             is_signed,
-        } => narrow_constraint_truth(*value, *to_width, *is_signed, ranges),
+        } => narrow_constraint_truth(*value, u16::from(*to_width), *is_signed, ranges),
         mir::CheckConstraint::Overflow {
             operator,
             left,
@@ -114,7 +114,7 @@ fn div_zero_constraint_truth(divisor: mir::ValueReference, ranges: &RangeMap) ->
 /// Evaluate a shift range constraint using range information.
 fn shift_constraint_truth(
     value: mir::ValueReference,
-    bit_width: u8,
+    bit_width: u16,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
@@ -146,7 +146,7 @@ fn shift_constraint_truth(
 /// Evaluate a narrowing constraint using range information.
 fn narrow_constraint_truth(
     value: mir::ValueReference,
-    to_width: u8,
+    to_width: u16,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
@@ -290,7 +290,7 @@ fn integer_range_snapshot(value: mir::Value, ranges: &RangeMap) -> Option<Intege
 }
 
 /// Compute the full bounds for an integer width and signedness.
-fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+fn integer_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
     // reject nonsensical widths
     if width == 0 {
         return None;

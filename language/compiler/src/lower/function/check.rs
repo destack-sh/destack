@@ -129,13 +129,10 @@ impl FunctionLowerer<'_> {
                     .into_anchored(Some(self.context.profile)),
                 message: "array length exceeds bounds check limits".to_string(),
             })?;
-        let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-            node: expression_id
-                .into_global_any(self.context.module_id)
-                .into_anchored(Some(self.context.profile)),
-            message: "index width exceeds bounds check limits".to_string(),
-        })?;
-        let length_const = self.state.builder.iconst(length_value, width, is_signed);
+        let length_const = self
+            .state
+            .builder
+            .iconst(i128::from(length_value), width, is_signed);
 
         // emit the bounds check
         let constraint = mir::CheckConstraint::Bounds {

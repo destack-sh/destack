@@ -790,7 +790,7 @@ fn integer_range_for_value(
 }
 
 /// Return the minimum signed value for a given bit width.
-fn signed_min_for_width(width: u8) -> Option<i128> {
+fn signed_min_for_width(width: u16) -> Option<i128> {
     // reject unsupported widths
     let bits = u32::from(width);
     let is_zero = bits == 0;
@@ -813,7 +813,7 @@ struct IntegerRange {
     /// The maximum value in the range.
     max: i128,
     /// The integer width in bits.
-    width: u8,
+    width: u16,
     /// Whether the range is signed.
     is_signed: bool,
 }

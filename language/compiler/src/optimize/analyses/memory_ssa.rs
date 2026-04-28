@@ -1884,7 +1884,7 @@ impl<'a> MemoryAccessCollector<'a> {
         };
 
         match value {
-            mir::Constant::UInt { value, .. } => Some(*value),
+            mir::Constant::UInt { value, .. } => u64::try_from(*value).ok(),
             mir::Constant::Int { value, .. } => {
                 if *value >= 0 {
                     u64::try_from(*value).ok()

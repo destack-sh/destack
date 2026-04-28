@@ -793,7 +793,7 @@ fn insert_index_constant(
     });
     let destination = function.next_typed_value(type_id);
     let constant = mir::Constant::Int {
-        value: index_value,
+        value: i128::from(index_value),
         width: 64,
         is_signed: true,
     };

@@ -420,7 +420,7 @@ impl FunctionLowerer<'_> {
             mir::Type::Int {
                 width,
                 is_signed: signed,
-            } => (*width as u8, *signed),
+            } => (*width, *signed),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -433,7 +433,7 @@ impl FunctionLowerer<'_> {
         let tag_value = self
             .state
             .builder
-            .iconst(tag_index as i64, tag_width, tag_signed);
+            .iconst(tag_index as i128, tag_width, tag_signed);
 
         // resolve literals that do not carry payload data
         let is_nullish_literal = matches!(
@@ -754,11 +754,11 @@ impl FunctionLowerer<'_> {
             self.object_pointer_for_instance(value, source_mir_type, layout.object_type);
 
         // encode the itab id as a pointer sized value
-        let tag_width = self.context.type_lowerer.pointer_width_bits() as u8;
+        let tag_width = self.context.type_lowerer.pointer_width_bits();
         let itab_value = self
             .state
             .builder
-            .iconst(itab_id.index() as i64, tag_width, false);
+            .iconst(itab_id.index() as i128, tag_width, false);
         let itab_value = self.state.builder.bitcast(itab_value, layout.itab_type);
 
         // assemble the interface reference value

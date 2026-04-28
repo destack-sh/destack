@@ -1000,11 +1000,11 @@ impl<'a> SccpState<'a> {
 }
 
 /// Convert a constant to a switch value when possible.
-fn switch_constant_value(constant: &mir::Constant) -> Option<i64> {
+fn switch_constant_value(constant: &mir::Constant) -> Option<i128> {
     // convert numeric constants to switch values
     match constant {
         mir::Constant::Int { value, .. } => Some(*value),
-        mir::Constant::UInt { value, .. } => Some(*value as i64),
+        mir::Constant::UInt { value, .. } => i128::try_from(*value).ok(),
         _ => None,
     }
 }
@@ -1020,7 +1020,7 @@ fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
 }
 
 /// Select the switch case that matches a constant value.
-fn select_switch_target(value: i64, cases: &[mir::SwitchCase]) -> Option<&mir::SwitchCase> {
+fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::SwitchCase> {
     // find matching case
     cases
         .iter()
@@ -1613,9 +1613,9 @@ b1(v1: int32):
         test.assert_output(expected);
     }
 
-    /// Switch constants use the same i64 cast semantics as the VM.
+    /// Switch constants compare by integer value without narrowing.
     #[test]
-    fn test_switch_u64_wraps_to_i64() {
+    fn test_switch_uint64_does_not_match_negative_case() {
         let input = r#"
 function test(): int32 {
 b0:
@@ -1632,9 +1632,9 @@ b2:
 function test(): int32 {
 b0:
     v0: uint64 = 18446744073709551615uint64
-    jump b1
-b1:
-    v1: int32 = 1int32
+    jump b2
+b2:
+    v1: int32 = 2int32
     return v1
 }"#;
 

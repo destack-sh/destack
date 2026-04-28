@@ -221,7 +221,12 @@ fn run_narrow(
 }
 
 /// Compute the minimal integer width that contains the range.
-fn required_integer_width(min: i128, max: i128, is_signed: bool, original_width: u8) -> Option<u8> {
+fn required_integer_width(
+    min: i128,
+    max: i128,
+    is_signed: bool,
+    original_width: u16,
+) -> Option<u16> {
     // reject invalid widths
     if original_width == 0 {
         return None;
@@ -237,7 +242,7 @@ fn required_integer_width(min: i128, max: i128, is_signed: bool, original_width:
         let width = if max == 0 {
             1
         } else {
-            (128 - max.leading_zeros()) as u8
+            (128 - max.leading_zeros()) as u16
         };
         return Some(width.min(original_width));
     }
@@ -287,19 +292,19 @@ fn integer_info_for_value(
     };
     let (original_width, original_signed) = (*original_width, *signed);
 
-    if original_signed != *is_signed || original_width as u8 != *width {
+    if original_signed != *is_signed || original_width != *width {
         return None;
     }
 
     // compute the smallest width that preserves the range
     let required_width = required_integer_width(*min, *max, *is_signed, *width)?;
-    if required_width as u16 >= original_width {
+    if required_width >= original_width {
         return None;
     }
 
     Some(IntegerInfo {
         original_width,
-        required_width: required_width as u16,
+        required_width,
         signed: *is_signed,
     })
 }

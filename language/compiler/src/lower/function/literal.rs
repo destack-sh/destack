@@ -38,7 +38,7 @@ impl FunctionLowerer<'_> {
                         Ok((value, ty))
                     }
                     Some(ScalarType::SignedInt { width }) => {
-                        let value = self.state.builder.iconst(*value, width as u8, true);
+                        let value = self.state.builder.iconst(i128::from(*value), width, true);
                         let ty = if width == 64 {
                             self.context.type_lowerer.ty_i64
                         } else {

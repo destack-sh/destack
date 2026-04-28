@@ -147,15 +147,15 @@ impl ModuleLowerer<'_> {
                     is_signed: true,
                 },
             ) => mir::Constant::Int {
-                value: *i,
-                width: *width as u8,
+                value: i128::from(*i),
+                width: *width,
                 is_signed: true,
             },
             (dir::ScalarLiteral::Integer(i), mir::Type::Isize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 mir::Constant::Int {
-                    value: *i,
-                    width: width as u8,
+                    value: i128::from(*i),
+                    width,
                     is_signed: true,
                 }
             }
@@ -166,14 +166,14 @@ impl ModuleLowerer<'_> {
                     is_signed: false,
                 },
             ) => mir::Constant::UInt {
-                value: *i as u64,
-                width: *width as u8,
+                value: *i as u128,
+                width: *width,
             },
             (dir::ScalarLiteral::Integer(i), mir::Type::Usize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 mir::Constant::UInt {
-                    value: *i as u64,
-                    width: width as u8,
+                    value: *i as u128,
+                    width,
                 }
             }
             (dir::ScalarLiteral::Float(f), mir::Type::Float { width }) => mir::Constant::Float {
@@ -251,14 +251,14 @@ impl ModuleLowerer<'_> {
             ) => {
                 let constant = if *signed {
                     mir::Constant::Int {
-                        value,
-                        width: *width as u8,
+                        value: i128::from(value),
+                        width: *width,
                         is_signed: true,
                     }
                 } else {
                     mir::Constant::UInt {
-                        value: value as u64,
-                        width: *width as u8,
+                        value: value as u128,
+                        width: *width,
                     }
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
@@ -266,8 +266,8 @@ impl ModuleLowerer<'_> {
             (dir::EnumFieldValue::Int(value), mir::Type::Isize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 let constant = mir::Constant::Int {
-                    value,
-                    width: width as u8,
+                    value: i128::from(value),
+                    width,
                     is_signed: true,
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
@@ -275,8 +275,8 @@ impl ModuleLowerer<'_> {
             (dir::EnumFieldValue::Int(value), mir::Type::Usize) => {
                 let width = self.type_lowerer.pointer_width_bits();
                 let constant = mir::Constant::UInt {
-                    value: value as u64,
-                    width: width as u8,
+                    value: value as u128,
+                    width,
                 };
                 Some(mir::GlobalInitializer::scalar(constant))
             }

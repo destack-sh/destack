@@ -137,9 +137,13 @@ enum ConstantKey {
     /// Boolean constant.
     Boolean(bool),
     /// Signed integer constant.
-    Int { value: i64, width: u8, signed: bool },
+    Int {
+        value: i128,
+        width: u16,
+        signed: bool,
+    },
     /// Unsigned integer constant.
-    UInt { value: u64, width: u8 },
+    UInt { value: u128, width: u16 },
     /// Floating point constant.
     Float { bits: u64, width: u8 },
     /// Character constant.

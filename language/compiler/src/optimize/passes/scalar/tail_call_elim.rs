@@ -924,12 +924,9 @@ fn identity_constant_for_operator(
         _ => return None,
     };
 
-    // convert width from u16 to u8 for Constant
-    let width_u8 = (*width).try_into().ok()?;
-
     Some(Constant::Int {
-        value: identity_value,
-        width: width_u8,
+        value: i128::from(identity_value),
+        width: *width,
         is_signed: *signed,
     })
 }

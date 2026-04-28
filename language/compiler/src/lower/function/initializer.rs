@@ -45,13 +45,7 @@ impl FunctionLowerer<'_> {
                 });
             }
             mir::Type::Boolean => self.state.builder.bconst(false),
-            mir::Type::Int { width, is_signed } => {
-                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-                    node,
-                    message: "unsupported integer width for constructor initialization".to_string(),
-                })?;
-                self.state.builder.iconst(0, width, is_signed)
-            }
+            mir::Type::Int { width, is_signed } => self.state.builder.iconst(0, width, is_signed),
             mir::Type::FunctionSignature { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
                     node,
@@ -67,25 +61,19 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 let pointer_bits = self.context.type_lowerer.pointer_width_bits();
-                let width =
-                    u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
-                        node,
-                        message: "unsupported pointer width for constructor initialization"
-                            .to_string(),
-                    })?;
                 let signed = matches!(mir_type, mir::Type::Isize);
-                self.state.builder.iconst(0, width, signed)
+                self.state.builder.iconst(0, pointer_bits, signed)
             }
             mir::Type::Reference { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
+                let zero = self.state.builder.iconst(0, u16::from(pointer_bits), false);
                 self.state
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
             }
             mir::Type::TensorView { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
+                let zero = self.state.builder.iconst(0, u16::from(pointer_bits), false);
                 self.state
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
@@ -167,7 +155,7 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::FunctionPointer { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
+                let zero = self.state.builder.iconst(0, u16::from(pointer_bits), false);
                 self.state
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)

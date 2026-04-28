@@ -743,7 +743,7 @@ fn const_i64(
     // resolve the constant for this block
     let constant = constants.exit(block).get(value)?;
     match constant {
-        mir::Constant::Int { value, .. } => Some(*value),
+        mir::Constant::Int { value, .. } => i64::try_from(*value).ok(),
         mir::Constant::UInt { value, .. } => i64::try_from(*value).ok(),
         _ => None,
     }

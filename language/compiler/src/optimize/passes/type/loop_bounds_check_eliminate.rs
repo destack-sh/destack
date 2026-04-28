@@ -827,8 +827,8 @@ fn scev_constant(scev: &Scev) -> Option<&mir::Constant> {
 fn constant_to_i128(constant: &mir::Constant) -> Option<i128> {
     // convert integer constants to a signed offset
     match constant {
-        mir::Constant::Int { value, .. } => Some(i128::from(*value)),
-        mir::Constant::UInt { value, .. } => Some(i128::from(*value)),
+        mir::Constant::Int { value, .. } => Some(*value),
+        mir::Constant::UInt { value, .. } => i128::try_from(*value).ok(),
         _ => None,
     }
 }
@@ -902,7 +902,7 @@ fn signed_constant_from_range(value: mir::Value, ranges: &RangeMap) -> Option<i1
 
     // extract signed integer values
     match constant {
-        mir::Constant::Int { value, .. } => Some(value as i128),
+        mir::Constant::Int { value, .. } => Some(value),
         _ => None,
     }
 }

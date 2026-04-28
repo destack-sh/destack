@@ -252,7 +252,7 @@ impl FunctionLowerer<'_> {
                 mir::Type::Int {
                     width,
                     is_signed: signed,
-                } => (*width as u8, *signed),
+                } => (*width, *signed),
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -265,7 +265,7 @@ impl FunctionLowerer<'_> {
             let tag_const = self
                 .state
                 .builder
-                .iconst(tag_index as i64, tag_width, tag_signed);
+                .iconst(tag_index as i128, tag_width, tag_signed);
 
             // load through references before extracting the tag
             let union_value = match self.state.builder.tree().get(left_mir_type) {

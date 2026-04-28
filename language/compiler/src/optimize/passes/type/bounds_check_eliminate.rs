@@ -282,7 +282,7 @@ enum ConstantKey {
         /// Integer value.
         value: i128,
         /// Bit width for the integer.
-        width: u8,
+        width: u16,
         /// Whether the integer is signed.
         is_signed: bool,
     },
@@ -291,7 +291,7 @@ enum ConstantKey {
         /// Unsigned value.
         value: u128,
         /// Bit width for the integer.
-        width: u8,
+        width: u16,
     },
     /// Boolean constant.
     Boolean(bool),
@@ -995,7 +995,7 @@ struct IntegerRangeSnapshot {
     /// Maximum possible value.
     max: i128,
     /// Bit width for the integer.
-    width: u8,
+    width: u16,
     /// Whether the integer is signed.
     is_signed: bool,
 }
@@ -1542,12 +1542,12 @@ fn constant_key_from_constant(constant: &mir::Constant) -> Option<ConstantKey> {
             width,
             is_signed,
         } => Some(ConstantKey::Int {
-            value: *value as i128,
+            value: *value,
             width: *width,
             is_signed: *is_signed,
         }),
         mir::Constant::UInt { value, width } => Some(ConstantKey::UInt {
-            value: *value as u128,
+            value: *value,
             width: *width,
         }),
         _ => None,

@@ -587,10 +587,7 @@ fn preheader_guard_bound(
     let one_value = function.next_typed_value_like(bound);
     let one_inst = tree.insert(mir::Instruction::Const {
         destination: one_value.into(),
-        value: mir::Constant::UInt {
-            value: 1,
-            width: width as u8,
-        },
+        value: mir::Constant::UInt { value: 1, width },
     });
 
     // build the incremented bound

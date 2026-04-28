@@ -2019,31 +2019,31 @@ fn scaled_step_constant(
             if *signed {
                 let value = i64::try_from(scaled).ok()?;
                 Some(mir::Constant::Int {
-                    value,
-                    width: width as u8,
+                    value: i128::from(value),
+                    width,
                     is_signed: true,
                 })
             } else {
                 let value = u64::try_from(scaled).ok()?;
                 Some(mir::Constant::UInt {
-                    value,
-                    width: width as u8,
+                    value: u128::from(value),
+                    width,
                 })
             }
         }
         mir::Type::Isize => {
             let value = i64::try_from(scaled).ok()?;
             Some(mir::Constant::Int {
-                value,
-                width: pointer_width_bits as u8,
+                value: i128::from(value),
+                width: pointer_width_bits,
                 is_signed: true,
             })
         }
         mir::Type::Usize => {
             let value = u64::try_from(scaled).ok()?;
             Some(mir::Constant::UInt {
-                value,
-                width: pointer_width_bits as u8,
+                value: u128::from(value),
+                width: pointer_width_bits,
             })
         }
         _ => None,
@@ -2682,8 +2682,8 @@ fn constant_value_for(
 /// Convert a constant to a signed integer.
 fn constant_to_i128(constant: &mir::Constant) -> Option<i128> {
     match constant {
-        mir::Constant::Int { value, .. } => Some(*value as i128),
-        mir::Constant::UInt { value, .. } => Some(*value as i128),
+        mir::Constant::Int { value, .. } => Some(*value),
+        mir::Constant::UInt { value, .. } => i128::try_from(*value).ok(),
         _ => None,
     }
 }
@@ -2691,7 +2691,7 @@ fn constant_to_i128(constant: &mir::Constant) -> Option<i128> {
 /// Convert a constant to an unsigned integer.
 fn constant_to_u128(constant: &mir::Constant) -> Option<u128> {
     match constant {
-        mir::Constant::UInt { value, .. } => Some(*value as u128),
+        mir::Constant::UInt { value, .. } => Some(*value),
         mir::Constant::Int { value, .. } if *value >= 0 => Some(*value as u128),
         _ => None,
     }

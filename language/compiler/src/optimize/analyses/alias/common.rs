@@ -44,8 +44,9 @@ impl FunctionAA {
                 if let mir::Instruction::Const { destination, value } = inst
                     && let mir::Constant::Int { value: v, .. } = value
                     && let Some(destination) = destination.value()
+                    && let Ok(value) = i64::try_from(*v)
                 {
-                    constants.insert(destination, *v);
+                    constants.insert(destination, value);
                 }
             }
         }
