@@ -1812,7 +1812,7 @@ impl<'a> Validator<'a> {
                     self.value_type_or_error(function, *index, anchor, "element.get index")?;
 
                 let element_type =
-                    self.element_type_for_array(array_type, anchor, "element.get")?;
+                    self.fixed_element_type_for_array(array_type, anchor, "element.get")?;
                 if !self.types_equivalent(destination_type, element_type) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "element.get destination type mismatches array element type"
@@ -1854,7 +1854,7 @@ impl<'a> Validator<'a> {
                 }
 
                 let element_type =
-                    self.element_type_for_array(array_type, anchor, "element.set")?;
+                    self.fixed_element_type_for_array(array_type, anchor, "element.set")?;
                 if !self.is_store_compatible_type(value_type, element_type) {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "element.set value type mismatches array element type".to_string(),
@@ -1885,8 +1885,15 @@ impl<'a> Validator<'a> {
                     self.value_type_or_error(function, *array, anchor, "element.address array")?;
                 let index_type =
                     self.value_type_or_error(function, *index, anchor, "element.address index")?;
-                self.element_type_for_array(array_type, anchor, "element.address")?;
-                self.validate_reference_result_type(result_type, None, None, None, anchor)?;
+                let element_type =
+                    self.element_type_for_array(array_type, anchor, "element.address")?;
+                self.validate_reference_result_type(
+                    result_type,
+                    Some(element_type),
+                    None,
+                    None,
+                    anchor,
+                )?;
 
                 self.expect_integer_like_type(
                     index_type,
@@ -2207,7 +2214,7 @@ impl<'a> Validator<'a> {
         }
     }
 
-    /// Resolve the element type for an array or pointer aggregate.
+    /// Resolve the element type for an indexed value.
     fn element_type_for_array(
         &self,
         array_type: LocalNodeId<Type>,
@@ -2218,6 +2225,22 @@ impl<'a> Validator<'a> {
             Some(element_type) => Ok(element_type),
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} expects an array aggregate"),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve the element type for a fixed array aggregate.
+    fn fixed_element_type_for_array(
+        &self,
+        array_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        match self.fixed_array_element_type(array_type) {
+            Some(element_type) => Ok(element_type),
+            _ => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} expects a fixed array aggregate"),
                 anchor,
             }),
         }
@@ -2239,6 +2262,14 @@ impl<'a> Validator<'a> {
                 None => None,
             },
             Type::TensorView { element, .. } => self.concrete_type_reference(*element),
+            _ => None,
+        }
+    }
+
+    /// Resolve one projected element type for fixed aggregate indexing.
+    fn fixed_array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
+        match self.tree.get(type_id) {
+            Type::Array { element, .. } => self.concrete_type_reference(*element),
             _ => None,
         }
     }

@@ -114,9 +114,6 @@ impl Parser {
                         return Err(ParseError::invalid("integer constant type", token_start));
                     }
                 };
-                let width = u8::try_from(width)
-                    .map_err(|_| ParseError::invalid("integer width", token_start))?;
-
                 // typed literal
                 if has_suffix {
                     let constant = self.parse_int_constant(&token_text).ok_or_else(|| {
@@ -142,7 +139,7 @@ impl Parser {
                 }
                 // signed payload
                 else if is_signed {
-                    let value: i64 = token_text
+                    let value: i128 = token_text
                         .parse()
                         .map_err(|_| ParseError::invalid("integer constant", token_start))?;
                     Ok(Constant::Int {
@@ -152,7 +149,7 @@ impl Parser {
                     })
                 } else {
                     // unsigned payload
-                    let value: u64 = token_text
+                    let value: u128 = token_text
                         .parse()
                         .map_err(|_| ParseError::invalid("integer constant", token_start))?;
                     Ok(Constant::UInt { value, width })
@@ -359,17 +356,17 @@ impl Parser {
         } else {
             return None;
         };
-        let width: u8 = width_text.parse().ok()?;
+        let width: u16 = width_text.parse().ok()?;
 
         if is_signed {
-            let value: i64 = digits.parse().ok()?;
+            let value: i128 = digits.parse().ok()?;
             Some(Constant::Int {
                 value,
                 width,
                 is_signed: true,
             })
         } else {
-            let value: u64 = digits.parse().ok()?;
+            let value: u128 = digits.parse().ok()?;
             Some(Constant::UInt { value, width })
         }
     }

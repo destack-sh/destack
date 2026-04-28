@@ -18,7 +18,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert an integer constant.
-    pub fn iconst(&mut self, value: i64, width: u8, signed: bool) -> Value {
+    pub fn iconst(&mut self, value: i128, width: u16, signed: bool) -> Value {
         let destination = self.allocate_value();
         let constant = if signed {
             Constant::Int {
@@ -28,12 +28,12 @@ impl<'a> FunctionBuilder<'a> {
             }
         } else {
             Constant::UInt {
-                value: value as u64,
+                value: value as u128,
                 width,
             }
         };
         let ty = Type::Int {
-            width: width.into(),
+            width,
             is_signed: signed,
         };
         let ty_id = self.tree.insert_type(ty);
@@ -47,12 +47,12 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Insert a 32-bit signed integer constant.
     pub fn iconst_i32(&mut self, value: i32) -> Value {
-        self.iconst(value as i64, 32, true)
+        self.iconst(value as i128, 32, true)
     }
 
     /// Insert a 64-bit signed integer constant.
     pub fn iconst_i64(&mut self, value: i64) -> Value {
-        self.iconst(value, 64, true)
+        self.iconst(value as i128, 64, true)
     }
 
     /// Insert a boolean constant.

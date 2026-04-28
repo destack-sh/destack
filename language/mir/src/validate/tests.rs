@@ -988,12 +988,44 @@ b0(v0: int32[4], v1: float32):
     );
 }
 
-/// Accept element projections on slices.
+/// Reject element gets on slices.
 #[test]
-fn test_accept_element_get_with_slice() {
-    let source = r#"function good(v0: slice<int32>, v1: int64): int32 {
+fn test_reject_element_get_with_slice() {
+    let source = r#"function bad(v0: slice<int32>, v1: int64): int32 {
 b0(v0: slice<int32>, v1: int64):
     v2: int32 = element.get v0, v1
+    return v2
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: element.get expects a fixed array aggregate"
+    );
+}
+
+/// Reject element sets on slices.
+#[test]
+fn test_reject_element_set_with_slice() {
+    let source = r#"function bad(v0: slice<int32>, v1: int64, v2: int32): slice<int32> {
+b0(v0: slice<int32>, v1: int64, v2: int32):
+    v3: slice<int32> = element.set v0, v1, v2
+    return v3
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: element.set expects a fixed array aggregate"
+    );
+}
+
+/// Accept element addresses on slices.
+#[test]
+fn test_accept_element_address_with_slice() {
+    let source = r#"function good(v0: slice<int32>, v1: int64): ref<int32, managed> {
+b0(v0: slice<int32>, v1: int64):
+    v2: ref<int32, managed> = element.address v0, v1
     return v2
 }"#;
 
