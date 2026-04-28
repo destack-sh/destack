@@ -219,7 +219,7 @@ impl<'a> ModuleLowerer<'a> {
             // integer -> bytes
             mir::Constant::Int { width, .. } | mir::Constant::UInt { width, .. } => {
                 let value = match constant {
-                    mir::Constant::Int { value, .. } => *value as u64,
+                    mir::Constant::Int { value, .. } => *value as u128,
                     mir::Constant::UInt { value, .. } => *value,
                     _ => unreachable!(),
                 };
@@ -227,8 +227,8 @@ impl<'a> ModuleLowerer<'a> {
                     8 => vec![value as u8],
                     16 => (value as u16).to_le_bytes().to_vec(),
                     32 => (value as u32).to_le_bytes().to_vec(),
-                    64 => value.to_le_bytes().to_vec(),
-                    128 => (value as u128).to_le_bytes().to_vec(),
+                    64 => (value as u64).to_le_bytes().to_vec(),
+                    128 => value.to_le_bytes().to_vec(),
                     _ => {
                         return Err(CodegenCraneliftError::unsupported_type(
                             format!("unsupported integer width for global initializer: {width}"),

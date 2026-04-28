@@ -23,7 +23,7 @@ pub enum ValueRange {
         /// Finite bounds for the float range.
         bounds: Option<FloatBounds>,
         /// Bit width of the float.
-        width: u8,
+        width: u16,
         /// Whether NaN is possible.
         can_be_nan: bool,
         /// Whether positive infinity is possible.
@@ -45,7 +45,7 @@ pub enum ValueRange {
         /// Maximum possible value.
         max: i128,
         /// Bit width of the integer.
-        width: u8,
+        width: u16,
         /// Whether the integer is signed.
         is_signed: bool,
     },
@@ -89,7 +89,7 @@ impl ValueRange {
 
                 Some(ValueRange::Float {
                     bounds,
-                    width,
+                    width: u16::from(width),
                     can_be_nan,
                     can_be_pos_inf,
                     can_be_neg_inf,
@@ -145,14 +145,13 @@ impl ValueRange {
 
                 // select a signed or unsigned constant representation
                 if *is_signed {
-                    let value = i64::try_from(*min).ok()?;
                     Some(mir::Constant::Int {
-                        value,
+                        value: *min,
                         width: *width,
                         is_signed: true,
                     })
                 } else {
-                    let value = u64::try_from(*min).ok()?;
+                    let value = u128::try_from(*min).ok()?;
                     Some(mir::Constant::UInt {
                         value,
                         width: *width,
@@ -797,9 +796,6 @@ fn range_for_cast(
             // require an integer target type
             let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
 
-            // normalize the target width
-            let to_width = u8::try_from(to_width).ok()?;
-
             match operator {
                 mir::CastOperator::SignExtend => {
                     if !*is_signed {
@@ -844,8 +840,7 @@ fn range_for_cast(
                 return None;
             };
 
-            let to_width = u8::try_from(*width).ok()?;
-            float_range_from_integer(argument, to_width, operator)
+            float_range_from_integer(argument, *width, operator)
         }
         mir::CastOperator::FloatToSignedInt
         | mir::CastOperator::FloatToUnsignedInt
@@ -854,7 +849,6 @@ fn range_for_cast(
             // require an integer target type
             let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
 
-            let to_width = u8::try_from(to_width).ok()?;
             integer_range_from_float(argument, to_width, to_signed, operator)
         }
         mir::CastOperator::FloatTruncate | mir::CastOperator::FloatExtend => {
@@ -863,8 +857,7 @@ fn range_for_cast(
                 return None;
             };
 
-            let to_width = u8::try_from(*width).ok()?;
-            float_range_cast(argument, to_width)
+            float_range_cast(argument, *width)
         }
         _ => None,
     }
@@ -890,9 +883,9 @@ fn empty_ranges() -> &'static RangeMap {
 }
 
 /// Compute integer bounds for a width and signedness.
-fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+fn integer_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
     // reject unsupported widths
-    if width == 0 || width > 64 {
+    if width == 0 || width > 128 || (!is_signed && width == 128) {
         return None;
     }
 
@@ -910,7 +903,7 @@ fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
 }
 
 /// Extract integer range fields with bounds check.
-fn integer_range_fields(range: &ValueRange) -> Option<(i128, i128, u8, bool)> {
+fn integer_range_fields(range: &ValueRange) -> Option<(i128, i128, u16, bool)> {
     // require an integer range
     let ValueRange::Integer {
         min,
@@ -926,7 +919,7 @@ fn integer_range_fields(range: &ValueRange) -> Option<(i128, i128, u8, bool)> {
 }
 
 /// Build an integer range with full bounds.
-fn integer_full_range(width: u8, is_signed: bool) -> Option<ValueRange> {
+fn integer_full_range(width: u16, is_signed: bool) -> Option<ValueRange> {
     // compute full bounds for the integer width
     let (min, max) = integer_bounds(width, is_signed)?;
     Some(ValueRange::Integer {
@@ -1198,12 +1191,12 @@ fn integer_range_negate(range: &ValueRange) -> Option<ValueRange> {
 }
 
 /// Check if a float width is supported.
-fn float_width_supported(width: u8) -> bool {
+fn float_width_supported(width: u16) -> bool {
     width == 32 || width == 64
 }
 
 /// Return the maximum finite magnitude for a float width.
-fn float_max_finite(width: u8) -> Option<f64> {
+fn float_max_finite(width: u16) -> Option<f64> {
     match width {
         32 => Some(f32::MAX as f64),
         64 => Some(f64::MAX),
@@ -1212,14 +1205,14 @@ fn float_max_finite(width: u8) -> Option<f64> {
 }
 
 /// Build finite bounds that cover all finite values of a float width.
-fn float_full_finite_bounds(width: u8) -> Option<FloatBounds> {
+fn float_full_finite_bounds(width: u16) -> Option<FloatBounds> {
     let max = float_max_finite(width)?;
 
     Some(FloatBounds { min: -max, max })
 }
 
 /// Extract float range fields with bounds check.
-fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bool, bool, bool)> {
+fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u16, bool, bool, bool)> {
     // require a float range
     let ValueRange::Float {
         bounds,
@@ -1246,7 +1239,7 @@ fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bo
 }
 
 /// Build a float range with full bounds.
-fn float_full_range(width: u8) -> Option<ValueRange> {
+fn float_full_range(width: u16) -> Option<ValueRange> {
     if !float_width_supported(width) {
         return None;
     }
@@ -1263,7 +1256,7 @@ fn float_full_range(width: u8) -> Option<ValueRange> {
 }
 
 /// Cast a float value to the given width.
-fn float_cast_value(width: u8, value: f64) -> Option<f64> {
+fn float_cast_value(width: u16, value: f64) -> Option<f64> {
     if width == 32 {
         Some((value as f32) as f64)
     } else if width == 64 {
@@ -1274,7 +1267,7 @@ fn float_cast_value(width: u8, value: f64) -> Option<f64> {
 }
 
 /// Cast an integer value to the given float width.
-fn float_from_integer(width: u8, value: i128) -> Option<f64> {
+fn float_from_integer(width: u16, value: i128) -> Option<f64> {
     if width == 32 {
         Some((value as f32) as f64)
     } else if width == 64 {
@@ -1285,7 +1278,7 @@ fn float_from_integer(width: u8, value: i128) -> Option<f64> {
 }
 
 /// Apply a float addition with the given width.
-fn float_add_value(width: u8, left: f64, right: f64) -> Option<f64> {
+fn float_add_value(width: u16, left: f64, right: f64) -> Option<f64> {
     if width == 32 {
         Some(((left as f32) + (right as f32)) as f64)
     } else if width == 64 {
@@ -1296,7 +1289,7 @@ fn float_add_value(width: u8, left: f64, right: f64) -> Option<f64> {
 }
 
 /// Apply a float subtraction with the given width.
-fn float_sub_value(width: u8, left: f64, right: f64) -> Option<f64> {
+fn float_sub_value(width: u16, left: f64, right: f64) -> Option<f64> {
     if width == 32 {
         Some(((left as f32) - (right as f32)) as f64)
     } else if width == 64 {
@@ -1307,7 +1300,7 @@ fn float_sub_value(width: u8, left: f64, right: f64) -> Option<f64> {
 }
 
 /// Apply a float multiplication with the given width.
-fn float_mul_value(width: u8, left: f64, right: f64) -> Option<f64> {
+fn float_mul_value(width: u16, left: f64, right: f64) -> Option<f64> {
     if width == 32 {
         Some(((left as f32) * (right as f32)) as f64)
     } else if width == 64 {
@@ -1318,7 +1311,7 @@ fn float_mul_value(width: u8, left: f64, right: f64) -> Option<f64> {
 }
 
 /// Apply a float division with the given width.
-fn float_div_value(width: u8, left: f64, right: f64) -> Option<f64> {
+fn float_div_value(width: u16, left: f64, right: f64) -> Option<f64> {
     if width == 32 {
         Some(((left as f32) / (right as f32)) as f64)
     } else if width == 64 {
@@ -1329,7 +1322,7 @@ fn float_div_value(width: u8, left: f64, right: f64) -> Option<f64> {
 }
 
 /// Apply a float negation with the given width.
-fn float_neg_value(width: u8, value: f64) -> Option<f64> {
+fn float_neg_value(width: u16, value: f64) -> Option<f64> {
     if width == 32 {
         Some((-(value as f32)) as f64)
     } else if width == 64 {
@@ -1933,7 +1926,7 @@ fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
 }
 
 /// Compute a float range for cast operations between floats.
-fn float_range_cast(argument: &ValueRange, to_width: u8) -> Option<ValueRange> {
+fn float_range_cast(argument: &ValueRange, to_width: u16) -> Option<ValueRange> {
     let (bounds, _width, can_be_nan, mut can_be_pos_inf, mut can_be_neg_inf) =
         float_range_fields(argument)?;
 
@@ -1967,7 +1960,7 @@ fn float_range_cast(argument: &ValueRange, to_width: u8) -> Option<ValueRange> {
 /// Convert an integer range to a float range.
 fn float_range_from_integer(
     argument: &ValueRange,
-    to_width: u8,
+    to_width: u16,
     operator: mir::CastOperator,
 ) -> Option<ValueRange> {
     let (min, max, _width, is_signed) = integer_range_fields(argument)?;
@@ -2032,7 +2025,7 @@ fn float_range_from_integer(
 /// Convert a float range to an integer range.
 fn integer_range_from_float(
     argument: &ValueRange,
-    to_width: u8,
+    to_width: u16,
     to_signed: bool,
     operator: mir::CastOperator,
 ) -> Option<ValueRange> {

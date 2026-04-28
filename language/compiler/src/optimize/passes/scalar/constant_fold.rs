@@ -416,7 +416,7 @@ fn fold_terminators(
                 let constant_value = exit_constants.get(&value);
                 let selected = match constant_value {
                     Some(mir::Constant::Int { value, .. }) => Some(*value),
-                    Some(mir::Constant::UInt { value, .. }) => i64::try_from(*value).ok(),
+                    Some(mir::Constant::UInt { value, .. }) => i128::try_from(*value).ok(),
                     _ => None,
                 };
 

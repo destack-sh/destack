@@ -1530,6 +1530,10 @@ impl<'a> FunctionLowerer<'a> {
         for case in cases {
             // case condition
             let case_value = self.integer_value(case.value, "switch case value")?;
+            let case_value =
+                i64::try_from(case_value).map_err(|_| CodegenCraneliftError::Internal {
+                    message: "wide switch case with block arguments".to_string(),
+                })?;
             let case_const = builder.ins().iconst(self.pointer_type(), case_value);
             let is_match =
                 builder
@@ -1749,7 +1753,14 @@ impl<'a> FunctionLowerer<'a> {
                         ));
                     }
                 };
-                Ok(builder.ins().iconst(ty, *value))
+                let value = i64::try_from(*value).map_err(|_| {
+                    CodegenCraneliftError::unsupported_type(
+                        format!("signed integer constant {value} does not fit i64"),
+                        node_id,
+                    )
+                })?;
+
+                Ok(builder.ins().iconst(ty, value))
             }
 
             mir::Constant::UInt { value, width } => {
@@ -1765,7 +1776,14 @@ impl<'a> FunctionLowerer<'a> {
                         ));
                     }
                 };
-                Ok(builder.ins().iconst(ty, *value as i64))
+                let value = u64::try_from(*value).map_err(|_| {
+                    CodegenCraneliftError::unsupported_type(
+                        format!("unsigned integer constant {value} does not fit u64"),
+                        node_id,
+                    )
+                })?;
+
+                Ok(builder.ins().iconst(ty, value as i64))
             }
 
             mir::Constant::Float { bits, width } => match width {
@@ -1887,7 +1905,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         value: mir::IntegerReference,
         context: &str,
-    ) -> CodegenCraneliftResult<i64> {
+    ) -> CodegenCraneliftResult<i128> {
         value
             .integer()
             .ok_or_else(|| CodegenCraneliftError::Internal {

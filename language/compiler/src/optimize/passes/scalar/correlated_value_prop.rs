@@ -430,8 +430,12 @@ fn integer_range_constraints(
             value,
             width,
             is_signed,
-        } => (*value as i128, *width, *is_signed),
-        mir::Constant::UInt { value, width } => (*value as i128, *width, false),
+        } => (*value, *width, *is_signed),
+        mir::Constant::UInt { value, width } => {
+            let value = i128::try_from(*value).ok()?;
+
+            (value, *width, false)
+        }
         _ => return None,
     };
 
@@ -482,7 +486,7 @@ fn integer_range_constraints(
 }
 
 /// Return the full integer bounds for a type.
-fn integer_full_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+fn integer_full_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
     // reject unsupported widths
     if width == 0 || width > 127 {
         return None;
@@ -509,7 +513,7 @@ fn integer_full_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
 fn integer_range_from_bounds(
     min: i128,
     max: i128,
-    width: u8,
+    width: u16,
     is_signed: bool,
 ) -> Option<ValueRange> {
     // reject empty ranges
@@ -708,8 +712,8 @@ fn comparison_from_range(
 fn constant_to_i128(constant: mir::Constant) -> Option<i128> {
     // map integer constants to i128
     match constant {
-        mir::Constant::Int { value, .. } => Some(value as i128),
-        mir::Constant::UInt { value, .. } => Some(value as i128),
+        mir::Constant::Int { value, .. } => Some(value),
+        mir::Constant::UInt { value, .. } => i128::try_from(value).ok(),
         _ => None,
     }
 }

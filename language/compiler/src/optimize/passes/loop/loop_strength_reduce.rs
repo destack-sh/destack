@@ -942,7 +942,7 @@ struct IntegerRange {
     /// Maximum value.
     max: i128,
     /// Bit width.
-    width: u8,
+    width: u16,
     /// Signedness.
     is_signed: bool,
 }
@@ -1777,8 +1777,14 @@ impl<'a> ScevMaterializer<'a> {
     fn scev_excludes_value(&self, scev: &Scev, target: i128) -> bool {
         match scev {
             Scev::Constant(constant) => match constant {
-                mir::Constant::Int { value, .. } => i128::from(*value) != target,
-                mir::Constant::UInt { value, .. } => i128::from(*value) != target,
+                mir::Constant::Int { value, .. } => *value != target,
+                mir::Constant::UInt { value, .. } => {
+                    let Ok(value) = i128::try_from(*value) else {
+                        return false;
+                    };
+
+                    value != target
+                }
                 _ => false,
             },
             Scev::Unknown(value_id) => {
@@ -1863,7 +1869,7 @@ fn signed_min_excluded(range: &ValueRange) -> bool {
 }
 
 /// Compute the signed minimum value for a bit width.
-fn signed_min_value(width: u8) -> i128 {
+fn signed_min_value(width: u16) -> i128 {
     let shift = width.saturating_sub(1);
     -(1_i128 << shift)
 }

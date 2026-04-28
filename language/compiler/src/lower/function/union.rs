@@ -159,7 +159,7 @@ impl FunctionLowerer<'_> {
             mir::Type::Int {
                 width,
                 is_signed: signed,
-            } => (*width as u8, *signed),
+            } => (*width, *signed),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node,
@@ -170,7 +170,7 @@ impl FunctionLowerer<'_> {
         let tag_value = self
             .state
             .builder
-            .iconst(tag_index as i64, tag_width, tag_signed);
+            .iconst(tag_index as i128, tag_width, tag_signed);
 
         // build the union payload
         let payload = match layout.payload_kind {
@@ -238,14 +238,14 @@ impl FunctionLowerer<'_> {
             mir::Type::Int {
                 width,
                 is_signed: signed,
-            } => Ok(self.state.builder.iconst(0, *width as u8, *signed)),
+            } => Ok(self.state.builder.iconst(0, *width, *signed)),
             mir::Type::Usize => {
-                let width = self.context.type_lowerer.pointer_width_bits() as u8;
+                let width = self.context.type_lowerer.pointer_width_bits();
                 let zero = self.state.builder.iconst(0, width, false);
                 Ok(self.state.builder.bitcast(zero, element_type))
             }
             mir::Type::Isize => {
-                let width = self.context.type_lowerer.pointer_width_bits() as u8;
+                let width = self.context.type_lowerer.pointer_width_bits();
                 let zero = self.state.builder.iconst(0, width, true);
                 Ok(self.state.builder.bitcast(zero, element_type))
             }
@@ -857,7 +857,7 @@ impl FunctionLowerer<'_> {
         Ok(self
             .state
             .builder
-            .iconst(tag_index as i64, *width as u8, *signed))
+            .iconst(tag_index as i128, *width, *signed))
     }
 
     /// Lower a discriminant literal into a MIR value.
@@ -876,7 +876,7 @@ impl FunctionLowerer<'_> {
                 let scalar = self.context.type_lowerer.scalar_type_for_dir_type(dir_type);
                 match scalar {
                     Some(ScalarType::SignedInt { width }) => {
-                        let value = self.state.builder.iconst(*value as i64, width as u8, true);
+                        let value = self.state.builder.iconst(*value as i128, width, true);
                         let ty = if width == 64 {
                             self.context.type_lowerer.ty_i64
                         } else {

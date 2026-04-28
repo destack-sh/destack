@@ -1166,8 +1166,8 @@ fn emit_copy_length(
 
     // materialize the element size constant
     let size_const = mir::Constant::UInt {
-        value: element_size,
-        width: bound_width as u8,
+        value: u128::from(element_size),
+        width: bound_width,
     };
     let size_inst = tree.insert(mir::Instruction::Const {
         destination: function.next_typed_value_like(bound).into(),

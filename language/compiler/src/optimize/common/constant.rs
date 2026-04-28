@@ -18,7 +18,7 @@ pub enum ConstantType {
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
-    Int { width: u8, signed: bool },
+    Int { width: u16, signed: bool },
     /// Floating point constant type.
     Float { width: u8 },
     /// Character constant type.
@@ -78,10 +78,10 @@ pub fn constant_matches_type(
             else {
                 return false;
             };
-            width == ty_width as u8 && signed == ty_signed
+            width == ty_width && signed == ty_signed
         }
         (ConstantType::Float { width }, Type::Float { width: ty_width }) => {
-            width == *ty_width as u8
+            u16::from(width) == *ty_width
         }
         (
             ConstantType::Char,
@@ -258,11 +258,7 @@ pub fn constant_is_all_ones(constant: Option<&Constant>) -> bool {
     match constant {
         Some(Constant::Int { value: -1, .. }) => true,
         Some(Constant::UInt { value, width }) => {
-            let mask = if *width >= 64 {
-                u64::MAX
-            } else {
-                (1u64 << width) - 1
-            };
+            let mask = mask_to_width(u128::MAX, *width);
             *value == mask
         }
         Some(Constant::Boolean { value: true }) => true,
@@ -330,14 +326,11 @@ pub fn constant_zero_for_type(ty: &Type, pointer_width_bits: u16) -> Option<Cons
     if signed {
         Some(Constant::Int {
             value: 0,
-            width: width as u8,
+            width,
             is_signed: true,
         })
     } else {
-        Some(Constant::UInt {
-            value: 0,
-            width: width as u8,
-        })
+        Some(Constant::UInt { value: 0, width })
     }
 }
 
@@ -352,7 +345,7 @@ pub fn constant_all_ones_like(template: &Constant) -> Constant {
             is_signed: *is_signed,
         },
         Constant::UInt { width, .. } => Constant::UInt {
-            value: u64::MAX,
+            value: mask_to_width(u128::MAX, *width),
             width: *width,
         },
         Constant::Boolean { .. } => Constant::Boolean { value: true },
@@ -432,14 +425,14 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
     let folded_integer_unary = match intrinsic {
         Intrinsic::LeadingZeroCount => fold_int_unary(first, |value, width| {
             let leading = value.leading_zeros();
-            let adjust = u32::from(64u8.saturating_sub(width));
-            Some((leading - adjust) as u64)
+            let adjust = u32::from(128u16.saturating_sub(width));
+            Some((leading - adjust) as u128)
         }),
         Intrinsic::TrailingZeroCount => {
-            fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u64))
+            fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u128))
         }
         Intrinsic::PopulationCount => {
-            fold_int_unary(first, |value, _width| Some(value.count_ones() as u64))
+            fold_int_unary(first, |value, _width| Some(value.count_ones() as u128))
         }
         Intrinsic::ByteSwap => fold_int_unary(first, |value, width| {
             if width % 8 != 0 {
@@ -450,7 +443,7 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
         }),
         Intrinsic::BitReverse => fold_int_unary(first, |value, width| {
             let reversed = value.reverse_bits();
-            let shifted = reversed >> (64u8.saturating_sub(width));
+            let shifted = reversed >> 128u16.saturating_sub(width);
             Some(mask_to_width(shifted, width))
         }),
         _ => None,
@@ -462,12 +455,12 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
     // fold integer binary intrinsics
     let folded_integer_binary = match intrinsic {
         Intrinsic::RotateLeft => fold_int_binary(arguments, |value, shift, width| {
-            let shift = (shift % width as u64) as u32;
+            let shift = (shift % u128::from(width)) as u32;
             let rotated = value.rotate_left(shift);
             Some(mask_to_width(rotated, width))
         }),
         Intrinsic::RotateRight => fold_int_binary(arguments, |value, shift, width| {
-            let shift = (shift % width as u64) as u32;
+            let shift = (shift % u128::from(width)) as u32;
             let rotated = value.rotate_right(shift);
             Some(mask_to_width(rotated, width))
         }),
@@ -513,7 +506,10 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 }
 
 /// Fold an integer unary intrinsic when possible.
-fn fold_int_unary(constant: &Constant, f: impl FnOnce(u64, u8) -> Option<u64>) -> Option<Constant> {
+fn fold_int_unary(
+    constant: &Constant,
+    f: impl FnOnce(u128, u16) -> Option<u128>,
+) -> Option<Constant> {
     // decode the constant payload
     let (value, width, is_signed) = decode_int_constant(constant)?;
 
@@ -527,7 +523,7 @@ fn fold_int_unary(constant: &Constant, f: impl FnOnce(u64, u8) -> Option<u64>) -
 /// Fold an integer binary intrinsic when possible.
 fn fold_int_binary(
     arguments: &[Constant],
-    f: impl FnOnce(u64, u64, u8) -> Option<u64>,
+    f: impl FnOnce(u128, u128, u16) -> Option<u128>,
 ) -> Option<Constant> {
     // expect exactly two operands
     let left = arguments.first()?;
@@ -604,15 +600,15 @@ fn fold_float_ternary(
     Some(encode_float_constant(folded, width))
 }
 
-/// Decode an integer constant into a masked u64 payload.
-fn decode_int_constant(constant: &Constant) -> Option<(u64, u8, bool)> {
+/// Decode an integer constant into a masked payload.
+fn decode_int_constant(constant: &Constant) -> Option<(u128, u16, bool)> {
     match constant {
         Constant::Int {
             value,
             width,
             is_signed,
         } => {
-            let masked = mask_to_width(*value as u64, *width);
+            let masked = mask_to_width(*value as u128, *width);
             Some((masked, *width, *is_signed))
         }
         Constant::UInt { value, width } => Some((*value, *width, false)),
@@ -621,11 +617,10 @@ fn decode_int_constant(constant: &Constant) -> Option<(u64, u8, bool)> {
 }
 
 /// Encode a masked integer payload into a constant.
-fn encode_int_constant(value: u64, width: u8, is_signed: bool) -> Constant {
+fn encode_int_constant(value: u128, width: u16, is_signed: bool) -> Constant {
     // sign extend when needed
     if is_signed {
-        let shift = 64u8.saturating_sub(width) as u32;
-        let signed = ((value << shift) as i64) >> shift;
+        let signed = signed_from_bits(value, width);
         Constant::Int {
             value: signed,
             width,
@@ -663,13 +658,30 @@ fn encode_float_constant(value: f64, width: u8) -> Constant {
     }
 }
 
-/// Mask a u64 value down to the specified width.
-fn mask_to_width(value: u64, width: u8) -> u64 {
-    if width >= 64 {
+/// Mask an integer payload down to the specified width.
+fn mask_to_width(value: u128, width: u16) -> u128 {
+    if width >= 128 {
         value
     } else {
-        let mask = (1u64 << width) - 1;
+        let mask = (1u128 << width) - 1;
         value & mask
+    }
+}
+
+/// Sign extend a masked integer payload.
+fn signed_from_bits(value: u128, width: u16) -> i128 {
+    if width >= 128 {
+        return value as i128;
+    }
+
+    let mask = (1u128 << width) - 1;
+    let masked = value & mask;
+    let sign_bit = 1u128 << (width - 1);
+
+    if masked & sign_bit != 0 {
+        (masked | !mask) as i128
+    } else {
+        masked as i128
     }
 }
 
@@ -750,49 +762,32 @@ fn constant_tree_from_zero(
             width,
             is_signed: signed,
         } => {
-            let width = match u8::try_from(*width) {
-                Ok(width) => width,
-                Err(_) => return ConstantTree::Unknown,
-            };
-
             if *signed {
                 ConstantTree::Scalar(Constant::Int {
                     value: 0,
-                    width,
+                    width: *width,
                     is_signed: true,
                 })
             } else {
-                ConstantTree::Scalar(Constant::UInt { value: 0, width })
+                ConstantTree::Scalar(Constant::UInt {
+                    value: 0,
+                    width: *width,
+                })
             }
         }
-        Type::Isize => {
-            let width = match u8::try_from(pointer_width_bits) {
-                Ok(width) => width,
-                Err(_) => return ConstantTree::Unknown,
-            };
-
-            ConstantTree::Scalar(Constant::Int {
-                value: 0,
-                width,
-                is_signed: true,
-            })
-        }
-        Type::Usize => {
-            let width = match u8::try_from(pointer_width_bits) {
-                Ok(width) => width,
-                Err(_) => return ConstantTree::Unknown,
-            };
-
-            ConstantTree::Scalar(Constant::UInt { value: 0, width })
-        }
-        Type::Float { width } => {
-            let width = match u8::try_from(*width) {
-                Ok(width) => width,
-                Err(_) => return ConstantTree::Unknown,
-            };
-
-            ConstantTree::Scalar(Constant::Float { bits: 0, width })
-        }
+        Type::Isize => ConstantTree::Scalar(Constant::Int {
+            value: 0,
+            width: pointer_width_bits,
+            is_signed: true,
+        }),
+        Type::Usize => ConstantTree::Scalar(Constant::UInt {
+            value: 0,
+            width: pointer_width_bits,
+        }),
+        Type::Float { width } => ConstantTree::Scalar(Constant::Float {
+            bits: 0,
+            width: *width as u8,
+        }),
         Type::Newtype { inner, .. } => {
             constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
         }
@@ -897,7 +892,7 @@ fn constant_tree_from_bytes(
         bytes
             .iter()
             .map(|byte| {
-                let value = i8::from_ne_bytes([*byte]) as i64;
+                let value = i8::from_ne_bytes([*byte]) as i128;
                 ConstantTree::Scalar(Constant::Int {
                     value,
                     width: 8,
@@ -910,7 +905,7 @@ fn constant_tree_from_bytes(
             .iter()
             .map(|byte| {
                 ConstantTree::Scalar(Constant::UInt {
-                    value: *byte as u64,
+                    value: u128::from(*byte),
                     width: 8,
                 })
             })
@@ -1055,14 +1050,14 @@ pub fn fold_binary(operator: BinaryOperator, left: Constant, right: Constant) ->
 
 /// Fold a binary operation on signed integers.
 pub fn fold_binary_signed(
-    left: i64,
-    right: i64,
-    width: u8,
+    left: i128,
+    right: i128,
+    width: u16,
     operator: BinaryOperator,
 ) -> Option<Constant> {
-    let result_int = |value: i64| {
+    let result_int = |value: i128| {
         Some(Constant::Int {
-            value,
+            value: truncate_signed(value, width),
             width,
             is_signed: true,
         })
@@ -1104,12 +1099,17 @@ pub fn fold_binary_signed(
 
 /// Fold a binary operation on unsigned integers.
 pub fn fold_binary_unsigned(
-    left: u64,
-    right: u64,
-    width: u8,
+    left: u128,
+    right: u128,
+    width: u16,
     operator: BinaryOperator,
 ) -> Option<Constant> {
-    let result_uint = |value: u64| Some(Constant::UInt { value, width });
+    let result_uint = |value: u128| {
+        Some(Constant::UInt {
+            value: mask_to_width(value, width),
+            width,
+        })
+    };
     let result_bool = |value: bool| Some(Constant::Boolean { value });
 
     match operator {
@@ -1229,7 +1229,7 @@ pub fn fold_cast(
         CastOperator::Truncate => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => return Some(value),
             };
 
@@ -1251,7 +1251,7 @@ pub fn fold_cast(
         CastOperator::ZeroExtend => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => return Some(value),
             };
 
@@ -1262,7 +1262,7 @@ pub fn fold_cast(
                     width: target_width,
                 }),
                 Constant::Int { value, width, .. } => {
-                    let masked = truncate_unsigned(value as u64, width);
+                    let masked = truncate_unsigned(value as u128, width);
                     Some(Constant::UInt {
                         value: masked,
                         width: target_width,
@@ -1275,7 +1275,7 @@ pub fn fold_cast(
         CastOperator::SignExtend => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => return Some(value),
             };
 
@@ -1287,7 +1287,7 @@ pub fn fold_cast(
                     is_signed: true,
                 }),
                 Constant::UInt { value, width } => {
-                    let as_signed = truncate_signed(value as i64, width);
+                    let as_signed = signed_from_bits(value, width);
                     Some(Constant::Int {
                         value: sign_extend(as_signed, width, target_width),
                         width: target_width,
@@ -1301,7 +1301,7 @@ pub fn fold_cast(
         CastOperator::FloatToSignedInt => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => 64,
             };
 
@@ -1312,7 +1312,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(Constant::Int {
-                        value: converted as i64,
+                        value: converted,
                         width: target_width,
                         is_signed: true,
                     })
@@ -1322,7 +1322,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(Constant::Int {
-                        value: converted as i64,
+                        value: converted,
                         width: target_width,
                         is_signed: true,
                     })
@@ -1334,7 +1334,7 @@ pub fn fold_cast(
         CastOperator::FloatToUnsignedInt => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => 64,
             };
 
@@ -1345,7 +1345,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(Constant::UInt {
-                        value: converted as u64,
+                        value: converted as u128,
                         width: target_width,
                     })
                 }
@@ -1354,7 +1354,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(Constant::UInt {
-                        value: converted as u64,
+                        value: converted as u128,
                         width: target_width,
                     })
                 }
@@ -1365,7 +1365,7 @@ pub fn fold_cast(
         CastOperator::FloatToSignedIntSaturating => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => 64,
             };
 
@@ -1376,7 +1376,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(Constant::Int {
-                        value: converted as i64,
+                        value: converted,
                         width: target_width,
                         is_signed: true,
                     })
@@ -1386,7 +1386,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(Constant::Int {
-                        value: converted as i64,
+                        value: converted,
                         width: target_width,
                         is_signed: true,
                     })
@@ -1398,7 +1398,7 @@ pub fn fold_cast(
         CastOperator::FloatToUnsignedIntSaturating => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width as u8,
+                Some((width, _)) => width,
                 None => 64,
             };
 
@@ -1409,7 +1409,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(Constant::UInt {
-                        value: converted as u64,
+                        value: converted as u128,
                         width: target_width,
                     })
                 }
@@ -1418,7 +1418,7 @@ pub fn fold_cast(
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(Constant::UInt {
-                        value: converted as u64,
+                        value: converted as u128,
                         width: target_width,
                     })
                 }
@@ -1501,30 +1501,30 @@ pub fn fold_cast(
 }
 
 /// Truncate a signed integer to a target bit width.
-fn truncate_signed(value: i64, width: u8) -> i64 {
+fn truncate_signed(value: i128, width: u16) -> i128 {
     // handle full width
-    if width >= 64 {
+    if width >= 128 {
         return value;
     }
 
     // build bit mask
-    let mask = (1u64 << width) - 1;
-    let masked = (value as u64) & mask;
-    let sign_bit = 1u64 << (width - 1);
+    let mask = (1u128 << width) - 1;
+    let masked = (value as u128) & mask;
+    let sign_bit = 1u128 << (width - 1);
 
     // set sign extension when needed
     if masked & sign_bit != 0 {
-        (masked | !mask) as i64
+        (masked | !mask) as i128
     }
     // otherwise keep masked value
     else {
-        masked as i64
+        masked as i128
     }
 }
 
 /// Compute integer bounds for a width and signedness.
-fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
-    if width == 0 || width > 64 {
+fn integer_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
+    if width == 0 || width > 128 || (!is_signed && width == 128) {
         return None;
     }
 
@@ -1614,21 +1614,14 @@ fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128
 }
 
 /// Truncate an unsigned integer to a target bit width.
-fn truncate_unsigned(value: u64, width: u8) -> u64 {
-    // handle full width
-    if width >= 64 {
-        return value;
-    }
-
-    // apply mask
-    let mask = (1u64 << width) - 1;
-    value & mask
+fn truncate_unsigned(value: u128, width: u16) -> u128 {
+    mask_to_width(value, width)
 }
 
 /// Sign extend a value from one width to another.
-fn sign_extend(value: i64, from_width: u8, to_width: u8) -> i64 {
+fn sign_extend(value: i128, from_width: u16, to_width: u16) -> i128 {
     // handle no extend case
-    if from_width >= to_width || from_width >= 64 {
+    if from_width >= to_width || from_width >= 128 {
         return value;
     }
 

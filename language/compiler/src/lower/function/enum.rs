@@ -104,11 +104,6 @@ impl FunctionLowerer<'_> {
                 });
             }
         };
-        let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-            node,
-            message: "enum backing type width is too large".to_string(),
-        })?;
-
-        Ok(self.state.builder.iconst(value, width, signed))
+        Ok(self.state.builder.iconst(i128::from(value), width, signed))
     }
 }

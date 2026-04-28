@@ -912,7 +912,7 @@ fn resolve_switch_target(
         ..
     }) = constant
     {
-        let terminator = resolve_switch_case(*constant_value as i128, default, cases, *is_signed);
+        let terminator = resolve_switch_case(*constant_value, default, cases, *is_signed);
         return extract_switch_target(terminator);
     }
     if let Some(mir::Constant::UInt {
@@ -920,7 +920,8 @@ fn resolve_switch_target(
         ..
     }) = constant
     {
-        let terminator = resolve_switch_case(*constant_value as i128, default, cases, false);
+        let constant_value = i128::try_from(*constant_value).ok()?;
+        let terminator = resolve_switch_case(constant_value, default, cases, false);
         return extract_switch_target(terminator);
     }
 
@@ -973,8 +974,8 @@ fn resolve_integer_constant(
 /// Convert integer constants into i128 values.
 fn integer_constant_to_i128(constant: &mir::Constant) -> Option<i128> {
     match constant {
-        mir::Constant::Int { value, .. } => Some(*value as i128),
-        mir::Constant::UInt { value, .. } => Some(*value as i128),
+        mir::Constant::Int { value, .. } => Some(*value),
+        mir::Constant::UInt { value, .. } => i128::try_from(*value).ok(),
         _ => None,
     }
 }
@@ -1128,15 +1129,12 @@ fn fold_switch(
         value, is_signed, ..
     }) = constant_value
     {
-        return Some(resolve_switch_case(
-            *value as i128,
-            default,
-            cases,
-            *is_signed,
-        ));
+        return Some(resolve_switch_case(*value, default, cases, *is_signed));
     }
     if let Some(mir::Constant::UInt { value, .. }) = constant_value {
-        return Some(resolve_switch_case(*value as i128, default, cases, false));
+        let value = i128::try_from(*value).ok()?;
+
+        return Some(resolve_switch_case(value, default, cases, false));
     }
 
     // narrow cases by integer range when possible
@@ -1160,9 +1158,15 @@ fn fold_switch(
             continue;
         };
         let case_value = if *is_signed {
-            case_value as i128
+            case_value
         } else {
-            case_value as u64 as i128
+            let Ok(case_value) = u128::try_from(case_value) else {
+                continue;
+            };
+            let Ok(case_value) = i128::try_from(case_value) else {
+                continue;
+            };
+            case_value
         };
         if case_value >= *min && case_value <= *max {
             filtered_cases.push(case.clone());
@@ -1200,9 +1204,15 @@ fn resolve_switch_case(
             continue;
         };
         let case_value = if is_signed {
-            case_value as i128
+            case_value
         } else {
-            case_value as u64 as i128
+            let Ok(case_value) = u128::try_from(case_value) else {
+                continue;
+            };
+            let Ok(case_value) = i128::try_from(case_value) else {
+                continue;
+            };
+            case_value
         };
 
         // return when the case matches
@@ -1322,7 +1332,7 @@ fn lower_single_case_switch(
     };
 
     // materialize the case constant
-    let type_id = tree.int_type(*width as u16, *is_signed);
+    let type_id = tree.int_type(*width, *is_signed);
     let constant_value = function.next_typed_value(type_id);
     let Some(case_value) = case.value.integer() else {
         return None;
@@ -1335,8 +1345,9 @@ fn lower_single_case_switch(
             is_signed: true,
         }
     } else {
+        let case_value = u128::try_from(case_value).ok()?;
         mir::Constant::UInt {
-            value: case_value as u64,
+            value: case_value,
             width: *width,
         }
     };

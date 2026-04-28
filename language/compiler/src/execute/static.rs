@@ -37,7 +37,9 @@ impl Compiler {
     ) -> Option<dir::StaticExpression> {
         let scalar = match value {
             engine::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
-            engine::Value::Int { value, .. } => dir::ScalarLiteral::Integer(*value),
+            engine::Value::Int { value, .. } => {
+                dir::ScalarLiteral::Integer(i64::try_from(*value).ok()?)
+            }
             engine::Value::UInt { value, .. } => {
                 dir::ScalarLiteral::Integer((*value).try_into().ok()?)
             }

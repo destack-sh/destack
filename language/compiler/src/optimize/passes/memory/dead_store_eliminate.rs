@@ -678,7 +678,9 @@ fn build_integer_constant_map(
                 };
                 match value {
                     mir::Constant::Int { value, .. } => {
-                        constants.insert(destination, *value);
+                        if let Ok(value) = i64::try_from(*value) {
+                            constants.insert(destination, value);
+                        }
                     }
                     mir::Constant::UInt { value, .. } => {
                         if let Ok(value) = i64::try_from(*value) {
