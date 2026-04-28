@@ -1,9 +1,11 @@
+mod access;
 mod allocate;
-mod bytes;
 mod image;
 mod large;
 mod location;
+mod map;
 mod reference;
+mod remember;
 mod space;
 mod span;
 mod young;

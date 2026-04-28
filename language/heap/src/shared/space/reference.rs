@@ -70,9 +70,9 @@ impl SharedHeapReference {
 
     /// Return one reference advanced by the given byte offset.
     #[inline]
-    pub fn add_bytes(self, byte_len: usize) -> Option<Self> {
+    pub fn add_bytes(self, byte_len: usize) -> Self {
         let offset = self.offset() + byte_len;
 
-        Some(Self::new(offset))
+        Self::new(offset)
     }
 }

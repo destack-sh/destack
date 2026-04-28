@@ -117,8 +117,8 @@ impl HeapSpaceImage {
         &self.allocations
     }
 
-    #[cfg(test)]
     /// Return this image with one explicit size-class table.
+    #[cfg(test)]
     pub(crate) fn with_size_classes(mut self, size_classes: SizeClassTable) -> Self {
         self.size_classes = size_classes;
 

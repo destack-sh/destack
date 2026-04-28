@@ -451,15 +451,16 @@ impl SharedHeapSpace {
         self.write_location_bytes(location, byte_offset, bytes)
     }
 
-    /// Record one shared heap write barrier.
-    pub fn write_barrier(
+    /// Record one shared heap write barrier before one byte store.
+    pub fn write_barrier_bytes(
         &self,
         reference: SharedHeapReference,
         start: usize,
-        byte_len: usize,
+        bytes: &[u8],
     ) -> HeapResult<()> {
-        let (_, byte_offset) = self.checked_location_range(reference, start, byte_len)?;
-        self.write_shared_barrier(reference, byte_offset, byte_len)
+        let (_, byte_offset) = self.checked_location_range(reference, start, bytes.len())?;
+
+        self.write_shared_barrier_bytes(reference, byte_offset, bytes)
     }
 
     /// Publish one exact shared heap edge after one completed store.
@@ -478,7 +479,7 @@ impl SharedHeapSpace {
             return Err(HeapError::InvalidSharedHeapReference { reference });
         };
         let byte_offset =
-            checked_byte_range(location.byte_offset, start, byte_len, location.byte_len)?;
+            allocation_byte_offset(location.byte_offset, start, byte_len, location.byte_len)?;
 
         Ok((location, byte_offset))
     }
@@ -728,17 +729,20 @@ impl SharedHeapSpace {
 
         let slot_index = span.free_cursor;
         let slot = SpanSlot::new(cached.span_index, slot_index)?;
-        let slot_offset = checked_slot_offset(span.class.size_class, slot_index)?;
+        let slot_offset = small_slot_offset(span.class.size_class, slot_index);
         let write_offset = checked_place_offset(slot_offset, 0, span_bytes)?;
         let first_offset = span.first_offset;
         let mapping_offset = first_offset + write_offset;
 
-        // initialize bytes before publishing the slot
-        let initialize = match payload {
-            Payload::Bytes(bytes) => store.mapping.write(mapping_offset, bytes),
-            Payload::Zeroed => store.mapping.zero(mapping_offset, class.size_class),
-        };
-        initialize?;
+        // clear the full slot before publishing caller bytes
+        match payload {
+            Payload::Bytes(bytes) if bytes.len() < class.size_class => {
+                store.mapping.zero(mapping_offset, class.size_class)?;
+                store.mapping.write(mapping_offset, bytes)?;
+            }
+            Payload::Bytes(bytes) => store.mapping.write(mapping_offset, bytes)?,
+            Payload::Zeroed => store.mapping.zero(mapping_offset, class.size_class)?,
+        }
 
         {
             let super::SharedSmallSpan {
@@ -972,7 +976,7 @@ impl SharedHeapSpace {
                 };
                 let span = span.read();
 
-                let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let span_bytes = span.pages.len() * self.allocator.page_bytes();
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
@@ -1020,7 +1024,7 @@ impl SharedHeapSpace {
                 };
                 let span = span.read();
 
-                let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let span_bytes = span.pages.len() * self.allocator.page_bytes();
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
@@ -1064,7 +1068,7 @@ impl SharedHeapSpace {
                     });
                 };
                 let span = span.read();
-                let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let span_bytes = span.pages.len() * self.allocator.page_bytes();
                 let read_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
 
@@ -1106,7 +1110,7 @@ impl SharedHeapSpace {
                 };
 
                 let span = span.read();
-                let slot_offset = checked_slot_offset(span.class.size_class, slot.slot_index())?;
+                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let span_bytes = span.pages.len() * self.allocator.page_bytes();
                 let write_offset = checked_place_offset(slot_offset, byte_offset, span_bytes)?;
                 let mapping_offset = span.first_offset + write_offset;
@@ -1201,130 +1205,6 @@ impl SharedHeapSpace {
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
-    }
-
-    /// Return the page-map entry for one logical page.
-    fn page_entry(
-        &self,
-        store: &SharedHeapState,
-        page_index: usize,
-    ) -> Option<SharedHeapPageMapEntry> {
-        store.page_map.get(page_index).copied().flatten()
-    }
-
-    /// Record one page-map entry for every page in one logical page run.
-    fn map_page_run(
-        &self,
-        store: &mut SharedHeapState,
-        first_offset: usize,
-        page_run: &PageRun,
-        mut entry: impl FnMut(usize) -> SharedHeapPageMapEntry,
-    ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
-
-        for logical_page_index in 0..page_run.len() {
-            let page_index = first_page_index + logical_page_index;
-
-            if store.page_map.len() <= page_index {
-                store.page_map.resize(page_index + 1, None);
-            }
-
-            store.page_map[page_index] = Some(entry(logical_page_index));
-        }
-    }
-
-    /// Clear every page-map entry for one logical page run.
-    pub(crate) fn unmap_page_run(
-        &self,
-        store: &mut SharedHeapState,
-        first_offset: usize,
-        page_run: &PageRun,
-    ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
-
-        for logical_page_index in 0..page_run.len() {
-            let page_index = first_page_index + logical_page_index;
-
-            if let Some(entry) = store.page_map.get_mut(page_index) {
-                *entry = None;
-            }
-        }
-    }
-
-    /// Return the resolved location for one live shared heap reference.
-    pub(crate) fn resolve_location(
-        &self,
-        reference: SharedHeapReference,
-    ) -> Option<SharedHeapLocation> {
-        let page_bytes = self.allocator.page_bytes();
-        let page_index = reference.offset() / page_bytes;
-        let page_offset = reference.offset() % page_bytes;
-        let store = self.state.read();
-        let entry = self.page_entry(&store, page_index)?;
-
-        match entry {
-            SharedHeapPageMapEntry::Small {
-                span_index,
-                logical_page_index,
-            } => {
-                let span = store.small.spans.get(span_index)?.clone();
-                let span = span.read();
-                let logical_byte_offset =
-                    logical_page_index * self.allocator.page_bytes() + page_offset;
-                let slot_index = logical_byte_offset / span.class.size_class;
-                let slot_offset = logical_byte_offset % span.class.size_class;
-                if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
-                    return None;
-                }
-
-                let byte_len = span.class.size_class;
-                if slot_offset >= byte_len {
-                    return None;
-                }
-
-                let slot_base_offset = slot_index * span.class.size_class;
-                let base_offset = span.first_offset + slot_base_offset;
-                let slot = SpanSlot::new(span_index, slot_index).ok()?;
-
-                Some(SharedHeapLocation {
-                    place: SharedHeapPlace::Small(slot),
-                    base: SharedHeapReference::new(base_offset),
-                    byte_offset: slot_offset,
-                    byte_len,
-                })
-            }
-            SharedHeapPageMapEntry::Large {
-                allocation_id,
-                logical_page_index,
-            } => {
-                let allocation = store
-                    .large
-                    .allocations
-                    .get(allocation_id.index().ok()?)?
-                    .clone();
-                let allocation = allocation.read();
-                if !allocation.is_live {
-                    return None;
-                }
-
-                let logical_byte_offset =
-                    logical_page_index * self.allocator.page_bytes() + page_offset;
-                if allocation.len == 0 {
-                    if logical_byte_offset != 0 {
-                        return None;
-                    }
-                } else if logical_byte_offset >= allocation.len {
-                    return None;
-                }
-
-                Some(SharedHeapLocation {
-                    place: SharedHeapPlace::Large(allocation_id),
-                    base: SharedHeapReference::new(allocation.first_offset),
-                    byte_offset: logical_byte_offset,
-                    byte_len: allocation.len,
-                })
-            }
-        }
     }
 
     /// Return the exact reference map stored for one shared small slot.
@@ -1479,14 +1359,17 @@ fn checked_remaining_byte_len(byte_offset: usize, byte_len: usize) -> HeapResult
     Ok(byte_len - byte_offset)
 }
 
-/// Validate one byte range inside one shared heap allocation.
-fn checked_byte_range(
-    pointer_offset: usize,
+/// Return one allocation-local byte offset for one visible range.
+fn allocation_byte_offset(
+    base_offset: usize,
     start: usize,
     len: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    if start > capacity || len > capacity - start {
+    debug_assert!(base_offset <= capacity);
+
+    let remaining = capacity - base_offset;
+    if start > remaining {
         return Err(HeapError::InvalidByteRange {
             start,
             len,
@@ -1494,14 +1377,22 @@ fn checked_byte_range(
         });
     }
 
-    let byte_offset = pointer_offset + start;
+    let byte_offset = base_offset + start;
+    let remaining = capacity - byte_offset;
+    if len > remaining {
+        return Err(HeapError::InvalidByteRange {
+            start: byte_offset,
+            len,
+            capacity,
+        });
+    }
 
     Ok(byte_offset)
 }
 
 /// Return the byte offset for one slot payload inside one span.
-pub(crate) fn checked_slot_offset(size_class: usize, slot_index: usize) -> HeapResult<usize> {
-    Ok(size_class * slot_index)
+pub(crate) fn small_slot_offset(size_class: usize, slot_index: usize) -> usize {
+    size_class * slot_index
 }
 
 /// Return one nested place offset inside one bounded page run.

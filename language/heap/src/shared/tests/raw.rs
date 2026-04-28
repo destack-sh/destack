@@ -94,7 +94,7 @@ fn test_shared_reads_reject_invalid_pointer_offset() {
     let pointer = shared
         .allocate(3, Payload::Bytes(&[0xAA, 0xBB, 0xCC]))
         .expect("shared allocation should succeed");
-    let pointer = pointer.add_bytes(4).expect("pointer offset should fit");
+    let pointer = pointer.add_bytes(4);
 
     let error = shared
         .byte_len(pointer)

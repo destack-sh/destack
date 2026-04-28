@@ -1,5 +1,5 @@
 use super::{RawLocation, RawPlace, RawSpace};
-use crate::{AccountingRegion, HeapError, HeapResult, Payload, RawPointer};
+use crate::{HeapError, HeapResult, Payload, RawPointer};
 
 impl RawSpace {
     /// Fill one caller-provided buffer from one raw allocation at one offset.
@@ -112,7 +112,7 @@ impl RawSpace {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
         let byte_offset =
-            checked_byte_range(location.byte_offset, start, byte_len, location.byte_len)?;
+            allocation_byte_offset(location.byte_offset, start, byte_len, location.byte_len)?;
 
         Ok((location, byte_offset))
     }
@@ -168,17 +168,12 @@ impl RawSpace {
                             span_index: slot.span_index(),
                         });
                     };
-                    let slot_offset = checked_slot_offset(
-                        slot.span_index(),
-                        span.class.size_class,
-                        slot.slot_index(),
-                    )?;
+                    let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                     let offset = span.first_offset + slot_offset;
 
                     self.mapping.write(offset, bytes)?;
 
-                    self.usage
-                        .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
+                    self.usage.resize(previous_byte_len, bytes.len());
 
                     return self.base_pointer(RawPlace::Small(slot));
                 }
@@ -221,8 +216,7 @@ impl RawSpace {
                 // release the previous slot before retargeting the pointer
                 self.release_small_slot(slot)?;
 
-                self.usage
-                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
+                self.usage.resize(previous_byte_len, bytes.len());
 
                 self.base_pointer(new_location)
             }
@@ -251,8 +245,7 @@ impl RawSpace {
                 self.unmap_page_run(first_offset, &pages);
                 self.release_page_run(pages)?;
 
-                self.usage
-                    .resize(previous_byte_len, bytes.len(), AccountingRegion::Raw);
+                self.usage.resize(previous_byte_len, bytes.len());
 
                 self.base_pointer(new_location)
             }
@@ -277,14 +270,17 @@ impl RawSpace {
     }
 }
 
-/// Return one checked allocation-local byte range start.
-fn checked_byte_range(
+/// Return one allocation-local byte offset for one visible range.
+fn allocation_byte_offset(
     base_offset: usize,
     start: usize,
     len: usize,
     capacity: usize,
 ) -> HeapResult<usize> {
-    if start > capacity || len > capacity - start {
+    debug_assert!(base_offset <= capacity);
+
+    let remaining = capacity - base_offset;
+    if start > remaining {
         return Err(HeapError::InvalidByteRange {
             start,
             len,
@@ -293,6 +289,14 @@ fn checked_byte_range(
     }
 
     let byte_offset = base_offset + start;
+    let remaining = capacity - byte_offset;
+    if len > remaining {
+        return Err(HeapError::InvalidByteRange {
+            start: byte_offset,
+            len,
+            capacity,
+        });
+    }
 
     Ok(byte_offset)
 }
@@ -310,13 +314,7 @@ fn checked_remaining_byte_len(byte_offset: usize, capacity: usize) -> HeapResult
     Ok(capacity - byte_offset)
 }
 
-/// Return one checked small-slot base offset.
-fn checked_slot_offset(
-    span_index: usize,
-    size_class: usize,
-    slot_index: usize,
-) -> HeapResult<usize> {
-    let _ = span_index;
-
-    Ok(size_class * slot_index)
+/// Return one small-slot base offset.
+fn small_slot_offset(size_class: usize, slot_index: usize) -> usize {
+    size_class * slot_index
 }

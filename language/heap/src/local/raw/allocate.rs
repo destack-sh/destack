@@ -3,7 +3,7 @@ use super::{
     SmallSpan,
 };
 use crate::allocator::{PageRun, SpanSlot};
-use crate::{AccountingRegion, Bitmap, HeapError, HeapResult, Payload, RawPointer};
+use crate::{Bitmap, HeapError, HeapResult, Payload, RawPointer};
 
 impl RawSpace {
     /// Return the projected retained-byte delta for one raw allocation.
@@ -45,7 +45,7 @@ impl RawSpace {
         let pointer = self.base_pointer(place)?;
 
         // charge the live raw allocation counters
-        self.usage.allocate(byte_len, AccountingRegion::Raw);
+        self.usage.allocate(byte_len);
 
         Ok(pointer)
     }
@@ -57,7 +57,7 @@ impl RawSpace {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
         let freed_bytes = location.byte_len as u64;
-        self.usage.check_free(freed_bytes, AccountingRegion::Raw);
+        self.usage.check_free(freed_bytes);
 
         match location.place {
             // release one small-span slot
@@ -65,7 +65,7 @@ impl RawSpace {
                 self.release_small_slot(slot)?;
 
                 // update heap usage
-                self.usage.free(freed_bytes, AccountingRegion::Raw);
+                self.usage.free(freed_bytes);
 
                 Ok(true)
             }
@@ -94,7 +94,7 @@ impl RawSpace {
                     .push(allocation_id.id());
 
                 // update heap usage
-                self.usage.free(freed_bytes, AccountingRegion::Raw);
+                self.usage.free(freed_bytes);
 
                 // release the old physical pages after the live slot is gone
                 self.unmap_page_run(first_offset, &pages);
