@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{CacheMetadata, CacheStore, CacheStoreError};
+use super::{CacheStore, CacheStoreError};
 
 /// Cache store that disables persistence.
 #[derive(Debug, Default, Clone)]
@@ -14,7 +14,11 @@ impl NullCacheStore {
 }
 
 impl CacheStore for NullCacheStore {
-    fn with_lock(&self, _path: &Path, operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
+    fn with_exclusive_lock(
+        &self,
+        _path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
         operation();
 
         Ok(())
@@ -24,27 +28,11 @@ impl CacheStore for NullCacheStore {
         Ok(None)
     }
 
-    fn write(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write_once(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
         Ok(())
     }
 
-    fn touch(&self, _path: &Path) -> Result<(), CacheStoreError> {
-        Ok(())
-    }
-
-    fn exists(&self, _path: &Path) -> Result<bool, CacheStoreError> {
-        Ok(false)
-    }
-
-    fn list(&self, _path: &Path) -> Result<Vec<std::path::PathBuf>, CacheStoreError> {
-        Ok(Vec::new())
-    }
-
-    fn remove(&self, _path: &Path) -> Result<(), CacheStoreError> {
-        Ok(())
-    }
-
-    fn metadata(&self, _path: &Path) -> Result<Option<CacheMetadata>, CacheStoreError> {
+    fn byte_len(&self, _path: &Path) -> Result<Option<u64>, CacheStoreError> {
         Ok(None)
     }
 }

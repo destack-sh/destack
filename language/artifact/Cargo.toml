@@ -17,7 +17,6 @@ schema = ["schemars"]
 [dependencies]
 # language
 destack_ast = { workspace = true }
-destack_artifact_macros = { workspace = true }
 destack_builtin = { workspace = true }
 destack_core = { workspace = true }
 destack_css = { workspace = true }
@@ -30,7 +29,6 @@ destack_source = { workspace = true }
 # general
 blake3 = { workspace = true }
 dashmap = { workspace = true }
-filetime = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 postcard = { workspace = true }

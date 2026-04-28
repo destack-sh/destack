@@ -1,50 +1,22 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_ast as ast;
 use destack_core::StringPool;
-use destack_source::{DiagnosticCollection, FileId, ModuleId, ProfileId};
+use destack_source::{DiagnosticCollection, FileId, ModuleId};
 
 use super::pin::ArtifactPin;
 use crate::{
-    ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, Data, DirAnalyzed,
-    DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
-    IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized,
-    ModuleGraph, ModuleLinted, ModuleOutput, PackageLinted, PackageOutput, WorkspaceLinted,
+    AmbientEnvironment, ArtifactFingerprint, ArtifactInput, ArtifactKey, ArtifactPayload,
+    ArtifactRecord, ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated,
+    DirExported, LanguageEnvironment, Mir, MirOptimized, ModuleLinted, ModuleOutput,
+    PackageLinted, PackageOutput, WorkspaceLinted,
 };
+
+use super::entry::{ArtifactEntry, ArtifactStatus};
 
 /// One versioned artifact family map.
 type ArtifactMap<T> = DashMap<ArtifactVersion, Arc<T>>;
-
-/// Exact availability status for one artifact version.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ArtifactStatus {
-    /// The exact payload is published.
-    Ready,
-    /// The exact attempt failed.
-    Failed,
-    /// The exact version is missing.
-    Missing,
-}
-
-/// One exact artifact version entry.
-#[derive(Debug, Clone)]
-struct ArtifactEntry {
-    /// The validated live dependencies for this exact artifact version.
-    dependencies: Vec<ArtifactDependency>,
-    /// The diagnostics for this exact artifact version.
-    diagnostics: Arc<DiagnosticCollection>,
-}
-
-impl Default for ArtifactEntry {
-    fn default() -> Self {
-        Self {
-            dependencies: Vec::new(),
-            diagnostics: Arc::new(DiagnosticCollection::new()),
-        }
-    }
-}
 
 /// Store of published semantic artifacts.
 #[derive(Debug, Default)]
@@ -54,39 +26,27 @@ pub struct ArtifactStore {
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
 
-    /// Module dependency graphs by profile.
-    module_graphs: ArtifactMap<ModuleGraph>,
     /// Language environments by profile.
     language_environments: ArtifactMap<LanguageEnvironment>,
-    /// Intrinsic environments by profile.
-    intrinsic_environments: ArtifactMap<IntrinsicEnvironment>,
-    /// Library environments by profile.
-    lib_environments: ArtifactMap<LibraryEnvironment>,
+    /// Ambient environments by profile.
+    ambient_environments: ArtifactMap<AmbientEnvironment>,
 
     /// AST artifacts by module.
-    asts: ArtifactMap<Ast>,
+    ast: ArtifactMap<Ast>,
     /// Parsed data artifacts by module.
-    datas: ArtifactMap<Data>,
+    data: ArtifactMap<Data>,
 
-    /// Base DIR artifacts by module.
-    dir_bases: ArtifactMap<DirBase>,
-    /// Prepared DIR artifacts by module and profile.
-    dir_prepared: ArtifactMap<DirPrepared>,
-    /// Resolved DIR artifacts by module and profile.
-    dir_resolved: ArtifactMap<DirResolved>,
     /// Declared DIR artifacts by module and profile.
     dir_declared: ArtifactMap<DirDeclared>,
-    /// Interface DIR artifacts by module and profile.
-    dir_interface: ArtifactMap<DirInterface>,
-    /// Analyzed DIR artifacts by module and profile.
-    dir_analyzed: ArtifactMap<DirAnalyzed>,
+    /// Exported DIR artifacts by module and profile.
+    dir_exported: ArtifactMap<DirExported>,
+    /// Checked DIR artifacts by module and profile.
+    dir_checked: ArtifactMap<DirChecked>,
     /// Elaborated DIR artifacts by module and profile.
     dir_elaborated: ArtifactMap<DirElaborated>,
-    /// Patched DIR artifacts by module and profile.
-    dir_patched: ArtifactMap<DirPatched>,
 
-    /// Base MIR artifacts by module, profile, and target.
-    mir_bases: ArtifactMap<MirBase>,
+    /// MIR artifacts by module, profile, and target.
+    mir: ArtifactMap<Mir>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: ArtifactMap<MirOptimized>,
 
@@ -108,24 +68,6 @@ impl ArtifactStore {
         Self::default()
     }
 
-    /// Publish one typed payload into one versioned family map.
-    fn publish<T>(
-        &self,
-        map: &ArtifactMap<T>,
-        version: ArtifactVersion,
-        payload: Arc<T>,
-        is_expected_key: bool,
-        payload_name: &str,
-    ) {
-        assert!(
-            is_expected_key,
-            "artifact payload did not match key: key={:?} payload={payload_name}",
-            version.key
-        );
-
-        self.insert(map, version, payload);
-    }
-
     /// Publish the synthetic root AST for one program.
     pub fn publish_root_ast(&self, root_module_id: ModuleId, fallback_file_id: FileId) {
         let root_ast = ast::Tree::new();
@@ -138,144 +80,28 @@ impl ArtifactStore {
             Vec::new(),
         );
         root_module_ast.ensure_anchor_expression(fallback_file_id);
-        self.publish_ast(
-            ArtifactVersion::new(
-                ArtifactKey::Ast {
-                    module: root_module_id,
-                },
-                ArtifactStamp::new(0),
-            ),
-            root_module_ast,
+        let version = ArtifactVersion::new(
+            ArtifactKey::Ast {
+                module: root_module_id,
+            },
+            ArtifactFingerprint::new(0),
         );
+        let record = ArtifactRecord::new(
+            version,
+            root_module_ast,
+            [],
+            [],
+            DiagnosticCollection::new(),
+        );
+        self.publish_ast(record);
     }
 
-    /// Return the profile ids that currently have published artifacts for one module.
-    pub fn profile_ids_for_module(&self, module: ModuleId) -> std::collections::HashSet<ProfileId> {
-        let mut profiles = std::collections::HashSet::new();
-
-        self.collect_profiles_for_module(&self.dir_prepared, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_resolved, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_declared, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_interface, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_analyzed, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_elaborated, module, &mut profiles);
-        self.collect_profiles_for_module(&self.dir_patched, module, &mut profiles);
-        self.collect_profiles_for_module(&self.mir_bases, module, &mut profiles);
-        self.collect_profiles_for_module(&self.mir_optimized, module, &mut profiles);
-        self.collect_profiles_for_module(&self.module_linted, module, &mut profiles);
-
-        profiles
-    }
-
-    /// Evict one exact artifact version.
-    pub fn evict(&self, version: &ArtifactVersion) {
-        self.entries.remove(version);
-        self.retained_versions.remove(version);
-        match &version.key {
-            ArtifactKey::ModuleGraph { .. } => {
-                self.module_graphs.remove(version);
-            }
-            ArtifactKey::LanguageEnvironment { .. } => {
-                self.language_environments.remove(version);
-            }
-            ArtifactKey::IntrinsicEnvironment { .. } => {
-                self.intrinsic_environments.remove(version);
-            }
-            ArtifactKey::LibraryEnvironment { .. } => {
-                self.lib_environments.remove(version);
-            }
-            ArtifactKey::Ast { .. } => {
-                self.asts.remove(version);
-            }
-            ArtifactKey::Data { .. } => {
-                self.datas.remove(version);
-            }
-            ArtifactKey::DirBase { .. } => {
-                self.dir_bases.remove(version);
-            }
-            ArtifactKey::DirPrepared { .. } => {
-                self.dir_prepared.remove(version);
-            }
-            ArtifactKey::DirResolved { .. } => {
-                self.dir_resolved.remove(version);
-            }
-            ArtifactKey::DirDeclared { .. } => {
-                self.dir_declared.remove(version);
-            }
-            ArtifactKey::DirInterface { .. } => {
-                self.dir_interface.remove(version);
-            }
-            ArtifactKey::DirAnalyzed { .. } => {
-                self.dir_analyzed.remove(version);
-            }
-            ArtifactKey::DirElaborated { .. } => {
-                self.dir_elaborated.remove(version);
-            }
-            ArtifactKey::DirPatched { .. } => {
-                self.dir_patched.remove(version);
-            }
-            ArtifactKey::MirBase { .. } => {
-                self.mir_bases.remove(version);
-            }
-            ArtifactKey::MirOptimized { .. } => {
-                self.mir_optimized.remove(version);
-            }
-            ArtifactKey::ModuleOutput { .. } => {
-                self.module_output.remove(version);
-            }
-            ArtifactKey::PackageOutput { .. } => {
-                self.package_output.remove(version);
-            }
-            ArtifactKey::ModuleLinted { .. } => {
-                self.module_linted.remove(version);
-            }
-            ArtifactKey::PackageLinted { .. } => {
-                self.package_linted.remove(version);
-            }
-            ArtifactKey::WorkspaceLinted => {
-                self.workspace_linted.remove(version);
-            }
-        }
-    }
-
-    /// Evict all published versions for one semantic artifact key.
-    pub fn evict_key(&self, key: &ArtifactKey) {
-        match key {
-            ArtifactKey::ModuleGraph { .. } => self.evict_matching(&self.module_graphs, key),
-            ArtifactKey::LanguageEnvironment { .. } => {
-                self.evict_matching(&self.language_environments, key)
-            }
-            ArtifactKey::IntrinsicEnvironment { .. } => {
-                self.evict_matching(&self.intrinsic_environments, key)
-            }
-            ArtifactKey::LibraryEnvironment { .. } => {
-                self.evict_matching(&self.lib_environments, key)
-            }
-            ArtifactKey::Ast { .. } => self.evict_matching(&self.asts, key),
-            ArtifactKey::Data { .. } => self.evict_matching(&self.datas, key),
-            ArtifactKey::DirBase { .. } => self.evict_matching(&self.dir_bases, key),
-            ArtifactKey::DirPrepared { .. } => self.evict_matching(&self.dir_prepared, key),
-            ArtifactKey::DirResolved { .. } => self.evict_matching(&self.dir_resolved, key),
-            ArtifactKey::DirDeclared { .. } => self.evict_matching(&self.dir_declared, key),
-            ArtifactKey::DirInterface { .. } => self.evict_matching(&self.dir_interface, key),
-            ArtifactKey::DirAnalyzed { .. } => self.evict_matching(&self.dir_analyzed, key),
-            ArtifactKey::DirElaborated { .. } => self.evict_matching(&self.dir_elaborated, key),
-            ArtifactKey::DirPatched { .. } => self.evict_matching(&self.dir_patched, key),
-            ArtifactKey::MirBase { .. } => self.evict_matching(&self.mir_bases, key),
-            ArtifactKey::MirOptimized { .. } => self.evict_matching(&self.mir_optimized, key),
-            ArtifactKey::ModuleOutput { .. } => self.evict_matching(&self.module_output, key),
-            ArtifactKey::PackageOutput { .. } => self.evict_matching(&self.package_output, key),
-            ArtifactKey::ModuleLinted { .. } => self.evict_matching(&self.module_linted, key),
-            ArtifactKey::PackageLinted { .. } => self.evict_matching(&self.package_linted, key),
-            ArtifactKey::WorkspaceLinted => self.evict_matching(&self.workspace_linted, key),
-        }
-    }
-
-    /// Retain one exact live artifact version.
-    pub fn retain(&self, version: &ArtifactVersion) {
-        if !self.exists(version) {
-            return;
-        }
+    /// Increase the live reference count for one exact artifact version.
+    pub(crate) fn increase_ref_count(&self, version: &ArtifactVersion) {
+        assert!(
+            self.exists(version),
+            "cannot increase ref count for missing artifact version: {version:?}"
+        );
 
         let mut retain_count = self.retained_versions.entry(*version).or_insert(0);
         *retain_count += 1;
@@ -287,74 +113,30 @@ impl ArtifactStore {
             return None;
         }
 
-        self.retain(version);
+        self.increase_ref_count(version);
 
         Some(ArtifactPin::new(Arc::clone(self), *version))
     }
 
-    /// Release one exact live artifact version.
-    pub fn release(&self, version: &ArtifactVersion) {
-        let mut dropped_last_retain = false;
+    /// Decrease the live reference count for one exact artifact version.
+    pub(crate) fn decrease_ref_count(&self, version: &ArtifactVersion) {
+        let Some(mut retain_count) = self.retained_versions.get_mut(version) else {
+            panic!("cannot decrease ref count for unpinned artifact version: {version:?}");
+        };
 
-        if let Some(mut retain_count) = self.retained_versions.get_mut(version) {
-            if *retain_count == 1 {
-                dropped_last_retain = true;
-            } else {
-                *retain_count -= 1;
-            }
+        if *retain_count == 1 {
+            drop(retain_count);
+            self.retained_versions.remove(version);
         } else {
-            return;
-        }
-
-        if !dropped_last_retain {
-            return;
-        }
-
-        self.retained_versions.remove(version);
-
-        if self.has_other_published_version(version) {
-            self.evict(version);
+            *retain_count -= 1;
         }
     }
 
-    /// Store one canonical dependency proof list for one exact artifact version.
-    pub fn publish_dependencies(
-        &self,
-        version: &ArtifactVersion,
-        dependencies: Vec<ArtifactDependency>,
-    ) {
-        if !self.exists(version) {
-            return;
-        }
-
-        let mut seen = HashSet::new();
-        let dependencies = dependencies
-            .into_iter()
-            .filter(|dependency| seen.insert(dependency.version))
-            .collect();
-        let mut entry = self.entry_mut(*version);
-        entry.dependencies = dependencies;
-    }
-
-    /// Publish diagnostics for one exact artifact version.
-    pub fn publish_diagnostics(&self, version: ArtifactVersion, diagnostics: DiagnosticCollection) {
-        self.publish_entry(version);
-
-        let mut entry = self.entry_mut(version);
-        entry.diagnostics = Arc::new(diagnostics);
-    }
-
-    /// Publish one failed exact artifact attempt.
-    pub fn publish_failure(&self, version: ArtifactVersion, dependencies: Vec<ArtifactDependency>) {
-        self.publish_entry(version);
-        self.publish_dependencies(&version, dependencies);
-    }
-
-    /// Return the recorded dependency proofs for one exact artifact version.
-    pub fn dependencies(&self, version: &ArtifactVersion) -> Option<Vec<ArtifactDependency>> {
+    /// Return the exact inputs for one artifact version.
+    pub fn inputs(&self, version: &ArtifactVersion) -> Option<Arc<[ArtifactInput]>> {
         self.entries
             .get(version)
-            .map(|entry| entry.dependencies.clone())
+            .map(|entry| Arc::clone(&entry.inputs))
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -364,48 +146,43 @@ impl ArtifactStore {
             .map(|entry| Arc::clone(&entry.diagnostics))
     }
 
+    /// Return the exact dependencies for one artifact version.
+    pub fn dependencies(&self, version: &ArtifactVersion) -> Option<Arc<[ArtifactVersion]>> {
+        self.entries
+            .get(version)
+            .map(|entry| Arc::clone(&entry.dependencies))
+    }
+
     /// Return whether one exact artifact version entry exists.
-    pub fn exists(&self, version: &ArtifactVersion) -> bool {
+    fn exists(&self, version: &ArtifactVersion) -> bool {
         self.entries.contains_key(version)
     }
 
     /// Return the exact availability status for one artifact version.
     pub fn status(&self, version: &ArtifactVersion) -> ArtifactStatus {
-        // published payload
-        if self.contains(version) {
-            return ArtifactStatus::Ready;
+        if self.has(version) {
+            ArtifactStatus::Ready
+        } else {
+            ArtifactStatus::Missing
         }
-
-        // failed attempt
-        if self.exists(version) {
-            return ArtifactStatus::Failed;
-        }
-
-        ArtifactStatus::Missing
     }
 
     /// Return whether one exact artifact payload is published.
-    pub fn contains(&self, version: &ArtifactVersion) -> bool {
+    pub fn has(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
-            ArtifactKey::ModuleGraph { .. } => self.module_graphs.contains_key(version),
             ArtifactKey::LanguageEnvironment { .. } => {
                 self.language_environments.contains_key(version)
             }
-            ArtifactKey::IntrinsicEnvironment { .. } => {
-                self.intrinsic_environments.contains_key(version)
+            ArtifactKey::AmbientEnvironment { .. } => {
+                self.ambient_environments.contains_key(version)
             }
-            ArtifactKey::LibraryEnvironment { .. } => self.lib_environments.contains_key(version),
-            ArtifactKey::Ast { .. } => self.asts.contains_key(version),
-            ArtifactKey::Data { .. } => self.datas.contains_key(version),
-            ArtifactKey::DirBase { .. } => self.dir_bases.contains_key(version),
-            ArtifactKey::DirPrepared { .. } => self.dir_prepared.contains_key(version),
-            ArtifactKey::DirResolved { .. } => self.dir_resolved.contains_key(version),
+            ArtifactKey::Ast { .. } => self.ast.contains_key(version),
+            ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirDeclared { .. } => self.dir_declared.contains_key(version),
-            ArtifactKey::DirInterface { .. } => self.dir_interface.contains_key(version),
-            ArtifactKey::DirAnalyzed { .. } => self.dir_analyzed.contains_key(version),
+            ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
+            ArtifactKey::DirChecked { .. } => self.dir_checked.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
-            ArtifactKey::DirPatched { .. } => self.dir_patched.contains_key(version),
-            ArtifactKey::MirBase { .. } => self.mir_bases.contains_key(version),
+            ArtifactKey::Mir { .. } => self.mir.contains_key(version),
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
             ArtifactKey::ModuleOutput { .. } => self.module_output.contains_key(version),
             ArtifactKey::PackageOutput { .. } => self.package_output.contains_key(version),
@@ -415,364 +192,104 @@ impl ArtifactStore {
         }
     }
 
-    /// Publish one module graph at one exact version.
-    pub fn publish_module_graph(
+    /// Publish one complete typed artifact record into one versioned family map.
+    fn publish<T>(
         &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<ModuleGraph>>,
+        map: &ArtifactMap<T>,
+        record: ArtifactRecord<T>,
+        is_expected_key: bool,
+        payload_name: &str,
     ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::ModuleGraph { .. });
-
-        self.publish(
-            &self.module_graphs,
-            version,
-            payload,
+        assert!(
             is_expected_key,
-            "ModuleGraph",
+            "artifact payload did not match key: key={:?} payload={payload_name}",
+            record.version.key
+        );
+
+        map.insert(record.version, record.payload);
+        self.entries.insert(
+            record.version,
+            ArtifactEntry::new(record.inputs, record.dependencies, record.diagnostics),
         );
     }
 
-    /// Publish one language environment at one exact version.
-    pub fn publish_language_environment(
+    /// Publish one complete artifact payload record.
+    pub fn publish_payload(
         &self,
         version: ArtifactVersion,
-        payload: impl Into<Arc<LanguageEnvironment>>,
+        payload: ArtifactPayload,
+        inputs: impl Into<Arc<[ArtifactInput]>>,
+        dependencies: impl Into<Arc<[ArtifactVersion]>>,
+        diagnostics: impl Into<Arc<DiagnosticCollection>>,
     ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::LanguageEnvironment { .. });
+        let inputs = inputs.into();
+        let dependencies = dependencies.into();
+        let diagnostics = diagnostics.into();
 
+        match payload {
+            ArtifactPayload::LanguageEnvironment(payload) => self.publish_language_environment(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::AmbientEnvironment(payload) => self.publish_ambient_environment(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::Ast(payload) => {
+                self.publish_ast(ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics));
+            }
+            ArtifactPayload::Data(payload) => {
+                self.publish_data(ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics));
+            }
+            ArtifactPayload::DirDeclared(payload) => self.publish_dir_declared(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::DirExported(payload) => self.publish_dir_exported(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::DirChecked(payload) => self.publish_dir_checked(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::DirElaborated(payload) => self.publish_dir_elaborated(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::Mir(payload) => {
+                self.publish_mir(ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics));
+            }
+            ArtifactPayload::MirOptimized(payload) => self.publish_mir_optimized(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::ModuleOutput(payload) => self.publish_module_output(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::PackageOutput(payload) => self.publish_package_output(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::ModuleLinted(payload) => self.publish_module_linted(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::PackageLinted(payload) => self.publish_package_linted(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+            ArtifactPayload::WorkspaceLinted(payload) => self.publish_workspace_linted(
+                ArtifactRecord::new(version, payload, inputs, dependencies, diagnostics),
+            ),
+        }
+    }
+}
+
+impl ArtifactStore {
+    /// Publish one language environment artifact.
+    pub fn publish_language_environment(&self, record: ArtifactRecord<LanguageEnvironment>) {
+        let is_expected_key =
+            matches!(&record.version.key, ArtifactKey::LanguageEnvironment { .. });
         self.publish(
             &self.language_environments,
-            version,
-            payload,
+            record,
             is_expected_key,
             "LanguageEnvironment",
         );
     }
 
-    /// Publish one intrinsic environment at one exact version.
-    pub fn publish_intrinsic_environment(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<IntrinsicEnvironment>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::IntrinsicEnvironment { .. });
-
-        self.publish(
-            &self.intrinsic_environments,
-            version,
-            payload,
-            is_expected_key,
-            "IntrinsicEnvironment",
-        );
-    }
-
-    /// Publish one library environment at one exact version.
-    pub fn publish_library_environment(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<LibraryEnvironment>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::LibraryEnvironment { .. });
-
-        self.publish(
-            &self.lib_environments,
-            version,
-            payload,
-            is_expected_key,
-            "LibraryEnvironment",
-        );
-    }
-
-    /// Publish one AST at one exact version.
-    pub fn publish_ast(&self, version: ArtifactVersion, payload: impl Into<Arc<Ast>>) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::Ast { .. });
-
-        self.publish(&self.asts, version, payload, is_expected_key, "Ast");
-    }
-
-    /// Publish one data payload at one exact version.
-    pub fn publish_data(&self, version: ArtifactVersion, payload: impl Into<Arc<Data>>) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::Data { .. });
-
-        self.publish(&self.datas, version, payload, is_expected_key, "Data");
-    }
-
-    /// Publish one base DIR at one exact version.
-    pub fn publish_dir_base(&self, version: ArtifactVersion, payload: impl Into<Arc<DirBase>>) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirBase { .. });
-
-        self.publish(
-            &self.dir_bases,
-            version,
-            payload,
-            is_expected_key,
-            "DirBase",
-        );
-    }
-
-    /// Publish one prepared DIR at one exact version.
-    pub fn publish_dir_prepared(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirPrepared>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirPrepared { .. });
-
-        self.publish(
-            &self.dir_prepared,
-            version,
-            payload,
-            is_expected_key,
-            "DirPrepared",
-        );
-    }
-
-    /// Publish one resolved DIR at one exact version.
-    pub fn publish_dir_resolved(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirResolved>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirResolved { .. });
-
-        self.publish(
-            &self.dir_resolved,
-            version,
-            payload,
-            is_expected_key,
-            "DirResolved",
-        );
-    }
-
-    /// Publish one declared DIR at one exact version.
-    pub fn publish_dir_declared(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirDeclared>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirDeclared { .. });
-
-        self.publish(
-            &self.dir_declared,
-            version,
-            payload,
-            is_expected_key,
-            "DirDeclared",
-        );
-    }
-
-    /// Publish one interface DIR at one exact version.
-    pub fn publish_dir_interface(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirInterface>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirInterface { .. });
-
-        self.publish(
-            &self.dir_interface,
-            version,
-            payload,
-            is_expected_key,
-            "DirInterface",
-        );
-    }
-
-    /// Publish one analyzed DIR at one exact version.
-    pub fn publish_dir_analyzed(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirAnalyzed>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirAnalyzed { .. });
-
-        self.publish(
-            &self.dir_analyzed,
-            version,
-            payload,
-            is_expected_key,
-            "DirAnalyzed",
-        );
-    }
-
-    /// Publish one elaborated DIR at one exact version.
-    pub fn publish_dir_elaborated(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirElaborated>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirElaborated { .. });
-
-        self.publish(
-            &self.dir_elaborated,
-            version,
-            payload,
-            is_expected_key,
-            "DirElaborated",
-        );
-    }
-
-    /// Publish one patched DIR at one exact version.
-    pub fn publish_dir_patched(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<DirPatched>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::DirPatched { .. });
-
-        self.publish(
-            &self.dir_patched,
-            version,
-            payload,
-            is_expected_key,
-            "DirPatched",
-        );
-    }
-
-    /// Publish one base MIR at one exact version.
-    pub fn publish_mir_base(&self, version: ArtifactVersion, payload: impl Into<Arc<MirBase>>) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::MirBase { .. });
-
-        self.publish(
-            &self.mir_bases,
-            version,
-            payload,
-            is_expected_key,
-            "MirBase",
-        );
-    }
-
-    /// Publish one optimized MIR at one exact version.
-    pub fn publish_mir_optimized(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<MirOptimized>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::MirOptimized { .. });
-
-        self.publish(
-            &self.mir_optimized,
-            version,
-            payload,
-            is_expected_key,
-            "MirOptimized",
-        );
-    }
-
-    /// Publish one module output at one exact version.
-    pub fn publish_module_output(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<ModuleOutput>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::ModuleOutput { .. });
-
-        self.publish(
-            &self.module_output,
-            version,
-            payload,
-            is_expected_key,
-            "ModuleOutput",
-        );
-    }
-
-    /// Publish one package output at one exact version.
-    pub fn publish_package_output(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<PackageOutput>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::PackageOutput { .. });
-
-        self.publish(
-            &self.package_output,
-            version,
-            payload,
-            is_expected_key,
-            "PackageOutput",
-        );
-    }
-
-    /// Publish one module lint surface at one exact version.
-    pub fn publish_module_linted(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<ModuleLinted>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::ModuleLinted { .. });
-
-        self.publish(
-            &self.module_linted,
-            version,
-            payload,
-            is_expected_key,
-            "ModuleLinted",
-        );
-    }
-
-    /// Publish one package lint surface at one exact version.
-    pub fn publish_package_linted(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<PackageLinted>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::PackageLinted { .. });
-
-        self.publish(
-            &self.package_linted,
-            version,
-            payload,
-            is_expected_key,
-            "PackageLinted",
-        );
-    }
-
-    /// Publish one workspace lint surface at one exact version.
-    pub fn publish_workspace_linted(
-        &self,
-        version: ArtifactVersion,
-        payload: impl Into<Arc<WorkspaceLinted>>,
-    ) {
-        let payload = payload.into();
-        let is_expected_key = matches!(&version.key, ArtifactKey::WorkspaceLinted);
-
-        self.publish(
-            &self.workspace_linted,
-            version,
-            payload,
-            is_expected_key,
-            "WorkspaceLinted",
-        );
-    }
-
-    /// Get one module graph.
-    pub fn module_graph(&self, version: &ArtifactVersion) -> Option<Arc<ModuleGraph>> {
-        self.module_graphs
-            .get(version)
-            .map(|entry| entry.value().clone())
-    }
-
-    /// Get one language environment.
+    /// Get one language environment artifact.
     pub fn language_environment(
         &self,
         version: &ArtifactVersion,
@@ -782,55 +299,53 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one intrinsic environment.
-    pub fn intrinsic_environment(
+    /// Publish one ambient environment artifact.
+    pub fn publish_ambient_environment(&self, record: ArtifactRecord<AmbientEnvironment>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::AmbientEnvironment { .. });
+        self.publish(
+            &self.ambient_environments,
+            record,
+            is_expected_key,
+            "AmbientEnvironment",
+        );
+    }
+
+    /// Get one ambient environment artifact.
+    pub fn ambient_environment(
         &self,
         version: &ArtifactVersion,
-    ) -> Option<Arc<IntrinsicEnvironment>> {
-        self.intrinsic_environments
+    ) -> Option<Arc<AmbientEnvironment>> {
+        self.ambient_environments
             .get(version)
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one library environment.
-    pub fn library_environment(
-        &self,
-        version: &ArtifactVersion,
-    ) -> Option<Arc<LibraryEnvironment>> {
-        self.lib_environments
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Publish one AST artifact.
+    pub fn publish_ast(&self, record: ArtifactRecord<Ast>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::Ast { .. });
+        self.publish(&self.ast, record, is_expected_key, "Ast");
     }
 
     /// Get one AST artifact.
     pub fn ast(&self, version: &ArtifactVersion) -> Option<Arc<Ast>> {
-        self.asts.get(version).map(|entry| entry.value().clone())
+        self.ast.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Publish one data artifact.
+    pub fn publish_data(&self, record: ArtifactRecord<Data>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::Data { .. });
+        self.publish(&self.data, record, is_expected_key, "Data");
     }
 
     /// Get one data artifact.
     pub fn data(&self, version: &ArtifactVersion) -> Option<Arc<Data>> {
-        self.datas.get(version).map(|entry| entry.value().clone())
+        self.data.get(version).map(|entry| entry.value().clone())
     }
 
-    /// Get one base DIR artifact.
-    pub fn dir_base(&self, version: &ArtifactVersion) -> Option<Arc<DirBase>> {
-        self.dir_bases
-            .get(version)
-            .map(|entry| entry.value().clone())
-    }
-
-    /// Get one prepared DIR artifact.
-    pub fn dir_prepared(&self, version: &ArtifactVersion) -> Option<Arc<DirPrepared>> {
-        self.dir_prepared
-            .get(version)
-            .map(|entry| entry.value().clone())
-    }
-
-    /// Get one resolved DIR artifact.
-    pub fn dir_resolved(&self, version: &ArtifactVersion) -> Option<Arc<DirResolved>> {
-        self.dir_resolved
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Publish one declared DIR artifact.
+    pub fn publish_dir_declared(&self, record: ArtifactRecord<DirDeclared>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::DirDeclared { .. });
+        self.publish(&self.dir_declared, record, is_expected_key, "DirDeclared");
     }
 
     /// Get one declared DIR artifact.
@@ -840,18 +355,41 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one interface DIR artifact.
-    pub fn dir_interface(&self, version: &ArtifactVersion) -> Option<Arc<DirInterface>> {
-        self.dir_interface
+    /// Publish one exported DIR artifact.
+    pub fn publish_dir_exported(&self, record: ArtifactRecord<DirExported>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::DirExported { .. });
+        self.publish(&self.dir_exported, record, is_expected_key, "DirExported");
+    }
+
+    /// Get one exported DIR artifact.
+    pub fn dir_exported(&self, version: &ArtifactVersion) -> Option<Arc<DirExported>> {
+        self.dir_exported
             .get(version)
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one analyzed DIR artifact.
-    pub fn dir_analyzed(&self, version: &ArtifactVersion) -> Option<Arc<DirAnalyzed>> {
-        self.dir_analyzed
+    /// Publish one checked DIR artifact.
+    pub fn publish_dir_checked(&self, record: ArtifactRecord<DirChecked>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::DirChecked { .. });
+        self.publish(&self.dir_checked, record, is_expected_key, "DirChecked");
+    }
+
+    /// Get one checked DIR artifact.
+    pub fn dir_checked(&self, version: &ArtifactVersion) -> Option<Arc<DirChecked>> {
+        self.dir_checked
             .get(version)
             .map(|entry| entry.value().clone())
+    }
+
+    /// Publish one elaborated DIR artifact.
+    pub fn publish_dir_elaborated(&self, record: ArtifactRecord<DirElaborated>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::DirElaborated { .. });
+        self.publish(
+            &self.dir_elaborated,
+            record,
+            is_expected_key,
+            "DirElaborated",
+        );
     }
 
     /// Get one elaborated DIR artifact.
@@ -861,18 +399,21 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one patched DIR artifact.
-    pub fn dir_patched(&self, version: &ArtifactVersion) -> Option<Arc<DirPatched>> {
-        self.dir_patched
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Publish one MIR artifact.
+    pub fn publish_mir(&self, record: ArtifactRecord<Mir>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::Mir { .. });
+        self.publish(&self.mir, record, is_expected_key, "Mir");
     }
 
-    /// Get one base MIR artifact.
-    pub fn mir_base(&self, version: &ArtifactVersion) -> Option<Arc<MirBase>> {
-        self.mir_bases
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Get one MIR artifact.
+    pub fn mir(&self, version: &ArtifactVersion) -> Option<Arc<Mir>> {
+        self.mir.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Publish one optimized MIR artifact.
+    pub fn publish_mir_optimized(&self, record: ArtifactRecord<MirOptimized>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::MirOptimized { .. });
+        self.publish(&self.mir_optimized, record, is_expected_key, "MirOptimized");
     }
 
     /// Get one optimized MIR artifact.
@@ -882,11 +423,28 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one module artifact.
+    /// Publish one module output artifact.
+    pub fn publish_module_output(&self, record: ArtifactRecord<ModuleOutput>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::ModuleOutput { .. });
+        self.publish(&self.module_output, record, is_expected_key, "ModuleOutput");
+    }
+
+    /// Get one module output artifact.
     pub fn module_output(&self, version: &ArtifactVersion) -> Option<Arc<ModuleOutput>> {
         self.module_output
             .get(version)
             .map(|entry| entry.value().clone())
+    }
+
+    /// Publish one package output artifact.
+    pub fn publish_package_output(&self, record: ArtifactRecord<PackageOutput>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::PackageOutput { .. });
+        self.publish(
+            &self.package_output,
+            record,
+            is_expected_key,
+            "PackageOutput",
+        );
     }
 
     /// Get one package output artifact.
@@ -896,214 +454,52 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one module lint surface.
+    /// Publish one module lint artifact.
+    pub fn publish_module_linted(&self, record: ArtifactRecord<ModuleLinted>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::ModuleLinted { .. });
+        self.publish(&self.module_linted, record, is_expected_key, "ModuleLinted");
+    }
+
+    /// Get one module lint artifact.
     pub fn module_linted(&self, version: &ArtifactVersion) -> Option<Arc<ModuleLinted>> {
         self.module_linted
             .get(version)
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one package lint surface.
+    /// Publish one package lint artifact.
+    pub fn publish_package_linted(&self, record: ArtifactRecord<PackageLinted>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::PackageLinted { .. });
+        self.publish(
+            &self.package_linted,
+            record,
+            is_expected_key,
+            "PackageLinted",
+        );
+    }
+
+    /// Get one package lint artifact.
     pub fn package_linted(&self, version: &ArtifactVersion) -> Option<Arc<PackageLinted>> {
         self.package_linted
             .get(version)
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one workspace lint surface.
+    /// Publish one workspace lint artifact.
+    pub fn publish_workspace_linted(&self, record: ArtifactRecord<WorkspaceLinted>) {
+        let is_expected_key = matches!(&record.version.key, ArtifactKey::WorkspaceLinted);
+        self.publish(
+            &self.workspace_linted,
+            record,
+            is_expected_key,
+            "WorkspaceLinted",
+        );
+    }
+
+    /// Get one workspace lint artifact.
     pub fn workspace_linted(&self, version: &ArtifactVersion) -> Option<Arc<WorkspaceLinted>> {
         self.workspace_linted
             .get(version)
             .map(|entry| entry.value().clone())
-    }
-
-    /// Clear all semantic artifacts.
-    pub fn clear(&self) {
-        self.entries.clear();
-        self.module_graphs.clear();
-        self.language_environments.clear();
-        self.intrinsic_environments.clear();
-        self.lib_environments.clear();
-        self.asts.clear();
-        self.datas.clear();
-        self.dir_bases.clear();
-        self.dir_prepared.clear();
-        self.dir_resolved.clear();
-        self.dir_declared.clear();
-        self.dir_interface.clear();
-        self.dir_analyzed.clear();
-        self.dir_elaborated.clear();
-        self.dir_patched.clear();
-        self.mir_bases.clear();
-        self.mir_optimized.clear();
-        self.module_output.clear();
-        self.package_output.clear();
-        self.module_linted.clear();
-        self.package_linted.clear();
-        self.workspace_linted.clear();
-        self.retained_versions.clear();
-    }
-
-    /// Collect profiles for one module from one versioned family map.
-    fn collect_profiles_for_module<T>(
-        &self,
-        map: &ArtifactMap<T>,
-        module: ModuleId,
-        profiles: &mut std::collections::HashSet<ProfileId>,
-    ) {
-        for version in map.iter().map(|entry| *entry.key()) {
-            if version.module_id() == Some(module)
-                && let Some(profile_id) = version.profile_id()
-            {
-                profiles.insert(profile_id);
-            }
-        }
-    }
-
-    /// Publish one family entry at one exact artifact version.
-    fn insert<T>(&self, map: &ArtifactMap<T>, version: ArtifactVersion, payload: Arc<T>) {
-        // keep the current exact version available by default
-        self.publish_entry(version);
-        map.insert(version, payload);
-    }
-
-    /// Evict every published version matching one semantic artifact key.
-    fn evict_matching<T>(&self, map: &ArtifactMap<T>, key: &ArtifactKey) {
-        let versions: Vec<_> = map
-            .iter()
-            .filter_map(|entry| (entry.key().key == *key).then_some(*entry.key()))
-            .collect();
-
-        for version in versions {
-            self.evict(&version);
-        }
-    }
-
-    /// Publish one exact artifact record without a typed payload.
-    fn publish_entry(&self, version: ArtifactVersion) {
-        self.entry_mut(version);
-
-        // release alone controls older retained versions
-        let superseded_versions = self
-            .entries
-            .iter()
-            .filter_map(|entry| {
-                let candidate = entry.key();
-                if *candidate == version {
-                    return None;
-                }
-
-                (candidate.key == version.key && !self.retained_versions.contains_key(candidate))
-                    .then_some(*candidate)
-            })
-            .collect::<Vec<_>>();
-
-        for superseded_version in superseded_versions {
-            self.evict(&superseded_version);
-        }
-    }
-
-    /// Return whether another exact version for this semantic key is still published.
-    fn has_other_published_version(&self, version: &ArtifactVersion) -> bool {
-        self.entries
-            .iter()
-            .any(|entry| entry.key().key == version.key && *entry.key() != *version)
-    }
-
-    /// Return the mutable exact entry for one version, creating it when missing.
-    fn entry_mut(
-        &self,
-        version: ArtifactVersion,
-    ) -> dashmap::mapref::one::RefMut<'_, ArtifactVersion, ArtifactEntry> {
-        self.entries.entry(version).or_default()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_source::ModuleId;
-
-    use crate::{ArtifactKey, ArtifactStamp, ArtifactVersion, Ast};
-
-    use super::ArtifactStore;
-
-    /// Release one retained version after the last live owner drops it.
-    #[test]
-    fn test_release_evicts_unretained_exact_version() {
-        let registry = ArtifactStore::new();
-        let module = ModuleId::EPHEMERAL;
-        let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
-
-        // publish and retain one exact version twice
-        registry.publish_ast(version, Ast::new(module));
-        registry.retain(&version);
-        registry.retain(&version);
-
-        assert!(registry.contains(&version));
-
-        // keep the payload until the last live owner releases it
-        registry.release(&version);
-        assert!(registry.contains(&version));
-
-        registry.release(&version);
-        assert!(!registry.contains(&version));
-    }
-
-    /// Evict one superseded exact version when no live owner still retains it.
-    #[test]
-    fn test_publish_evicts_superseded_unretained_version() {
-        let registry = ArtifactStore::new();
-        let module = ModuleId::EPHEMERAL;
-        let version_1 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
-        let version_2 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(2));
-
-        // superseded latest version
-        registry.publish_ast(version_1, Ast::new(module));
-        registry.publish_ast(version_2, Ast::new(module));
-
-        assert!(!registry.contains(&version_1));
-        assert!(registry.contains(&version_2));
-    }
-
-    /// Keep one superseded exact version while a live owner still retains it.
-    #[test]
-    fn test_publish_keeps_superseded_retained_version() {
-        let registry = ArtifactStore::new();
-        let module = ModuleId::EPHEMERAL;
-        let version_1 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
-        let version_2 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(2));
-
-        // retained older version
-        registry.publish_ast(version_1, Ast::new(module));
-        registry.retain(&version_1);
-        registry.publish_ast(version_2, Ast::new(module));
-
-        assert!(registry.contains(&version_1));
-        assert!(registry.contains(&version_2));
-
-        // release older version
-        registry.release(&version_1);
-
-        assert!(!registry.contains(&version_1));
-        assert!(registry.contains(&version_2));
-    }
-
-    /// Keep the sole published version alive after the last exact retain is released.
-    #[test]
-    fn test_release_keeps_sole_retained_version() {
-        let registry = ArtifactStore::new();
-        let module = ModuleId::EPHEMERAL;
-        let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
-
-        // the sole version stays live by default
-        registry.publish_ast(version, Ast::new(module));
-        registry.retain(&version);
-
-        assert!(registry.contains(&version));
-
-        // releasing the last retain should not evict the current live version
-        registry.release(&version);
-
-        assert!(registry.contains(&version));
     }
 }

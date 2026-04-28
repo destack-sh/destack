@@ -28,7 +28,7 @@ impl ArtifactPin {
 
 impl Drop for ArtifactPin {
     fn drop(&mut self) {
-        self.store.release(&self.version);
+        self.store.decrease_ref_count(&self.version);
     }
 }
 

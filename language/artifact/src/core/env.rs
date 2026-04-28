@@ -1,18 +1,16 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
+use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
-/// Comptime environment stamp used for profile identity.
+/// Comptime environment input used for profile identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EnvironmentStamp {
+pub enum EnvironmentInput {
     /// Full environment snapshot with keys and hashed values.
-    All { keys: Vec<String>, hash: u64 },
+    All { keys: Vec<String>, hash: u128 },
     /// Whitelisted environment snapshot with keys and hashed values.
-    Whitelist { keys: Vec<String>, hash: u64 },
+    Whitelist { keys: Vec<String>, hash: u128 },
 }
 
-impl EnvironmentStamp {
+impl EnvironmentInput {
     /// Snapshot all provided environment keys and values.
     pub fn from_entries_all(entries: Vec<(String, String)>) -> Self {
         let mut entries = entries;
@@ -40,11 +38,11 @@ impl EnvironmentStamp {
         let mut entries = Vec::with_capacity(keys.len());
 
         for key in &keys {
-            let value = value_for(key).unwrap_or_default();
+            let value = value_for(key);
             entries.push((key.clone(), value));
         }
 
-        let hash = hash_env_entries(&entries);
+        let hash = hash_optional_env_entries(&entries);
 
         Self::Whitelist { keys, hash }
     }
@@ -70,11 +68,30 @@ pub(crate) fn normalize_profile_keys(mut keys: Vec<String>) -> Vec<String> {
 }
 
 /// Hash environment entries by hashing each key and value pair.
-fn hash_env_entries(entries: &[(String, String)]) -> u64 {
-    let mut hasher = DefaultHasher::new();
+fn hash_env_entries(entries: &[(String, String)]) -> u128 {
+    let mut hasher = StableHasher::new();
     for (key, value) in entries {
-        key.hash(&mut hasher);
-        value.hash(&mut hasher);
+        hasher.update_len_prefixed(key.as_bytes());
+        hasher.update(&[1]);
+        hasher.update_len_prefixed(value.as_bytes());
     }
-    hasher.finish()
+
+    hasher.finish_u128()
+}
+
+/// Hash optional environment entries by preserving absent values.
+fn hash_optional_env_entries(entries: &[(String, Option<String>)]) -> u128 {
+    let mut hasher = StableHasher::new();
+    for (key, value) in entries {
+        hasher.update_len_prefixed(key.as_bytes());
+        match value {
+            Some(value) => {
+                hasher.update(&[1]);
+                hasher.update_len_prefixed(value.as_bytes());
+            }
+            None => hasher.update(&[0]),
+        }
+    }
+
+    hasher.finish_u128()
 }

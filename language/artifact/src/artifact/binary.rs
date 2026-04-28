@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{ScriptArtifact, SourceMapArtifact};
@@ -26,7 +24,7 @@ pub enum BinaryArtifact {
 #[derive(Debug, Clone)]
 pub struct ObjectArtifact {
     /// The generated object payload bytes.
-    pub bytes: Arc<[u8]>,
+    pub bytes: Vec<u8>,
     /// The generated split debug payloads.
     pub debug: Vec<ObjectDebugArtifact>,
 }
@@ -35,7 +33,7 @@ pub struct ObjectArtifact {
 #[derive(Debug, Clone)]
 pub struct WasmArtifact {
     /// The generated wasm payload bytes.
-    pub bytes: Arc<[u8]>,
+    pub bytes: Vec<u8>,
     /// The wasm module interface.
     pub interface: WasmInterface,
     /// The generated source map payload when one exists.
@@ -224,7 +222,7 @@ pub struct ObjectDebugArtifact {
     /// The emitted debug payload kind.
     pub kind: ObjectDebugArtifactKind,
     /// The emitted debug payload bytes.
-    pub bytes: Arc<[u8]>,
+    pub bytes: Vec<u8>,
 }
 
 /// One generated object debug payload kind.

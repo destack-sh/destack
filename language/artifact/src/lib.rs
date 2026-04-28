@@ -1,16 +1,9 @@
-#![feature(default_field_values)]
-#![feature(if_let_guard)]
-#![feature(str_as_str)]
-#![feature(thread_id_value)]
-
+mod artifact;
 mod cache;
-mod module;
-mod profile;
+mod core;
 mod store;
-mod target;
 
+pub use artifact::*;
 pub use cache::*;
-pub use module::*;
-pub use profile::*;
+pub use core::*;
 pub use store::*;
-pub use target::*;
