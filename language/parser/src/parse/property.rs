@@ -440,7 +440,7 @@ impl Parser {
         self.eat_type_expression_node_or_recover_missing(
             self.options
                 .with_ambient_context(ambient_context)
-                .with_expression_context(expression_context),
+                .with_expression_context(expression_context.allow_type_predicate()),
             owner,
         )
     }

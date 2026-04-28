@@ -131,6 +131,7 @@ impl ParserOptions {
         | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
         | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
         | Self::IN_ARROW_RETURN_TYPE_FLAG
+        | Self::ALLOW_TYPE_PREDICATE_FLAG
         | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG;
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
 
@@ -152,17 +153,18 @@ impl ParserOptions {
     const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 15;
     const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 16;
     const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 17;
-    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 18;
-    const IN_FOR_EACH_FLAG: u32 = 1 << 19;
-    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 20;
-    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 21;
-    const IN_GENERATOR_FLAG: u32 = 1 << 22;
-    const FORBID_YIELD_FLAG: u32 = 1 << 23;
-    const FORBID_AWAIT_FLAG: u32 = 1 << 24;
-    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 25;
-    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 26;
-    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 27;
-    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 28;
+    const ALLOW_TYPE_PREDICATE_FLAG: u32 = 1 << 18;
+    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 19;
+    const IN_FOR_EACH_FLAG: u32 = 1 << 20;
+    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 21;
+    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 22;
+    const IN_GENERATOR_FLAG: u32 = 1 << 23;
+    const FORBID_YIELD_FLAG: u32 = 1 << 24;
+    const FORBID_AWAIT_FLAG: u32 = 1 << 25;
+    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 26;
+    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 27;
+    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
+    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -281,6 +283,11 @@ impl ParserOptions {
     #[inline]
     pub(crate) const fn is_in_arrow_return_type(self) -> bool {
         self.has_flag(Self::IN_ARROW_RETURN_TYPE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn allows_type_predicate(self) -> bool {
+        self.has_flag(Self::ALLOW_TYPE_PREDICATE_FLAG)
     }
 
     #[inline]
@@ -832,6 +839,12 @@ impl ParserOptions {
     #[inline]
     pub(crate) fn in_arrow_return_type(self) -> Self {
         self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, true)
+    }
+
+    /// Set `allow_type_predicate=true`.
+    #[inline]
+    pub(crate) fn allow_type_predicate(self) -> Self {
+        self.with_flag(Self::ALLOW_TYPE_PREDICATE_FLAG, true)
     }
 
     /// Set `in_type_mapped_constraint=true`.

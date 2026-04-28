@@ -599,28 +599,44 @@ fn test_parse_deno_conditional_indexed_access() {
 }
 
 #[test]
-fn test_parse_type_predicate_expression() {
+fn test_reject_type_predicate_alias_expression() {
     let mut test = TestParser::new("type T = value is string");
+    let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.options).unwrap_err();
+    let (span, node_type, expected) = error.leaf_content();
+
+    assert_eq!(
+        (node_type, expected, parser.get_span_str(span)),
+        (None, None, "is")
+    );
+}
+
+#[test]
+fn test_parse_this_type_predicate_alias_expression() {
+    let mut test = TestParser::new("type T = this is Foo");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // type T = value is string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            let predicate_id = *value;
             assert_node!(parser.tree, *value, TypeExpression::Predicate { asserts, subject, target } => {
                 assert!(!asserts);
-                assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
-                assert_node!(parser.tree, target.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
+                assert_eq!(*subject, TypePredicateSubject::This);
+                assert_expression_path!(parser, parser.tree.get(target.unwrap()), "Foo");
             });
-
-            let main_span = parser
-                .tree
-                .get_main_span(predicate_id)
-                .expect("expected predicate main span");
-            assert_eq!(parser.get_span_str(main_span), "value");
         });
     });
+}
+
+#[test]
+fn test_reject_parenthesized_type_predicate_subject() {
+    let mut test = TestParser::new("function isString(value: unknown): (value) is string {}");
+    let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.options).unwrap_err();
+    let (span, node_type, expected) = error.leaf_content();
+
+    assert_eq!(
+        (node_type, expected, parser.get_span_str(span)),
+        (None, None, "(value)")
+    );
 }
