@@ -8,6 +8,8 @@ pub struct Context<'a> {
     pub heap: &'a mut heap::Heap,
     /// Runtime-shared heap.
     pub shared: &'a heap::SharedHeap,
+    /// Shared collector worker handle for this execution worker.
+    pub shared_gc: &'a heap::SharedGcWorker,
     /// Worker-owned static bytes.
     pub worker_static: &'a mut StaticSpace,
     /// Runtime-owned static bytes.
@@ -20,6 +22,7 @@ impl std::fmt::Debug for Context<'_> {
             .debug_struct("Context")
             .field("heap", &"<heap>")
             .field("shared", &"<shared heap>")
+            .field("shared_gc", &"<shared gc worker>")
             .field("worker_static", &self.worker_static.len())
             .field("runtime_static", &self.runtime_static.byte_len())
             .finish()
