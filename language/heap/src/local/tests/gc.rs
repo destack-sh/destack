@@ -16,6 +16,7 @@ fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<TestLayout>) {
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(0),
+            minimum_budget_bytes: crate::DEFAULT_GC_MINIMUM_BUDGET_BYTES,
         },
         ..HeapOptions::local()
     };
@@ -320,11 +321,11 @@ fn test_scan_shared_roots_uses_shared_reference_width() {
 
     heap.start_shared_edge_scan();
 
-    let work_done = heap
-        .scan_shared_edge_step(&mut roots, 1)
+    let scanned_bytes = heap
+        .scan_shared_edges(&mut roots, options.page_bytes)
         .expect("shared root scan should succeed");
 
-    assert_eq!(work_done, 1);
+    assert_eq!(scanned_bytes, 8);
     assert_eq!(roots, vec![shared]);
     assert!(heap.shared_edge_scan_idle());
 
@@ -372,17 +373,17 @@ fn test_scan_shared_roots_survives_active_root_removal() {
 
     // scan the first root, then remove it while the cursor points past it
     let first_work = heap
-        .scan_shared_edge_step(&mut roots, 1)
+        .scan_shared_edges(&mut roots, 1)
         .expect("first shared root scan should succeed");
     heap.free(first_local)
         .expect("freeing scanned root should succeed");
 
     let remaining_work = heap
-        .scan_shared_edge_step(&mut roots, usize::MAX)
+        .scan_shared_edges(&mut roots, usize::MAX)
         .expect("remaining shared root scan should succeed");
 
-    assert_eq!(first_work, 1);
-    assert_eq!(remaining_work, 2);
+    assert_eq!(first_work, 8);
+    assert_eq!(remaining_work, 16);
     assert_eq!(roots, vec![first_shared, second_shared, third_shared]);
 
     heap.finish_shared_edge_scan();
@@ -390,7 +391,7 @@ fn test_scan_shared_roots_survives_active_root_removal() {
 
 /// Stay idle when no local pressure or explicit request exists.
 #[test]
-fn test_heap_gc_step_stays_idle_without_request() {
+fn test_collect_step_stays_idle_without_request() {
     let options = HeapOptions::local();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
@@ -401,14 +402,17 @@ fn test_heap_gc_step_stays_idle_without_request() {
             .expect("heap should build");
     let mut roots = [];
 
-    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let budget_bytes = heap.take_collection_budget_bytes();
+    let progress = heap
+        .collect_step(&mut roots, budget_bytes)
+        .expect("collection step should succeed");
 
     assert_eq!(progress, GcProgress::Idle);
 }
 
 /// Run one minor cycle after heap allocation pressure.
 #[test]
-fn test_heap_gc_step_runs_minor_after_pressure() {
+fn test_collect_step_runs_minor_after_pressure() {
     let (mut heap, layout_ids) = test_heap(&[(64, ReferenceMap::empty())]);
     let layout = &layout_ids[0];
     let root = heap
@@ -416,7 +420,10 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
-    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let budget_bytes = heap.take_collection_budget_bytes();
+    let progress = heap
+        .collect_step(&mut roots, budget_bytes)
+        .expect("collection step should succeed");
     let stats = progress
         .completed_stats()
         .expect("pressure should request one cycle");
@@ -427,9 +434,100 @@ fn test_heap_gc_step_runs_minor_after_pressure() {
     assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
 }
 
+/// Run one minor cycle after young-space pressure crosses the configured trigger.
+#[test]
+fn test_collect_step_runs_minor_after_young_pressure() {
+    let options = HeapOptions {
+        gc: GcOptions {
+            growth_percent: 100,
+            trigger_percent: 75,
+            soft_limit_bytes: None,
+            minimum_heap_bytes: Some(1024 * 1024),
+            minimum_budget_bytes: crate::DEFAULT_GC_MINIMUM_BUDGET_BYTES,
+        },
+        heap_young_bytes: 64,
+        max_heap_young_allocation_bytes: 16,
+        ..HeapOptions::local()
+    };
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+            .expect("allocator should build"),
+    );
+    let mut heap =
+        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
+            .expect("heap should build");
+    let layout = test_layout(16, ReferenceMap::empty());
+    let mut roots = Vec::new();
+
+    // fill the young prefix to the configured trigger
+    for _ in 0..3 {
+        let reference = heap
+            .allocate(layout.allocation(), Payload::Bytes(&[1; 16]))
+            .expect("heap allocation should succeed");
+        roots.push(reference);
+    }
+
+    let budget_bytes = heap.take_collection_budget_bytes();
+    let progress = heap
+        .collect_step(&mut roots, budget_bytes)
+        .expect("collection step should succeed");
+
+    assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+}
+
+/// Keep minor collection atomic when the caller supplies a smaller budget.
+#[test]
+fn test_collect_step_requires_young_budget_for_minor() {
+    let options = HeapOptions {
+        gc: GcOptions {
+            growth_percent: 100,
+            trigger_percent: 75,
+            soft_limit_bytes: None,
+            minimum_heap_bytes: Some(1024 * 1024),
+            minimum_budget_bytes: crate::DEFAULT_GC_MINIMUM_BUDGET_BYTES,
+        },
+        heap_young_bytes: 64,
+        max_heap_young_allocation_bytes: 16,
+        ..HeapOptions::local()
+    };
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+            .expect("allocator should build"),
+    );
+    let mut heap =
+        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
+            .expect("heap should build");
+    let layout = test_layout(16, ReferenceMap::empty());
+    let mut roots = Vec::new();
+
+    // fill young space past the trigger
+    for _ in 0..3 {
+        let reference = heap
+            .allocate(layout.allocation(), Payload::Bytes(&[1; 16]))
+            .expect("heap allocation should succeed");
+        roots.push(reference);
+    }
+
+    let progress = heap
+        .collect_step(&mut roots, 1)
+        .expect("small-budget collection should not fail");
+
+    assert_eq!(progress, GcProgress::Idle);
+    assert_eq!(heap.gc_state().last_kind, None);
+
+    let budget_bytes = heap.take_collection_budget_bytes();
+    let progress = heap
+        .collect_step(&mut roots, budget_bytes)
+        .expect("budgeted collection should succeed");
+
+    assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+}
+
 /// Honor one explicit full local collection request below the pacing trigger.
 #[test]
-fn test_heap_gc_step_honors_manual_full_request() {
+fn test_collect_step_honors_manual_full_request() {
     let layout = test_layout(3, ReferenceMap::empty());
     let options = HeapOptions::local();
     let allocator = Arc::new(
@@ -446,7 +544,10 @@ fn test_heap_gc_step_honors_manual_full_request() {
 
     heap.request_full_gc();
 
-    let progress = heap.gc_step(&mut roots).expect("gc step should succeed");
+    let budget_bytes = heap.take_collection_budget_bytes();
+    let progress = heap
+        .collect_step(&mut roots, budget_bytes)
+        .expect("collection step should succeed");
     let stats = progress
         .completed_stats()
         .expect("manual request should run one cycle");

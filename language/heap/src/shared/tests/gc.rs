@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     Allocator, GcKind, GcOptions, GcProgress, HeapError, HeapOptions, Payload, SharedAllocator,
-    SharedGcPhase, SharedHeap, SharedHeapLimits, SharedHeapReference, TestLayout, test_layout,
-    test_layouts,
+    SharedGcPhase, SharedHeap, SharedHeapLimits, SharedHeapReference, SizeClassTable, TestLayout,
+    test_layout, test_layouts,
 };
 use destack_mir::ReferenceMap;
 
@@ -17,6 +17,7 @@ fn test_shared_heap(
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(0),
+            minimum_budget_bytes: crate::DEFAULT_GC_MINIMUM_BUDGET_BYTES,
         },
         ..HeapOptions::shared()
     };
@@ -87,7 +88,7 @@ fn test_collect_shared_frees_unreachable_entries() {
         .expect("shared heap allocation should succeed");
 
     let stats = shared
-        .collect_full([reachable])
+        .collect_full(&[reachable])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 1);
@@ -99,6 +100,63 @@ fn test_collect_shared_frees_unreachable_entries() {
     assert_eq!(shared.gc_state().completed_cycles, 1);
     assert_eq!(shared.gc_state().last_kind, Some(GcKind::Full));
     assert_eq!(shared.gc_state().last_stats, Some(stats));
+}
+
+/// Clear one reused shared small heap slot before writing a shorter payload.
+#[test]
+fn test_collect_shared_clears_reused_small_slot_tail() {
+    let options = HeapOptions {
+        heap_small_bytes: 16,
+        size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
+        ..HeapOptions::shared()
+    };
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+            .expect("allocator should build"),
+    );
+    let shared = SharedHeap::with_allocator_limits_and_options(
+        allocator,
+        SharedHeapLimits::default(),
+        options,
+    )
+    .expect("shared heap should build");
+    let mut allocator = shared.allocator();
+    let full_layout = test_layout(8, ReferenceMap::empty());
+    let short_layout = test_layout(1, ReferenceMap::empty());
+
+    let first = shared
+        .allocate(
+            &mut allocator,
+            full_layout.allocation(),
+            Payload::Bytes(&[0xAA; 8]),
+        )
+        .expect("shared heap allocation should succeed");
+    let second = shared
+        .allocate(
+            &mut allocator,
+            short_layout.allocation(),
+            Payload::Bytes(&[0xBB]),
+        )
+        .expect("shared heap allocation should succeed");
+
+    shared
+        .collect_full(&[second])
+        .expect("shared collection should succeed");
+    assert!(!shared.is_heap_live(first));
+
+    let reused = shared
+        .allocate(
+            &mut allocator,
+            short_layout.allocation(),
+            Payload::Bytes(&[0xCC]),
+        )
+        .expect("shared heap allocation should succeed");
+
+    assert!(shared.is_heap_live(second));
+    assert_eq!(
+        shared.read_heap_bytes(reused),
+        Ok(vec![0xCC, 0, 0, 0, 0, 0, 0, 0])
+    );
 }
 
 /// Trace shared child references through one shared heap payload.
@@ -128,7 +186,7 @@ fn test_collect_shared_keeps_reachable_children() {
         .expect("shared heap allocation should succeed");
 
     let stats = shared
-        .collect_full([parent])
+        .collect_full(&[parent])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -184,14 +242,14 @@ fn test_collect_shared_scans_small_spans_incrementally() {
     );
 
     shared
-        .gc_step(&[first_parent, second_parent], true, 1)
+        .collect_step(&[first_parent, second_parent], true, 1)
         .expect("shared collection step should succeed");
 
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
     assert!(!shared.mark_idle());
 
     while shared
-        .gc_step(&[first_parent, second_parent], true, 1)
+        .collect_step(&[first_parent, second_parent], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -250,12 +308,12 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
     );
 
     shared
-        .gc_step(&[parent], true, 1)
+        .collect_step(&[parent], true, 1)
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
     while shared
-        .gc_step(&[parent], true, 1)
+        .collect_step(&[parent], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -282,7 +340,7 @@ fn test_collect_shared_rejects_invalid_root() {
     let invalid = SharedHeapReference::new(7);
 
     let error = shared
-        .collect_full([invalid])
+        .collect_full(&[invalid])
         .expect_err("invalid shared roots should fail collection");
 
     assert_eq!(
@@ -315,7 +373,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
         )
         .expect("shared heap allocation should succeed");
     let stats = shared
-        .collect_full([reference])
+        .collect_full(&[reference])
         .expect("shared collection should succeed");
     let image = shared.image().expect("shared image should capture");
     let restored = SharedHeap::from_image_with_limits(&image, SharedHeapLimits::default())
@@ -349,7 +407,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
         )
         .expect("shared heap allocation should succeed");
     let stats = shared
-        .collect_full([reference])
+        .collect_full(&[reference])
         .expect("shared collection should succeed");
     let image = shared.image().expect("shared image should capture");
     let snapshot = image.snapshot().expect("shared snapshot should capture");
@@ -388,19 +446,16 @@ fn test_collect_shared_barrier_keeps_written_child() {
     );
 
     shared
-        .gc_step(&[parent], false, 1)
+        .collect_step(&[parent], false, 1)
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
     shared
         .write_heap_bytes(parent, 0, &child.bits().to_le_bytes())
         .expect("shared heap write should succeed");
-    shared
-        .write_barrier(parent, 0, SharedHeapReference::BYTE_LEN)
-        .expect("shared barrier should succeed");
 
     while shared
-        .gc_step(&[parent], true, 1)
+        .collect_step(&[parent], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -437,7 +492,7 @@ fn test_collect_shared_publish_edge_keeps_written_child() {
     );
 
     shared
-        .gc_step(&[parent], false, 1)
+        .collect_step(&[parent], false, 1)
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
@@ -449,7 +504,7 @@ fn test_collect_shared_publish_edge_keeps_written_child() {
         .expect("shared exact publish should succeed");
 
     while shared
-        .gc_step(&[parent], true, 1)
+        .collect_step(&[parent], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -478,7 +533,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     );
 
     shared
-        .gc_step(&[root], false, 1)
+        .collect_step(&[root], false, 1)
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
@@ -491,7 +546,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
         .expect("shared heap allocation should succeed");
 
     while shared
-        .gc_step(&[root], true, 1)
+        .collect_step(&[root], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -501,9 +556,9 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     assert!(shared.is_heap_live(late));
 }
 
-/// Keep one allocation created during sweep alive through the active cycle.
+/// Keep one allocation created while allocation assists sweep.
 #[test]
-fn test_collect_shared_keeps_allocation_created_during_sweep() {
+fn test_allocate_shared_assists_sweep_before_returning() {
     let (shared, mut allocator, layout_ids) = test_shared_heap(&[(3, ReferenceMap::empty())]);
     let layout = &layout_ids[0];
     let root = shared
@@ -529,11 +584,12 @@ fn test_collect_shared_keeps_allocation_created_during_sweep() {
 
     while shared.gc_phase() == SharedGcPhase::Mark {
         shared
-            .gc_step(&[root], true, 1)
+            .collect_step(&[root], true, 1)
             .expect("shared collection step should succeed");
     }
 
     assert_eq!(shared.gc_phase(), SharedGcPhase::Sweep);
+    let completed_cycles = shared.gc_state().completed_cycles;
 
     let late = shared
         .allocate(
@@ -543,16 +599,20 @@ fn test_collect_shared_keeps_allocation_created_during_sweep() {
         )
         .expect("shared heap allocation should succeed");
 
-    while shared
-        .gc_step(&[], true, 1)
-        .expect("shared collection step should succeed")
-        .completed_stats()
-        .is_none()
-    {}
+    while shared.gc_phase() != SharedGcPhase::Idle {
+        shared
+            .collect_step(&[], true, 1)
+            .expect("shared collection step should succeed");
+    }
 
+    assert!(shared.gc_state().completed_cycles > completed_cycles);
     assert!(shared.is_heap_live(root));
     assert!(shared.is_heap_live(late));
-    assert!(!shared.is_heap_live(unreachable));
+
+    // the assist may reclaim and immediately reuse the dead slot
+    if late != unreachable {
+        assert!(!shared.is_heap_live(unreachable));
+    }
 }
 
 /// Require explicit mark termination before shared sweep begins.
@@ -581,14 +641,14 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     );
 
     shared
-        .gc_step(&[reachable], false, 1)
+        .collect_step(&[reachable], false, 1)
         .expect("shared collection step should succeed");
 
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
     assert!(shared.is_heap_live(unreachable));
 
     while shared
-        .gc_step(&[reachable], true, 1)
+        .collect_step(&[reachable], true, 1)
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -600,7 +660,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 
 /// Stay idle when no shared pressure or explicit request exists.
 #[test]
-fn test_shared_gc_step_stays_idle_without_request() {
+fn test_collect_step_stays_idle_without_request() {
     let options = HeapOptions::shared();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
@@ -614,8 +674,8 @@ fn test_shared_gc_step_stays_idle_without_request() {
     .expect("shared heap should build");
 
     let progress = shared
-        .gc_step(&[], true, 1)
-        .expect("shared gc step should succeed");
+        .collect_step(&[], true, 1)
+        .expect("shared collection step should succeed");
 
     assert_eq!(progress, GcProgress::Idle);
     assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
@@ -623,7 +683,7 @@ fn test_shared_gc_step_stays_idle_without_request() {
 
 /// Honor one explicit shared collection request below the pacing trigger.
 #[test]
-fn test_shared_gc_step_honors_manual_request() {
+fn test_collect_step_honors_manual_request() {
     let (shared, mut allocator, layout_ids) = test_shared_heap(&[(3, ReferenceMap::empty())]);
     let layout = &layout_ids[0];
     let reachable = shared
@@ -641,8 +701,35 @@ fn test_shared_gc_step_honors_manual_request() {
     );
 
     shared
-        .gc_step(&[reachable], false, 1)
-        .expect("shared gc step should succeed");
+        .collect_step(&[reachable], false, 1)
+        .expect("shared collection step should succeed");
 
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+}
+
+/// Consume shared collector work from the active cycle budget.
+#[test]
+fn test_shared_gc_budget_consumes_cycle_work() {
+    let (shared, mut allocator, layout_ids) = test_shared_heap(&[(3, ReferenceMap::empty())]);
+    let layout = &layout_ids[0];
+    let _reference = shared
+        .allocate(
+            &mut allocator,
+            layout.allocation(),
+            Payload::Bytes(&[1, 2, 3]),
+        )
+        .expect("shared heap allocation should succeed");
+
+    assert!(
+        shared.start_gc().expect("shared collection should start"),
+        "shared collection should become active"
+    );
+
+    let before = shared.gc_pacer();
+    let budget_bytes = shared.take_collection_budget_bytes(1);
+    let after = shared.gc_pacer();
+
+    assert!(before.remaining_work_bytes > 0);
+    assert!(budget_bytes > 0);
+    assert!(after.remaining_work_bytes < before.remaining_work_bytes);
 }

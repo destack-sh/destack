@@ -3,7 +3,7 @@ use std::sync::atomic::Ordering;
 
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{
-    SharedHeapPlace, SharedHeapSpace, checked_place_offset, checked_slot_offset,
+    SharedHeapPlace, SharedHeapSpace, checked_place_offset, small_slot_offset,
 };
 use crate::{
     GcKind, GcProgress, GcStats, HeapError, HeapResult, SharedHeapReference, slot_reference_map,
@@ -12,10 +12,7 @@ use crate::{
 
 impl SharedHeapSpace {
     /// Start one shared heap mark phase over the given roots.
-    pub(crate) fn start_mark(
-        &self,
-        roots: impl IntoIterator<Item = SharedHeapReference>,
-    ) -> HeapResult<()> {
+    pub(crate) fn start_mark(&self, roots: &[SharedHeapReference]) -> HeapResult<()> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
 
@@ -42,15 +39,12 @@ impl SharedHeapSpace {
     }
 
     /// Perform one full shared heap collection over the given roots.
-    pub fn collect_full(
-        &self,
-        roots: impl IntoIterator<Item = SharedHeapReference>,
-    ) -> HeapResult<GcStats> {
+    pub fn collect_full(&self, roots: &[SharedHeapReference]) -> HeapResult<GcStats> {
         self.start_mark(roots)?;
 
         // concurrent mark
         while !self.mark_idle() {
-            self.mark_step(None, [], usize::MAX)?;
+            self.mark_step(None, &[], usize::MAX)?;
         }
 
         // incremental sweep
@@ -68,8 +62,8 @@ impl SharedHeapSpace {
     pub(crate) fn mark_step(
         &self,
         worker: Option<&SharedGcWorker>,
-        roots: impl IntoIterator<Item = SharedHeapReference>,
-        step_budget: usize,
+        roots: &[SharedHeapReference],
+        budget_bytes: usize,
     ) -> HeapResult<()> {
         // phase
         if self.gc.phase() != SharedGcPhase::Mark {
@@ -80,11 +74,11 @@ impl SharedHeapSpace {
         self.queue_unmarked_references(worker, roots)?;
 
         // mark queue
-        let mut work_done = 0usize;
+        let mut marked_bytes = 0usize;
         let batch_capacity = self.trace_batch_capacity();
-        while work_done < step_budget {
+        while marked_bytes < budget_bytes {
             // reserve before popping so termination sees in-flight batches
-            let batch_len = (step_budget - work_done).min(batch_capacity);
+            let batch_len = batch_capacity;
             self.gc.mark_inflight.fetch_add(batch_len, Ordering::AcqRel);
 
             // claim one batch from local, global, or stolen work
@@ -101,8 +95,8 @@ impl SharedHeapSpace {
             }
 
             // trace claimed work without collector-side allocation
-            let trace_result = self.trace_batch(worker, &batch, step_budget - work_done);
-            let (traced_work, processed_items) = match trace_result {
+            let trace_result = self.trace_batch(worker, &batch, budget_bytes - marked_bytes);
+            let (traced_bytes, processed_items) = match trace_result {
                 Ok(result) => result,
                 Err(error) => {
                     self.gc
@@ -122,7 +116,7 @@ impl SharedHeapSpace {
             self.gc
                 .mark_inflight
                 .fetch_sub(batch.len(), Ordering::AcqRel);
-            work_done += traced_work.max(1);
+            marked_bytes += traced_bytes;
         }
 
         Ok(())
@@ -145,15 +139,15 @@ impl SharedHeapSpace {
         &self,
         worker: Option<&SharedGcWorker>,
         batch: &[SharedTraceWork],
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> HeapResult<(usize, usize)> {
         let mut start = 0usize;
-        let mut work_done = 0usize;
+        let mut marked_bytes = 0usize;
 
         // trace small spans together and fall back to large references otherwise
         while start < batch.len() {
             // stop before consuming another queued item
-            if work_done >= step_budget {
+            if marked_bytes >= budget_bytes {
                 break;
             }
 
@@ -163,9 +157,8 @@ impl SharedHeapSpace {
                     reference,
                     start: range_start,
                 } => {
-                    self.trace_large_range(worker, reference, range_start)?;
+                    marked_bytes += self.trace_large_range(worker, reference, range_start)?;
                     start += 1;
-                    work_done += 1;
                 }
 
                 // adjacent small-span items can share one scan
@@ -181,15 +174,17 @@ impl SharedHeapSpace {
                         end += 1;
                     }
 
-                    let span_work =
-                        self.trace_small_span_work(worker, span_index, step_budget - work_done)?;
-                    work_done += span_work.max(1);
+                    marked_bytes += self.trace_small_span_work(
+                        worker,
+                        span_index,
+                        budget_bytes - marked_bytes,
+                    )?;
                     start = end;
                 }
             }
         }
 
-        Ok((work_done, start))
+        Ok((marked_bytes, start))
     }
 
     /// Return whether concurrent mark is currently drained.
@@ -227,29 +222,27 @@ impl SharedHeapSpace {
     }
 
     /// Perform bounded shared sweep work.
-    pub(crate) fn sweep_step(&self, step_budget: usize) -> HeapResult<GcProgress> {
+    pub(crate) fn sweep_step(&self, budget_bytes: usize) -> HeapResult<GcProgress> {
         let references = self.gc.sweep_references.lock().clone();
         let reference_len = references.len();
 
-        let mut work_done = 0usize;
+        let mut swept_bytes = 0usize;
         let mut released_references = Vec::new();
 
         // sweep cursor
-        while work_done < step_budget {
+        while swept_bytes < budget_bytes {
             let index = self.gc.sweep_cursor.fetch_add(1, Ordering::AcqRel);
             if index >= reference_len {
                 break;
             }
 
-            work_done += 1;
-
             let Some(reference) = references.get(index).copied() else {
                 continue;
             };
-
             let Some(location) = self.resolve_location(reference) else {
                 continue;
             };
+            swept_bytes += location.byte_len.max(1);
 
             if self.is_marked_place(location.place)? {
                 continue;
@@ -283,7 +276,7 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         reference: SharedHeapReference,
         start: usize,
-    ) -> HeapResult<()> {
+    ) -> HeapResult<usize> {
         // resolve and verify the large allocation
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidSharedHeapReference { reference });
@@ -295,10 +288,10 @@ impl SharedHeapSpace {
         // skip empty ranges and noscan payloads
         let scan = self.scan(reference)?;
         if !scan.has_shared_reference() {
-            return Ok(());
+            return Ok(location.byte_len);
         }
         if start >= location.byte_len {
-            return Ok(());
+            return Ok(0);
         }
 
         // scan at most one allocator page
@@ -337,7 +330,7 @@ impl SharedHeapSpace {
             );
         }
 
-        Ok(())
+        Ok(range_len)
     }
 
     /// Trace one shared small-span work item under one span read.
@@ -345,9 +338,9 @@ impl SharedHeapSpace {
         &self,
         worker: Option<&SharedGcWorker>,
         span_index: usize,
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> HeapResult<usize> {
-        let mut work_done = 0usize;
+        let mut scanned_bytes = 0usize;
 
         // load the span handle once, then scan outside the space lock
         let span = {
@@ -360,30 +353,33 @@ impl SharedHeapSpace {
         };
 
         // keep draining until this span really goes idle
-        while work_done < step_budget {
+        while scanned_bytes < budget_bytes {
             let scan_slots = {
                 let mut span = span.write();
                 let mut slot_indices = Vec::new();
-                let remaining_work = step_budget - work_done;
+                let remaining_bytes = budget_bytes - scanned_bytes;
+                let slot_bytes = span.class.size_class.max(1);
+                let mut claimed_bytes = 0usize;
 
                 // marked minus scanned
                 span.marked.visit_set_ranges(|start, len| {
                     for slot_index in start..start + len {
-                        // stop when the step budget is claimed
-                        if slot_indices.len() == remaining_work {
+                        // stop once this batch has claimed its byte budget
+                        if !slot_indices.is_empty() && claimed_bytes >= remaining_bytes {
                             return;
                         }
 
                         // skip slots already claimed by another worker
                         if !span.scanned.contains(slot_index) {
                             slot_indices.push(slot_index);
+                            claimed_bytes += slot_bytes;
                         }
                     }
                 });
 
                 if slot_indices.is_empty() {
                     span.is_queued_for_scan = false;
-                    return Ok(work_done);
+                    return Ok(scanned_bytes);
                 }
 
                 // claim bounded marked slots before releasing the span lock
@@ -392,7 +388,7 @@ impl SharedHeapSpace {
                 for slot_index in slot_indices {
                     span.scanned.set(slot_index);
 
-                    let slot_offset = checked_slot_offset(span.class.size_class, slot_index)?;
+                    let slot_offset = small_slot_offset(span.class.size_class, slot_index);
                     let reference_map = slot_reference_map(
                         &span.local_reference_bits,
                         &span.shared_reference_bits,
@@ -404,6 +400,7 @@ impl SharedHeapSpace {
                         span.first_offset,
                         slot_offset,
                         span.pages.len(),
+                        span.class.size_class,
                         reference_map,
                     ));
                 }
@@ -411,11 +408,11 @@ impl SharedHeapSpace {
                 scan_slots
             };
 
-            work_done += scan_slots.len();
-            let mut edge_buffer = Vec::new();
-
             // shared small-span scan
-            for (span_offset, slot_offset, page_count, reference_map) in scan_slots {
+            let mut edge_buffer = Vec::new();
+            for (span_offset, slot_offset, page_count, slot_bytes, reference_map) in scan_slots {
+                scanned_bytes += slot_bytes.max(1);
+
                 // noscan slots cost one claimed unit only
                 if !reference_map.has_shared_reference() {
                     continue;
@@ -450,7 +447,7 @@ impl SharedHeapSpace {
             .trace_queue
             .push(worker, SharedTraceWork::SmallSpan(span_index));
 
-        Ok(work_done)
+        Ok(scanned_bytes)
     }
 
     /// Free one shared heap reference.
@@ -541,43 +538,7 @@ impl SharedHeapSpace {
         Ok(stats)
     }
 
-    /// Record one shared heap write barrier after one completed store.
-    pub(crate) fn write_shared_barrier(
-        &self,
-        reference: SharedHeapReference,
-        byte_offset: usize,
-        byte_len: usize,
-    ) -> HeapResult<()> {
-        // publication
-        let Some(_publication) = self.gc.begin_mark_publication() else {
-            return Ok(());
-        };
-
-        let mut edge_buffer = Vec::new();
-        let scan = self.scan(reference)?;
-
-        // written range
-        let trace_result = visit_shared_references_in_reader_range(
-            &scan,
-            byte_offset,
-            byte_len,
-            |start, buffer| self.read_bytes_into(reference, start, buffer),
-            |reference: SharedHeapReference| {
-                if !reference.is_null() {
-                    edge_buffer.push(reference);
-                }
-            },
-        );
-
-        trace_result?;
-
-        // published edges
-        self.queue_references(None, edge_buffer)?;
-
-        Ok(())
-    }
-
-    /// Record one shared heap write barrier from one caller-provided byte slice.
+    /// Record one shared heap write barrier before one byte store.
     pub(crate) fn write_shared_barrier_bytes(
         &self,
         reference: SharedHeapReference,
@@ -595,6 +556,22 @@ impl SharedHeapSpace {
         // written bytes
         let mut edge_buffer = Vec::new();
         let scan = self.scan(reference)?;
+
+        let trace_result = visit_shared_references_in_reader_range(
+            &scan,
+            byte_offset,
+            bytes.len(),
+            |start, buffer| self.read_bytes_into(reference, start, buffer),
+            |reference: SharedHeapReference| {
+                if !reference.is_null() {
+                    edge_buffer.push(reference);
+                }
+            },
+        );
+
+        trace_result?;
+
+        // inserted bytes
         let trace_result = visit_shared_references_in_reader_range(
             &scan,
             byte_offset,
@@ -682,14 +659,14 @@ impl SharedHeapSpace {
     fn queue_unmarked_references(
         &self,
         worker: Option<&SharedGcWorker>,
-        references: impl IntoIterator<Item = SharedHeapReference>,
+        references: &[SharedHeapReference],
     ) -> HeapResult<()> {
         for reference in references {
             if reference.is_null() {
                 continue;
             }
 
-            self.queue_reference_work(worker, reference)?;
+            self.queue_reference_work(worker, *reference)?;
         }
 
         Ok(())

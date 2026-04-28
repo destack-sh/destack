@@ -5,13 +5,12 @@ use destack_mir::ReferenceMap;
 use super::Promotion;
 use crate::local::space::{
     GcKind, GcStats, HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId,
-    LocalGcPhase, LocalTraceWork, YoungSpace,
+    LocalGcPhase, LocalTraceWork,
 };
 use crate::{
-    AccountingRegion, GcProgress, HeapError, HeapReference, HeapResult, RootSlot, RootSlots,
-    ScanSource, SharedHeapReference, TraceQueue, slot_reference_map,
-    visit_heap_references_in_reader, visit_heap_references_in_reader_range,
-    visit_shared_references_in_reader,
+    GcProgress, HeapError, HeapReference, HeapResult, RootSlot, RootSlots, ScanSource,
+    SharedHeapReference, TraceQueue, slot_reference_map, visit_heap_references_in_reader,
+    visit_heap_references_in_reader_range, visit_shared_references_in_reader,
 };
 
 /// Collector queue for heap references.
@@ -87,39 +86,37 @@ impl HeapSpace {
     }
 
     /// Scan bounded local-to-shared edge work into the provided root buffer.
-    pub(crate) fn scan_shared_edge_step(
+    pub(crate) fn scan_shared_edges(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> HeapResult<usize> {
-        if !self.is_scanning_shared_edges || step_budget == 0 {
+        if !self.is_scanning_shared_edges || budget_bytes == 0 {
             return Ok(0);
         }
 
-        let mut work_done = 0usize;
+        let mut scanned_bytes = 0usize;
 
         // drain queued rescans first
-        while work_done < step_budget {
+        while scanned_bytes < budget_bytes {
             let Some(reference) = self.shared_edge_queue.pop() else {
                 break;
             };
 
             self.shared_edge_pending.remove(&reference);
-            self.trace_shared_edges(reference, roots)?;
-            work_done += 1;
+            scanned_bytes += self.trace_shared_edges(reference, roots)?;
         }
 
         // then continue the tracked shared-edge walk
-        while work_done < step_budget {
+        while scanned_bytes < budget_bytes {
             let Some(reference) = self.next_shared_edge_root()? else {
                 break;
             };
 
-            self.trace_shared_edges(reference, roots)?;
-            work_done += 1;
+            scanned_bytes += self.trace_shared_edges(reference, roots)?;
         }
 
-        Ok(work_done)
+        Ok(scanned_bytes)
     }
 
     /// Queue one local reference for one later shared-edge rescan.
@@ -243,9 +240,9 @@ impl HeapSpace {
         &mut self,
         reference: HeapReference,
         roots: &mut Vec<SharedHeapReference>,
-    ) -> HeapResult<()> {
+    ) -> HeapResult<usize> {
         let Some(location) = self.resolve_location(reference) else {
-            return Ok(());
+            return Ok(0);
         };
         let reference_map = self.place_reference_map(location.place).map_err(|error| {
             HeapError::HeapScanFailed {
@@ -255,7 +252,7 @@ impl HeapSpace {
         })?;
 
         if !reference_map.has_shared_reference() {
-            return Ok(());
+            return Ok(location.byte_len);
         }
 
         let result = visit_shared_references_in_reader(
@@ -275,7 +272,7 @@ impl HeapSpace {
             });
         }
 
-        Ok(())
+        Ok(location.byte_len)
     }
 
     /// Perform one young-generation collection over mutable heap roots.
@@ -395,12 +392,12 @@ impl HeapSpace {
     pub(crate) fn step_major_gc<R>(
         &mut self,
         roots: &mut R,
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> Result<GcProgress, R::Error>
     where
         R: RootSlots,
     {
-        if step_budget == 0 || self.major_phase == LocalGcPhase::Idle {
+        if budget_bytes == 0 || self.major_phase == LocalGcPhase::Idle {
             return Ok(GcProgress::Idle);
         }
 
@@ -408,22 +405,23 @@ impl HeapSpace {
             LocalGcPhase::Idle => Ok(GcProgress::Idle),
             LocalGcPhase::Mark => {
                 self.seed_major_roots(roots)?;
-                let mark_work = self.mark_reachable_references_step(step_budget)?;
+                let marked_bytes = self.mark_reachable_references_step(budget_bytes)?;
 
                 if self.major_trace_queue.is_empty() {
                     self.major_sweep_references = self.live_references()?;
                     self.major_sweep_cursor = 0;
                     self.major_phase = LocalGcPhase::Sweep;
 
-                    let sweep_work = step_budget - mark_work;
-                    if sweep_work > 0 {
-                        return Ok(self.sweep_unreachable_references_step(sweep_work)?);
+                    if marked_bytes < budget_bytes {
+                        let remaining_bytes = budget_bytes - marked_bytes;
+
+                        return Ok(self.sweep_unreachable_references_step(remaining_bytes)?);
                     }
                 }
 
                 Ok(GcProgress::Active)
             }
-            LocalGcPhase::Sweep => Ok(self.sweep_unreachable_references_step(step_budget)?),
+            LocalGcPhase::Sweep => Ok(self.sweep_unreachable_references_step(budget_bytes)?),
         }
     }
 
@@ -899,26 +897,26 @@ impl HeapSpace {
             let source_len = allocation.byte_len;
             let target_len = self.place_byte_len(promotion.target)?;
 
-            self.usage
-                .resize(source_len, target_len, AccountingRegion::Heap);
+            self.usage.resize(source_len, target_len);
         }
 
         Ok(())
     }
 
-    /// Sweep bounded unreachable references during one local major collection.
-    fn sweep_unreachable_references_step(&mut self, step_budget: usize) -> HeapResult<GcProgress> {
-        let mut work_done = 0usize;
+    /// Sweep unreachable references within one byte budget.
+    fn sweep_unreachable_references_step(&mut self, budget_bytes: usize) -> HeapResult<GcProgress> {
+        let mut swept_bytes = 0usize;
 
-        while work_done < step_budget && self.major_sweep_cursor < self.major_sweep_references.len()
+        while swept_bytes < budget_bytes
+            && self.major_sweep_cursor < self.major_sweep_references.len()
         {
             let reference = self.major_sweep_references[self.major_sweep_cursor];
             self.major_sweep_cursor += 1;
-            work_done += 1;
 
             let Some(location) = self.resolve_location(reference) else {
                 continue;
             };
+            swept_bytes += location.byte_len.max(1);
 
             // keep reachable references intact
             if self.is_marked_place(location.place)? {
@@ -956,7 +954,7 @@ impl HeapSpace {
             })?;
         let previous_pages = self.young.pages;
 
-        // remove the old nursery ownership before its pages reenter the allocator cache
+        // clear the old nursery page map before its pages reenter the cache
         self.unmap_page_run(0, &previous_pages);
 
         // release the old nursery pages once the page-map table is clean
@@ -977,8 +975,7 @@ impl HeapSpace {
 
         // publish the fresh nursery state
         self.young.generation += 1;
-        self.young.next_offset =
-            YoungSpace::first_allocation_offset(self.young.allocation_alignment_bytes);
+        self.young.next_offset = self.young.allocation_alignment_bytes;
         self.young.pages = next_pages;
         self.young.ranges.clear();
         self.young.live.clear_all();
@@ -1052,11 +1049,11 @@ impl HeapSpace {
         Ok(())
     }
 
-    /// Mark bounded reachable heap references from the active major queue.
-    fn mark_reachable_references_step(&mut self, step_budget: usize) -> HeapResult<usize> {
-        let mut work_done = 0usize;
+    /// Mark reachable heap references within one byte budget.
+    fn mark_reachable_references_step(&mut self, budget_bytes: usize) -> HeapResult<usize> {
+        let mut marked_bytes = 0usize;
 
-        while work_done < step_budget {
+        while marked_bytes < budget_bytes {
             // claim the next bounded mark item
             let Some(work) = self.major_trace_queue.pop() else {
                 break;
@@ -1065,8 +1062,7 @@ impl HeapSpace {
             match work {
                 // large allocations are scanned page by page
                 LocalTraceWork::LargeRange { reference, start } => {
-                    self.trace_large_range(reference, start)?;
-                    work_done += 1;
+                    marked_bytes += self.trace_large_range(reference, start)?;
 
                     continue;
                 }
@@ -1077,7 +1073,7 @@ impl HeapSpace {
                         return Err(HeapError::InvalidHeapReference { reference });
                     };
 
-                    work_done += 1;
+                    marked_bytes += location.byte_len.max(1);
 
                     let reference_map =
                         self.place_reference_map(location.place).map_err(|error| {
@@ -1117,11 +1113,11 @@ impl HeapSpace {
             }
         }
 
-        Ok(work_done)
+        Ok(marked_bytes)
     }
 
     /// Trace one page-sized range from one local large allocation.
-    fn trace_large_range(&mut self, reference: HeapReference, start: usize) -> HeapResult<()> {
+    fn trace_large_range(&mut self, reference: HeapReference, start: usize) -> HeapResult<usize> {
         // resolve and verify the large allocation
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
@@ -1138,7 +1134,7 @@ impl HeapSpace {
             }
         })?;
         if !reference_map.has_local_reference() || start >= location.byte_len {
-            return Ok(());
+            return Ok(0);
         }
 
         // scan at most one allocator page
@@ -1179,7 +1175,7 @@ impl HeapSpace {
             });
         }
 
-        Ok(())
+        Ok(range_len)
     }
 
     /// Queue one major collection reference after marking it.

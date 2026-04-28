@@ -193,20 +193,6 @@ impl HeapOptions {
         }
     }
 
-    /// Return the number of allocator pages in one small span.
-    pub(crate) fn small_span_pages(&self) -> usize {
-        self.heap_small_bytes.div_ceil(self.page_bytes).max(1)
-    }
-
-    /// Return the minimum number of payload slots in one small span.
-    pub(crate) fn minimum_small_span_slots(&self) -> usize {
-        self.size_classes
-            .min_small_allocation_bytes()
-            .map(|min_bytes| self.heap_small_bytes / min_bytes)
-            .unwrap_or(1)
-            .max(1)
-    }
-
     /// Validate one configured heap page size.
     pub(crate) fn validate_page_bytes(page_bytes: usize) -> Result<usize, HeapError> {
         if page_bytes == 0 || !page_bytes.is_power_of_two() {

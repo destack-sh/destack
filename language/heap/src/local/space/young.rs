@@ -65,11 +65,6 @@ pub(crate) struct YoungSpace {
 }
 
 impl YoungSpace {
-    /// Return the first valid young-space allocation offset.
-    pub(crate) const fn first_allocation_offset(allocation_alignment_bytes: usize) -> usize {
-        allocation_alignment_bytes
-    }
-
     /// Create one empty young space with its full page run.
     pub(crate) fn new(
         allocator: &Allocator,
@@ -84,7 +79,7 @@ impl YoungSpace {
             generation: 0,
             capacity_bytes,
             page_bytes,
-            next_offset: Self::first_allocation_offset(allocation_alignment_bytes),
+            next_offset: allocation_alignment_bytes,
             allocation_alignment_bytes,
             pages: cache.allocate_pages(allocator, capacity_bytes)?,
             ranges: Vec::new(),
@@ -93,6 +88,29 @@ impl YoungSpace {
             local_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
             shared_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
         })
+    }
+
+    /// Return the allocated young-space byte prefix.
+    pub(crate) fn used_bytes(&self) -> usize {
+        self.next_offset - self.allocation_alignment_bytes
+    }
+
+    /// Return whether young space currently holds no allocations.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.ranges.is_empty()
+    }
+
+    /// Return whether young space has crossed one occupancy threshold.
+    pub(crate) fn should_collect(&self, trigger_percent: u32) -> bool {
+        if self.capacity_bytes == 0 {
+            return false;
+        }
+
+        let used_bytes = self.used_bytes() as u128;
+        let capacity_bytes = self.capacity_bytes as u128;
+        let trigger_percent = u128::from(trigger_percent);
+
+        used_bytes * 100 >= capacity_bytes * trigger_percent
     }
 }
 

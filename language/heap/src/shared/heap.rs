@@ -10,61 +10,179 @@ use super::{
     SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationLayout, Allocator, AllocatorImage, GcPacer, GcProgress, GcState, GcStats, HeapError,
-    HeapOptions, HeapResult, PageId, PageRun, Payload, SharedHeapReference, SharedRawPointer,
-    apply_byte_delta,
+    AllocationLayout, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress, GcState, GcStats,
+    HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload, SharedHeapReference,
+    SharedRawPointer, apply_byte_delta,
 };
 
 /// Shared collector pacing state.
 #[derive(Debug, Default)]
 struct SharedGcPacer {
-    /// Pending shared collector assist debt in allocated bytes.
+    /// The live shared heap bytes after the last completed cycle.
+    live_bytes: AtomicUsize,
+    /// Estimated shared collector work for one complete cycle.
+    estimated_work_bytes: AtomicUsize,
+    /// Estimated shared collector work not yet issued to collector steps.
+    remaining_work_bytes: AtomicUsize,
+    /// Pending shared collector assist debt in work bytes.
     assist_debt_bytes: AtomicUsize,
 }
 
 impl SharedGcPacer {
-    /// Add pending collector assist debt without losing concurrent updates.
-    fn add_assist_debt(&self, byte_len: usize) {
-        loop {
-            let pending = self.assist_debt_bytes.load(Ordering::Acquire);
-            let next = pending + byte_len;
+    /// Derive shared pacing targets from the current live heap size.
+    fn set_live_bytes(&self, options: &HeapOptions, live_bytes: u64) {
+        let mut gc_pacer = GcPacer::default();
+        gc_pacer.set_live_bytes(options.gc, live_bytes);
 
-            if self
-                .assist_debt_bytes
-                .compare_exchange(pending, next, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return;
-            }
+        self.live_bytes
+            .store(gc_work_usize(gc_pacer.live_bytes), Ordering::Release);
+        self.estimated_work_bytes.store(
+            gc_work_usize(gc_pacer.estimated_work_bytes),
+            Ordering::Release,
+        );
+    }
+
+    /// Copy this shared pacer into one independent heap.
+    fn fork(&self) -> Self {
+        Self {
+            live_bytes: AtomicUsize::new(self.live_bytes.load(Ordering::Acquire)),
+            estimated_work_bytes: AtomicUsize::new(
+                self.estimated_work_bytes.load(Ordering::Acquire),
+            ),
+            remaining_work_bytes: AtomicUsize::new(
+                self.remaining_work_bytes.load(Ordering::Acquire),
+            ),
+            assist_debt_bytes: AtomicUsize::new(self.assist_debt_bytes.load(Ordering::Acquire)),
         }
     }
 
-    /// Consume pending collector assist debt as collector steps.
-    fn take_assist_work(&self, work_bytes: usize, bytes_per_step: usize) -> usize {
-        loop {
-            let pending = self.assist_debt_bytes.load(Ordering::Acquire);
-            let consumed = pending.min(work_bytes);
-            let remaining = pending - consumed;
-
-            if self
-                .assist_debt_bytes
-                .compare_exchange(pending, remaining, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                return consumed.div_ceil(bytes_per_step.max(1));
-            }
+    /// Return one pacer snapshot from current shared heap bytes.
+    fn snapshot(&self, options: &HeapOptions, heap_bytes: u64) -> GcPacer {
+        let live_bytes = self.live_bytes.load(Ordering::Acquire) as u64;
+        let mut gc_pacer = GcPacer {
+            estimated_work_bytes: self.estimated_work_bytes.load(Ordering::Acquire) as u64,
+            remaining_work_bytes: self.remaining_work_bytes.load(Ordering::Acquire) as u64,
+            assist_debt_bytes: self.assist_debt_bytes.load(Ordering::Acquire) as u64,
+            ..GcPacer::default()
+        };
+        gc_pacer.set_live_bytes(options.gc, live_bytes);
+        if gc_pacer.goal_bytes == 0 && heap_bytes == 0 {
+            gc_pacer.set_live_bytes(options.gc, heap_bytes);
         }
+
+        gc_pacer
     }
 
-    /// Clear pending collector assist debt.
-    fn clear_assist_debt(&self) {
+    /// Start one shared collection cycle.
+    fn begin_cycle(&self, options: &HeapOptions, heap_bytes: u64) {
+        let mut gc_pacer = self.snapshot(options, heap_bytes);
+        gc_pacer.begin_cycle(options.gc, heap_bytes);
+
+        self.estimated_work_bytes.store(
+            gc_work_usize(gc_pacer.estimated_work_bytes),
+            Ordering::Release,
+        );
+        self.remaining_work_bytes.store(
+            gc_work_usize(gc_pacer.remaining_work_bytes),
+            Ordering::Release,
+        );
         self.assist_debt_bytes.store(0, Ordering::Release);
     }
 
-    /// Return pending collector assist debt in bytes.
-    fn assist_debt_bytes(&self) -> usize {
-        self.assist_debt_bytes.load(Ordering::Acquire)
+    /// Record one completed shared collection cycle.
+    fn record_cycle(&self, options: &HeapOptions, stats: GcStats) {
+        let mut gc_pacer = self.snapshot(options, stats.allocated_bytes);
+        gc_pacer.record_cycle(options.gc, stats);
+
+        self.estimated_work_bytes.store(
+            gc_work_usize(gc_pacer.estimated_work_bytes),
+            Ordering::Release,
+        );
+        self.live_bytes
+            .store(gc_work_usize(gc_pacer.live_bytes), Ordering::Release);
+        self.remaining_work_bytes.store(0, Ordering::Release);
+        self.assist_debt_bytes.store(0, Ordering::Release);
     }
+
+    /// Charge one shared allocation against current collection runway.
+    fn charge_allocation(&self, options: &HeapOptions, heap_bytes: u64, byte_len: usize) {
+        let gc_pacer = self.snapshot(options, heap_bytes);
+        let debt_bytes = gc_pacer.allocation_debt_bytes(options.gc, byte_len);
+
+        self.assist_debt_bytes
+            .fetch_add(gc_work_usize(debt_bytes), Ordering::AcqRel);
+    }
+
+    /// Consume pending collector assist debt as bytes.
+    fn take_assist_budget_bytes(&self, budget_bytes: usize) -> usize {
+        let mut consumed = 0usize;
+
+        // claim one bounded slice of outstanding allocation debt
+        let _ =
+            self.assist_debt_bytes
+                .fetch_update(Ordering::AcqRel, Ordering::Acquire, |pending| {
+                    consumed = pending.min(budget_bytes);
+
+                    Some(pending - consumed)
+                });
+
+        self.consume_work(consumed);
+
+        consumed
+    }
+
+    /// Return and consume one shared collection work budget.
+    fn take_collection_budget_bytes(
+        &self,
+        options: &HeapOptions,
+        heap_bytes: u64,
+        worker_count: usize,
+    ) -> usize {
+        let gc_pacer = self.snapshot(options, heap_bytes);
+        let base_bytes = gc_pacer.base_budget_bytes(options.gc, worker_count);
+        let assist_bytes = self.take_assist_budget_bytes(base_bytes);
+        let budget_bytes = base_bytes + assist_bytes;
+
+        self.consume_work(base_bytes);
+
+        budget_bytes
+    }
+
+    /// Return one shared collector budget without consuming allocation debt.
+    fn base_budget_bytes(
+        &self,
+        options: &HeapOptions,
+        heap_bytes: u64,
+        worker_count: usize,
+    ) -> usize {
+        let gc_pacer = self.snapshot(options, heap_bytes);
+        let budget_bytes = gc_pacer.base_budget_bytes(options.gc, worker_count);
+
+        self.consume_work(budget_bytes);
+
+        budget_bytes
+    }
+
+    /// Consume issued collector work from the remaining cycle estimate.
+    fn consume_work(&self, budget_bytes: usize) {
+        // clamp overspent work at zero
+        let _ = self.remaining_work_bytes.fetch_update(
+            Ordering::AcqRel,
+            Ordering::Acquire,
+            |pending| {
+                if budget_bytes >= pending {
+                    Some(0)
+                } else {
+                    Some(pending - budget_bytes)
+                }
+            },
+        );
+    }
+}
+
+/// Convert collector work bytes to platform usize.
+fn gc_work_usize(bytes: u64) -> usize {
+    bytes.min(usize::MAX as u64) as usize
 }
 
 /// One live world-shared heap.
@@ -155,7 +273,23 @@ impl SharedHeapImage {
 
     /// Build one shared heap image from one serialized snapshot.
     pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> HeapResult<Self> {
-        let allocator = Arc::new(Allocator::from_image(&snapshot.allocator)?);
+        let allocator = Arc::new(Allocator::try_new(
+            snapshot.allocator.page_bytes as usize,
+            snapshot.allocator.chunk_bytes as usize,
+        )?);
+
+        Self::from_snapshot_with_allocator(snapshot, allocator)
+    }
+
+    /// Build one shared heap image from one serialized snapshot and allocator.
+    pub fn from_snapshot_with_allocator(
+        snapshot: &SharedHeapSnapshot,
+        allocator: Arc<Allocator>,
+    ) -> HeapResult<Self> {
+        allocator.restore_image_pages(&snapshot.allocator)?;
+        let mut page_runs = snapshot.heap.page_runs();
+        page_runs.extend(snapshot.raw.page_runs());
+        allocator.restore_page_run_refs(&page_runs)?;
 
         Self::new(
             allocator,
@@ -237,6 +371,9 @@ impl SharedHeap {
             limits,
         };
 
+        shared
+            .gc_pacer
+            .set_live_bytes(&shared.options, shared.heap_allocated_bytes());
         shared.refresh_gc_request();
 
         Ok(shared)
@@ -282,71 +419,40 @@ impl SharedHeap {
 
     /// Return the current derived collector pacing targets.
     pub fn gc_pacer(&self) -> GcPacer {
-        let mut gc_pacer = GcPacer::default();
-        gc_pacer.update(self.options.gc, self.heap_allocated_bytes());
-        gc_pacer.assist_debt_bytes = self.gc_pacer.assist_debt_bytes() as u64;
-
-        gc_pacer
+        self.gc_pacer
+            .snapshot(&self.options, self.heap_allocated_bytes())
     }
 
-    /// Return the bounded shared collection budget for one world step.
-    fn base_collection_budget(&self, worker_count: usize) -> usize {
-        let worker_count = worker_count.max(1);
-        let span_pages = self.options.small_span_pages();
-        let heap_pages = self.heap_pages();
-        let heap_spans = heap_pages.div_ceil(span_pages).max(1);
-        let span_slots = self.options.minimum_small_span_slots();
-        let worker_work = worker_count * span_slots;
-
-        // sweep can spend the whole span budget on reclamation
-        if self.gc_phase() == SharedGcPhase::Sweep {
-            return worker_work + heap_spans;
-        }
-
-        worker_work + heap_spans
+    /// Return and consume the base shared collection budget for one world step.
+    fn take_base_collection_budget_bytes(&self, worker_count: usize) -> usize {
+        self.gc_pacer
+            .base_budget_bytes(&self.options, self.heap_allocated_bytes(), worker_count)
     }
 
-    /// Return and consume one bounded shared collection budget for the current world step.
-    pub fn take_collection_budget(&self, worker_count: usize) -> usize {
-        // world budget
-        let base_budget = self.base_collection_budget(worker_count);
-
-        // pending assist debt
-        let page_bytes = self.page_bytes().max(1);
-        let assist_steps = self
-            .gc_pacer
-            .take_assist_work(base_budget * page_bytes, page_bytes);
-
-        base_budget + assist_steps
+    /// Return and consume one bounded shared collection budget in bytes for the current world step.
+    pub fn take_collection_budget_bytes(&self, worker_count: usize) -> usize {
+        self.gc_pacer.take_collection_budget_bytes(
+            &self.options,
+            self.heap_allocated_bytes(),
+            worker_count,
+        )
     }
 
-    /// Return and consume one bounded shared assist budget for one allocator step.
-    pub fn take_assist_budget(&self) -> usize {
+    /// Return and consume one bounded shared assist budget in bytes for one allocator step.
+    pub fn take_assist_budget_bytes(&self) -> usize {
         if self.gc_phase() == SharedGcPhase::Idle {
             return 0;
         }
 
-        let assist_budget = self.options.minimum_small_span_slots();
+        let gc_pacer = self.gc_pacer();
+        let budget_bytes = gc_pacer.base_budget_bytes(self.options.gc, 1);
 
-        // bounded assist slice
-        let page_bytes = self.page_bytes().max(1);
-
-        self.gc_pacer
-            .take_assist_work(assist_budget * page_bytes, page_bytes)
+        self.gc_pacer.take_assist_budget_bytes(budget_bytes)
     }
 
-    /// Return the bounded local-to-shared edge scan budget for one worker step.
-    pub fn edge_scan_budget(&self, worker_count: usize) -> usize {
-        let worker_count = worker_count.max(1);
-
-        worker_count * self.options.minimum_small_span_slots()
-    }
-
-    /// Return the current shared heap size in allocator pages.
-    fn heap_pages(&self) -> usize {
-        let page_bytes = self.page_bytes().max(1);
-
-        (self.heap_allocated_bytes() as usize).div_ceil(page_bytes)
+    /// Return and consume the local-to-shared edge scan budget for one worker.
+    pub fn take_edge_scan_budget_bytes(&self) -> usize {
+        self.take_base_collection_budget_bytes(1)
     }
 
     /// Return the current shared heap collector phase.
@@ -464,11 +570,29 @@ impl SharedHeap {
         layout: AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
+        self.allocate_for_worker(None, allocator, layout, allocation)
+    }
+
+    /// Allocate one shared managed heap allocation with worker-local collector assist.
+    pub fn allocate_for_worker(
+        &self,
+        worker: Option<&SharedGcWorker>,
+        allocator: &mut SharedAllocator,
+        layout: AllocationLayout<'_>,
+        allocation: Payload<'_>,
+    ) -> HeapResult<SharedHeapReference> {
         let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
         self.check_heap_retained_byte_delta(retained_byte_delta)?;
 
+        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle && layout.byte_len > 0;
+
+        // mark assist before taking more shared heap memory
+        self.assist_allocation(worker, layout.byte_len)?;
+
         let reference = self.heap.allocate(allocator, layout, allocation)?;
-        self.accrue_assist_debt(layout.byte_len);
+        if !is_active_collection {
+            self.accrue_assist_debt(layout.byte_len);
+        }
         self.refresh_gc_request();
 
         Ok(reference)
@@ -524,35 +648,25 @@ impl SharedHeap {
         self.heap.scan(reference)
     }
 
-    /// Overwrite one shared heap byte range.
+    /// Overwrite one shared heap byte range through the shared write barrier.
     pub fn write_heap_bytes(
         &self,
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
+        self.heap.write_barrier_bytes(reference, start, bytes)?;
         self.heap.write_bytes(reference, start, bytes)
     }
 
-    /// Record one shared heap write barrier over one byte range.
-    pub fn write_barrier(
-        &self,
-        reference: SharedHeapReference,
-        start: usize,
-        byte_len: usize,
-    ) -> HeapResult<()> {
-        self.heap.write_barrier(reference, start, byte_len)
-    }
-
-    /// Record one shared heap write barrier from one caller-provided byte slice.
+    /// Record one shared heap write barrier before one byte store.
     pub fn write_barrier_bytes(
         &self,
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        self.heap
-            .write_shared_barrier_bytes(reference, start, bytes)
+        self.heap.write_barrier_bytes(reference, start, bytes)
     }
 
     /// Publish one exact shared heap reference after one completed store.
@@ -578,31 +692,33 @@ impl SharedHeap {
         }
 
         // cycle start
-        self.heap.start_mark([])?;
+        self.gc_pacer
+            .begin_cycle(&self.options, self.heap_allocated_bytes());
+        self.heap.start_mark(&[])?;
         self.collection_requested.store(false, Ordering::Release);
 
         Ok(true)
     }
 
     /// Perform one full shared heap collection over explicit roots.
-    pub fn collect_full(
-        &self,
-        roots: impl IntoIterator<Item = SharedHeapReference>,
-    ) -> HeapResult<GcStats> {
+    pub fn collect_full(&self, roots: &[SharedHeapReference]) -> HeapResult<GcStats> {
+        self.gc_pacer
+            .begin_cycle(&self.options, self.heap_allocated_bytes());
+
         let stats = self.heap.collect_full(roots)?;
         self.record_gc_cycle(stats);
 
         Ok(stats)
     }
 
-    /// Run one shared collection step with one explicit work budget.
-    pub fn gc_step(
+    /// Run one shared collection step with one explicit byte budget.
+    pub fn collect_step(
         &self,
         roots: &[SharedHeapReference],
         roots_complete: bool,
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> HeapResult<GcProgress> {
-        self.gc_step_for_worker(None, roots, roots_complete, step_budget)
+        self.collect_step_for_worker(None, roots, roots_complete, budget_bytes)
     }
 
     /// Return the shared GC worker handle for one runtime worker.
@@ -610,16 +726,16 @@ impl SharedHeap {
         self.heap.gc.trace_queue.worker(worker_index)
     }
 
-    /// Run one shared collection step for one worker with one explicit work budget.
-    pub fn gc_step_for_worker(
+    /// Run one shared collection step for one worker with one explicit byte budget.
+    pub fn collect_step_for_worker(
         &self,
         worker: Option<&SharedGcWorker>,
         roots: &[SharedHeapReference],
         roots_complete: bool,
-        step_budget: usize,
+        budget_bytes: usize,
     ) -> HeapResult<GcProgress> {
         // empty budget
-        if step_budget == 0 {
+        if budget_bytes == 0 {
             return Ok(GcProgress::Idle);
         }
 
@@ -630,8 +746,7 @@ impl SharedHeap {
 
         // concurrent mark
         if self.gc_phase() == SharedGcPhase::Mark {
-            self.heap
-                .mark_step(worker, roots.iter().copied(), step_budget)?;
+            self.heap.mark_step(worker, roots, budget_bytes)?;
 
             // termination check
             if roots_complete {
@@ -642,7 +757,7 @@ impl SharedHeap {
         }
 
         // incremental sweep
-        let progress = self.heap.sweep_step(step_budget)?;
+        let progress = self.heap.sweep_step(budget_bytes)?;
         if let Some(stats) = progress.completed_stats() {
             self.record_gc_cycle(stats);
         }
@@ -658,7 +773,7 @@ impl SharedHeap {
             collection_requested: AtomicBool::new(
                 self.collection_requested.load(Ordering::Acquire),
             ),
-            gc_pacer: SharedGcPacer::default(),
+            gc_pacer: self.gc_pacer.fork(),
             heap: self.heap.fork()?,
             raw: self.raw.fork()?,
             limits: self.limits,
@@ -686,6 +801,9 @@ impl SharedHeap {
             limits,
         };
 
+        shared
+            .gc_pacer
+            .set_live_bytes(&shared.options, shared.heap_allocated_bytes());
         shared.refresh_gc_request();
         shared.check_limits()?;
 
@@ -703,6 +821,17 @@ impl SharedHeap {
         limits: SharedHeapLimits,
     ) -> HeapResult<Self> {
         let image = SharedHeapImage::from_snapshot(snapshot)?;
+
+        Self::from_image_with_limits(&image, limits)
+    }
+
+    /// Create one shared heap from one serialized snapshot, allocator, and explicit hard limits.
+    pub fn from_snapshot_with_allocator(
+        snapshot: &SharedHeapSnapshot,
+        limits: SharedHeapLimits,
+        allocator: Arc<Allocator>,
+    ) -> HeapResult<Self> {
+        let image = SharedHeapImage::from_snapshot_with_allocator(snapshot, allocator)?;
 
         Self::from_image_with_limits(&image, limits)
     }
@@ -785,17 +914,20 @@ impl SharedHeap {
 
     /// Refresh the pending shared cycle request from current heap pressure.
     fn refresh_gc_request(&self) {
-        // trigger crossing
-        if self.gc_pacer().should_start(self.heap_allocated_bytes()) {
-            self.collection_requested.store(true, Ordering::Release);
+        // shared cycles are full-heap cycles
+        match self.gc_pacer().pressure(self.heap_allocated_bytes()) {
+            GcPressure::Idle => {}
+            GcPressure::Start | GcPressure::Full => {
+                self.collection_requested.store(true, Ordering::Release);
+            }
         }
     }
 
     /// Record one completed shared collection cycle in the pacer.
-    fn record_gc_cycle(&self, _stats: GcStats) {
+    fn record_gc_cycle(&self, stats: GcStats) {
         // clear the completed cycle state
         self.collection_requested.store(false, Ordering::Release);
-        self.gc_pacer.clear_assist_debt();
+        self.gc_pacer.record_cycle(&self.options, stats);
 
         // re-evaluate current pressure
         self.refresh_gc_request();
@@ -814,6 +946,33 @@ impl SharedHeap {
             return;
         }
 
-        self.gc_pacer.add_assist_debt(allocated_bytes);
+        self.gc_pacer
+            .charge_allocation(&self.options, heap_bytes, allocated_bytes);
+    }
+
+    /// Run shared collector work proportional to one allocation.
+    fn assist_allocation(
+        &self,
+        worker: Option<&SharedGcWorker>,
+        allocated_bytes: usize,
+    ) -> HeapResult<()> {
+        if allocated_bytes == 0 || self.gc_phase() == SharedGcPhase::Idle {
+            return Ok(());
+        }
+
+        // charge this allocation into the active mark-assist debt
+        self.gc_pacer.charge_allocation(
+            &self.options,
+            self.heap_allocated_bytes(),
+            allocated_bytes,
+        );
+        let budget_bytes = self.take_assist_budget_bytes();
+        if budget_bytes == 0 {
+            return Ok(());
+        }
+
+        self.collect_step_for_worker(worker, &[], false, budget_bytes)?;
+
+        Ok(())
     }
 }
