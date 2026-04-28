@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use serde::{Deserialize, Serialize};
 
 use crate::FileId;
@@ -115,6 +117,18 @@ impl Span {
         }
     }
 
+    /// Create a subspan from byte offsets relative to another span.
+    pub fn subspan(self, range: Range<usize>) -> Self {
+        debug_assert!(range.start <= range.end);
+        debug_assert!(range.end <= self.len() as usize);
+
+        Self {
+            file: self.file,
+            start: self.start + range.start as u32,
+            end: self.start + range.end as u32,
+        }
+    }
+
     /// Compute the ordered trivia gap from this span to another span.
     /// Returns `None` when spans are from different files or overlap.
     /// Returns an empty span when the ranges are adjacent.
@@ -222,5 +236,15 @@ mod tests {
 
         assert_eq!(overlap_gap, None);
         assert_eq!(cross_file_gap, None);
+    }
+
+    /// Return a subspan from byte offsets relative to a parent span.
+    #[test]
+    fn test_subspan_returns_relative_span() {
+        let parent = Span::new(FileId::new(1), 10, 30);
+
+        let child = parent.subspan(3..12);
+
+        assert_eq!(child, Span::new(FileId::new(1), 13, 22));
     }
 }

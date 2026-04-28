@@ -2,8 +2,8 @@ use destack_fir::format::FormatOptions;
 use destack_fir::print::PrintOptions;
 use destack_source::{IndentStyle, LanguageType, LineEnding};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
-    QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocOptions, OrganizeImports,
+    QuoteProperty, QuoteStyle, TrailingComma,
 };
 
 /// Destack format options.
@@ -48,6 +48,9 @@ pub struct DestackFormatOptions {
     pub import_sort_order: ImportSortOrder = ImportSortOrder::Natural,
     /// Respect file-level formatter ignore directives.
     pub respect_file_ignore: bool = true,
+
+    /// Jsdoc comment body formatting options.
+    pub jsdoc: Option<JsdocOptions> = None,
 }
 
 impl DestackFormatOptions {
@@ -123,6 +126,7 @@ impl DestackFormatOptions {
             organize_imports: options.organize_imports,
             import_sort_order: options.import_sort_order,
             respect_file_ignore: true,
+            jsdoc: options.jsdoc,
         }
     }
 }

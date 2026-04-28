@@ -1,4 +1,5 @@
 use crate::context::FormatNodeWithoutTrailingComments;
+use crate::jsdoc::format_jsdoc_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeImpl};
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
@@ -28,6 +29,10 @@ pub(crate) fn format_comment<'ast>(
     comment: Comment,
 ) -> FormatResult<()> {
     f.context_mut().comments_mut().mark_comment_printed(comment);
+
+    if format_jsdoc_comment(f, comment)? {
+        return Ok(());
+    }
 
     let comment_source = f.context().span_str(comment.span);
 

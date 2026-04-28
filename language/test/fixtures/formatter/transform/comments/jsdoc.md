@@ -2,24 +2,28 @@
 
 Tests for supported declaration documentation formatting.
 
-## Activation
+## Declarations
 
-### jsdoc disabled
+### jsdoc paragraph breaks
 
-JSDoc formatting is opt-in.
+Paragraph breaks in declaration docs are preserved.
 
-```ts:main.ts line-width=80
+```ts:main.ts jsdoc=true line-width=80
 /**
- * unformatted description
+ * creates the reader
+ *
+ * returns a configured value
  */
-function read() {}
+function readReader() {}
 ```
 
 ```ts expected
 /**
- * unformatted description
+ * Creates the reader
+ *
+ * Returns a configured value
  */
-function read() {}
+function readReader() {}
 ```
 
 ### jsdoc simple declarations
@@ -181,10 +185,10 @@ function createOptions(options: Options) {}
 /**
  * Creates options
  *
+ * @param {object} options Builder options
  * @property {string} options.name Display name
  * @property {boolean} [options.enabled=true] Whether the option is enabled.
  *   Default is `true`
- * @param {object} options Builder options
  */
 function createOptions(options: Options) {}
 ```
@@ -233,9 +237,9 @@ function parseNumber(x, int) {}
 function parseNumber(x, int) {}
 ```
 
-### jsdoc parameter order
+### jsdoc typed parameter order
 
-Param tags are reordered to match the declaration when every param tag is typed.
+Typed param tags keep source order.
 
 ```ts:main.ts jsdoc=true line-width=80
 /**
@@ -248,13 +252,60 @@ function add(first, second) { return first + second }
 
 ```ts expected
 /**
- * @param {number} first First value
  * @param {number} second Second value
+ * @param {number} first First value
  * @returns {number} Total
  */
 function add(first, second) {
     return first + second;
 }
+```
+
+### jsdoc typeless parameter docs
+
+Typeless parameter and return tags format their descriptions.
+
+```ts:main.ts jsdoc=true line-width=80
+/**
+ * parses a source file
+ * @param filename source file name
+ * @param sourceText source text
+ * @returns parsed program
+ */
+function parse(filename: string, sourceText: string) { return sourceText }
+```
+
+```ts expected
+/**
+ * Parses a source file
+ *
+ * @param filename Source file name
+ * @param sourceText Source text
+ * @returns Parsed program
+ */
+function parse(filename: string, sourceText: string) {
+    return sourceText;
+}
+```
+
+### jsdoc typeless parameter order
+
+Typeless param tags keep source order.
+
+```ts:main.ts jsdoc=true line-width=80
+/**
+ * @param second second value
+ * @param first first value
+ */
+function pair(first: number, second: number) {}
+```
+
+```ts expected
+/**
+ * @param second Second value
+ * @param first First value
+ */
+function pair(first: number, second: number) {}
 ```
 
 ### jsdoc multiline param type
@@ -322,8 +373,8 @@ function old() {}
  * @remarks
  *   This is longer documentation.
  * @deprecated use `next` instead.
- * @default { "enabled": true }
  * @see {@link next}
+ * @default { "enabled": true }
  */
 function old() {}
 ```
@@ -375,6 +426,34 @@ function example() {}
  * @example
  *     ```ts
  *     const result = call(1, 2);
+ *     ```
+ */
+function example() {}
+```
+
+### jsdoc example fenced destack code
+
+Destack code fences are formatted as embedded code.
+
+```ts:main.ts jsdoc=true line-width=80
+/**
+ * @example
+ * ```ds
+ * const result=match(state){Ready=>"go";Loading=>"wait";_=>"unknown"}
+ * ```
+ */
+function example() {}
+```
+
+```ts expected
+/**
+ * @example
+ *     ```ds
+ *     const result = match (state) {
+ *         Ready => "go"
+ *         Loading => "wait"
+ *         _ => "unknown"
+ *     };
  *     ```
  */
 function example() {}

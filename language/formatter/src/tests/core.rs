@@ -154,6 +154,7 @@ fn workspace_test_options(options: DestackFormatOptions) -> FormatterOptions {
         single_attribute_per_line: options.single_attribute_per_line,
         organize_imports: options.organize_imports,
         import_sort_order: options.import_sort_order,
+        jsdoc: options.jsdoc,
     }
 }
 

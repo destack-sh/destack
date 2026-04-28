@@ -10,6 +10,7 @@ mod context;
 pub mod declaration;
 pub mod expression;
 pub mod file;
+mod jsdoc;
 pub mod operator;
 pub mod tree;
 
