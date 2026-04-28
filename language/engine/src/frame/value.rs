@@ -10,16 +10,16 @@ pub enum Value {
     /// One signed integer value with its width.
     Int {
         /// The integer payload.
-        value: i64,
+        value: i128,
         /// The integer width in bits.
-        width: u8,
+        width: u16,
     },
     /// One unsigned integer value with its width.
     UInt {
         /// The integer payload.
-        value: u64,
+        value: u128,
         /// The integer width in bits.
-        width: u8,
+        width: u16,
     },
     /// One 32-bit float encoded as raw bits.
     Float32 {
@@ -53,53 +53,53 @@ impl Value {
     }
 
     /// Create one signed integer boundary value with an explicit width.
-    pub const fn int(value: i64, width: u8) -> Self {
+    pub const fn int(value: i128, width: u16) -> Self {
         Self::Int { value, width }
     }
 
     /// Create one signed 8-bit integer boundary value.
     pub const fn int8(value: i8) -> Self {
-        Self::int(value as i64, 8)
+        Self::int(value as i128, 8)
     }
 
     /// Create one signed 16-bit integer boundary value.
     pub const fn int16(value: i16) -> Self {
-        Self::int(value as i64, 16)
+        Self::int(value as i128, 16)
     }
 
     /// Create one signed 32-bit integer boundary value.
     pub const fn int32(value: i32) -> Self {
-        Self::int(value as i64, 32)
+        Self::int(value as i128, 32)
     }
 
     /// Create one signed 64-bit integer boundary value.
     pub const fn int64(value: i64) -> Self {
-        Self::int(value, 64)
+        Self::int(value as i128, 64)
     }
 
     /// Create one unsigned integer boundary value with an explicit width.
-    pub const fn uint(value: u64, width: u8) -> Self {
+    pub const fn uint(value: u128, width: u16) -> Self {
         Self::UInt { value, width }
     }
 
     /// Create one unsigned 8-bit integer boundary value.
     pub const fn uint8(value: u8) -> Self {
-        Self::uint(value as u64, 8)
+        Self::uint(value as u128, 8)
     }
 
     /// Create one unsigned 16-bit integer boundary value.
     pub const fn uint16(value: u16) -> Self {
-        Self::uint(value as u64, 16)
+        Self::uint(value as u128, 16)
     }
 
     /// Create one unsigned 32-bit integer boundary value.
     pub const fn uint32(value: u32) -> Self {
-        Self::uint(value as u64, 32)
+        Self::uint(value as u128, 32)
     }
 
     /// Create one unsigned 64-bit integer boundary value.
     pub const fn uint64(value: u64) -> Self {
-        Self::uint(value, 64)
+        Self::uint(value as u128, 64)
     }
 
     /// Create one 32-bit floating point boundary value.
