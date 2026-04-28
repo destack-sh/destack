@@ -265,11 +265,75 @@ impl std::fmt::Display for ImportSortOrder {
     }
 }
 
+/// How to choose between single-line and multiline JSDoc comments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum JsdocCommentLineStrategy {
+    /// Use one line when the content fits on one line.
+    #[default]
+    SingleLine,
+    /// Always use multiline comment blocks.
+    Multiline,
+    /// Preserve an existing multiline block shape.
+    Keep,
+}
+
+/// How to wrap JSDoc prose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum JsdocLineWrappingStyle {
+    /// Re-wrap text greedily to the configured width.
+    #[default]
+    Greedy,
+    /// Preserve original line breaks when they fit.
+    Balance,
+}
+
+/// JSDoc comment body formatting options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JsdocOptions {
+    /// Capitalize the first word of prose descriptions.
+    pub capitalize_descriptions: bool,
+    /// Comment block line strategy.
+    pub comment_line_strategy: JsdocCommentLineStrategy,
+    /// Separate groups of different tag kinds with blank lines.
+    pub separate_tag_groups: bool,
+    /// Separate returns tags from parameter tags.
+    pub separate_returns_from_param: bool,
+    /// Add a trailing dot to prose descriptions.
+    pub description_with_dot: bool,
+    /// Add default values to parameter descriptions.
+    pub add_default_to_description: bool,
+    /// Prefer fenced code blocks over indented code blocks.
+    pub prefer_code_fences: bool,
+    /// Prose wrapping style.
+    pub line_wrapping_style: JsdocLineWrappingStyle,
+    /// Emit descriptions as an explicit tag.
+    pub description_tag: bool,
+    /// Keep indentation in example code that cannot be parsed.
+    pub keep_unparsable_example_indent: bool,
+}
+
+impl Default for JsdocOptions {
+    fn default() -> Self {
+        Self {
+            capitalize_descriptions: true,
+            comment_line_strategy: JsdocCommentLineStrategy::SingleLine,
+            separate_tag_groups: false,
+            separate_returns_from_param: false,
+            description_with_dot: false,
+            add_default_to_description: true,
+            prefer_code_fences: false,
+            line_wrapping_style: JsdocLineWrappingStyle::Greedy,
+            description_tag: false,
+            keep_unparsable_example_indent: false,
+        }
+    }
+}
+
 /// Formatter options.
 ///
 /// Controls code style decisions made by the formatter.
 /// Default values match the standard formatter defaults used by Destack.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FormatterOptions {
     /// Line ending style (LF, CRLF, CR).
     pub line_ending: LineEnding,
@@ -300,6 +364,8 @@ pub struct FormatterOptions {
     pub organize_imports: OrganizeImports,
     /// Sort order for import/export specifiers within `{ }`.
     pub import_sort_order: ImportSortOrder,
+    /// JSDoc comment body formatting options.
+    pub jsdoc: Option<JsdocOptions>,
 }
 
 impl Default for FormatterOptions {
@@ -329,6 +395,8 @@ impl FormatterOptions {
             // imports
             organize_imports: OrganizeImports::Off,
             import_sort_order: ImportSortOrder::Natural,
+            // comments
+            jsdoc: None,
         }
     }
 
@@ -586,6 +654,123 @@ impl From<ImportSortOrderJson> for ImportSortOrder {
     }
 }
 
+/// JSDoc comment block line strategy JSON value.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum JsdocCommentLineStrategyJson {
+    /// Use one line when the content fits on one line.
+    #[serde(alias = "single-line", alias = "single_line")]
+    SingleLine,
+    /// Always use multiline comment blocks.
+    Multiline,
+    /// Preserve an existing multiline block shape.
+    Keep,
+}
+
+impl From<JsdocCommentLineStrategyJson> for JsdocCommentLineStrategy {
+    fn from(value: JsdocCommentLineStrategyJson) -> Self {
+        match value {
+            JsdocCommentLineStrategyJson::SingleLine => JsdocCommentLineStrategy::SingleLine,
+            JsdocCommentLineStrategyJson::Multiline => JsdocCommentLineStrategy::Multiline,
+            JsdocCommentLineStrategyJson::Keep => JsdocCommentLineStrategy::Keep,
+        }
+    }
+}
+
+/// JSDoc prose wrapping JSON value.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum JsdocLineWrappingStyleJson {
+    /// Re-wrap text greedily to the configured width.
+    Greedy,
+    /// Preserve original line breaks when they fit.
+    Balance,
+}
+
+impl From<JsdocLineWrappingStyleJson> for JsdocLineWrappingStyle {
+    fn from(value: JsdocLineWrappingStyleJson) -> Self {
+        match value {
+            JsdocLineWrappingStyleJson::Greedy => JsdocLineWrappingStyle::Greedy,
+            JsdocLineWrappingStyleJson::Balance => JsdocLineWrappingStyle::Balance,
+        }
+    }
+}
+
+/// JSDoc formatter options JSON object.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct JsdocJson {
+    /// Capitalize the first word of prose descriptions.
+    #[serde(alias = "capitalize_descriptions")]
+    pub capitalize_descriptions: Option<bool>,
+    /// Comment block line strategy.
+    #[serde(alias = "comment_line_strategy")]
+    pub comment_line_strategy: Option<JsdocCommentLineStrategyJson>,
+    /// Separate groups of different tag kinds with blank lines.
+    #[serde(alias = "separate_tag_groups")]
+    pub separate_tag_groups: Option<bool>,
+    /// Separate returns tags from parameter tags.
+    #[serde(alias = "separate_returns_from_param")]
+    pub separate_returns_from_param: Option<bool>,
+    /// Add a trailing dot to prose descriptions.
+    #[serde(alias = "description_with_dot")]
+    pub description_with_dot: Option<bool>,
+    /// Add default values to parameter descriptions.
+    #[serde(alias = "add_default_to_description")]
+    pub add_default_to_description: Option<bool>,
+    /// Prefer fenced code blocks over indented code blocks.
+    #[serde(alias = "prefer_code_fences")]
+    pub prefer_code_fences: Option<bool>,
+    /// Prose wrapping style.
+    #[serde(alias = "line_wrapping_style")]
+    pub line_wrapping_style: Option<JsdocLineWrappingStyleJson>,
+    /// Emit descriptions as an explicit tag.
+    #[serde(alias = "description_tag")]
+    pub description_tag: Option<bool>,
+    /// Keep indentation in example code that cannot be parsed.
+    #[serde(alias = "keep_unparsable_example_indent")]
+    pub keep_unparsable_example_indent: Option<bool>,
+}
+
+impl JsdocJson {
+    /// Apply JSDoc options to a JSDoc options struct.
+    pub fn apply(&self, options: &mut JsdocOptions) {
+        if let Some(capitalize_descriptions) = self.capitalize_descriptions {
+            options.capitalize_descriptions = capitalize_descriptions;
+        }
+        if let Some(comment_line_strategy) = self.comment_line_strategy {
+            options.comment_line_strategy = comment_line_strategy.into();
+        }
+        if let Some(separate_tag_groups) = self.separate_tag_groups {
+            options.separate_tag_groups = separate_tag_groups;
+        }
+        if let Some(separate_returns_from_param) = self.separate_returns_from_param {
+            options.separate_returns_from_param = separate_returns_from_param;
+        }
+        if let Some(description_with_dot) = self.description_with_dot {
+            options.description_with_dot = description_with_dot;
+        }
+        if let Some(add_default_to_description) = self.add_default_to_description {
+            options.add_default_to_description = add_default_to_description;
+        }
+        if let Some(prefer_code_fences) = self.prefer_code_fences {
+            options.prefer_code_fences = prefer_code_fences;
+        }
+        if let Some(line_wrapping_style) = self.line_wrapping_style {
+            options.line_wrapping_style = line_wrapping_style.into();
+        }
+        if let Some(description_tag) = self.description_tag {
+            options.description_tag = description_tag;
+        }
+        if let Some(keep_unparsable_example_indent) = self.keep_unparsable_example_indent {
+            options.keep_unparsable_example_indent = keep_unparsable_example_indent;
+        }
+    }
+}
+
 /// Formatter options (top-level, like Biome/Deno).
 ///
 /// Field names use familiar formatter option naming.
@@ -631,6 +816,8 @@ pub struct FormatterJson {
     pub organize_imports: Option<OrganizeImportsJson>,
     /// Sort order for import specifiers: "natural" or "alphabetical". Default: natural.
     pub import_sort_order: Option<ImportSortOrderJson>,
+    /// JSDoc comment body formatting options.
+    pub jsdoc: Option<JsdocJson>,
 }
 
 impl FormatterJson {
@@ -690,5 +877,44 @@ impl FormatterJson {
         if let Some(import_sort_order) = self.import_sort_order {
             options.import_sort_order = import_sort_order.into();
         }
+
+        // comments
+        if let Some(jsdoc) = self.jsdoc.as_ref() {
+            let mut jsdoc_options = options.jsdoc.unwrap_or_default();
+            jsdoc.apply(&mut jsdoc_options);
+            options.jsdoc = Some(jsdoc_options);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_jsdoc_options_with_camel_case_values() {
+        let input = r#"
+            {
+                "jsdoc": {
+                    "commentLineStrategy": "singleLine",
+                    "lineWrappingStyle": "balance",
+                    "separateTagGroups": true
+                }
+            }
+        "#;
+
+        // parse the full formatter JSON shape
+        let json: FormatterJson = serde_json::from_str(input).unwrap();
+        let mut options = FormatterOptions::default();
+        json.apply(&mut options);
+
+        let expected = JsdocOptions {
+            comment_line_strategy: JsdocCommentLineStrategy::SingleLine,
+            line_wrapping_style: JsdocLineWrappingStyle::Balance,
+            separate_tag_groups: true,
+            ..JsdocOptions::default()
+        };
+
+        assert_eq!(options.jsdoc, Some(expected));
     }
 }
