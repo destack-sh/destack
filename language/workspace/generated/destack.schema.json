@@ -3419,6 +3419,17 @@
               "type": "null"
             }
           ]
+        },
+        "jsdoc": {
+          "description": "JSDoc comment body formatting options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsdocJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -3552,6 +3563,125 @@
           "description": "Alphabetical/lexicographic sort (a1 < a10 < a2).",
           "type": "string",
           "const": "alphabetical"
+        }
+      ]
+    },
+    "JsdocJson": {
+      "description": "JSDoc formatter options JSON object.",
+      "type": "object",
+      "properties": {
+        "capitalizeDescriptions": {
+          "description": "Capitalize the first word of prose descriptions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "commentLineStrategy": {
+          "description": "Comment block line strategy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsdocCommentLineStrategyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "separateTagGroups": {
+          "description": "Separate groups of different tag kinds with blank lines.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "separateReturnsFromParam": {
+          "description": "Separate returns tags from parameter tags.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "descriptionWithDot": {
+          "description": "Add a trailing dot to prose descriptions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "addDefaultToDescription": {
+          "description": "Add default values to parameter descriptions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preferCodeFences": {
+          "description": "Prefer fenced code blocks over indented code blocks.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lineWrappingStyle": {
+          "description": "Prose wrapping style.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsdocLineWrappingStyleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "descriptionTag": {
+          "description": "Emit descriptions as an explicit tag.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "keepUnparsableExampleIndent": {
+          "description": "Keep indentation in example code that cannot be parsed.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "JsdocCommentLineStrategyJson": {
+      "description": "JSDoc comment block line strategy JSON value.",
+      "oneOf": [
+        {
+          "description": "Use one line when the content fits on one line.",
+          "type": "string",
+          "const": "singleLine"
+        },
+        {
+          "description": "Always use multiline comment blocks.",
+          "type": "string",
+          "const": "multiline"
+        },
+        {
+          "description": "Preserve an existing multiline block shape.",
+          "type": "string",
+          "const": "keep"
+        }
+      ]
+    },
+    "JsdocLineWrappingStyleJson": {
+      "description": "JSDoc prose wrapping JSON value.",
+      "oneOf": [
+        {
+          "description": "Re-wrap text greedily to the configured width.",
+          "type": "string",
+          "const": "greedy"
+        },
+        {
+          "description": "Preserve original line breaks when they fit.",
+          "type": "string",
+          "const": "balance"
         }
       ]
     },
