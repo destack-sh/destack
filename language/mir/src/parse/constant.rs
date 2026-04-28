@@ -206,7 +206,7 @@ impl Parser {
     }
 
     /// Parse an integer literal (just the number, no type suffix).
-    pub(super) fn parse_int_literal(&mut self) -> ParseResult<i64> {
+    pub(super) fn parse_int_literal(&mut self) -> ParseResult<i128> {
         let token = self.eat_token(TokenType::IntLiteral)?;
         let text = self.tree.source_text(token.span).to_string();
 
@@ -222,7 +222,7 @@ impl Parser {
     }
 
     /// Parse an integer literal and return its span.
-    pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i64, Span)> {
+    pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i128, Span)> {
         let token = self.eat_token(TokenType::IntLiteral)?;
         let token_start = token.start;
         let token_text = self.tree.source_text(token.span).to_string();
@@ -242,7 +242,7 @@ impl Parser {
     }
 
     /// Parse an integer literal and append its span as one source segment.
-    pub(super) fn parse_int_segment(&mut self, segment_spans: &mut Vec<Span>) -> ParseResult<i64> {
+    pub(super) fn parse_int_segment(&mut self, segment_spans: &mut Vec<Span>) -> ParseResult<i128> {
         let (value, span) = self.parse_int_literal_part()?;
         segment_spans.push(span);
 

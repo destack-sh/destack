@@ -392,7 +392,9 @@ impl Parser {
                     "field.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         Instruction::FieldGet {
                             destination,
                             aggregate,
@@ -402,7 +404,9 @@ impl Parser {
                     "field.address" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         Instruction::FieldAddr {
                             destination,
                             aggregate,
@@ -413,7 +417,9 @@ impl Parser {
                     "field.set" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)? as u32;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::FieldSet {
@@ -1109,7 +1115,7 @@ impl Parser {
     }
 
     /// Parse a bracketed list of integer values.
-    fn parse_int_bracket_list(&mut self) -> ParseResult<Vec<i64>> {
+    fn parse_int_bracket_list(&mut self) -> ParseResult<Vec<i128>> {
         // open the list
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
@@ -1129,7 +1135,7 @@ impl Parser {
     }
 
     /// Parse a parenthesized list of integer values.
-    fn parse_int_paren_list(&mut self) -> ParseResult<Vec<i64>> {
+    fn parse_int_paren_list(&mut self) -> ParseResult<Vec<i128>> {
         self.eat_token(TokenType::OpenParen)?;
         let mut values = Vec::new();
 
@@ -1700,7 +1706,10 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = VtableSlotId::new(self.parse_int_segment(segment_spans)? as u32);
+        let slot_id = self.parse_int_segment(segment_spans)?;
+        let slot_id =
+            u32::try_from(slot_id).map_err(|_| ParseError::invalid("vtable slot", self.pos()))?;
+        let slot_id = VtableSlotId::new(slot_id);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
@@ -1742,7 +1751,10 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let slot_id = InterfaceSlotId::new(self.parse_int_segment(segment_spans)? as u32);
+        let slot_id = self.parse_int_segment(segment_spans)?;
+        let slot_id = u32::try_from(slot_id)
+            .map_err(|_| ParseError::invalid("interface slot", self.pos()))?;
+        let slot_id = InterfaceSlotId::new(slot_id);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
