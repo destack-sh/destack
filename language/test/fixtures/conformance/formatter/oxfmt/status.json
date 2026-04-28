@@ -32,40 +32,22 @@
             "patterns": [
                 "js/comments/type-cast-arrow.js",
                 "js/comments/type-cast-node.js",
+                "js/jsdoc/capitalization.js",
+                "js/jsdoc/import-sorting.js",
+                "js/jsdoc/inline-type-cast.js",
+                "js/jsdoc/single-line.js",
+                "js/jsdoc/template-default-value.js",
+                "js/jsdoc/typedef-continuation.js",
+                "js/jsdoc/typedef-desc-blank-line.js",
+                "js/jsdoc/type-and-desc-formatting.js",
+                "js/jsdoc/type-no-capitalize.js",
+                "js/jsdoc/type-normalization.js",
+                "js/jsdoc/use-tabs/use-tabs.js",
                 "js/typecast/rest_element_comments.js"
             ],
             "status": "ignore",
             "reason": "scope",
-            "note": "unsupported inline JSDoc `@type` and `@satisfies` cast semantics"
-        },
-        {
-            "patterns": ["js/jsdoc/**"],
-            "status": "ignore",
-            "reason": "scope",
-            "note": "JSDoc body formatting is out of scope unless we port Oxc's optional JSDoc formatter subsystem"
-        },
-        {
-            "patterns": ["js/jsdoc/inline-type-cast.js"],
-            "status": "ignore",
-            "reason": "scope",
-            "note": "unsupported inline JSDoc `@type` cast semantics"
-        },
-        {
-            "patterns": [
-                "js/jsdoc/type-no-capitalize.js",
-                "js/jsdoc/type-normalization.js",
-                "js/jsdoc/single-line.js",
-                "js/jsdoc/capitalization.js"
-            ],
-            "status": "ignore",
-            "reason": "scope",
-            "note": "unsupported JSDoc tag normalization and capitalization semantics"
-        },
-        {
-            "patterns": ["js/jsdoc/use-tabs/use-tabs.js"],
-            "status": "ignore",
-            "reason": "scope",
-            "note": "unsupported inline JSDoc cast width behavior and JSDoc tag formatting semantics"
+            "note": "unsupported JSDoc type annotation semantics"
         },
         {
             "patterns": ["ts/static-members/non-null-expression.ts"],
