@@ -72,7 +72,7 @@ type Pair {
 fn test_parse_function_attribute_comments() {
     TestParser::new(
         r#"
-@executionModel(kernel)
+@cold
 // detail
 function kernel(): void {
 entry0:
@@ -82,7 +82,7 @@ entry0:
     )
     .assert_format(
         r#"
-@executionModel(kernel)
+@cold
 // detail
 function kernel(): void {
 entry0:

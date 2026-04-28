@@ -1,7 +1,9 @@
 use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
-use crate::{ExecutionModel, Function, MirFormatOptions};
+use crate::{
+    AddressSpace, Function, MirFormatOptions, Mutability, ReferenceKind, Type, TypeReference,
+};
 
 /// Preserves declaration comments while normalizing canonical separators and names.
 #[test]
@@ -70,9 +72,9 @@ extern global Imported: int32, readonly
 // import detail
 extern function callee(int32): int32
 
-@executionModel(kernel)
+@cold
 // function detail
-@workgroupSize(8, 1, 1)
+@inline
 // more function detail
 function kernel(): void {
 entry0:
@@ -91,7 +93,7 @@ entry0(value0: int32):
     );
 }
 
-/// Preserves the function head comment when derived metadata adds one attribute line.
+/// Preserves the function head comment when derived environment metadata adds one attribute line.
 #[test]
 fn test_format_derived_attribute_keeps_head_comment() {
     // parse
@@ -106,13 +108,24 @@ entry0:
 "#,
     );
 
-    // @executionModel(kernel)
+    // derived environment metadata
     let function_id = tree
         .iter_nodes::<Function>()
         .map(|(function_id, _)| function_id)
         .next()
         .unwrap_or_else(|| panic!("missing parsed function"));
-    tree.get_mut(function_id).execution_model = Some(ExecutionModel::Kernel);
+    let int32 = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+    let environment = tree.insert_type(Type::Reference {
+        kind: ReferenceKind::Managed,
+        address_space: AddressSpace::Local,
+        mutability: Mutability::Mutable,
+        pointee: TypeReference::Type(int32),
+        is_nullable: false,
+    });
+    tree.get_mut(function_id).environment = Some(TypeReference::Type(environment));
 
     // // detail
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
@@ -120,7 +133,7 @@ entry0:
     assert_output_eq(
         r#"
 @custom
-@executionModel(kernel)
+@environment(ref<int32, managed>)
 // detail
 function kernel(): void {
 entry0:

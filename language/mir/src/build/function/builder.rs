@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocationMode, AllocationSize, Block, BorrowRegion, CallBehavior, ExecutionModel,
-    ExecutionStage, Function, Instruction, Linkage, LocalNodeId, MemoryEffect, Parameter,
-    PointerAttribute, Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
+    AllocationMode, AllocationSize, Block, BorrowRegion, CallBehavior, Function, Instruction,
+    Linkage, LocalNodeId, MemoryEffect, Parameter, PointerAttribute, Tree, Type, TypeReference,
+    Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -111,9 +111,6 @@ impl<'a> FunctionBuilder<'a> {
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
-            execution_model: None,
-            execution_stage: None,
-            workgroup_size: None,
             environment: None,
             locals: Vec::new(),
             blocks: Vec::new(),
@@ -238,27 +235,6 @@ impl<'a> FunctionBuilder<'a> {
         // update the return attribute
         let function = self.tree.get_mut(self.function_id);
         function.return_attribute = attribute;
-    }
-
-    /// Set the execution model for this function.
-    pub fn set_execution_model(&mut self, model: ExecutionModel) {
-        // update the execution model
-        let function = self.tree.get_mut(self.function_id);
-        function.execution_model = Some(model);
-    }
-
-    /// Set the execution stage for this function.
-    pub fn set_execution_stage(&mut self, stage: ExecutionStage) {
-        // update the execution stage
-        let function = self.tree.get_mut(self.function_id);
-        function.execution_stage = Some(stage);
-    }
-
-    /// Set the workgroup size for this function.
-    pub fn set_workgroup_size(&mut self, size: [u32; 3]) {
-        // update the workgroup size
-        let function = self.tree.get_mut(self.function_id);
-        function.workgroup_size = Some(size);
     }
 
     /// Set allocation mode for this function.
