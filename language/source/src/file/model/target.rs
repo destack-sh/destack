@@ -1,10 +1,10 @@
-use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use super::hash::stable_source_id;
 use super::id;
 use crate::PackageId;
 
-const TARGET_KEY_DOMAIN: &[u8] = b"target";
+const TARGET_KEY_DOMAIN: &[u8] = b"destack.source.target.v1";
 
 /// Stable key for one target within a package.
 #[repr(transparent)]
@@ -75,9 +75,9 @@ impl TargetId {
     pub fn new(package_id: PackageId, name: impl AsRef<str>) -> Self {
         Self {
             package_id,
-            target_key: TargetKey::new(stable_hash_key_value_128(
+            target_key: TargetKey::new(stable_source_id(
                 TARGET_KEY_DOMAIN,
-                name.as_ref().as_bytes(),
+                &[name.as_ref().as_bytes()],
             )),
         }
     }

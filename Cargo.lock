@@ -2114,7 +2114,6 @@ dependencies = [
  "crossbeam-channel",
  "dashmap 6.1.0",
  "destack_core",
- "destack_source_macros",
  "indexmap",
  "notify",
  "parking_lot",
@@ -2126,15 +2125,6 @@ dependencies = [
  "smallvec",
  "tracing",
  "windows 0.60.0",
-]
-
-[[package]]
-name = "destack_source_macros"
-version = "0.55.4"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
