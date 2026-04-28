@@ -12,7 +12,8 @@ use destack_source::{
     LanguageType, PrintOptions, Uri, print_diff,
 };
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
+    TrailingComma,
 };
 
 /// Run a single formatter transform test.
@@ -92,7 +93,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         formatter_options = formatter_options.with_single_attribute_per_line(value);
     }
     if let Some(organize_imports) = input_file.options.get("organize-imports")
-        && let Some(value) = destack_workspace::OrganizeImports::parse(organize_imports)
+        && let Some(value) = OrganizeImports::parse(organize_imports)
     {
         formatter_options = formatter_options.with_organize_imports(value);
     }
@@ -100,6 +101,11 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         && let Some(value) = QuoteProperty::parse(quote_props)
     {
         formatter_options = formatter_options.with_quote_props(value);
+    }
+    if let Some(jsdoc) = input_file.options.get("jsdoc")
+        && let Ok(value) = jsdoc.parse::<bool>()
+    {
+        formatter_options.jsdoc = value.then(JsdocOptions::default);
     }
 
     // create file

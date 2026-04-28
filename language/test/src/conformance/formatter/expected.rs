@@ -2,7 +2,8 @@ use std::path::Path;
 
 use destack_source::{IndentStyle, LineEnding};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, JsdocCommentLineStrategy, JsdocLineWrappingStyle,
+    JsdocOptions, QuoteProperty, QuoteStyle, TrailingComma,
 };
 
 use crate::conformance::ExpectedOutput;
@@ -163,7 +164,7 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
         return;
     };
 
-    for entry in inner.split(',') {
+    for entry in split_option_entries(inner) {
         let entry = entry.trim();
         if entry.is_empty() {
             continue;
@@ -251,7 +252,99 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
                     options.single_attribute_per_line = single_attribute_per_line;
                 }
             }
+            "jsdoc" => {
+                let mut jsdoc_options = options.jsdoc.unwrap_or_default();
+                apply_jsdoc_options_value(value, &mut jsdoc_options);
+                options.jsdoc = Some(jsdoc_options);
+            }
             "semi" => {}
+            _ => {}
+        }
+    }
+}
+
+/// Apply a JSDoc options object value.
+fn apply_jsdoc_options_value(value: &str, options: &mut JsdocOptions) {
+    let value = value.trim();
+    let Some(inner) = value
+        .strip_prefix('{')
+        .and_then(|value| value.strip_suffix('}'))
+    else {
+        return;
+    };
+
+    for entry in split_option_entries(inner) {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+
+        let Some((raw_key, raw_value)) = entry.split_once(':') else {
+            continue;
+        };
+
+        let key = raw_key.trim();
+        let value = raw_value.trim();
+        let value_string = strip_quotes(value);
+
+        match key {
+            "capitalizeDescriptions" | "capitalize_descriptions" => {
+                if let Some(capitalize_descriptions) = parse_bool(value) {
+                    options.capitalize_descriptions = capitalize_descriptions;
+                }
+            }
+            "commentLineStrategy" | "comment_line_strategy" => {
+                options.comment_line_strategy = match value_string {
+                    "single-line" | "singleLine" | "single_line" => {
+                        JsdocCommentLineStrategy::SingleLine
+                    }
+                    "multiline" => JsdocCommentLineStrategy::Multiline,
+                    "keep" => JsdocCommentLineStrategy::Keep,
+                    _ => options.comment_line_strategy,
+                };
+            }
+            "separateTagGroups" | "separate_tag_groups" => {
+                if let Some(separate_tag_groups) = parse_bool(value) {
+                    options.separate_tag_groups = separate_tag_groups;
+                }
+            }
+            "separateReturnsFromParam" | "separate_returns_from_param" => {
+                if let Some(separate_returns_from_param) = parse_bool(value) {
+                    options.separate_returns_from_param = separate_returns_from_param;
+                }
+            }
+            "descriptionWithDot" | "description_with_dot" => {
+                if let Some(description_with_dot) = parse_bool(value) {
+                    options.description_with_dot = description_with_dot;
+                }
+            }
+            "addDefaultToDescription" | "add_default_to_description" => {
+                if let Some(add_default_to_description) = parse_bool(value) {
+                    options.add_default_to_description = add_default_to_description;
+                }
+            }
+            "preferCodeFences" | "prefer_code_fences" => {
+                if let Some(prefer_code_fences) = parse_bool(value) {
+                    options.prefer_code_fences = prefer_code_fences;
+                }
+            }
+            "lineWrappingStyle" | "line_wrapping_style" => {
+                options.line_wrapping_style = match value_string {
+                    "greedy" => JsdocLineWrappingStyle::Greedy,
+                    "balance" => JsdocLineWrappingStyle::Balance,
+                    _ => options.line_wrapping_style,
+                };
+            }
+            "descriptionTag" | "description_tag" => {
+                if let Some(description_tag) = parse_bool(value) {
+                    options.description_tag = description_tag;
+                }
+            }
+            "keepUnparsableExampleIndent" | "keep_unparsable_example_indent" => {
+                if let Some(keep_unparsable_example_indent) = parse_bool(value) {
+                    options.keep_unparsable_example_indent = keep_unparsable_example_indent;
+                }
+            }
             _ => {}
         }
     }
@@ -267,7 +360,7 @@ fn has_unsupported_options(options_line: &str) -> bool {
         return false;
     };
 
-    for entry in inner.split(',') {
+    for entry in split_option_entries(inner) {
         let entry = entry.trim();
         if entry.is_empty() {
             continue;
@@ -285,6 +378,50 @@ fn has_unsupported_options(options_line: &str) -> bool {
     }
 
     false
+}
+
+/// Split one option object body into top-level entries.
+fn split_option_entries(value: &str) -> Vec<&str> {
+    let mut entries = Vec::new();
+    let mut start = 0usize;
+    let mut brace_depth = 0usize;
+    let mut bracket_depth = 0usize;
+    let mut paren_depth = 0usize;
+    let mut quote = None;
+    let mut is_escaped = false;
+
+    for (index, character) in value.char_indices() {
+        if let Some(quote_character) = quote {
+            if is_escaped {
+                is_escaped = false;
+            } else if character == '\\' {
+                is_escaped = true;
+            } else if character == quote_character {
+                quote = None;
+            }
+
+            continue;
+        }
+
+        match character {
+            '"' | '\'' => quote = Some(character),
+            '{' => brace_depth += 1,
+            '}' => brace_depth = brace_depth.saturating_sub(1),
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            ',' if brace_depth == 0 && bracket_depth == 0 && paren_depth == 0 => {
+                entries.push(&value[start..index]);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+
+    entries.push(&value[start..]);
+
+    entries
 }
 
 /// Parse a boolean option value.
@@ -326,7 +463,8 @@ mod tests {
     };
     use destack_source::IndentStyle;
     use destack_workspace::{
-        ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+        ArrowParentheses, FormatterOptions, JsdocCommentLineStrategy, JsdocLineWrappingStyle,
+        JsdocOptions, QuoteProperty, QuoteStyle, TrailingComma,
     };
 
     #[test]
@@ -376,6 +514,27 @@ mod tests {
         assert!(!options.bracket_spacing);
         assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
         assert_eq!(options.quote_property, QuoteProperty::Consistent);
+    }
+
+    #[test]
+    fn test_apply_oxfmt_options_line_with_nested_jsdoc_options() {
+        let mut options = FormatterOptions::default();
+        apply_oxfmt_options_line(
+            "{ printWidth: 72, jsdoc: { commentLineStrategy: 'multiline', lineWrappingStyle: 'balance', separateTagGroups: true, keepUnparsableExampleIndent: true }, trailingComma: 'all' }",
+            &mut options,
+        );
+
+        let expected_jsdoc = JsdocOptions {
+            comment_line_strategy: JsdocCommentLineStrategy::Multiline,
+            line_wrapping_style: JsdocLineWrappingStyle::Balance,
+            separate_tag_groups: true,
+            keep_unparsable_example_indent: true,
+            ..JsdocOptions::default()
+        };
+
+        assert_eq!(options.line_width, 72);
+        assert_eq!(options.trailing_comma, TrailingComma::All);
+        assert_eq!(options.jsdoc, Some(expected_jsdoc));
     }
 
     #[test]
