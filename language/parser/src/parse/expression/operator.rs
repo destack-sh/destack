@@ -647,9 +647,6 @@ impl Parser {
         expression_id: LocalNodeId<TypeExpression>,
     ) -> Option<TypePredicateSubject> {
         match self.tree.get(expression_id) {
-            TypeExpression::Parenthesized { expression } => {
-                self.type_predicate_subject_from_type_expression(*expression)
-            }
             TypeExpression::Reference {
                 path,
                 generic_arguments,
@@ -659,5 +656,13 @@ impl Parser {
             TypeExpression::This => Some(TypePredicateSubject::This),
             _ => None,
         }
+    }
+
+    /// Return whether one type expression is a bare `this`.
+    pub(crate) fn type_expression_is_bare_this(
+        &self,
+        expression_id: LocalNodeId<TypeExpression>,
+    ) -> bool {
+        matches!(self.tree.get(expression_id), TypeExpression::This)
     }
 }

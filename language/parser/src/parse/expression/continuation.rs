@@ -54,11 +54,13 @@ impl InfixRightKind {
         operator: ParseInfixOperator,
         left_is_type_expression: bool,
         is_in_before_block: bool,
+        allows_type_predicate: bool,
     ) -> Self {
         match operator {
             ParseInfixOperator::As | ParseInfixOperator::Satisfies => Self::Assertion,
             ParseInfixOperator::Is if !left_is_type_expression => Self::ValuePredicate,
-            ParseInfixOperator::Is => Self::TypeOperator,
+            ParseInfixOperator::Is if allows_type_predicate => Self::TypeOperator,
+            ParseInfixOperator::Is => Self::InvalidValueTypeOperator,
             ParseInfixOperator::Binary(
                 BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
             ) if left_is_type_expression => Self::TypeOperator,
@@ -1472,9 +1474,13 @@ impl Parser {
             let previous_left_type_id = left_type_id;
             let head_span = self.type_expression_head_span(left_type_id);
             let full_span = self.get_span_from(start);
+            let is_allowed_type_predicate = self.options.allows_type_predicate()
+                || self.type_expression_is_bare_this(left_type_id);
             left_type_id =
                 if right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends) {
                     self.eat_type_conditional_expression(start, left_type_id, right_context)?
+                } else if right_operator == ParseInfixOperator::Is && !is_allowed_type_predicate {
+                    return Err(ParseError::unexpected(operator_span));
                 } else {
                     let right_ambient_context = self.options.with_type(true);
                     let right_type_id = if self.is_type_expression_boundary() {
@@ -1721,6 +1727,7 @@ impl Parser {
                 right_operator,
                 left_is_type_expression,
                 self.options.is_in_before_block(),
+                self.options.allows_type_predicate(),
             );
             let mut right_context = self
                 .options

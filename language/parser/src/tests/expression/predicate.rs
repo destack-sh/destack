@@ -52,23 +52,23 @@ function isStringy(value: any): asserts value is string {
 }
 
 #[test]
-fn test_parse_type_predicate_in_before_block_context() {
+fn test_reject_type_predicate_in_plain_type_before_block_context() {
     let mut test = TestParser::new_with_options(
         "module is DynamicModule { value: true }",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let type_id = parser
+    let error = parser
         .with_options(parser.options.in_type().in_before_block(), |parser| {
             parser.eat_type_expression()
         })
-        .unwrap();
+        .unwrap_err();
+    let (span, node_type, expected) = error.leaf_content();
 
-    assert_node!(parser.tree, type_id, TypeExpression::Predicate { asserts, subject, target } => {
-        assert!(!asserts);
-        assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
-        assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
-    });
+    assert_eq!(
+        (node_type, expected, parser.get_span_str(span)),
+        (None, None, "is")
+    );
 }
 
 /// Parse a predicate return type whose subject is also a contextual type literal.
