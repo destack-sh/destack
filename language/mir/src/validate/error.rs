@@ -191,7 +191,7 @@ pub enum ValidateError {
     /// A switch case value is repeated.
     DuplicateSwitchCaseValue {
         /// The duplicated case value.
-        value: i64,
+        value: i128,
         /// The anchor for this error.
         anchor: ValidateAnchor,
     },

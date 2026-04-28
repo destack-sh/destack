@@ -254,7 +254,7 @@ impl<'a> Validator<'a> {
         value: IntegerReference,
         anchor: ValidateAnchor,
         label: &'static str,
-    ) -> ValidateResult<i64> {
+    ) -> ValidateResult<i128> {
         match value {
             IntegerReference::Integer(value) => Ok(value),
             IntegerReference::Missing => {

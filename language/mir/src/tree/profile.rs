@@ -82,7 +82,7 @@ pub enum EdgeKind {
     /// Check failure edge.
     CheckFailure,
     /// Switch case edge.
-    SwitchCase { value: i64 },
+    SwitchCase { value: i128 },
     /// Switch default edge.
     SwitchDefault,
     /// Coroutine resume edge.

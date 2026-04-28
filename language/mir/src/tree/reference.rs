@@ -195,14 +195,14 @@ impl From<&LocalNodeId<Global>> for GlobalReference {
     }
 }
 
-impl From<i64> for IntegerReference {
-    fn from(value: i64) -> Self {
+impl From<i128> for IntegerReference {
+    fn from(value: i128) -> Self {
         Self::Integer(value)
     }
 }
 
-impl From<&i64> for IntegerReference {
-    fn from(value: &i64) -> Self {
+impl From<&i128> for IntegerReference {
+    fn from(value: &i128) -> Self {
         Self::Integer(*value)
     }
 }
@@ -222,7 +222,7 @@ impl GlobalReference {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum IntegerReference {
     /// One concrete integer.
-    Integer(i64),
+    Integer(i128),
     /// One required integer that was omitted.
     Missing,
     /// One malformed integer fragment.
@@ -232,7 +232,7 @@ pub enum IntegerReference {
 impl IntegerReference {
     /// Return the concrete integer when present.
     #[inline]
-    pub fn integer(self) -> Option<i64> {
+    pub fn integer(self) -> Option<i128> {
         match self {
             Self::Integer(value) => Some(value),
             Self::Missing | Self::Error => None,
