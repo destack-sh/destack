@@ -23,6 +23,8 @@ pub enum ScanSource {
 pub enum HeapError {
     /// The configured GC trigger percentage is unsupported.
     InvalidGcTriggerPercent { percent: u32 },
+    /// The configured minimum GC byte budget is unsupported.
+    InvalidGcMinimumBudgetBytes { bytes: usize },
     /// The configured heap page width is unsupported.
     InvalidPageBytes { bytes: usize },
     /// The configured allocator chunk width is unsupported.
@@ -362,6 +364,9 @@ impl Display for HeapError {
         match self {
             Self::InvalidGcTriggerPercent { percent } => {
                 write!(formatter, "invalid GC trigger percent: {percent}")
+            }
+            Self::InvalidGcMinimumBudgetBytes { bytes } => {
+                write!(formatter, "invalid minimum GC byte budget: {bytes}")
             }
             Self::InvalidPageBytes { bytes } => {
                 write!(

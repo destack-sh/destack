@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Memory::{
-    CreateFileMappingW, MEM_COMMIT, MEM_PRESERVE_PLACEHOLDER, MEM_RELEASE, MEM_REPLACE_PLACEHOLDER,
+    CreateFileMappingW, MEM_PRESERVE_PLACEHOLDER, MEM_RELEASE, MEM_REPLACE_PLACEHOLDER,
     MEM_RESERVE, MEM_RESERVE_PLACEHOLDER, MEMORY_MAPPED_VIEW_ADDRESS, MapViewOfFile3,
     PAGE_NOACCESS, PAGE_READWRITE, PAGE_WRITECOPY, UnmapViewOfFile2, VirtualAlloc2, VirtualFree,
 };
@@ -168,50 +168,6 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> HeapResult<VirtualSpace>
     Ok(VirtualSpace {
         base: data,
         byte_len,
-    })
-}
-
-/// Reserve one inaccessible virtual address range for allocator chunks.
-pub(crate) fn reserve_chunk_space(byte_len: usize) -> HeapResult<*mut u8> {
-    reserve_placeholder(byte_len)
-        .map_err(|_| HeapError::AllocatorChunkAllocationFailed { byte_len })
-}
-
-/// Commit one chunk range for allocator payloads.
-pub(crate) fn commit_chunk_space(data: *mut u8, byte_len: usize) -> HeapResult<()> {
-    split_placeholder(data, byte_len);
-
-    let data = unsafe {
-        VirtualAlloc2(
-            GetCurrentProcess(),
-            data.cast(),
-            byte_len,
-            MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER,
-            PAGE_READWRITE,
-            null_mut(),
-            0,
-        )
-    };
-    if data.is_null() {
-        return Err(HeapError::AllocatorChunkAllocationFailed { byte_len });
-    }
-
-    Ok(())
-}
-
-/// Unmap one chunk range and report unexpected OS failure.
-pub(crate) fn unmap_chunk_space(data: *mut u8, byte_len: usize) -> HeapResult<()> {
-    if byte_len == 0 {
-        return Ok(());
-    }
-
-    split_placeholder(data, byte_len);
-    if release_placeholder(data) {
-        return Ok(());
-    }
-
-    Err(HeapError::InvariantViolation {
-        context: "allocator chunk unmap",
     })
 }
 

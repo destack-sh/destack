@@ -1,11 +1,13 @@
+mod access;
 mod allocator;
 mod bitmap;
-mod bytes;
 mod cache;
 mod chunk;
 mod class;
 mod constants;
+mod frame;
 mod image;
+mod map;
 mod page;
 mod platform;
 mod run;

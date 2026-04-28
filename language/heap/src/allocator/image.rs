@@ -30,7 +30,26 @@ impl Allocator {
     /// Restore one allocator directly from one serialized image.
     pub fn from_image(image: &AllocatorImage) -> HeapResult<Self> {
         let allocator = Self::try_new(image.page_bytes as usize, image.chunk_bytes as usize)?;
-        let page_bytes = allocator.page_bytes();
+
+        allocator.restore_image_pages(image)?;
+
+        Ok(allocator)
+    }
+
+    /// Restore serialized pages into this allocator.
+    pub fn restore_image_pages(&self, image: &AllocatorImage) -> HeapResult<()> {
+        if image.page_bytes as usize != self.page_bytes() {
+            return Err(HeapError::InvalidPageBytes {
+                bytes: image.page_bytes as usize,
+            });
+        }
+        if image.chunk_bytes as usize != self.chunk_bytes() {
+            return Err(HeapError::InvalidAllocatorChunkBytes {
+                bytes: image.chunk_bytes as usize,
+            });
+        }
+
+        let page_bytes = self.page_bytes();
         let mut chunk_high_watermarks = BTreeMap::<usize, usize>::new();
         let mut page_count = 0;
 
@@ -41,7 +60,7 @@ impl Allocator {
         }
 
         // grow enough chunk capacity first
-        allocator.grow_to_page_count(page_count)?;
+        self.grow_to_page_count(page_count)?;
 
         // materialize every serialized page into the allocator
         for page in &image.pages {
@@ -53,14 +72,9 @@ impl Allocator {
                 });
             }
 
-            let target_page_ptr = allocator
-                .page_slice_mut_ptr(page.id)
-                .map_err(|_| HeapError::ImageMissingPage { page_id: page.id })?;
-            let target_page = unsafe { &mut *target_page_ptr };
+            self.store_page_bytes(page.id, page.bytes.clone())?;
 
-            target_page.copy_from_slice(&page.bytes);
-
-            let (chunk_index, chunk_page_index) = allocator.chunk_position(page.id);
+            let (chunk_index, chunk_page_index) = self.chunk_position(page.id);
             let chunk_high_watermark = chunk_high_watermarks.entry(chunk_index).or_default();
             let next_unused_page = chunk_page_index + 1;
             *chunk_high_watermark = (*chunk_high_watermark).max(next_unused_page);
@@ -68,18 +82,18 @@ impl Allocator {
 
         // restore the per-chunk allocation cursors
         for (chunk_index, high_watermark) in chunk_high_watermarks {
-            if !allocator.has_chunk(chunk_index) {
-                let first_page_index = chunk_index * allocator.pages_per_chunk();
+            if !self.has_chunk(chunk_index) {
+                let first_page_index = chunk_index * self.pages_per_chunk();
 
                 return Err(HeapError::ImageMissingPage {
                     page_id: PageId::new(first_page_index)?,
                 });
             }
 
-            allocator.raise_chunk_high_watermark(chunk_index, high_watermark)?;
+            self.raise_chunk_high_watermark(chunk_index, high_watermark)?;
         }
 
-        Ok(allocator)
+        Ok(())
     }
 
     /// Capture one page run into serialized allocator pages.
@@ -92,10 +106,8 @@ impl Allocator {
         // capture the exact bytes for each reachable allocator page
         for page in page_run.page_ids() {
             let bytes = self
-                .page_slice(page)
-                .map_err(|_| HeapError::ImageMissingPage { page_id: page })?
-                .to_vec()
-                .into_boxed_slice();
+                .page_bytes_box(page)
+                .map_err(|_| HeapError::ImageMissingPage { page_id: page })?;
 
             pages.push(AllocatorPageImage { id: page, bytes });
         }
@@ -110,10 +122,8 @@ impl Allocator {
         // capture the exact bytes for each explicit allocator page
         for page in pages {
             let bytes = self
-                .page_slice(*page)
-                .map_err(|_| HeapError::ImageMissingPage { page_id: *page })?
-                .to_vec()
-                .into_boxed_slice();
+                .page_bytes_box(*page)
+                .map_err(|_| HeapError::ImageMissingPage { page_id: *page })?;
 
             image_pages.push(AllocatorPageImage { id: *page, bytes });
         }

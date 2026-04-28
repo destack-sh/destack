@@ -6,8 +6,7 @@ use crate::{HeapError, HeapResult};
 
 pub(crate) use super::unix::{
     PageFrame, PageStoreHandle, SUPPORTS_SHARED_PAGE_FRAMES, VirtualSpace, allocate_frame,
-    commit_chunk_space, copy_page, map_page, reserve_chunk_space, reserve_virtual_space,
-    system_page_bytes, unmap_chunk_space,
+    copy_page, map_page, reserve_virtual_space, system_page_bytes,
 };
 
 /// Create one page store.
@@ -23,7 +22,7 @@ pub(crate) fn create_page_store(byte_len: usize) -> HeapResult<PageStoreHandle> 
         return Err(HeapError::AddressSpaceFailed { byte_len });
     }
 
-    // unlink immediately so the descriptor is the only owner
+    // unlink immediately so the descriptor is the only reference
     let _ = unsafe { libc::unlink(path.as_ptr().cast()) };
 
     super::unix::create_page_store_from_fd(fd, byte_len)
