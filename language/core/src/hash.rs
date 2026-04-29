@@ -116,6 +116,14 @@ pub fn stable_hash_value(value: &impl Hash) -> u64 {
     hasher.finish_u64()
 }
 
+/// Hash one structural value into one deterministic 128-bit value.
+pub fn stable_hash_value_128(value: &impl Hash) -> u128 {
+    let mut hasher = StableHasher::new();
+    value.hash(&mut hasher);
+
+    hasher.finish_u128()
+}
+
 /// Hash one key/value pair into one non-zero deterministic 128-bit value.
 pub fn stable_nonzero_hash_key_value(key: &[u8], value: &[u8]) -> u128 {
     let hash = stable_hash_key_value_128(key, value);
