@@ -13,11 +13,13 @@ use crate::expression::{
 };
 use crate::operator::assign::format_assign_expression;
 use crate::operator::binary::format_binary_expression;
-use crate::operator::r#type::{format_as_expression, format_satisfies_expression};
+use crate::operator::r#type::{
+    format_as_expression, format_is_expression, format_satisfies_expression,
+};
 use crate::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, UnaryOperator};
-use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
+use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
 use destack_fir::write;
 
@@ -150,6 +152,42 @@ pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
     )
 }
 
+/// Return whether one prefix expression operand needs grouping.
+fn prefix_expression_operand_needs_grouping(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> bool {
+    let right_expression_id = transparent_inner_expression(context, right);
+    let right_span = context.span(right_expression_id);
+    let right_start = context.expression_token_start(right_expression_id);
+    let prefix_span = context.span(node_id);
+    let comments = context.comments();
+
+    comments.has_comment_before(right_start)
+        || comments.has_comment_in_range(right_span.end, prefix_span.end)
+}
+
+/// Write one prefix expression operand with grouped boundary comments.
+fn write_prefix_expression_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if prefix_expression_operand_needs_grouping(f.context(), node_id, right) {
+        write!(
+            f,
+            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("("), soft_block_indent(&right), token(")")])
+            }))]
+        )?;
+    } else {
+        write!(f, [right])?;
+    }
+
+    Ok(())
+}
+
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -161,16 +199,6 @@ pub(crate) fn format_operator_expression<'ast>(
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
-                let right_expression_id = transparent_inner_expression(f.context(), *right);
-                let right_span = f.context().span(right_expression_id);
-                let right_start = f.context().expression_token_start(right_expression_id);
-                let unary_span = f.context().span(node_id);
-                let right_needs_grouping = {
-                    let comments = f.context().comments();
-
-                    comments.has_comment_before(right_start)
-                        || comments.has_comment_in_range(right_span.end, unary_span.end)
-                };
 
                 if needs_space {
                     write!(f, [operator, space()])?;
@@ -178,16 +206,7 @@ pub(crate) fn format_operator_expression<'ast>(
                     write!(f, [operator])?;
                 }
 
-                if right_needs_grouping {
-                    write!(
-                        f,
-                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            write!(f, [token("("), soft_block_indent(right), token(")")])
-                        }))]
-                    )?;
-                } else {
-                    write!(f, [right])?;
-                }
+                write_prefix_expression_operand(f, node_id, *right)?;
             } else {
                 write!(f, [right, operator])?;
             }
@@ -213,7 +232,7 @@ pub(crate) fn format_operator_expression<'ast>(
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
             }
-            right.format(f)?;
+            write_prefix_expression_operand(f, node_id, *right)?;
         }
 
         // await
@@ -278,7 +297,7 @@ pub(crate) fn format_operator_expression<'ast>(
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
             }
-            right.format(f)?;
+            write_prefix_expression_operand(f, node_id, *right)?;
         }
 
         // pointer
@@ -289,7 +308,7 @@ pub(crate) fn format_operator_expression<'ast>(
             {
                 write!(f, [token("readonly"), space()])?;
             }
-            right.format(f)?;
+            write_prefix_expression_operand(f, node_id, *right)?;
         }
 
         // member
@@ -363,7 +382,7 @@ pub(crate) fn format_operator_expression<'ast>(
             format_satisfies_expression(f, node_id, *expression, *target_type)?;
         }
         Expression::Is { value, target_type } => {
-            write!(f, [value, space(), token("is"), space(), target_type])?;
+            format_is_expression(f, node_id, *value, *target_type)?;
         }
         Expression::InstanceOf { value, target } => {
             write!(f, [value, space(), token("instanceof"), space(), target])?;

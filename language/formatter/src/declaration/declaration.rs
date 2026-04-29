@@ -1,6 +1,6 @@
 use crate::annotation::{
-    DanglingIndentMode, FormatDanglingComments, format_comment, infix_or_postfix_annotations,
-    postfix_annotations, prefix_annotations,
+    DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, format_comment,
+    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
 };
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::member::format_block_of_members;
@@ -33,7 +33,8 @@ use destack_ast::{
     TokenSpan, TokenType, TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
-    FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer,
+    FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
+    VecBuffer,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -639,11 +640,40 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
     else_branch: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
+    let value = tree.get(declarator).value.ok_or(FormatError::SyntaxError {
+        message: "let-else declarator requires a value",
+    })?;
+    let (parent_id, parent_type) =
+        f.context()
+            .parent(declarator)
+            .ok_or(FormatError::SyntaxError {
+                message: "let-else declarator requires an expression parent",
+            })?;
+    if parent_type != NodeType::Expression {
+        return Err(FormatError::SyntaxError {
+            message: "let-else declarator requires an expression parent",
+        });
+    }
+
+    let let_else_id = LocalNodeId::<Expression>::new(parent_id);
+    let else_span = tree
+        .get_side_span(let_else_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+        .ok_or(FormatError::SyntaxError {
+            message: "let-else expression requires else span",
+        })?;
+    let else_comments = {
+        let value_span = f.context().span(value);
+
+        f.context()
+            .comments()
+            .comments_in_range(value_span.end, else_span.start)
+            .to_vec()
+    };
 
     write!(
         f,
-        [group(&format_args![
-            format_with(|f| {
+        [group(&format_with(|f| {
+            let head = format_with(|f| {
                 // binding head
                 match kind {
                     LetKind::Let => write!(f, [Keyword::Let])?,
@@ -653,12 +683,38 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
 
                 write!(f, [space()])?;
                 format_declarator(f, tree, declarator)?;
-                write!(f, [space(), Keyword::Else])?;
+
+                if else_comments.is_empty() {
+                    write!(f, [space(), Keyword::Else])?;
+                } else {
+                    write!(
+                        f,
+                        [indent(&format_args![
+                            hard_line_break(),
+                            FormatLeadingComments::Comments(&else_comments),
+                            Keyword::Else,
+                            format_with(|f| write_control_branch_after_head(f, else_branch))
+                        ])]
+                    )?;
+                }
 
                 Ok(())
-            }),
-            format_with(|f| write_control_branch_after_head(f, else_branch)),
-        ])]
+            });
+
+            if else_comments.is_empty() {
+                write!(
+                    f,
+                    [
+                        head,
+                        format_with(|f| write_control_branch_after_head(f, else_branch))
+                    ]
+                )?;
+            } else {
+                write!(f, [head])?;
+            }
+
+            Ok(())
+        }))]
     )
 }
 

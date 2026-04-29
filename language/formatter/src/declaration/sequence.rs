@@ -2,8 +2,7 @@ use std::borrow::Cow;
 
 use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, format_comment, infix_or_postfix_annotations,
-    prefix_annotations, prefix_annotations_after_offset, prefix_comment_nodes,
-    write_annotation_sequence,
+    prefix_comment_nodes, statement_prefix_annotations, write_annotation_sequence,
 };
 use crate::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
@@ -359,18 +358,14 @@ fn write_statement_sequence_expression_prefix<'ast>(
         return write_annotation_sequence(f, &prefix_items);
     }
 
-    if let Some(start_offset) = start_offset {
-        return write!(
-            f,
-            [prefix_annotations_after_offset(
-                f.context(),
-                expression_id,
-                start_offset
-            )]
-        );
-    }
-
-    write!(f, [prefix_annotations(f.context(), expression_id)])
+    write!(
+        f,
+        [statement_prefix_annotations(
+            f.context(),
+            expression_id,
+            start_offset
+        )]
+    )
 }
 
 /// Format one statement-sequence expression and return the rendered end offset.
