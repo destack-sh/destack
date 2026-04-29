@@ -2,9 +2,9 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_source::{ModuleId, PackageId, ProfileId};
+use destack_source::{FileContentId, ModuleId, PackageId, ProfileId, TargetId};
 
-use crate::repository::{FileContentId, Ref, Revision};
+use crate::repository::{Ref, Revision};
 
 /// One error raised by repository operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,14 +13,14 @@ pub enum RepositoryError {
     MissingRef { reference: Ref },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
-    /// The requested revision is mutable.
-    MutableRevision { revision: Revision },
     /// The requested content payload does not exist.
     MissingContent { content: FileContentId },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
     MissingPackage { package: PackageId },
+    /// The requested target does not exist in the given revision.
+    MissingTarget { target: TargetId },
     /// The requested profile does not exist in the repository.
     MissingProfile { profile: ProfileId },
     /// The requested file does not exist in the base revision.
@@ -29,8 +29,8 @@ pub enum RepositoryError {
     FileAlreadyExists { path: String },
     /// The requested edit path is not writable through generic repository edits.
     InvalidEditPath { path: String, message: String },
-    /// Import from the attached file system failed.
-    ImportFileSystem {
+    /// One attached file system operation failed.
+    FileSystem {
         operation: &'static str,
         path: PathBuf,
         message: String,
@@ -48,9 +48,6 @@ impl fmt::Display for RepositoryError {
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")
             }
-            Self::MutableRevision { revision } => {
-                write!(formatter, "repository revision '{revision}' is mutable")
-            }
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
             }
@@ -59,6 +56,9 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingPackage { package } => {
                 write!(formatter, "missing repository package '{package}'")
+            }
+            Self::MissingTarget { target } => {
+                write!(formatter, "missing repository target '{target}'")
             }
             Self::MissingProfile { profile } => {
                 write!(formatter, "missing repository profile '{profile}'")
@@ -75,14 +75,14 @@ impl fmt::Display for RepositoryError {
                     "invalid repository edit path '{path}': {message}"
                 )
             }
-            Self::ImportFileSystem {
+            Self::FileSystem {
                 operation,
                 path,
                 message,
             } => {
                 write!(
                     formatter,
-                    "repository fs import failed during {operation} for '{}': {message}",
+                    "repository file system operation failed during {operation} for '{}': {message}",
                     path.display()
                 )
             }

@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -5,7 +6,7 @@ use destack_source::{File, FileId};
 use serde_json::Value;
 
 use crate::config::{
-    DestackJson, PackageOptions, ProfileConfig, ProfileConfigJson, TargetJson, TargetOptions,
+    DestackJson, PackageOptions, ProfileOptions, ProfileOptionsJson, TargetJson, TargetOptions,
     WorkspaceOptions, environment_options_from_json, extend_environment_options, parse_jsonc_file,
     runtime_options_with_base,
 };
@@ -35,19 +36,26 @@ impl DestackDeclaration {
         let raw_json = parse_jsonc_file(file)?;
         let json: DestackJson = serde_json::from_value(raw_json.clone())?;
 
-        json.linter.validate().map_err(|error| {
-            serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
-        })?;
+        json.linter
+            .validate()
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
 
         let path = file
             .path
             .clone()
             .or_else(|| file.uri.to_path_buf())
-            .expect("destack.json must have a valid path");
-        let directory = path
-            .parent()
-            .expect("destack.json must have a parent directory")
-            .to_path_buf();
+            .ok_or_else(|| {
+                serde_json::Error::io(Error::new(
+                    ErrorKind::InvalidData,
+                    "destack.json must have a valid path",
+                ))
+            })?;
+        let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                "destack.json must have a parent directory",
+            ))
+        })?;
         let package_options = PackageOptions::from(&json);
         let workspace_options = WorkspaceOptions::from(&json);
 
@@ -69,7 +77,7 @@ impl DestackDeclaration {
 
     /// Inherit settings from one parent declaration.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    pub fn extend_from(&mut self, parent: &Self) {
+    pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
         let parent_package = &parent.package_options;
         let parent_workspace = &parent.workspace_options;
 
@@ -593,9 +601,7 @@ impl DestackDeclaration {
         // targets
         if let Some(targets) = &self.json.targets {
             for name in targets.keys() {
-                let target_json = self.merged_target_json(parent, name).unwrap_or_else(|| {
-                    panic!("failed to merge target declaration during inheritance: target={name}")
-                });
+                let target_json = self.merged_target_json(parent, name)?;
                 let options = TargetOptions::from_json_with_runtime(
                     &target_json,
                     &self.package_options.runtime,
@@ -614,10 +620,8 @@ impl DestackDeclaration {
         // profiles
         if let Some(profiles) = &self.json.profiles {
             for name in profiles.keys() {
-                let profile_json = self.merged_profile_json(parent, name).unwrap_or_else(|| {
-                    panic!("failed to merge profile declaration during inheritance: profile={name}")
-                });
-                let profile = ProfileConfig::from_json(&profile_json);
+                let profile_json = self.merged_profile_json(parent, name)?;
+                let profile = ProfileOptions::from_json(&profile_json);
                 self.package_options.profiles.insert(name.clone(), profile);
             }
         }
@@ -641,6 +645,8 @@ impl DestackDeclaration {
 
         // keep the workspace package defaults aligned
         self.workspace_options.package = self.package_options.clone();
+
+        Ok(())
     }
 
     /// Derive effective package options from this declaration.
@@ -654,27 +660,45 @@ impl DestackDeclaration {
     }
 
     /// Return one merged target declaration JSON for one inherited target name.
-    fn merged_target_json(&self, parent: &Self, name: &str) -> Option<TargetJson> {
-        let child_json = self.raw_named_json("targets", name)?;
+    fn merged_target_json(
+        &self,
+        parent: &Self,
+        name: &str,
+    ) -> Result<TargetJson, serde_json::Error> {
+        let child_json = self.raw_named_json("targets", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find target declaration during inheritance: target={name}"),
+            ))
+        })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("targets", name) {
             Self::merge_json(parent_json, child_json)
         } else {
             child_json.clone()
         };
 
-        serde_json::from_value(merged_json).ok()
+        serde_json::from_value(merged_json)
     }
 
     /// Return one merged profile declaration JSON for one inherited profile name.
-    fn merged_profile_json(&self, parent: &Self, name: &str) -> Option<ProfileConfigJson> {
-        let child_json = self.raw_named_json("profiles", name)?;
+    fn merged_profile_json(
+        &self,
+        parent: &Self,
+        name: &str,
+    ) -> Result<ProfileOptionsJson, serde_json::Error> {
+        let child_json = self.raw_named_json("profiles", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find profile declaration during inheritance: profile={name}"),
+            ))
+        })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("profiles", name) {
             Self::merge_json(parent_json, child_json)
         } else {
             child_json.clone()
         };
 
-        serde_json::from_value(merged_json).ok()
+        serde_json::from_value(merged_json)
     }
 
     /// Return one named raw JSON entry from one declaration section.

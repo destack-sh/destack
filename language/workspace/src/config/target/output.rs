@@ -128,7 +128,7 @@ impl TargetOutputTopology {
             TargetOutputKind::Assets | TargetOutputKind::Manifest | TargetOutputKind::Metadata => {
                 Self::Collection
             }
-            TargetOutputKind::Binary | TargetOutputKind::Debug => Self::File,
+            TargetOutputKind::Binary => Self::File,
         }
     }
 }

@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use destack_source::{FileId, ModuleId, PackageId, TargetId};
 use im::OrdMap;
 
-use crate::{Module, Package, Target};
+use crate::{Module, Package, Target, WorkspaceError};
 
 /// Kind of workspace based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -15,7 +16,7 @@ pub enum WorkspaceKind {
     SinglePackage,
 }
 
-/// A repository-derived workspace view for one revision.
+/// A repository-derived workspace index for one revision.
 #[derive(Debug, Clone)]
 pub struct Workspace {
     /// The workspace config declaration file id when present.
@@ -25,14 +26,14 @@ pub struct Workspace {
     /// The workspace kind.
     pub kind: WorkspaceKind,
 
-    /// The package snapshots in this workspace.
-    pub(crate) packages: OrdMap<PackageId, Package>,
+    /// The packages in this workspace.
+    pub(crate) packages: OrdMap<PackageId, Arc<Package>>,
     /// The package roots ordered from most specific to least specific.
-    pub(crate) package_paths: Vec<(PathBuf, PackageId)>,
-    /// The module snapshots in this workspace.
-    pub(crate) modules: OrdMap<ModuleId, Module>,
-    /// Legacy target index retained for snapshot compatibility.
-    pub(crate) targets: OrdMap<TargetId, Target>,
+    pub(crate) package_roots: Vec<(PathBuf, PackageId)>,
+    /// The modules in this workspace.
+    pub(crate) modules: OrdMap<ModuleId, Arc<Module>>,
+    /// Errors discovered while building this workspace.
+    pub(crate) errors: Vec<WorkspaceError>,
 }
 
 impl Workspace {
@@ -51,21 +52,21 @@ impl Workspace {
         self.packages.keys().copied()
     }
 
-    /// Return one package snapshot for one package id.
-    pub(crate) fn package(&self, package_id: PackageId) -> Option<&Package> {
-        self.packages.get(&package_id)
+    /// Return one package for one package id.
+    pub(crate) fn package(&self, package_id: PackageId) -> Option<Arc<Package>> {
+        self.packages.get(&package_id).cloned()
     }
 
-    /// Return the package paths in this workspace.
-    pub(crate) fn package_paths(&self) -> &[(PathBuf, PackageId)] {
-        &self.package_paths
+    /// Return the package roots in this workspace.
+    pub(crate) fn package_roots(&self) -> &[(PathBuf, PackageId)] {
+        &self.package_roots
     }
 
-    /// Return the nearest package snapshot for one path.
-    pub(crate) fn package_for_path(&self, path: &Path) -> Option<&Package> {
-        for (package_path, package_id) in &self.package_paths {
-            if path.starts_with(package_path) {
-                return self.packages.get(package_id);
+    /// Return the nearest package for one path.
+    pub(crate) fn package_for_path(&self, path: &Path) -> Option<Arc<Package>> {
+        for (package_root, package_id) in &self.package_roots {
+            if path.starts_with(package_root) {
+                return self.packages.get(package_id).cloned();
             }
         }
 
@@ -77,16 +78,20 @@ impl Workspace {
         self.packages
             .get(&target_id.package_id())
             .and_then(|package| package.targets.get(&target_id))
-            .or_else(|| self.targets.get(&target_id))
     }
 
-    /// Return one module snapshot for one module id.
-    pub(crate) fn module(&self, module_id: ModuleId) -> Option<&Module> {
-        self.modules.get(&module_id)
+    /// Return one module for one module id.
+    pub(crate) fn module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
+        self.modules.get(&module_id).cloned()
     }
 
-    /// Return all module snapshots in this workspace.
-    pub(crate) fn modules(&self) -> &OrdMap<ModuleId, Module> {
+    /// Return all modules in this workspace.
+    pub(crate) fn modules(&self) -> &OrdMap<ModuleId, Arc<Module>> {
         &self.modules
+    }
+
+    /// Return errors discovered while building this workspace.
+    pub fn errors(&self) -> &[WorkspaceError] {
+        &self.errors
     }
 }

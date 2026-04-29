@@ -12,8 +12,6 @@ pub enum PackageKind {
     Declared,
     /// Implicit package rooted by one loose-file directory.
     Implicit,
-    /// Ephemeral package for virtual content.
-    Ephemeral,
     /// Builtin package for language primitives.
     Builtin,
 }
