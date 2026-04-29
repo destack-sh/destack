@@ -1,9 +1,11 @@
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::DiskCacheStore;
 use destack_source::{File, FileId, FileSystem, FileType, Uri};
 use destack_workspace::{
-    AmbientSnapshot, DestackDeclaration, Repository, RepositoryError, WorkspacesField,
+    DestackDeclaration, HostEnvironment, Ref, Repository, RepositoryError, WorkspacesField,
     parse_json_file,
 };
 use serde::Deserialize;
@@ -26,11 +28,21 @@ struct PnpmWorkspacePackages {
 pub fn open_repository_from_fs(
     path: PathBuf,
     fs: Arc<dyn FileSystem>,
-    ambient: AmbientSnapshot,
+    environment: HostEnvironment,
 ) -> Result<Repository, RepositoryError> {
     let root = discover_workspace_root(fs.as_ref(), &path)?;
 
-    Repository::open_root_from_fs(root, fs, ambient)
+    let repository = Repository::new(
+        root.clone(),
+        Arc::new(DiskCacheStore::new()),
+        fs,
+        environment,
+    );
+    let workspace_ref = Ref::for_workspace_root(&root);
+
+    repository.current(&workspace_ref)?;
+
+    Ok(repository)
 }
 
 /// Discover one workspace root from one input path.
@@ -105,7 +117,13 @@ fn check_npm_workspace(
     let package_json_path = directory.join("package.json");
     let bytes = match fs.read(&package_json_path) {
         Ok(bytes) => bytes,
-        Err(_) => return Ok(None),
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(RepositoryError::WorkspaceRootDiscovery {
+                path: package_json_path,
+                message: error.to_string(),
+            });
+        }
     };
 
     let (name, uri) = Uri::from_path_with_name(&package_json_path);
@@ -155,7 +173,13 @@ fn check_pnpm_workspace(
     let workspace_path = directory.join("pnpm-workspace.yaml");
     let content = match fs.read_to_string(&workspace_path) {
         Ok(content) => content,
-        Err(_) => return Ok(None),
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(RepositoryError::WorkspaceRootDiscovery {
+                path: workspace_path,
+                message: error.to_string(),
+            });
+        }
     };
 
     let patterns = parse_pnpm_workspace_packages(&workspace_path, &content)?;
@@ -174,14 +198,18 @@ fn read_workspace_destack_config(
     let path = root.join("destack.json");
     let content = match fs.read_to_string(&path) {
         Ok(content) => content,
-        Err(_) => return Ok(None),
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(RepositoryError::WorkspaceRootDiscovery {
+                path,
+                message: error.to_string(),
+            });
+        }
     };
 
     let file = File::from_text(
         FileId::from_logical_path(&path),
-        path.file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "destack.json".to_string()),
+        "destack.json".to_string(),
         Uri::from_path(&path),
         Some(path.clone()),
         FileType::Json,
@@ -210,5 +238,5 @@ fn parse_pnpm_workspace_packages(
         }
     })?;
 
-    Ok(workspace.packages.unwrap_or_default())
+    Ok(workspace.packages.unwrap_or_else(Vec::new))
 }

@@ -1,263 +1,168 @@
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactProvider, ProvideError};
 
-use destack_artifact::{ArtifactKey, ArtifactProvider};
-use destack_compiler::{CompilerObservation, CompilerObservationHandler};
-use destack_workspace::{ProvideError, Revision};
+use super::SessionLoop;
+use super::task::SessionTask;
+use crate::provide::context::SessionContext;
+use crate::{Session, SessionError, SessionEvent, SessionRunId};
 
-use crate::{Session, SessionError, SessionEvent, SessionObservation, SessionStats};
-
-/// Pending artifact queue for one provide run.
-#[derive(Debug, Default)]
-struct PendingArtifacts {
-    /// Pending artifact keys in stack order.
-    artifact_keys: Vec<ArtifactKey>,
-    /// Pending artifact membership for deduplication.
-    artifact_key_set: HashSet<ArtifactKey>,
+/// Outcome from one artifact task provider call.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum SessionTaskOutcome {
+    /// The provider produced a ready payload.
+    Ready,
+    /// The provider is blocked on these dependency keys.
+    Blocked(Vec<ArtifactKey>),
+    /// The provider produced a terminal non-ready result.
+    Terminal,
 }
 
-impl PendingArtifacts {
-    /// Push one artifact key when it is not already queued.
-    fn push(&mut self, artifact_key: ArtifactKey) {
-        if self.artifact_key_set.insert(artifact_key) {
-            self.artifact_keys.push(artifact_key);
-        }
-    }
-
-    /// Push many artifact keys in reverse order.
-    fn extend_reversed(&mut self, artifact_keys: impl IntoIterator<Item = ArtifactKey>) {
-        for artifact_key in artifact_keys {
-            self.push(artifact_key);
-        }
-    }
-
-    /// Pop one pending artifact key.
-    fn pop(&mut self) -> Option<ArtifactKey> {
-        let artifact_key = self.artifact_keys.pop()?;
-        self.artifact_key_set.remove(&artifact_key);
-
-        Some(artifact_key)
-    }
-}
-
-impl Session {
-    /// Provide one root artifact slice until every key is ready.
-    pub fn provide(&self, artifact_keys: &[ArtifactKey]) -> Result<SessionStats, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-        let revision = self.freeze_revision()?;
-
-        self.emit_event(SessionEvent::RunStarted);
-
-        let mut run_stats = SessionStats::default();
-        let result = self.provide_revision(revision, artifact_keys, &mut run_stats);
-        let result = match result {
-            Ok(revision) => self.publish_revision(revision).map(|_revision| run_stats),
-            Err(error) => Err(error),
-        };
-
-        self.emit_event(SessionEvent::RunFinished { stats: run_stats });
-
-        result
-    }
-
-    /// Provide one root artifact slice until every key is ready.
-    fn provide_revision(
+impl SessionLoop {
+    /// Provide one task and return the outcome it reported.
+    pub(super) fn provide_task(
         &self,
-        mut revision: Revision,
-        artifact_keys: &[ArtifactKey],
-        run_stats: &mut SessionStats,
-    ) -> Result<Revision, SessionError> {
-        let repository = self.repository();
-        let mut pending_artifacts = PendingArtifacts::default();
+        session: &Session,
+        context: &SessionContext,
+        run_id: SessionRunId,
+    ) -> Result<SessionTaskOutcome, SessionError> {
+        let task = SessionTask::new(context.revision(), context.key());
+        let result = self.do_provide(session, context);
 
-        // root artifact queue
-        pending_artifacts.extend_reversed(artifact_keys.iter().rev().copied());
+        // translate provider protocol into loop actions
+        match result {
+            // ready payloads are completed by the loop after this call
+            Ok(()) => Ok(SessionTaskOutcome::Ready),
 
-        // each outer artifact run owns compiler diagnostic/session state
-        self.compiler().clear_artifact_run();
+            // blocked tasks go back behind the dependencies they discovered
+            Err(ProvideError::Blocked { keys }) => {
+                // blocked without dependencies would spin forever
+                if keys.is_empty() {
+                    let error = SessionError::Internal {
+                        detail: format!(
+                            "artifact provider blocked without dependencies: {:?}",
+                            task.key
+                        ),
+                    };
+                    self.fail_task(
+                        session,
+                        context,
+                        run_id,
+                        task,
+                        ArtifactFailure::internal(error.to_string()),
+                    )?;
 
-        // drive one root stack until nothing remains pending
-        while let Some(artifact_key) = pending_artifacts.pop() {
-            let provide_id = self.next_provide_id();
-            let started_at = Instant::now();
-            run_stats.started += 1;
-
-            self.emit_event(SessionEvent::ArtifactStarted {
-                provide_id,
-                artifact_key,
-            });
-
-            let was_completed = match artifact_key.provider() {
-                // compiler owned keys can yield both source and artifact requirements
-                ArtifactProvider::Compiler => {
-                    match self.compiler().provide_with_observation_handler(
-                        revision,
-                        artifact_key,
-                        self.compiler_observation_handler(provide_id, artifact_key),
-                    ) {
-                        Ok(()) => true,
-                        Err(error) => self.handle_provide_error(
-                            repository.as_ref(),
-                            &mut revision,
-                            &mut pending_artifacts,
-                            run_stats,
-                            provide_id,
-                            artifact_key,
-                            started_at,
-                            error,
-                        )?,
-                    }
+                    return Err(error);
                 }
 
-                ArtifactProvider::Linter => match self.linter().provide(revision, artifact_key) {
-                    Ok(()) => true,
-                    Err(error) => self.handle_provide_error(
-                        repository.as_ref(),
-                        &mut revision,
-                        &mut pending_artifacts,
-                        run_stats,
-                        provide_id,
-                        artifact_key,
-                        started_at,
-                        error,
-                    )?,
-                },
-            };
-
-            if !was_completed {
-                continue;
+                Ok(SessionTaskOutcome::Blocked(keys))
             }
 
-            let elapsed = started_at.elapsed();
-            self.emit_slow_artifact(run_stats, provide_id, artifact_key, elapsed);
-            run_stats.completed += 1;
-            self.emit_event(SessionEvent::ArtifactCompleted {
-                provide_id,
-                artifact_key,
-                elapsed,
-            });
-        }
+            // failed requirements become stored artifact failures
+            Err(ProvideError::RequirementFailed { key }) => {
+                self.fail_task(
+                    session,
+                    context,
+                    run_id,
+                    task,
+                    ArtifactFailure::requirement(key),
+                )?;
 
-        Ok(revision)
-    }
-
-    /// Handle one yielded or failed provider result.
-    fn handle_provide_error<E: std::fmt::Debug>(
-        &self,
-        repository: &destack_workspace::Repository,
-        revision: &mut Revision,
-        pending_artifacts: &mut PendingArtifacts,
-        run_stats: &mut SessionStats,
-        provide_id: crate::ProvideId,
-        artifact_key: ArtifactKey,
-        started_at: Instant,
-        error: ProvideError<E>,
-    ) -> Result<bool, SessionError> {
-        let elapsed = started_at.elapsed();
-        self.emit_slow_artifact(run_stats, provide_id, artifact_key, elapsed);
-
-        match error {
-            ProvideError::Requirements(requirements) => {
-                if requirements.has_source_requirements() {
-                    *revision =
-                        self.apply_file_requirements(repository, *revision, &requirements)?;
-
-                    self.compiler().clear_artifact_run();
-                }
-
-                // retry the root after any yielded changes
-                pending_artifacts.push(artifact_key);
-
-                // exact artifact requirements do not survive a revision change
-                if !requirements.has_source_requirements() {
-                    let mut required_artifact_keys = Vec::new();
-                    requirements.for_each_artifact(|requirement| {
-                        required_artifact_keys.push(requirement.version.key);
-                    });
-
-                    pending_artifacts.extend_reversed(required_artifact_keys.into_iter().rev());
-                }
-
-                self.emit_event(SessionEvent::ArtifactYielded {
-                    provide_id,
-                    artifact_key,
-                });
-                run_stats.yielded += 1;
-
-                Ok(false)
+                Ok(SessionTaskOutcome::Terminal)
             }
-            ProvideError::Failed(error) => {
-                self.emit_event(SessionEvent::ArtifactFailed {
-                    provide_id,
-                    artifact_key,
-                });
-                run_stats.failed += 1;
+
+            // corrupt requirements are store boundary violations
+            Err(ProvideError::Corrupt { version }) => {
+                self.fail_task(
+                    session,
+                    context,
+                    run_id,
+                    task,
+                    ArtifactFailure::corrupt(version),
+                )?;
 
                 Err(SessionError::Internal {
-                    detail: format!("failed to provide artifact {artifact_key:?}: {error:?}"),
+                    detail: format!(
+                        "failed to provide artifact {:?}: corrupt required artifact: {version:?}",
+                        task.key
+                    ),
+                })
+            }
+
+            // diagnosed artifacts are terminal but payload free
+            Err(ProvideError::Diagnosed) => {
+                self.diagnose_task(session, context, run_id, task)?;
+
+                Ok(SessionTaskOutcome::Terminal)
+            }
+
+            // internal provider failures stop the session run
+            Err(ProvideError::Internal { message }) => {
+                self.fail_task(
+                    session,
+                    context,
+                    run_id,
+                    task,
+                    ArtifactFailure::internal(message.clone()),
+                )?;
+
+                Err(SessionError::Internal {
+                    detail: format!("failed to provide artifact {:?}: {message}", task.key),
                 })
             }
         }
     }
 
-    /// Build one session observation bridge for one compiler provide attempt.
-    fn compiler_observation_handler(
-        &self,
-        provide_id: crate::ProvideId,
-        artifact_key: ArtifactKey,
-    ) -> Option<CompilerObservationHandler> {
-        let handler = self.observation_handler()?;
-
-        Some(Arc::new(move |observation| match observation {
-            CompilerObservation::TimingTag {
-                name,
-                duration,
-                sample_count,
-            } => handler(SessionObservation::CompilerTimingTag {
-                provide_id,
-                artifact_key,
-                name,
-                duration,
-                sample_count,
-            }),
-            CompilerObservation::ParserTimingTag {
-                name,
-                duration,
-                self_duration,
-                sample_count,
-            } => handler(SessionObservation::ParserTimingTag {
-                provide_id,
-                artifact_key,
-                name,
-                duration,
-                self_duration,
-                sample_count,
-            }),
-        }))
+    /// Call the provider that owns one artifact key.
+    fn do_provide(&self, session: &Session, context: &SessionContext) -> Result<(), ProvideError> {
+        // dispatch by artifact provider family
+        match context.key().provider() {
+            ArtifactProvider::Source => session
+                .provide_source(context)
+                .map_err(|error| ProvideError::internal(error.to_string())),
+            ArtifactProvider::Compiler => session.compiler().provide(context),
+            ArtifactProvider::Linter => session.linter().provide(context),
+        }
     }
 
-    /// Emit one slow artifact event when the attempt crosses the threshold.
-    fn emit_slow_artifact(
+    /// Fail one task and emit its failure event.
+    pub(super) fn fail_task(
         &self,
-        run_stats: &mut SessionStats,
-        provide_id: crate::ProvideId,
-        artifact_key: ArtifactKey,
-        elapsed: Duration,
-    ) {
-        let Some(threshold) = self.slow_artifact_threshold() else {
-            return;
-        };
+        session: &Session,
+        context: &SessionContext,
+        run_id: SessionRunId,
+        task: SessionTask,
+        failure: ArtifactFailure,
+    ) -> Result<(), SessionError> {
+        let result = context.complete_failed(failure);
 
-        if elapsed < threshold {
-            return;
-        }
+        // release waiters before reporting the terminal event
+        self.finish(task);
 
-        run_stats.slow += 1;
-        self.emit_event(SessionEvent::ArtifactSlow {
-            provide_id,
-            artifact_key,
-            elapsed,
+        session.emit_event(SessionEvent::TaskFailed {
+            run_id,
+            artifact_key: task.key,
         });
+
+        result.map(|_| ())
+    }
+
+    /// Diagnose one payload-free task and emit its failure event.
+    fn diagnose_task(
+        &self,
+        session: &Session,
+        context: &SessionContext,
+        run_id: SessionRunId,
+        task: SessionTask,
+    ) -> Result<(), SessionError> {
+        let result = context.complete_diagnosed();
+
+        // release waiters before reporting the terminal event
+        self.finish(task);
+
+        session.emit_event(SessionEvent::TaskFailed {
+            run_id,
+            artifact_key: task.key,
+        });
+
+        result.map(|_| ())
     }
 }
