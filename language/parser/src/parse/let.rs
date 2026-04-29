@@ -98,7 +98,7 @@ impl Parser {
                 return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
             }
 
-            self.eat_keyword(Keyword::Else)?;
+            let else_span = self.eat_keyword(Keyword::Else)?.span;
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
@@ -123,6 +123,11 @@ impl Parser {
                     else_branch,
                 },
                 self.get_span_from(start),
+            );
+            self.tree.set_side_span(
+                let_else_id,
+                NodeSpanType::Region(NodeSpanRegion::Clause),
+                else_span,
             );
 
             return Ok(let_else_id);
@@ -531,7 +536,7 @@ mod tests {
         GenericArgument, GenericParameter, IntType, Key, LetKind, Mutability, Name, Parameter,
         Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
@@ -1196,6 +1201,12 @@ const registry: Map<
         assert_node!(parser.tree, expression_id, Expression::LetElse { kind, mutability, declarator, else_branch } => {
             assert_eq!(*kind, LetKind::Let);
             assert_eq!(*mutability, Mutability::Mutable);
+
+            let else_span = parser
+                .tree
+                .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+                .expect("expected else clause span");
+            assert_eq!(parser.get_span_str(else_span), "else");
 
             // let { x } = value
             assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {

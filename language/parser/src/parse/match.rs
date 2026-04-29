@@ -6,6 +6,7 @@ use destack_ast::{
     Block, BlockContext, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind,
     MatchSelector, NodeType, Pattern, TokenType,
 };
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Return parser contexts for a match value expression.
@@ -168,6 +169,7 @@ impl Parser {
         };
 
         let start = self.span_start();
+        let mut guard_clause_span = None;
 
         let selector = match kind {
             MatchKind::Switch => {
@@ -201,6 +203,7 @@ impl Parser {
                     };
                     // guard
                     let guard = if self.is_keyword(Keyword::If) {
+                        let guard_start = self.span_start();
                         self.eat_keyword(Keyword::If)?;
                         let (guard_ambient_context, guard_expression_context) =
                             self.match_guard_contexts();
@@ -210,6 +213,7 @@ impl Parser {
                                 .with_expression_context(guard_expression_context),
                             |parser| parser.eat_parenthesized_expression(),
                         )?;
+                        guard_clause_span = Some(self.get_span_from(&guard_start));
                         Some(guard)
                     } else {
                         None
@@ -233,6 +237,7 @@ impl Parser {
 
                 // guard
                 let guard = if self.is_keyword(Keyword::If) {
+                    let guard_start = self.span_start();
                     self.eat_keyword(Keyword::If)?;
                     let (guard_ambient_context, guard_expression_context) =
                         self.match_guard_contexts();
@@ -242,6 +247,7 @@ impl Parser {
                             .with_expression_context(guard_expression_context),
                         |parser| parser.eat_parenthesized_expression(),
                     )?;
+                    guard_clause_span = Some(self.get_span_from(&guard_start));
                     Some(guard)
                 } else {
                     None
@@ -279,6 +285,7 @@ impl Parser {
                     },
                     self.get_span_from(&start),
                 );
+                self.record_match_case_guard_clause(match_case_id, guard_clause_span);
                 if !pending_case_decorators.is_empty() {
                     self.attach_decorators(
                         match_case_id.id,
@@ -349,6 +356,7 @@ impl Parser {
                     self.get_span_from(&start),
                 )
             };
+            self.record_match_case_guard_clause(match_case_id, guard_clause_span);
             if !pending_case_decorators.is_empty() {
                 self.attach_decorators(
                     match_case_id.id,
@@ -367,6 +375,7 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
+            self.record_match_case_guard_clause(match_case_id, guard_clause_span);
             if !pending_case_decorators.is_empty() {
                 self.attach_decorators(
                     match_case_id.id,
@@ -385,6 +394,7 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
+            self.record_match_case_guard_clause(match_case_id, guard_clause_span);
             if !pending_case_decorators.is_empty() {
                 self.attach_decorators(
                     match_case_id.id,
@@ -394,6 +404,21 @@ impl Parser {
             Ok(match_case_id)
         }
     }
+
+    /// Record the guard clause span for one match case.
+    fn record_match_case_guard_clause(
+        &mut self,
+        match_case_id: LocalNodeId<MatchCase>,
+        guard_clause_span: Option<Span>,
+    ) {
+        if let Some(guard_clause_span) = guard_clause_span {
+            self.tree.set_side_span(
+                match_case_id,
+                NodeSpanType::Region(NodeSpanRegion::Clause),
+                guard_clause_span,
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -401,7 +426,7 @@ mod tests {
     use destack_ast::{
         Block, CommentKind, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
     };
-    use destack_source::LanguageType;
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::{
         TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
@@ -482,6 +507,12 @@ match (x) {
 
             // case: 2 if (true) => 20
             assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+                let guard_clause_span = parser
+                    .tree
+                    .get_side_span(cases[0], NodeSpanType::Region(NodeSpanRegion::Clause))
+                    .expect("expected guard clause span");
+                assert_eq!(parser.get_span_str(guard_clause_span), "if (true)");
+
                 // guard: true
                 let guard_id = guard.expect("expected guard");
                 assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));

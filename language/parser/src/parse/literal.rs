@@ -1241,8 +1241,6 @@ impl Parser {
         } else {
             None
         };
-        let header_start = self.span_start();
-
         // generic arguments on the tag: typed and tree-tag components
         let generic_arguments = if path.is_some()
             && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
@@ -1380,16 +1378,28 @@ impl Parser {
 
         // tree literal
         let left = path.as_ref().map(|path| {
+            let segment_spans = path_segment_spans
+                .as_deref()
+                .expect("tree literal path should have segment spans");
+            let first_segment_span = *segment_spans
+                .first()
+                .expect("tree literal path should have a first segment");
+            let last_segment_span = *segment_spans
+                .last()
+                .expect("tree literal path should have a last segment");
+            let path_span = Span::new(
+                first_segment_span.file,
+                first_segment_span.start,
+                last_segment_span.end,
+            );
             let expression_id = self.insert_node(
                 Expression::QualifiedReference {
                     path: path.clone(),
                     generic_arguments: vec![],
                 },
-                self.get_span_between(&start, &header_start),
+                path_span,
             );
-            if let Some(segment_spans) = path_segment_spans.as_deref() {
-                self.set_path_expression_spans(expression_id, segment_spans);
-            }
+            self.set_path_expression_spans(expression_id, segment_spans);
             expression_id
         });
         let expression = Expression::TreeExpression {
@@ -2110,6 +2120,7 @@ mod tests {
         // <amp-something />
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "ampSomething");
+            assert_eq!(parser.get_span_str(parser.tree.get_span(*left)), "amp-something");
             assert!(arguments.is_none());
             assert!(elements.is_none());
         });
@@ -2426,6 +2437,47 @@ mod tests {
             });
 
             assert!(elements.is_none());
+        });
+    }
+
+    /// Parse tree attribute comments without expanding the tag name span.
+    #[test]
+    fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
+        let mut test = TestParser::new_with_options(
+            r#"<Widget
+  // props-leading
+  {...props} // props-tail
+  kind="primary"
+  // extra-leading
+  {...extra}
+/>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_tree_literal().unwrap();
+        parser.attach_comments();
+
+        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements, .. } => {
+            assert_eq!(parser.get_span_str(parser.tree.get_span(*left)), "Widget");
+
+            let arguments = arguments.as_ref().expect("expected attributes");
+            assert_eq!(arguments.len(), 3);
+            assert_eq!(parser.get_span_str(parser.tree.get_span(arguments[0])), "{...props}");
+            assert_eq!(parser.get_span_str(parser.tree.get_span(arguments[1])), "kind=\"primary\"");
+            assert_eq!(parser.get_span_str(parser.tree.get_span(arguments[2])), "{...extra}");
+            assert!(elements.is_none());
+
+            let comments = parser.tree.comments();
+            assert_eq!(comments.len(), 3);
+            assert_eq!(parser.get_span_str(comments[0].span), "// props-leading");
+            assert_eq!(comments[0].attached_to, parser.tree.get_span(arguments[0]).start);
+            assert!(comments[0].is_leading());
+            assert_eq!(parser.get_span_str(comments[1].span), "// props-tail");
+            assert_eq!(comments[1].attached_to, 0);
+            assert!(!comments[1].is_leading());
+            assert_eq!(parser.get_span_str(comments[2].span), "// extra-leading");
+            assert_eq!(comments[2].attached_to, parser.tree.get_span(arguments[2]).start);
+            assert!(comments[2].is_leading());
         });
     }
 

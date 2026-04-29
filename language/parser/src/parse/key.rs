@@ -208,6 +208,7 @@ impl Parser {
     pub fn eat_tree_literal_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let mut identifier = String::new();
         let token = *self.eat_token(TokenType::Identifier)?;
+        let first_span = token.span;
         let mut last_span = token.span;
         let token_part = self.get_token_str(token);
 
@@ -274,7 +275,9 @@ impl Parser {
             }
         }
         let string_id = self.strings.intern(identifier);
-        Ok((string_id, last_span))
+        let span = Span::new(first_span.file, first_span.start, last_span.end);
+
+        Ok((string_id, span))
     }
 
     /// Peek a string literal.
