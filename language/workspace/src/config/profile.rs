@@ -3,9 +3,9 @@ use serde::Deserialize;
 
 use crate::config::{RuntimeConfigJson, RuntimeOptions, runtime_options_from_json};
 
-/// Normalized profile configuration.
+/// Normalized profile options.
 #[derive(Debug, Clone, Default)]
-pub struct ProfileConfig {
+pub struct ProfileOptions {
     /// Runtime environment for this profile.
     pub runtime: Option<RuntimeOptions>,
     /// Target platform / operating system for this profile.
@@ -20,9 +20,9 @@ pub struct ProfileConfig {
     pub comptime_env: Option<Vec<String>>,
 }
 
-impl ProfileConfig {
-    /// Convert from a JSON profile config.
-    pub fn from_json(json: &ProfileConfigJson) -> Self {
+impl ProfileOptions {
+    /// Convert from JSON profile options.
+    pub fn from_json(json: &ProfileOptionsJson) -> Self {
         Self {
             runtime: json
                 .runtime
@@ -37,11 +37,11 @@ impl ProfileConfig {
     }
 }
 
-/// Profile configuration JSON (from destack.json).
+/// Profile options JSON from `destack.json`.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct ProfileConfigJson {
+pub struct ProfileOptionsJson {
     /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
     pub runtime: Option<RuntimeConfigJson>,
     /// Target platform / operating system.

@@ -1,13 +1,12 @@
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use destack_artifact::Loader;
 use destack_builtin::BuiltinLibraryKind;
-use destack_source::{FileId, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 
 use crate::config::{ModuleTarget, SourceType};
 
-/// The source or origin of a module.
+/// The source of a module.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModuleSource {
     /// User or project code.

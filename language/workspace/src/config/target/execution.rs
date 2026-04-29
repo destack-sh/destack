@@ -19,4 +19,4 @@ impl BorrowMode {
     }
 }
 
-pub(crate) use destack_artifact::{Platform, Runtime, TargetArch, TargetEnv, TargetVendor};
+pub(crate) use destack_artifact::{Platform, Runtime, TargetAbi, TargetArch, TargetVendor};

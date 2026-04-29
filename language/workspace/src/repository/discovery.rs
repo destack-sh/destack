@@ -1,0 +1,485 @@
+use std::path::{Path, PathBuf};
+
+use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
+
+use crate::repository::{Repository, Revision};
+use crate::{Target, TargetDiscovery};
+
+/// Select the source of entry points for entry discovery.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntrySource {
+    /// Use only target entry paths.
+    Target,
+    /// Use only package manifest entry targets.
+    Manifest,
+    /// Use target entries first, then manifest entry targets.
+    Auto,
+}
+
+/// Select how entry paths are resolved against package and repository paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryResolutionMode {
+    /// Resolve entries relative to package path only.
+    Strict,
+    /// Resolve entries relative to package path, then as repository paths.
+    RepositoryRelative,
+}
+
+/// Options for entry discovery behavior.
+#[derive(Debug, Clone)]
+pub struct TargetDiscoveryOptions<'a> {
+    /// Source policy for entry paths.
+    pub entry_source: EntrySource,
+    /// Resolution policy for selected entry paths.
+    pub entry_resolution: EntryResolutionMode,
+    /// Manifest entry targets from package.json fields.
+    pub manifest_entry_targets: &'a [String],
+}
+
+impl<'a> Default for TargetDiscoveryOptions<'a> {
+    /// Return the default target discovery options.
+    fn default() -> Self {
+        Self {
+            entry_source: EntrySource::Target,
+            entry_resolution: EntryResolutionMode::Strict,
+            manifest_entry_targets: &[],
+        }
+    }
+}
+
+/// Describe a failure while discovering target modules.
+#[derive(Debug, Clone)]
+pub enum TargetDiscoveryError {
+    /// Repository state lookup failed during discovery.
+    Repository {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
+        /// The repository error message.
+        message: String,
+    },
+    /// Missing package path for entry based discovery.
+    MissingPackagePath {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
+    },
+    /// Missing target for target based discovery.
+    MissingTarget {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
+    },
+    /// Missing entry module for entry based discovery.
+    MissingEntry {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
+        /// Entry path that could not be resolved.
+        path: PathBuf,
+    },
+}
+
+impl Repository {
+    /// Match one target glob against one path.
+    fn matches_target_glob(pattern: &str, path: &Path) -> bool {
+        // borrowed byte views
+        let pattern = pattern.as_bytes();
+        let path = path.to_string_lossy();
+        let path = path.as_bytes();
+
+        glob_matches(pattern, 0, path, 0)
+    }
+
+    /// Select effective entry paths for one target.
+    fn select_target_entry_paths(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        target: &Target,
+        options: &TargetDiscoveryOptions<'_>,
+    ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
+        // target entries
+        if matches!(options.entry_source, EntrySource::Target) {
+            return Ok(target.entry.clone());
+        }
+
+        // target first auto mode
+        if matches!(options.entry_source, EntrySource::Auto) && !target.entry.is_empty() {
+            return Ok(target.entry.clone());
+        }
+
+        // manifest entries need a package directory
+        let package_directory =
+            package_path
+                .as_ref()
+                .ok_or(TargetDiscoveryError::MissingPackagePath {
+                    package: package_id,
+                    target: target_id,
+                })?;
+
+        // no manifest entries
+        if options.manifest_entry_targets.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let module_paths = self.package_module_paths(revision, package_id, target_id)?;
+
+        Ok(Self::select_manifest_entry_paths(
+            package_directory,
+            &module_paths,
+            options.manifest_entry_targets,
+        ))
+    }
+
+    /// Select package entry paths from manifest target names.
+    fn select_manifest_entry_paths(
+        package_directory: &Path,
+        candidates: &[PathBuf],
+        manifest_entry_targets: &[String],
+    ) -> Vec<PathBuf> {
+        let mut selected_paths = Vec::new();
+
+        // manifest targets are package relative names
+        for manifest_entry_target in manifest_entry_targets {
+            let manifest_entry_path = package_directory.join(manifest_entry_target);
+
+            if candidates.contains(&manifest_entry_path) {
+                selected_paths.push(manifest_entry_path);
+            }
+        }
+
+        selected_paths
+    }
+
+    /// Return module paths for one package in one revision.
+    fn package_module_paths(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+    ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
+        let mut module_paths = Vec::new();
+        let module_ids = self
+            .package_module_ids(revision, package_id)
+            .map_err(|error| TargetDiscoveryError::Repository {
+                package: package_id,
+                target: target_id,
+                message: error.to_string(),
+            })?;
+
+        // package modules in the revision
+        for module_id in module_ids {
+            let module = self.module(revision, module_id).map_err(|error| {
+                TargetDiscoveryError::Repository {
+                    package: package_id,
+                    target: target_id,
+                    message: error.to_string(),
+                }
+            })?;
+            let Some(module) = module else {
+                continue;
+            };
+            let Some(module_path) = module.path.clone() else {
+                continue;
+            };
+
+            module_paths.push(module_path);
+        }
+
+        module_paths.sort();
+        module_paths.dedup();
+
+        Ok(module_paths)
+    }
+
+    /// Resolve selected entry paths to package-local module ids.
+    fn resolve_entry_modules(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        entry_paths: &[PathBuf],
+        resolution_mode: EntryResolutionMode,
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+        let mut discovered_modules = Vec::new();
+
+        // selected entry paths
+        for entry_path in entry_paths {
+            let module_id = match resolution_mode {
+                EntryResolutionMode::Strict => self.resolve_entry_module_strict(
+                    revision,
+                    package_id,
+                    target_id,
+                    package_path,
+                    entry_path,
+                )?,
+                EntryResolutionMode::RepositoryRelative => self
+                    .resolve_entry_module_repository_relative(
+                        revision,
+                        package_id,
+                        target_id,
+                        package_path,
+                        entry_path,
+                    )?,
+            };
+
+            discovered_modules.push(module_id);
+        }
+
+        Ok(discovered_modules)
+    }
+
+    /// Resolve one entry path relative to package path only.
+    fn resolve_entry_module_strict(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        entry_path: &Path,
+    ) -> Result<ModuleId, TargetDiscoveryError> {
+        // package directory
+        let package_directory =
+            package_path
+                .as_ref()
+                .ok_or(TargetDiscoveryError::MissingPackagePath {
+                    package: package_id,
+                    target: target_id,
+                })?;
+
+        // package relative path
+        let resolved_path = package_directory.join(entry_path);
+
+        // repository module
+        self.resolve_entry_module_id(revision, package_id, &resolved_path)
+            .ok_or(TargetDiscoveryError::MissingEntry {
+                package: package_id,
+                target: target_id,
+                path: resolved_path,
+            })
+    }
+
+    /// Resolve one entry path with package-relative and repository-relative checks.
+    fn resolve_entry_module_repository_relative(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        entry_path: &Path,
+    ) -> Result<ModuleId, TargetDiscoveryError> {
+        let mut candidate_paths = Vec::new();
+
+        // package relative candidate
+        if !entry_path.is_absolute() {
+            let package_directory =
+                package_path
+                    .as_ref()
+                    .ok_or(TargetDiscoveryError::MissingPackagePath {
+                        package: package_id,
+                        target: target_id,
+                    })?;
+            candidate_paths.push(package_directory.join(entry_path));
+        }
+
+        // repository relative or absolute candidate
+        candidate_paths.push(entry_path.to_path_buf());
+
+        // return the first path with one repository module
+        for candidate_path in &candidate_paths {
+            if let Some(module_id) =
+                self.resolve_entry_module_id(revision, package_id, candidate_path)
+            {
+                return Ok(module_id);
+            }
+        }
+
+        let missing_path = candidate_paths
+            .first()
+            .cloned()
+            .unwrap_or_else(|| entry_path.to_path_buf());
+
+        Err(TargetDiscoveryError::MissingEntry {
+            package: package_id,
+            target: target_id,
+            path: missing_path,
+        })
+    }
+
+    /// Resolve one entry path to a package-local module id.
+    fn resolve_entry_module_id(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        entry_path: &Path,
+    ) -> Option<ModuleId> {
+        // resolve path to module
+        let module_id = self.module_id_for_path(revision, entry_path).ok()??;
+        let module = self.module(revision, module_id).ok()??;
+
+        // keep package local modules only
+        if module.package_id != package_id {
+            return None;
+        }
+
+        Some(module_id)
+    }
+
+    /// Discover modules selected by target entry rules.
+    fn discover_entry_modules(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        target: &Target,
+        options: &TargetDiscoveryOptions<'_>,
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+        // entry paths
+        let entry_paths = self.select_target_entry_paths(
+            revision,
+            package_id,
+            target_id,
+            package_path,
+            target,
+            options,
+        )?;
+
+        // repository modules
+        self.resolve_entry_modules(
+            revision,
+            package_id,
+            target_id,
+            package_path,
+            &entry_paths,
+            options.entry_resolution,
+        )
+    }
+
+    /// Discover modules selected by target include rules.
+    fn discover_included_modules(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        target_id: TargetId,
+        package_path: &Option<PathBuf>,
+        target: &Target,
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+        let mut selected_module_ids = Vec::new();
+
+        // package local include scan
+        let module_ids = self
+            .package_module_ids(revision, package_id)
+            .map_err(|error| TargetDiscoveryError::Repository {
+                package: package_id,
+                target: target_id,
+                message: error.to_string(),
+            })?;
+        for module_id in module_ids {
+            let Some(module) = self.module(revision, module_id).map_err(|error| {
+                TargetDiscoveryError::Repository {
+                    package: package_id,
+                    target: target_id,
+                    message: error.to_string(),
+                }
+            })?
+            else {
+                continue;
+            };
+            let module = module.as_ref();
+            let Some(module_path) = module.path.as_ref() else {
+                continue;
+            };
+
+            // path relative to package when possible
+            let relative_path = package_path
+                .as_ref()
+                .and_then(|package_path| module_path.strip_prefix(package_path).ok())
+                .unwrap_or(module_path);
+
+            // include patterns
+            let is_included = target.include.is_empty()
+                || target
+                    .include
+                    .iter()
+                    .any(|pattern| Self::matches_target_glob(pattern, relative_path));
+            if !is_included {
+                continue;
+            }
+
+            // exclude patterns
+            let is_excluded = target
+                .exclude
+                .iter()
+                .any(|pattern| Self::matches_target_glob(pattern, relative_path));
+
+            if is_excluded {
+                continue;
+            }
+
+            selected_module_ids.push(module.id);
+        }
+
+        Ok(selected_module_ids)
+    }
+
+    /// Discover module ids selected by one target in one pinned revision.
+    pub fn target_module_ids(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+        options: &TargetDiscoveryOptions<'_>,
+    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+        // package and target
+        let package_id = target_id.package_id();
+        let package = self
+            .package(revision, package_id)
+            .map_err(|error| TargetDiscoveryError::Repository {
+                package: package_id,
+                target: target_id,
+                message: error.to_string(),
+            })?
+            .ok_or(TargetDiscoveryError::MissingPackagePath {
+                package: package_id,
+                target: target_id,
+            })?;
+        let target = self
+            .effective_target(revision, target_id)
+            .map_err(|error| TargetDiscoveryError::Repository {
+                package: package_id,
+                target: target_id,
+                message: error.to_string(),
+            })?
+            .ok_or(TargetDiscoveryError::MissingTarget {
+                package: package_id,
+                target: target_id,
+            })?;
+
+        // selected modules
+        match target.discovery {
+            TargetDiscovery::Entry => self.discover_entry_modules(
+                revision,
+                package_id,
+                target_id,
+                &package.path,
+                &target,
+                options,
+            ),
+            TargetDiscovery::Include => self.discover_included_modules(
+                revision,
+                package_id,
+                target_id,
+                &package.path,
+                &target,
+            ),
+        }
+    }
+}

@@ -1,8 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use destack_artifact::{EmitFormat, TargetOutputKind, TargetOutputName};
+use destack_source::TargetId;
 use indexmap::IndexMap;
 use serde::Deserialize;
+
+use crate::CompilerOptions;
 
 use super::super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
@@ -25,18 +28,16 @@ use super::optimization::*;
 use super::output::*;
 
 /// Default output directory for targets.
-pub const DEFAULT_OUT_DIR: &str = "dist";
+const DEFAULT_TARGET_OUT_DIR: &str = "dist";
 
 /// A build target configuration.
 ///
 /// Can be constructed from `destack.json` or programmatically.
 /// This is the type used by compiler/codegen, independent of config parsing.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
-    /// Whether this target exists only for synthetic purposes.
-    pub synthetic: bool,
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
@@ -98,8 +99,8 @@ pub struct Target {
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
     pub target_vendor: Option<TargetVendor>,
-    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
-    pub target_env: Option<TargetEnv>,
+    /// Target ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    pub target_abi: Option<TargetAbi>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
@@ -225,7 +226,6 @@ pub struct Target {
 impl std::hash::Hash for Target {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.name.hash(state);
-        self.synthetic.hash(state);
         self.discovery.hash(state);
         self.entry.hash(state);
         self.include.hash(state);
@@ -253,7 +253,7 @@ impl std::hash::Hash for Target {
         self.platform.hash(state);
         self.target_arch.hash(state);
         self.target_vendor.hash(state);
-        self.target_env.hash(state);
+        self.target_abi.hash(state);
         self.cpu.hash(state);
         self.cpu_features.hash(state);
         self.relocation_model.hash(state);
@@ -327,7 +327,20 @@ impl std::hash::Hash for Target {
     }
 }
 
+impl Default for Target {
+    fn default() -> Self {
+        Self::native("default")
+    }
+}
+
 impl Target {
+    /// Create a target from default target options.
+    fn from_default_options(name: impl Into<String>) -> Self {
+        let name = name.into();
+
+        TargetOptions::default().to_target(name.as_str())
+    }
+
     /// Return the known implicit target names.
     pub fn implicit_target_names() -> &'static [&'static str] {
         &[
@@ -343,179 +356,142 @@ impl Target {
         ]
     }
 
+    /// Create an implicit target configuration for a known target id.
+    pub fn implicit_for_id(target_id: TargetId) -> Option<Self> {
+        let package_id = target_id.package_id();
+
+        for name in Self::implicit_target_names() {
+            let implicit_target_id = TargetId::new(package_id, name);
+
+            if implicit_target_id == target_id {
+                return Self::implicit_for_name(name);
+            }
+        }
+
+        None
+    }
+
     /// Create a new target with the given name and default JS output.
     pub fn js(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Js, false, true, None, false),
-            emit: EmitFormat::Js,
-            runtime: Runtime::Node,
-            runtime_options: RuntimeOptions {
-                host: Runtime::Node,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Web,
-            declaration: true, // default to emitting declarations for JS
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Js, false, true, None, false);
+        target.emit = EmitFormat::Js;
+        target.runtime = Runtime::Node;
+        target.runtime_options.host = Runtime::Node;
+        target.platform = Platform::Web;
+        target.declaration = true;
+
+        target
     }
 
     /// Create a new target with the given name and TypeScript output.
     pub fn ts(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Ts, false, false, None, false),
-            emit: EmitFormat::Ts,
-            runtime: Runtime::Node,
-            runtime_options: RuntimeOptions {
-                host: Runtime::Node,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Web,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Ts, false, false, None, false);
+        target.emit = EmitFormat::Ts;
+        target.runtime = Runtime::Node;
+        target.runtime_options.host = Runtime::Node;
+        target.platform = Platform::Web;
+
+        target
     }
 
     /// Create a new target with the given name and HTML document output.
     pub fn html(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Html, true, false, None, false),
-            emit: EmitFormat::Html,
-            runtime: Runtime::Browser,
-            runtime_options: RuntimeOptions {
-                host: Runtime::Browser,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Web,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Html, true, false, None, false);
+        target.emit = EmitFormat::Html;
+        target.runtime = Runtime::Browser;
+        target.runtime_options.host = Runtime::Browser;
+        target.platform = Platform::Web;
+
+        target
     }
 
     /// Create a new target with the given name and JS output for Node.js.
     pub fn node(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Js, false, true, None, false),
-            emit: EmitFormat::Js,
-            runtime: Runtime::Node,
-            runtime_options: RuntimeOptions {
-                host: Runtime::Node,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Universal,
-            declaration: true,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Js, false, true, None, false);
+        target.emit = EmitFormat::Js;
+        target.runtime = Runtime::Node;
+        target.runtime_options.host = Runtime::Node;
+        target.platform = Platform::Universal;
+        target.declaration = true;
+
+        target
     }
 
     /// Create a new target with the given name and WASM output for JS host.
     pub fn wasm_js(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Wasm, true, false, None, false),
-            emit: EmitFormat::Wasm,
-            runtime: Runtime::WasmJs,
-            runtime_options: RuntimeOptions {
-                host: Runtime::WasmJs,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Web,
-            optimize: true,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Wasm, true, false, None, false);
+        target.emit = EmitFormat::Wasm;
+        target.runtime = Runtime::WasmJs;
+        target.runtime_options.host = Runtime::WasmJs;
+        target.platform = Platform::Web;
+        target.optimize = true;
+
+        target
     }
 
     /// Create a new target with the given name and WASM output for WASI.
     pub fn wasm_wasi(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Wasm, true, false, None, false),
-            emit: EmitFormat::Wasm,
-            runtime: Runtime::WasmWasi,
-            runtime_options: RuntimeOptions {
-                host: Runtime::WasmWasi,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Wasi,
-            optimize: true,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Wasm, true, false, None, false);
+        target.emit = EmitFormat::Wasm;
+        target.runtime = Runtime::WasmWasi;
+        target.runtime_options.host = Runtime::WasmWasi;
+        target.platform = Platform::Wasi;
+        target.optimize = true;
+
+        target
     }
 
     /// Create a new target with the given name and native output.
     pub fn native(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
-            emit: EmitFormat::Native,
-            runtime: Runtime::NativeManaged,
-            runtime_options: RuntimeOptions {
-                host: Runtime::NativeManaged,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Universal,
-            optimize: true,
-            ..Default::default()
-        }
+        let mut target = Self::from_default_options(name);
+        target.outputs = default_target_outputs(EmitFormat::Native, true, false, None, false);
+        target.emit = EmitFormat::Native;
+        target.runtime = Runtime::NativeManaged;
+        target.runtime_options.host = Runtime::NativeManaged;
+        target.platform = Platform::Universal;
+        target.optimize = true;
+
+        target
     }
 
     /// Create a new target for comptime execution.
     pub fn comptime(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
-            emit: EmitFormat::Native,
-            runtime: Runtime::NativeManaged,
-            runtime_options: RuntimeOptions {
-                host: Runtime::NativeManaged,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::Universal,
-            optimize: true,
-            trust_policy: TrustPolicy::Internal,
-            ..Default::default()
-        }
+        let mut target = Self::native(name);
+        target.trust_policy = TrustPolicy::Internal;
+
+        target
     }
 
     /// Create a new target with the given name and native freestanding output.
     pub fn native_freestanding(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
-            emit: EmitFormat::Native,
-            runtime: Runtime::NativeFreestanding,
-            runtime_options: RuntimeOptions {
-                host: Runtime::NativeFreestanding,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::BareMetal,
-            optimize: true,
-            ..Default::default()
-        }
+        let mut target = Self::native(name);
+        target.runtime = Runtime::NativeFreestanding;
+        target.runtime_options.host = Runtime::NativeFreestanding;
+        target.platform = Platform::BareMetal;
+
+        target
     }
 
     /// Create a new target with the given name and native embedded output.
     pub fn native_embedded(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
-            emit: EmitFormat::Native,
-            runtime: Runtime::NativeEmbedded,
-            runtime_options: RuntimeOptions {
-                host: Runtime::NativeEmbedded,
-                ..RuntimeOptions::default()
-            },
-            platform: Platform::BareMetal,
-            optimize: true,
-            ..Default::default()
-        }
+        let mut target = Self::native(name);
+        target.runtime = Runtime::NativeEmbedded;
+        target.runtime_options.host = Runtime::NativeEmbedded;
+        target.platform = Platform::BareMetal;
+
+        target
     }
 
     /// Create an implicit target configuration for a known target name.
     pub fn implicit_for_name(name: &str) -> Option<Self> {
         match name {
-            "default" => Some(Self::js(name)),
+            "default" => Some(Self::default()),
             "js" => Some(Self::js(name)),
             "ts" => Some(Self::ts(name)),
             "html" => Some(Self::html(name)),
@@ -525,26 +501,6 @@ impl Target {
             "native" => Some(Self::native(name)),
             _ => None,
         }
-    }
-
-    /// Create a synthetic target based on an existing target.
-    pub fn synthetic_for(base: &Target, name: impl Into<String>) -> Self {
-        let mut target = base.clone();
-        target.name = name.into();
-        target.emit = EmitFormat::Native;
-        target.runtime = Runtime::NativeManaged;
-        target.runtime_version = None;
-        target.runtime_options.host = Runtime::NativeManaged;
-        target.runtime_options.version = None;
-        target.outputs = default_target_outputs(EmitFormat::Native, true, false, None, false);
-        target.optimize = false;
-        target.optimize_level = OptimizeLevel::O0;
-        target.lto_mode = LtoMode::None;
-        target.declaration = false;
-        target.source_map_mode = None;
-        target.artifacts.clear();
-        target.synthetic = true;
-        target
     }
 
     /// Derive the output mode from the target configuration.
@@ -564,6 +520,19 @@ impl Target {
     /// Whether this target produces directory output (one file per source file).
     pub fn is_directory(&self) -> bool {
         self.output_mode() == OutputMode::Directory
+    }
+
+    /// Build compiler options adjusted for this target.
+    pub fn compiler_options(&self, compiler_options: &CompilerOptions) -> CompilerOptions {
+        let mut compiler_options = compiler_options.clone();
+        let is_native_output = self.emit.is_wasm() || self.emit.is_native();
+
+        // native outputs force stricter semantics
+        if is_native_output {
+            compiler_options.apply_native_restrictions();
+        }
+
+        compiler_options
     }
 
     /// Return whether this target uses the JavaScript generation pipeline.
@@ -661,9 +630,9 @@ impl Target {
             .clone()
             .unwrap_or_else(|| TargetVendor::default_for_platform(self.platform));
         let env = self
-            .target_env
+            .target_abi
             .clone()
-            .or_else(|| TargetEnv::default_for_platform(self.platform));
+            .or_else(|| TargetAbi::default_for_platform(self.platform));
 
         let mut components = vec![
             target_arch.triple_component(),
@@ -788,9 +757,9 @@ impl Target {
         self
     }
 
-    /// Set target environment / ABI for native codegen.
-    pub fn with_target_env(mut self, target_env: TargetEnv) -> Self {
-        self.target_env = Some(target_env);
+    /// Set target ABI for native codegen.
+    pub fn with_target_abi(mut self, target_abi: TargetAbi) -> Self {
+        self.target_abi = Some(target_abi);
         self
     }
 
@@ -1148,8 +1117,8 @@ pub struct TargetOptions {
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen.
     pub target_vendor: Option<TargetVendor>,
-    /// Target environment or ABI for native codegen.
-    pub target_env: Option<TargetEnv>,
+    /// Target ABI for native codegen.
+    pub target_abi: Option<TargetAbi>,
     /// CPU name for native codegen.
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen.
@@ -1327,7 +1296,7 @@ impl Default for TargetOptions {
             platform: Platform::default(),
             target_arch: None,
             target_vendor: None,
-            target_env: None,
+            target_abi: None,
             cpu: None,
             cpu_features: Vec::new(),
             relocation_model: RelocationModel::default(),
@@ -1355,7 +1324,7 @@ impl Default for TargetOptions {
             declaration: false,
             source_map_mode: None,
             artifacts: Vec::new(),
-            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
+            out_dir: PathBuf::from(DEFAULT_TARGET_OUT_DIR),
             out_file: None,
             declaration_dir: None,
             module: ModuleTarget::default(),
@@ -1433,7 +1402,6 @@ impl TargetOptions {
     pub fn to_target(&self, name: &str) -> Target {
         Target {
             name: name.to_string(),
-            synthetic: false,
             discovery: self.discovery,
             entry: self.entry.clone(),
             include: self.include.clone(),
@@ -1444,7 +1412,7 @@ impl TargetOptions {
             platform: self.platform,
             target_arch: self.target_arch.clone(),
             target_vendor: self.target_vendor.clone(),
-            target_env: self.target_env.clone(),
+            target_abi: self.target_abi.clone(),
             cpu: self.cpu.clone(),
             cpu_features: self.cpu_features.clone(),
             relocation_model: self.relocation_model,
@@ -1648,7 +1616,7 @@ impl TargetOptions {
                 .unwrap_or_default(),
             target_arch: json.arch.as_deref().and_then(TargetArch::parse),
             target_vendor: json.vendor.as_deref().and_then(TargetVendor::parse),
-            target_env: json.env.as_deref().and_then(TargetEnv::parse),
+            target_abi: json.env.as_deref().and_then(TargetAbi::parse),
             cpu: json.cpu.clone(),
             cpu_features: json.cpu_features.clone().unwrap_or_default(),
             relocation_model: json
@@ -1695,7 +1663,7 @@ impl TargetOptions {
                 .out_dir
                 .as_ref()
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from(DEFAULT_OUT_DIR)),
+                .unwrap_or_else(|| PathBuf::from(DEFAULT_TARGET_OUT_DIR)),
             out_file: json.out_file.as_ref().map(PathBuf::from),
             declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
             module: json
@@ -1834,7 +1802,7 @@ pub struct TargetJson {
     pub arch: Option<String>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
     pub vendor: Option<String>,
-    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    /// Target ABI for native codegen (e.g., "gnu", "musl", "msvc").
     pub env: Option<String>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
     pub cpu: Option<String>,

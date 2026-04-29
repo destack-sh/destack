@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::config::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget};
+use crate::config::{
+    BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget, TsConfigOptions,
+    normalize_typescript_lib_names, normalize_typescript_type_entries,
+};
 
 /// Path alias mapping (resolved from Destack config paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;
@@ -303,6 +306,39 @@ impl Default for CompilerOptions {
 }
 
 impl CompilerOptions {
+    /// Apply compiler options from one normalized TypeScript configuration.
+    pub fn apply_tsconfig_options(&mut self, tsconfig_options: &TsConfigOptions) {
+        let compiler = &tsconfig_options.compiler;
+
+        // module resolution
+        self.base_url = compiler.base_url.clone();
+        self.paths = compiler.paths.as_ref().map(|paths| {
+            let mut mapped_paths = DsPathAliases::default();
+
+            for (key, values) in paths {
+                mapped_paths.insert(key.clone(), values.clone());
+            }
+
+            mapped_paths
+        });
+
+        // language and module semantics
+        self.module = compiler.module;
+        self.es_target = compiler.es_target;
+        self.allow_js = compiler.allow_js;
+        self.check_js = compiler.check_js;
+        self.skip_lib_check = compiler.skip_lib_check;
+
+        // ambient libraries
+        if !compiler.lib.is_empty() {
+            self.lib = normalize_typescript_lib_names(&compiler.lib);
+        }
+
+        if !compiler.types.is_empty() {
+            self.types = normalize_typescript_type_entries(&compiler.types);
+        }
+    }
+
     /// Enable strict-mode defaults.
     pub fn apply_strict_defaults(&mut self) {
         // lock the strict umbrella flag and parser strictness

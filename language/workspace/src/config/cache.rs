@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-const DEFAULT_CACHE_DIRECTORY: &str = ".destack";
+const DEFAULT_WORKSPACE_CACHE_DIRECTORY: &str = ".destack";
 
 /// Artifact cache configuration options.
 #[derive(Debug, Clone, Default)]
@@ -71,5 +71,5 @@ pub fn resolve_cache_root(
         return workspace_root.join(cache_directory_override);
     }
 
-    workspace_root.join(DEFAULT_CACHE_DIRECTORY)
+    workspace_root.join(DEFAULT_WORKSPACE_CACHE_DIRECTORY)
 }

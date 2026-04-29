@@ -561,7 +561,7 @@ impl RuntimeOptions {
         };
     }
 
-    /// Return the collapsed execution summary used by legacy runtime internals.
+    /// Return the collapsed execution summary.
     pub fn execution_mode(&self) -> ExecutionMode {
         // trace replay is always authoritative
         if self.trace.mode == TraceMode::Replay {
@@ -581,7 +581,7 @@ impl RuntimeOptions {
         ExecutionMode::Fast
     }
 
-    /// Return the collapsed time-source summary used by legacy runtime internals.
+    /// Return the collapsed time-source summary.
     pub fn time_mode(&self) -> TimeMode {
         match self.effect.time {
             EffectSource::Host => TimeMode::Host,
@@ -591,7 +591,7 @@ impl RuntimeOptions {
         }
     }
 
-    /// Return the collapsed randomness summary used by legacy runtime internals.
+    /// Return the collapsed randomness summary.
     pub fn random_mode(&self) -> RandomMode {
         match self.effect.random {
             EffectSource::Host => RandomMode::Host,

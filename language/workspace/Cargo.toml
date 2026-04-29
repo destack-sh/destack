@@ -46,7 +46,6 @@ rustc-hash = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
-smallvec = { workspace = true }
 tracing = { workspace = true }
 postcard = { workspace = true }
 

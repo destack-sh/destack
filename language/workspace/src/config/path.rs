@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::config::{DESTACK_CACHE_DIR, HOME, LOCAL_APPDATA, USERPROFILE, XDG_CACHE_HOME};
 
-const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
+const UNIX_HOME_CACHE_DIRECTORY: &str = ".cache";
 
 /// Return an explicit cache directory from the environment.
 pub fn cache_dir_from_env() -> Option<PathBuf> {
@@ -34,7 +34,7 @@ pub fn resolve_global_cache_root(dir_name: &str) -> Option<PathBuf> {
     if let Some(home) = std::env::var_os(HOME) {
         return Some(
             PathBuf::from(home)
-                .join(DEFAULT_HOME_CACHE_DIR)
+                .join(UNIX_HOME_CACHE_DIRECTORY)
                 .join(dir_name),
         );
     }
@@ -48,7 +48,7 @@ pub fn resolve_global_cache_root(dir_name: &str) -> Option<PathBuf> {
     if let Some(profile) = std::env::var_os(USERPROFILE) {
         return Some(
             PathBuf::from(profile)
-                .join(DEFAULT_HOME_CACHE_DIR)
+                .join(UNIX_HOME_CACHE_DIRECTORY)
                 .join(dir_name),
         );
     }

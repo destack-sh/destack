@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -57,13 +58,21 @@ impl PackageDeclaration {
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
         let manifest: PackageManifest = serde_json::from_value(parse_json_file(file)?)?;
         let path = file
-            .uri
-            .to_path_buf()
-            .expect("package.json file must have a valid path");
-        let directory = path
-            .parent()
-            .expect("package.json must have a parent directory")
-            .to_path_buf();
+            .path
+            .clone()
+            .or_else(|| file.uri.to_path_buf())
+            .ok_or_else(|| {
+                serde_json::Error::io(Error::new(
+                    ErrorKind::InvalidData,
+                    "package.json must have a valid path",
+                ))
+            })?;
+        let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                "package.json must have a parent directory",
+            ))
+        })?;
 
         Ok(Self {
             file_id: file.id,

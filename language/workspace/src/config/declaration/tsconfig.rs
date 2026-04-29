@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -43,16 +44,22 @@ impl TsConfigDeclaration {
         // parse the tsconfig from the JSON value
         let tsconfig_json: TsConfigJson = serde_json::from_value(parse_jsonc_file(file)?)?;
 
-        // extract path from file (prefer file.path, fall back to URI conversion)
         let path = file
             .path
             .clone()
             .or_else(|| file.uri.to_path_buf())
-            .expect("tsconfig file must have a valid path");
-        let directory = path
-            .parent()
-            .expect("tsconfig.json must have a parent directory")
-            .to_path_buf();
+            .ok_or_else(|| {
+                serde_json::Error::io(Error::new(
+                    ErrorKind::InvalidData,
+                    "tsconfig.json must have a valid path",
+                ))
+            })?;
+        let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                "tsconfig.json must have a parent directory",
+            ))
+        })?;
 
         let tsconfig = Self {
             file_id: file.id,
@@ -269,7 +276,7 @@ impl TsConfigDeclaration {
             self.json.compiler_options.base_url = Some(base_url);
         }
 
-        if self.json.compiler_options.paths.is_some() {
+        if let Some(paths_by_alias) = self.json.compiler_options.paths.as_mut() {
             // paths_base should use base_url if set, otherwise config dir
             if let Some(base_url) = &self.json.compiler_options.base_url {
                 self.paths_base = base_url.clone();
@@ -281,14 +288,7 @@ impl TsConfigDeclaration {
             }
 
             // substitute template variable in `tsconfig.compilerOptions.paths`
-            for paths in self
-                .json
-                .compiler_options
-                .paths
-                .as_mut()
-                .unwrap()
-                .values_mut()
-            {
+            for paths in paths_by_alias.values_mut() {
                 for path in paths {
                     Self::substitute_template_variable(&config_dir, path);
                 }

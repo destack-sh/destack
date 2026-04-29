@@ -42,8 +42,13 @@ pub fn apply_config_overrides_to_json(
 
 /// Apply one config override to one json path.
 fn apply_config_override_to_json(target: &mut Value, path: &[&str], value: &Value) {
+    ensure_json_object(target);
+
+    let Value::Object(object) = target else {
+        return;
+    };
+
     if path.len() == 1 {
-        let object = ensure_json_object(target);
         let entry = object
             .entry(path[0].to_string())
             .or_insert_with(|| Value::Object(Map::new()));
@@ -52,7 +57,6 @@ fn apply_config_override_to_json(target: &mut Value, path: &[&str], value: &Valu
         return;
     }
 
-    let object = ensure_json_object(target);
     let child = object
         .entry(path[0].to_string())
         .or_insert_with(|| Value::Object(Map::new()));
@@ -75,13 +79,11 @@ fn merge_json_value(target: &mut Value, value: &Value) {
     }
 }
 
-/// Ensure one json value is an object and return it.
-fn ensure_json_object(value: &mut Value) -> &mut Map<String, Value> {
+/// Ensure one json value is an object.
+fn ensure_json_object(value: &mut Value) {
     if !value.is_object() {
         *value = Value::Object(Map::new());
     }
-
-    value.as_object_mut().expect("json object should exist")
 }
 
 #[cfg(test)]

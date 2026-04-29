@@ -1,7 +1,7 @@
-use destack_artifact::{EnvironmentStamp, ProfileFlags};
+use destack_artifact::{HostEnvironmentKey, ProfileFlags};
 use serde::{Deserialize, Serialize};
 
-use crate::EnvironmentSnapshot;
+use crate::HostEnvironment;
 use crate::config::CompilerOptions;
 
 /// The stable profile id.
@@ -9,7 +9,7 @@ pub use destack_source::ProfileId;
 
 /// Resolved environment values for one profile.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProfileEnv {
+pub struct ProfileEnvironment {
     /// The exposed environment entries.
     pub values: Vec<(String, String)>,
     /// The effective node environment mode.
@@ -22,16 +22,16 @@ pub struct ProfileEnv {
     pub test: bool,
 }
 
-impl ProfileEnv {
+impl ProfileEnvironment {
     /// Derive the effective node environment and mode flags.
-    pub fn mode_from_snapshot(
-        snapshot: &EnvironmentStamp,
-        environment: &EnvironmentSnapshot,
+    pub fn mode_from_key(
+        key: &HostEnvironmentKey,
+        host: &HostEnvironment,
         debug: bool,
     ) -> (Option<String>, bool, bool, bool) {
-        let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
+        let has_node_env = key.keys().iter().any(|key| key == "NODE_ENV");
         let mut node_env = if has_node_env {
-            environment.get("NODE_ENV").map(ToOwned::to_owned)
+            host.get("NODE_ENV").map(ToOwned::to_owned)
         } else {
             None
         };
@@ -54,24 +54,16 @@ impl ProfileEnv {
         (node_env, dev, prod, test)
     }
 
-    /// Build one profile environment from one snapshot.
-    pub fn from_snapshot(
-        snapshot: &EnvironmentStamp,
-        environment: &EnvironmentSnapshot,
-        debug: bool,
-    ) -> Self {
-        let mut values = snapshot
+    /// Build one profile environment from one host environment key.
+    pub fn from_key(key: &HostEnvironmentKey, host: &HostEnvironment, debug: bool) -> Self {
+        let mut values = key
             .keys()
             .iter()
-            .filter_map(|key| {
-                environment
-                    .get(key)
-                    .map(|value| (key.clone(), value.to_string()))
-            })
+            .filter_map(|key| host.get(key).map(|value| (key.clone(), value.to_string())))
             .collect::<Vec<_>>();
 
-        let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
-        let (node_env, dev, prod, test) = Self::mode_from_snapshot(snapshot, environment, debug);
+        let has_node_env = key.keys().iter().any(|key| key == "NODE_ENV");
+        let (node_env, dev, prod, test) = Self::mode_from_key(key, host, debug);
 
         if has_node_env
             && let Some(node_env_value) = node_env.clone()

@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::config::{
     CompilerOptions, DaemonOptions, DestackJson, EnvironmentOptions, FormatterOptions,
-    LinterOptions, ModeOptions, ProfileConfig, RuntimeOptions, TargetOptions, WatchOptions,
+    LinterOptions, ModeOptions, ProfileOptions, RuntimeOptions, TargetOptions, WatchOptions,
     environment_options_from_json, runtime_options_from_json,
 };
 
@@ -67,7 +67,7 @@ pub struct PackageOptions {
     /// Named reusable toolchain and runtime environments.
     pub environments: IndexMap<String, EnvironmentOptions>,
     /// Named profiles for semantic configuration.
-    pub profiles: IndexMap<String, ProfileConfig>,
+    pub profiles: IndexMap<String, ProfileOptions>,
     /// Named modes for emitted output policy.
     pub modes: IndexMap<String, ModeOptions>,
     /// Default target for the package.
@@ -140,7 +140,7 @@ impl From<&DestackJson> for PackageOptions {
                     profile_map
                         .iter()
                         .map(|(name, profile_json)| {
-                            (name.clone(), ProfileConfig::from_json(profile_json))
+                            (name.clone(), ProfileOptions::from_json(profile_json))
                         })
                         .collect()
                 })

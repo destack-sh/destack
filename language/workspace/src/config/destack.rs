@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::ProfileConfigJson;
+use crate::config::ProfileOptionsJson;
 
 use super::cache::CacheJson;
 use super::compiler::CompilerOptionsJson;
@@ -93,7 +93,7 @@ pub struct DestackJson {
     /// Named reusable toolchain and runtime environments.
     pub environments: Option<IndexMap<String, EnvironmentJson>>,
     /// Named profiles for semantic configuration.
-    pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
+    pub profiles: Option<IndexMap<String, ProfileOptionsJson>>,
     /// Named modes for emitted output policy.
     pub modes: Option<IndexMap<String, ModeJson>>,
     /// Default target for the package.
