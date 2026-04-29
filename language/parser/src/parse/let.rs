@@ -453,15 +453,21 @@ impl Parser {
         };
 
         // value
-        let value =
+        let (value, value_operator_span) =
             if self.peek_is(TokenType::Assign) || self.next_token_type() == TokenType::Assign {
+                let operator_start = self.span_start();
                 self.bump(); // eat assign
+                let operator_span = self.get_span_from(&operator_start);
+
                 let value_options = self.options.not_in_position().not_in_sequence_expression();
-                Some(self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?)
+                let value =
+                    self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?;
+
+                (Some(value), Some(operator_span))
             } else if require_value {
                 return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
             } else {
-                None
+                (None, None)
             };
 
         // declarator
@@ -481,6 +487,11 @@ impl Parser {
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 span,
             );
+        }
+
+        // value operator
+        if let Some(span) = value_operator_span {
+            self.tree.set_main_span(declarator_id, span);
         }
 
         Ok(declarator_id)
@@ -562,6 +573,12 @@ const x: int32 = 1
             assert_eq!(declarators.len(), 1);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                let operator_span = parser
+                    .tree
+                    .get_main_span(declarators[0])
+                    .expect("expected declarator operator span");
+                assert_eq!(parser.get_span_str(operator_span), "=");
+
                 // x
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
