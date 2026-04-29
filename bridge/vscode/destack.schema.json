@@ -275,7 +275,7 @@
         "null"
       ],
       "additionalProperties": {
-        "$ref": "#/$defs/ProfileConfigJson"
+        "$ref": "#/$defs/ProfileOptionsJson"
       }
     },
     "modes": {
@@ -5453,6 +5453,16 @@
             "type": "string"
           }
         },
+        "globals": {
+          "description": "Global provider modules added as discovery roots.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "include": {
           "description": "Glob patterns for files to include (for include-based discovery).",
           "type": [
@@ -5517,7 +5527,7 @@
           ]
         },
         "env": {
-          "description": "Target environment / ABI for native codegen (e.g., \"gnu\", \"musl\", \"msvc\").",
+          "description": "Target ABI for native codegen (e.g., \"gnu\", \"musl\", \"msvc\").",
           "type": [
             "string",
             "null"
@@ -8274,8 +8284,8 @@
         }
       }
     },
-    "ProfileConfigJson": {
-      "description": "Profile configuration JSON (from destack.json).",
+    "ProfileOptionsJson": {
+      "description": "Profile options JSON from `destack.json`.",
       "type": "object",
       "properties": {
         "runtime": {

@@ -43,6 +43,8 @@ pub struct Target {
     pub discovery: TargetDiscovery,
     /// Entry points for entry-based discovery (bundled/executable targets).
     pub entry: Vec<PathBuf>,
+    /// Global provider modules added as discovery roots.
+    pub globals: Vec<PathBuf>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
@@ -228,6 +230,7 @@ impl std::hash::Hash for Target {
         self.name.hash(state);
         self.discovery.hash(state);
         self.entry.hash(state);
+        self.globals.hash(state);
         self.include.hash(state);
         self.exclude.hash(state);
         self.module.hash(state);
@@ -1000,6 +1003,12 @@ impl Target {
         self
     }
 
+    /// Set global provider roots.
+    pub fn with_globals(mut self, globals: Vec<PathBuf>) -> Self {
+        self.globals = globals;
+        self
+    }
+
     /// Resolve the absolute output directory for this target.
     ///
     /// If out_dir is relative, it's resolved relative to the package directory.
@@ -1099,6 +1108,8 @@ pub struct TargetOptions {
     pub discovery: TargetDiscovery,
     /// Entry points for entry-based discovery.
     pub entry: Vec<PathBuf>,
+    /// Global provider modules added as discovery roots.
+    pub globals: Vec<PathBuf>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
@@ -1288,6 +1299,7 @@ impl Default for TargetOptions {
             annotations: IndexMap::new(),
             discovery: TargetDiscovery::default(),
             entry: Vec::new(),
+            globals: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
             emit: EmitFormat::default(),
@@ -1404,6 +1416,7 @@ impl TargetOptions {
             name: name.to_string(),
             discovery: self.discovery,
             entry: self.entry.clone(),
+            globals: self.globals.clone(),
             include: self.include.clone(),
             exclude: self.exclude.clone(),
             emit: self.emit,
@@ -1500,6 +1513,11 @@ impl TargetOptions {
             .entry
             .as_ref()
             .map(|e| e.iter().map(PathBuf::from).collect())
+            .unwrap_or_default();
+        let globals: Vec<PathBuf> = json
+            .globals
+            .as_ref()
+            .map(|globals| globals.iter().map(PathBuf::from).collect())
             .unwrap_or_default();
 
         // derive discovery mode: Entry if entry points are set, otherwise Include
@@ -1604,6 +1622,7 @@ impl TargetOptions {
             annotations: json.annotations.clone().unwrap_or_default(),
             discovery,
             entry,
+            globals,
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             emit,
@@ -1786,6 +1805,8 @@ pub struct TargetJson {
     /// Entry points for entry-based discovery (bundled/executable targets).
     /// If set, discovery mode is Entry; otherwise it's Include.
     pub entry: Option<Vec<String>>,
+    /// Global provider modules added as discovery roots.
+    pub globals: Option<Vec<String>>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Option<Vec<String>>,
     /// Glob patterns for files to exclude.

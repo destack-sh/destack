@@ -14,15 +14,15 @@ To enable truly universal programming with TypeScript, even in high performance 
 
 ## "TypeScript++"
 
-We're very early in field of software engineering.
-We want to make correct, optimal, integrated full-stack software systems simple and fast to build, and We cannot confidently do that by stringing together inefficient, fragmented systems.
+We're very early in the field of software engineering.
+We want to make correct, optimal, integrated full-stack software systems simple and fast to build, and we cannot confidently do that by stringing together inefficient, fragmented systems.
 TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software well (because in many ways, it already is, albeit suboptimally).
 
 The TypeScript ecosystem also has a good answer to modern frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquitous software platform.
 Performance-wise, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already, sort of).
 Thus, by embracing TypeScript, we can build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, but is completely free of JS overhead and (some) of its baggage.
 
-TypeScript is not a simple language, and any additional features risk becoming unpredictably combinatorial  (hello C++).
+TypeScript is not a simple language, and any additional features risk becoming unpredictably combinatorial (hello C++).
 However, we need to add _some_ stuff to actually solve systems programming in a serious way, and we wanted to take the opportunity to add some modern ergonomic wins like pattern matching.
 
 | Feature | What | Why |
@@ -194,7 +194,7 @@ Structs, classes, and interfaces can declare associated type aliases:
 ```ds
 struct Cache<K, V> {
     type Entry = CacheEntry<K, V>;  // associated type
-    
+
     entries: Entry[],
 }
 ```
@@ -364,6 +364,23 @@ enum OperatingSystem {
 At module level, that mostly means `import.meta` and profile constants.
 Inside a generic declaration, `@if` is evaluated after generic arguments are known, so it can also branch on those arguments, associated constants, and type algebra queries.
 Multiple `@if` annotations combine with logical AND.
+
+### Globals
+
+In addition to ambient global typings, Destack supports "real" `global { ... }` declarations that contribute to the ambient lexical environment of the active target.
+
+Globals can be ambient declarations (for non-native targets) or implemented declarations (for native targets):
+
+```ds
+global {
+    const console: Console = runtime.console();
+    const runtimeId = Runtime.current.id;
+    shared const registry = new Registry();
+}
+```
+
+A `global` block is active when its containing module is in the closure reached from the target's entrypoints, includes, configured global provider roots, or profile/prelude modules.
+Of course, because these globals are real values, duplicate global value names are errors unless the declarations.
 
 ## Expressions
 
@@ -611,8 +628,9 @@ try {
 
 The example uses `Result`, but any type implementing `Try` behaves the same:
 - Note that `try` does not implicitly unwrap `Result` values
-- Use `?` or `??` inside the block to propagate `Try` errors into the catch
-- When a `?` is inside a `try` with a catch, `Try.fromError` is not required
+- Use `?` inside the block to propagate `Try` failures into the catch
+- Use `??` inside the block when the failure should be handled locally with a fallback
+- When a `?` is inside a `try` with a catch, `Try.fromFailure` is not required
 
 Thrown exceptions propagate into the catch in the usual way when `throw` is enabled.
 With `noExceptions`, `throw` is unavailable, but `try` and `catch` still work for `Result` and other `Try` values.
@@ -718,7 +736,8 @@ const FACT_10 = comptime factorial(10);    // compile time
 const dynamicValue = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
-Functions are not marked explicitly as either "comptime" or "runtime" functions, instead, the call site determines when a function runs.
+Functions are not marked explicitly as either "comptime" or "runtime" functions.
+The call site determines when a function runs.
 
 ### Static Evaluation
 
@@ -727,7 +746,7 @@ Destack has to know which declarations exist, what types mean, and what layout a
 That early path is **static evaluation**.
 
 Static evaluation is intentionally small and boring.
-It can fold literals, arithmetic and boolean logic on static values, `import.meta`, profile constants, substituted generic parameters, associated types and constants, type predicates like `T extends U`, and intrinsic type algebra queries like `SpaceOf<T>` and `SupportsSpace<T, S>`.
+It can fold literals, arithmetic and boolean logic on static values, `import.meta`, profile constants, substituted generic parameters, associated types and constants, type predicates like `T extends U`, and type algebra queries like `SpaceOf<T>`.
 Generic value parameters, associated constants in type positions, conditional types, `@if`, fixed array lengths, and layout decisions all go through this path.
 Runtime values do not, and neither does full comptime execution.
 
@@ -756,7 +775,6 @@ type Row = Matrix<4, 4>.Row;
 Associated constants must be statically evaluable.
 Conditional and mapped types run over normalized type algebra.
 Ownership and placement are part of that algebra through `Form<T, O, S, R>`, so `BaseOf`, `OwnershipOf`, `SpaceOf`, and `RegionOf` are ordinary type-level queries.
-`SupportsSpace<T, S>` is the corresponding intrinsic type-level placement predicate.
 
 `@if` follows the same rule.
 Inside a generic declaration, it is held until generic arguments are substituted.
@@ -904,12 +922,12 @@ This is convenient, but sometimes we want to take direct ownership of memory, wh
 Destack adds explicit, optional modifiers for controlling memory ownership and placement inspired by Rust and Mojo's ownership models with `^T` as the "owned" signifier.
 
 TypeScript inherits the JavaScript / web model of local, single-threaded execution.
-Destack embraces and extends this ambient model and also support more ergonomic shared memory as part of a generalized notion of "place": local to a Worker, shared across Workers, or in a different address space.
+Destack embraces and extends this ambient model and also supports more ergonomic shared memory as part of a generalized notion of "place": local to a Worker, shared across Workers in a Runtime, or in a different address space.
 For shared memory, this is conceptually like a proper object graph around `SharedArrayBuffer`-like semantics, except that all object and management features work the same.
 
 | Form | Ownership | Region | Place | Liveness | MIR shape | Value |
 |------|-----------|--------|-------|---------------|-----------|-------|
-| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(local)>` | managed heap handle |
+| `T` | managed | none | ambient | keeps the referent alive | `ref<T, managed, space(X)>` | managed heap handle |
 | `shared T` | managed | none | shared | keeps the referent alive | `ref<T, managed, space(shared)>` | managed shared handle |
 | `&T` | borrowed | inferred or explicit | ambient | requires liveness | `ref<T, borrowed, space(X)>` | semantic borrow or projection |
 | `&shared T` | borrowed | inferred or explicit | shared | requires liveness | `ref<T, borrowed, space(shared)>` | semantic shared borrow or projection |
@@ -925,12 +943,14 @@ Following web tradition, a `Worker` is Destack's unit of concurrent execution.
 Local space is the current Worker's local heap.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space unless a type or binding says otherwise.
 
-Shared space is runtime-shared memory visible to multiple Workers.
+Shared space is runtime-shared memory visible to multiple Workers in the same Runtime.
 It is the typed, generalized version of the `SharedArrayBuffer` idea rather than a separate language.
-`shared T` means `T` re-based into shared space, i.e. `WithSpace<T, "shared">`.
+`shared T` means `T` is re-based into shared space, i.e. `WithSpace<T, "shared">`.
 Other spaces can use the same type algebra, for example device or GPU memory, as long as the target and library define what values and operations are valid there.
 `local` is not a surface keyword.
 The local space can be named explicitly through `WithSpace<T, "local">` or `@space("local")` where an explicit space annotation is needed.
+`@space(S)` on a type declaration sets that type's required placement.
+This is useful for types like shared locks, device buffers, or mapped memory handles that only make sense in one space.
 
 Local values may point to shared values.
 Shared values must not point directly into a Worker-local heap.
@@ -961,9 +981,44 @@ In the local value, `header` and `body` are local.
 In the shared value, the ambient `header` and `body` fields are shared.
 If a field is explicitly `WithSpace<T, "local">`, the enclosing aggregate cannot be placed in shared space unless that field is some explicitly permitted cross-space handle.
 
-`SupportsSpace<T, S>` is the intrinsic type-level placement predicate.
-It is structural for transparent values and compiler-defined for opaque or runtime-backed values.
-`shared T` requires `SupportsSpace<T, "shared">`.
+Not every type can be placed in every space.
+Transparent values are checked structurally, and opaque or runtime-backed values are checked by the compiler and library definitions for that space.
+`shared T` is only valid when `T` can be represented in shared space.
+
+### Capabilities
+
+`Copy`, `Clone`, `Send`, and `Sync` are capability interfaces, not placement forms.
+
+`Copy` means a value can be duplicated implicitly without changing ownership responsibilities.
+`Clone` means code can explicitly create another value, possibly by running code or allocating.
+`Send` means a value can cross a Worker boundary.
+`Sync` means references to shared values can be used concurrently through the type's own API.
+
+These capabilities are separate from placement.
+`shared T` means `T` lives in shared space; it does not make `T` `Sync`.
+Library APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees.
+
+### Workers
+
+A `Runtime` is the normal deployment unit.
+It owns the shared heap used by `shared T`.
+
+A `Worker` is the unit of concurrent execution inside a Runtime.
+Each Worker owns its local heap and runs its own event loop.
+
+A `World` is the toolchain/runtime control plane around one or more Runtimes.
+It is used for topology, policy, tracing, replay, snapshots, simulation, and dev/test environments.
+It is not the ordinary shared-memory boundary.
+
+Most async code is Worker-local.
+`async`, `await`, timers, microtasks, and ordinary event-loop work do not require `Send`.
+
+`Send` appears when a value crosses a Worker boundary.
+Values captured by a spawned Worker, sent through a Worker channel, transferred to another Worker, or returned from Worker work must be `Send`.
+
+`Sync` appears when an API promises concurrent access through shared references.
+`shared T` only says that `T` lives in the Runtime shared heap.
+It does not imply locking, ordering, atomics, actor isolation, or `Sync`.
 
 ### Relations
 
@@ -972,11 +1027,11 @@ The rules for who can point into what mostly follow from the fact that reference
 
 | From \ To | `T` | `shared T` | `&T` | `&shared T` | `^T` | `^shared T` | `*T` | `*shared T` |
 |-----------|-----|------------|------|-------------|------|-------------|------|-------------|
-| `T` | - | no | yes | no | no | no | explicit unsafe | no |
+| `T` | - | yes | yes | no | no | no | explicit unsafe | no |
 | `shared T` | no | - | no | yes | no | no | no | explicit unsafe |
 | `&T` | no | no | - | no | no | no | explicit unsafe | no |
 | `&shared T` | no | no | no | -- | no | no | no | explicit unsafe |
-| `^T` | no | no | yes | no | - | no | explicit unsafe | no |
+| `^T` | no | yes | yes | no | - | no | explicit unsafe | no |
 | `^shared T` | no | no | no | yes | no | - | no | explicit unsafe |
 | `*T` | no | no | unsafe checked reborrow | no | no | no | - | no |
 | `*shared T` | no | no | no | unsafe checked reborrow | no | no | no | - |
@@ -1058,7 +1113,6 @@ Traceability is derived from the base type and layout metadata rather than from 
 | `*T` | `Raw<T>` |
 | `shared T` | `Shared<T>` |
 | `@space("shared") T` | `WithSpace<T, "shared">` |
-| `SupportsSpace<T, "shared">` | placement validity query |
 
 The core kernel is:
 
@@ -1072,7 +1126,6 @@ type RegionOf<T> = ...
 
 type OwnershipOr<T, D> = ...
 type SpaceOr<T, D> = ...
-type SupportsSpace<T, S> = ...
 
 type Managed<T> = ...
 type Borrowed<T, R> = ...
@@ -1246,7 +1299,9 @@ They may share type identity, but ordinary dispatch must not require rich reflec
 ### Modern Strict TypeScript
 
 **Destack aims for 100% compatibility with _modern_ TypeScript.**
-To be completely fair, this is a little sneaky, because we get to decide what "modern" means - but really, it just means that much of the deprecated TS legacy stuff is unsupported, and most _runtime dynamic_ JS features are profile-gated or deliberately out of scope (`Function`, `eval`, `prototype` modification, etc.).
+To be completely fair, this is a little sneaky, because we get to decide what "modern" means - but really, it just means that much of the deprecated TS legacy stuff is unsupported, and most _runtime dynamic_ JS features are profile-gated or deliberately out of scope.
+For example, runtime `Function` and `eval` are profile-gated, while prototype modification is deliberately out of scope.
+TypeScript-style `declare global` maps to `global { ... }` with ambient declarations.
 
 ### `.ds` Syntax Differences
 
