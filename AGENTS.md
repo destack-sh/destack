@@ -102,6 +102,8 @@ let number = 10 * first_digit + second_digit;
 - Where relevant prior art exists, we should follow that, especially in terms of terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the long term modle have to support changes _like_ this?", the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
+- One of the few things worse than superflous duplication is forced abstraction.
+- Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no real interface required - is very valuable (naming, parameter conventions, file names and placement, .. anything).
 - Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
 - Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
 - Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph. 
