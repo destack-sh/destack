@@ -8,7 +8,7 @@ use super::hash::{stable_source_id, stable_source_path};
 use crate::{FileType, Span, Uri};
 
 const FILE_LOGICAL_ID_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
-const FILE_ORIGIN_ID_DOMAIN: &[u8] = b"destack.source.file.origin.v1";
+const FILE_SOURCE_ID_DOMAIN: &[u8] = b"destack.source.file.source.v1";
 const FILE_CONTENT_ID_DOMAIN: &[u8] = b"destack.source.file.content.v1";
 
 /// The id of a File.
@@ -54,9 +54,9 @@ impl FileId {
         Self::from_logical_str(&path)
     }
 
-    /// Create a file id from one explicit source origin payload.
-    pub fn from_origin_bytes(bytes: &[u8]) -> Self {
-        let id = stable_source_id(FILE_ORIGIN_ID_DOMAIN, &[bytes]);
+    /// Create a file id from one explicit source payload.
+    pub fn from_source_bytes(bytes: &[u8]) -> Self {
+        let id = stable_source_id(FILE_SOURCE_ID_DOMAIN, &[bytes]);
         let id = if id == 0 { 1 } else { id };
 
         Self(id)
