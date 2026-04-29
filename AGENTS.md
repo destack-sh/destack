@@ -2,32 +2,30 @@
 
 ### READMEs
 
-We have README.md for every substantial crate/package and even many modules/folders within those projects.
-We don't like writing information that is redundant and easily out of date into the READMEs or specifications (so, avoid folder structures, paths, or "current status").
+- We have README.md for most substantial crate/package/module.
+- We don't like writing information that is redundant and easily out of date into the READMEs or specifications (so, avoid folder structures, paths, or "current status").
 
 ### Comments
 
-Inline comments should be short and begin with a lowercase letter.
+- Inline comments should be short and begin with a lowercase letter.
  - (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
  - Place comments above a related code block (usually 2-10 lines).
  - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
  - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
+ - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
+ - Com≤ments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 
-Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
-Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
+- Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
+- Also, tests don't need quite the same level of comments, especially within obvious test cases.
+- Documentation comments for functions/types/etc. should be proper sentences with punctuation.
+- Files should NOT have a top-level documentation comments. They always get stale.
+- Go multiline if there is more than one sentence. Only one sentence should begin per line.
+- For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 
-Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
-Also, tests don't need quite the same level of comments, especially within obvious test cases.
+- *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
+- Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
 
-Documentation comments for functions/types/etc. should be proper sentences with punctuation.
- - Files should NOT have a top-level documentation comments. They always get stale.
- - Go multiline if there is more than one sentence. Only one sentence should begin per line.
- - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
-
-*All* functions, types, variants/fields, etc. should have documentation (one line is fine).
-Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
-
-When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
+- When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
 ```text
 // do this
 if (...) {
@@ -43,13 +41,13 @@ else {
 }
 ```
 
-For ===-like separators for large comment blocks, you may use upper case sentences:
+- For ===-like separators for large comment blocks, you may use upper case sentences:
 ```text
 // ================================================================================
 // Binary operator precedence
 // ================================================================================
 ```
-Though try to minimize the number of these, they're quite noisy.
+- Though try to minimize the number of these, they're quite noisy.
 
 Comments MAY start with keywords:
 - `NOTE`: call out something important
@@ -75,13 +73,13 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 - As with logic, symmetry in naming across related logic is simpler 
 - Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context).
-- Abstraction sludge names like "seam", "lane", "parts, "info", "factory", .. and friends are to be treated with high suspicion and are almost certainly, almost always wrong.
-- The same logic applies for module and file names too (single part file names are clearer, "support" is sludge, etc.)
+- Abstraction sludge names like "seam", "lane", "parts, "info", "factory", "semantics", "data", .. and friends are to be treated with high suspicion and are almost certainly wrong.
+- The same logic applies for module and file names too: single part file names are clearer while "support" and "utils" are sludgy
 
 ### Logic
 
-- Less is more, every line of code is a liability
-- Fewer overloads are better, fewer fields are better, ...
+- Less is more, every line of code is a liability, every ounce of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
+- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it alltogether, or phrase the problem differently to avoid this logic.
 - Long methods are allowed if the logic isn't meaningfully extractable / resuable.
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
@@ -98,25 +96,50 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
 
+### Factoring
+
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible. 
+- Where relevant prior art exists, we should follow that, especially in terms of terminology, configuration, interfaces, and even behavior where sensible.
+- Every proposed change is really a question: "what shape should the long term modle have to support changes _like_ this?", the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
+- Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
 - Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
-- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller.
-- Prefer parameteric mutability. etc. etc. that sort of thing.
+- Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph. 
+- That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns.
+- Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer. 
+- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing. 
+- Usually, in each file, the "top" / most important nouns should go up top (constants at the very top), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
 
 ### Refactoring
 
-- We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself
-- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use
-- Every noun, verb, type, variant, field, line, .. must be earned. 
+- Just like writing is editing, coding is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
+- If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
+- Like in factoring, we should always try to make our work easier as we go ("make the change easy, then make the change").
+- We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
+- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
+- Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less. 
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
-- Never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between
-- It is often better to break / change the source directly and then let the compiler guide
+- Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
+- It is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
+
+### Performance
+
+- Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't). 
+- Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
+- Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well.
+- Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals. 
+- The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required. 
+- Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
+- Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map or ) even at high scales.
+- Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart.
 
 ### Failures
 
-- Always prefer explicit, loud errors through conventional channels.
+- Always prefer explicit, loud errors through conventional, idiomatic channels.
+- As a corollary, silent failures of any kind are evil and only ever cause downstream trouble.
 - Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
 - On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
+- Specifically, being overly defensive and "scared" in some code path is usually a big small that we haven't really understood and defined the model and its invarianst well enough yet. (e.g., handling usize overflows in a modern allocator is just noise) 
 
 ### Boundaries
 
@@ -124,6 +147,8 @@ let number = 10 * first_digit + second_digit;
 - For example, if some upstream shape or contract implies a certain field in some state should be there at some point, but it's not, we MUST treat that as an error instead of working around it in any capacity.
 - Attempting to work around issues in upstream / other dependencies is always dangerous, but doing it for dependencies _we control_ is just a recipe for maintenance disaster.
 - Invariants should be clear and crisp, and if they're not, that is a design issue to be surfaced and discussed.
+- Stronger, harder invariants are usually _more_ forgiving than looser ones since they force the consumer into the right model, which is more predictable and crisper for all.
+- The "higher up" / "sooner" we can encode requirements, expectations and invariants, the better, that is, if the compiler fails on bad usages that's ideal, if the linter fails it's still good, if the unit tests fail also good, then we go down the list of less desirable places to find out something is wrong.
 
 ### Dependencies
 
@@ -135,17 +160,14 @@ let number = 10 * first_digit + second_digit;
 
 ### Testing
 
-Tests should start with `test_` (or equivalent) and state their content as a verb.
-Example: `test_roundtrip_duration`, `test_send_receive_message`.
-
-The first line or docstring should describe desired behavior (don't mention "test").
-Prefer property-based testing and roundtrip testing where possible.
-
-If there is an opportunity to test "the entire thing" vs "part of it", prefer complete asserts.
-(For example, if we're generating string output, compare the entire output, not just "contains").
-More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
-Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
-For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment *every* logic block as with regular/main logic.
+- Tests should start with `test_` (or equivalent) and state their content as a verb. (e.g., `test_roundtrip_duration`, `test_send_receive_message`)
+- The first line or docstring should describe desired behavior (don't mention "test").
+- Prefer property-based testing and roundtrip testing where possible.
+- If there is an opportunity to test "the entire thing" vs "part of it", prefer complete asserts.
+(e.g., if we're generating string output, compare the entire output, not just "contains").
+- More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
+- Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
+- For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment *every* logic block as with regular/main logic.
 
 ### Formatting
 
@@ -170,16 +192,18 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 
 ### Logic
 
+- Heavy `.clone()` are to be avoided (memory is expensive)
+- Some `unsafe` is not that terrible if we can prove and test the invariants
 - Put constants at the top of the file (no magic numbers/values)
 - Avoid `unwrap`/`expect`/`panic` etc. outside tests; fail explicitly, use proper Result handling
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
 - Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
-- Prefer re-defining variables if we're just transforming them about
+- Prefer re-defining variables if we're just transforming them
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 - Avoid nesting items inside of functions (like other functions, lambdas, types, etc.)
 
-### Lints and warnings
+### Checks
 
 - Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
 - Most clippy allow stuff should go on top of the `impl`, not individual functions (like too many arguments is almost always fine at a broad scope)
@@ -194,7 +218,9 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 
 ## Commands
 
-We use `justfile`s for commands. See `just --list` for all commands:
+We use `justfile`s for commands. See `just --list` for all commands.
+Be careful not to pull in unrelated fmts / checks for local edits, that might make the diff noisy.
+
 ```sh
 just check
 just fmt
