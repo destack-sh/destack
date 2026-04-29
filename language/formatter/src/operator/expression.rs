@@ -7,6 +7,7 @@ use crate::chain::{
     chain_has_call_like_expression, format_expression_chain, format_maybe_expression,
     transparent_inner_expression,
 };
+use crate::declaration::statement::format_block_wide;
 use crate::expression::{
     ExpressionLeftSide, expression_needs_parentheses_in_parent, format_index_expression,
     format_member_expression,
@@ -279,7 +280,13 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // comptime
         Expression::Comptime { body } => {
-            write!(f, [token("comptime"), space(), body])?;
+            write!(f, [token("comptime"), space()])?;
+
+            if let Expression::Block(block_id) = f.context().tree.get(*body) {
+                format_block_wide(f, *block_id)?;
+            } else {
+                write!(f, [body])?;
+            }
         }
 
         // reference

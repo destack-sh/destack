@@ -17,12 +17,13 @@ use crate::file::{
 };
 use destack_ast::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionKind,
-    FunctionMode, IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan, Tree,
+    FunctionMode, FunctionSignature, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
+    Tree, TypeExpression, TypeLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
 use destack_fir::{format_args, write};
-use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, LanguageType, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -449,13 +450,32 @@ pub(crate) fn format_block_body_narrow<'ast>(
         write!(f, [token("{"), token("}")])?;
     } else {
         let expression_id = block.first_expression().expect("single-expression block");
+        let expression = f.context().tree.get(expression_id);
+        let allow_value_tail = block_allows_value_tail(f.context(), block_id);
+        let is_expression_context_tail = block
+            .tail_expression
+            .is_some_and(|tail_expression_id| tail_expression_id == expression_id);
+        let body = format_with(|f| {
+            format_statement_sequence_expression(
+                f,
+                expression_id,
+                expression,
+                node_has_ignore_directive(f.context(), expression_id),
+                allow_value_tail,
+                is_expression_context_tail,
+                None,
+                None,
+            )
+            .map(|_| ())
+        });
+
         write!(
             f,
             [
                 token("{"),
                 soft_line_break_or_space(),
                 soft_block_indent(&format_args![
-                    &expression_id,
+                    &body,
                     block_infix_annotations(f.context(), block_id)
                 ]),
                 soft_line_break_or_space(),
@@ -1145,6 +1165,27 @@ pub(crate) fn block_allows_value_tail(
     !expression_is_in_statement_position(context, block_expression_id)
 }
 
+/// Return true when this expression is the value tail of one block.
+pub(crate) fn expression_is_value_block_tail(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Block {
+        return false;
+    }
+
+    let block_id = LocalNodeId::<Block>::new(parent_id);
+    let block = context.tree.get(block_id);
+    if block.tail_expression != Some(expression_id) {
+        return false;
+    }
+
+    block_allows_value_tail(context, block_id)
+}
+
 /// Return true when this expression is in statement position.
 pub(crate) fn expression_is_in_statement_position(
     context: &DestackFormatContext<'_>,
@@ -1165,19 +1206,18 @@ pub(crate) fn expression_is_in_statement_position(
             let should_inherit_parent_position = match parent_expression {
                 Expression::Parenthesized { expression } => expression.id == expression_id.id,
                 Expression::If {
-                    condition,
                     then_expression,
                     else_expression,
                     ..
                 } => {
-                    let branch_inherits_statement_position =
-                        if_condition_inherits_statement_position(context, condition);
+                    if !control_branch_inherits_statement_position(context) {
+                        return false;
+                    }
 
-                    branch_inherits_statement_position
-                        && (then_expression.id == expression_id.id
-                            || else_expression.as_ref().is_some_and(|else_expression| {
-                                else_expression.id == expression_id.id
-                            }))
+                    then_expression.id == expression_id.id
+                        || else_expression
+                            .as_ref()
+                            .is_some_and(|else_expression| else_expression.id == expression_id.id)
                 }
                 Expression::While { body, .. }
                 | Expression::ForEach { body, .. }
@@ -1189,15 +1229,21 @@ pub(crate) fn expression_is_in_statement_position(
                     finally_expression,
                     ..
                 } => {
+                    if finally_expression
+                        .as_ref()
+                        .is_some_and(|finally_expression| finally_expression.id == expression_id.id)
+                    {
+                        return true;
+                    }
+
+                    if !control_branch_inherits_statement_position(context) {
+                        return false;
+                    }
+
                     try_expression.id == expression_id.id
                         || catch_expression
                             .as_ref()
                             .is_some_and(|catch_expression| catch_expression.id == expression_id.id)
-                        || finally_expression
-                            .as_ref()
-                            .is_some_and(|finally_expression| {
-                                finally_expression.id == expression_id.id
-                            })
                 }
                 Expression::Labelled { body, .. } => body.id == expression_id.id,
                 _ => false,
@@ -1230,18 +1276,9 @@ pub(crate) fn expression_is_in_statement_position(
     }
 }
 
-/// Return true when one condition should inherit statement-position from its parent `if`.
-fn if_condition_inherits_statement_position(
-    context: &DestackFormatContext<'_>,
-    condition: &IfCondition,
-) -> bool {
-    match condition {
-        IfCondition::Let { .. } => true,
-        // `if (comptime ...)` branches should preserve expression tails
-        IfCondition::Expression { condition } => {
-            !matches!(context.tree.get(*condition), Expression::Comptime { .. })
-        }
-    }
+/// Return true when value-capable control branches use statement formatting in this language.
+fn control_branch_inherits_statement_position(context: &DestackFormatContext<'_>) -> bool {
+    !LanguageType::from(context.file.ty).is_destack()
 }
 
 /// Return true when one child expression is statement-position inside one parent block.
@@ -1280,7 +1317,7 @@ fn expression_is_in_statement_position_inside_parent_declaration(
                 return false;
             }
 
-            function_body_is_statement_position(function.signature.mode)
+            function_body_is_statement_position(context, &function.signature)
         }),
         Declaration::Global(global) => global.expressions.contains(&expression_id),
         Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
@@ -1297,9 +1334,12 @@ fn expression_is_in_statement_position_inside_parent_member(
     let parent_member = context.tree.get(parent_member_id);
 
     match parent_member {
-        Member::Method { body, .. } => body
-            .as_ref()
-            .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+        Member::Method {
+            signature, body, ..
+        } => body.as_ref().is_some_and(|body_expression_id| {
+            body_expression_id.id == expression_id.id
+                && function_body_is_statement_position(context, signature)
+        }),
         Member::StaticBlock { body, .. } | Member::ComptimeBlock { body, .. } => {
             body.id == expression_id.id
         }
@@ -1316,14 +1356,45 @@ fn expression_is_in_statement_position_inside_parent_property(
     let parent_property = context.tree.get(parent_property_id);
 
     match parent_property {
-        Property::Method { body, .. } => body
-            .as_ref()
-            .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+        Property::Method {
+            signature, body, ..
+        } => body.as_ref().is_some_and(|body_expression_id| {
+            body_expression_id.id == expression_id.id
+                && function_body_is_statement_position(context, signature)
+        }),
         _ => false,
     }
 }
 
 /// Return true when one function-like body should be statement-position.
-fn function_body_is_statement_position(mode: Option<FunctionMode>) -> bool {
-    matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter))
+fn function_body_is_statement_position(
+    context: &DestackFormatContext<'_>,
+    signature: &FunctionSignature,
+) -> bool {
+    if matches!(
+        signature.mode,
+        Some(FunctionMode::Constructor | FunctionMode::Setter)
+    ) {
+        return true;
+    }
+
+    signature
+        .return_type
+        .is_some_and(|return_type| type_expression_is_void(context, return_type))
+}
+
+/// Return true when one type expression is exactly `void`.
+fn type_expression_is_void(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(type_id) {
+        TypeExpression::Parenthesized { expression } => {
+            type_expression_is_void(context, *expression)
+        }
+        TypeExpression::Literal {
+            value: TypeLiteral::Void,
+        } => true,
+        _ => false,
+    }
 }

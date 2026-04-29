@@ -35,9 +35,9 @@ fn test_format_block_insert_semicolon() {
     x;
 
     if (x) {
-        y;
+        y
     } else {
-        z();
+        z()
     }
 }"#,
         |p| p.eat_block(BlockContext::Expression),
@@ -149,6 +149,86 @@ const visit = () => {
     );
 }
 
+/// Void function bodies should keep terminal expressions statement-position.
+#[test]
+fn test_format_void_function_body_inserts_terminal_semicolon() {
+    assert_format_program!(
+        r#"function run(): void {
+    done()
+}
+"#,
+        r#"function run(): void {
+    done();
+}
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Method tail expressions should preserve value position unless the method mode is statement-only.
+#[test]
+fn test_format_method_body_preserves_terminal_expression_without_semicolon() {
+    assert_format_program!(
+        r#"class Box {
+    constructor() {
+        initialize()
+    }
+
+    get value(): number {
+        this.current
+    }
+
+    set value(next: number) {
+        this.current = next
+    }
+
+    read(): number {
+        this.current
+    }
+}
+"#,
+        r#"class Box {
+    constructor() {
+        initialize();
+    }
+
+    get value(): number {
+        this.current
+    }
+
+    set value(next: number) {
+        this.current = next;
+    }
+
+    read(): number {
+        this.current
+    }
+}
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Object method tail expressions should preserve value position.
+#[test]
+fn test_format_object_method_body_preserves_terminal_expression_without_semicolon() {
+    assert_format_program!(
+        r#"const tools = {
+    read(): number {
+        current()
+    },
+}
+"#,
+        r#"const tools = {
+    read(): number {
+        current()
+    },
+};
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Inline blocks should stay inline when used as expressions.
 #[test]
 fn test_format_block_inline() {
@@ -166,7 +246,7 @@ fn test_format_block_statement_like() {
     assert_format!(
         r#"if (y) { z } else { w; }"#,
         r#"if (y) {
-	z;
+	z
 } else {
 	w;
 }"#,
