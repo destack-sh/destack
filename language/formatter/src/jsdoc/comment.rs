@@ -51,7 +51,7 @@ pub(crate) fn format_jsdoc_comment<'ast>(
     Ok(true)
 }
 
-/// Return whether one Jsdoc comment documents a declaration node.
+/// Check whether one JSDoc comment documents a declaration node.
 fn comment_documents_declaration(context: &DestackFormatContext<'_>, comment: Comment) -> bool {
     // trailing and dangling comments do not document declarations
     if !comment.is_leading() {
@@ -66,28 +66,56 @@ fn comment_documents_declaration(context: &DestackFormatContext<'_>, comment: Co
         .get_enclosing_spans(attached_to, attached_to);
 
     // declarations can be direct nodes or expression wrappers
-    candidates
+    if candidates
         .iter()
         .filter(|candidate| candidate.span.start == attached_to)
-        .any(
-            |candidate| match context.tree.get_node_type(candidate.idx) {
-                NodeType::Declaration
-                | NodeType::Member
-                | NodeType::TypeMember
-                | NodeType::EnumField => true,
-                NodeType::Expression => {
-                    let node_id = LocalNodeId::<Expression>::new(candidate.idx);
-                    matches!(
-                        context.tree.get(node_id),
-                        Expression::Declaration(_)
-                            | Expression::Export { .. }
-                            | Expression::ExportNamespace { .. }
-                            | Expression::Import { .. }
-                            | Expression::Let { .. }
-                            | Expression::Using { .. }
-                    )
-                }
-                _ => false,
-            },
-        )
+        .any(|candidate| node_documents_declaration(context, candidate.idx))
+    {
+        return true;
+    }
+
+    decorator_documents_declaration(context, attached_to)
+}
+
+/// Check whether one node can be documented by a JSDoc comment.
+fn node_documents_declaration(context: &DestackFormatContext<'_>, node_id: u32) -> bool {
+    match context.tree.get_node_type(node_id) {
+        NodeType::Declaration | NodeType::Member | NodeType::TypeMember | NodeType::EnumField => {
+            true
+        }
+        NodeType::Expression => {
+            let node_id = LocalNodeId::<Expression>::new(node_id);
+
+            matches!(
+                context.tree.get(node_id),
+                Expression::Declaration(_)
+                    | Expression::Export { .. }
+                    | Expression::ExportNamespace { .. }
+                    | Expression::Import { .. }
+                    | Expression::Let { .. }
+                    | Expression::Using { .. }
+            )
+        }
+        _ => false,
+    }
+}
+
+/// Check whether one attached decorator belongs to a documentable node.
+fn decorator_documents_declaration(context: &DestackFormatContext<'_>, attached_to: u32) -> bool {
+    // decorated declarations own their decorator nodes
+    for (node_id, decorator_ids) in context.tree.get_all_decorators() {
+        if !node_documents_declaration(context, *node_id) {
+            continue;
+        }
+
+        // leading documentation can attach to the decorator token
+        for decorator_id in decorator_ids.iter().copied() {
+            let decorator_span = context.annotation_span(decorator_id);
+            if decorator_span.start == attached_to {
+                return true;
+            }
+        }
+    }
+
+    false
 }
