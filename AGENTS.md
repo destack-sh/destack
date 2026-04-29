@@ -114,7 +114,7 @@ let number = 10 * first_digit + second_digit;
 
 - Just like writing is editing, coding is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
-- Like in factoring, we should always try to make our work easier as we go ("make the change easy, then make the change").
+- As with factoring, we should always try to make our work easier as we go ("make the change easy, then make the change").
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less. 
@@ -160,11 +160,12 @@ let number = 10 * first_digit + second_digit;
 
 ### Testing
 
+- If something is awkward and hard to test, it is almost always poorly factored.
+- That, however, does not mean introducing factory / DI sludge, instead, there is basically always a better way with crisper modeling and running more realistic tests.
 - Tests should start with `test_` (or equivalent) and state their content as a verb. (e.g., `test_roundtrip_duration`, `test_send_receive_message`)
 - The first line or docstring should describe desired behavior (don't mention "test").
 - Prefer property-based testing and roundtrip testing where possible.
-- If there is an opportunity to test "the entire thing" vs "part of it", prefer complete asserts.
-(e.g., if we're generating string output, compare the entire output, not just "contains").
+- If there is an opportunity to test "the entire thing" vs "part of it", prefer complete exercises and assertions (e.g., if we're generating string output, compare the entire output, not just "contains").
 - More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
 - Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
 - For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment *every* logic block as with regular/main logic.
