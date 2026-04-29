@@ -597,6 +597,20 @@ function assertFoo(value: Foo): asserts value is Foo {
 }
 ```
 
+### asserts type predicate comments
+
+Comments before and after `is` stay inside the asserted predicate.
+
+```ds
+function assertFoo(value: unknown): asserts value /* value */ is /* type */ Foo { return }
+```
+
+```ds expected
+function assertFoo(value: unknown): asserts value /* value */ is /* type */ Foo {
+    return;
+}
+```
+
 ### asserts subject without predicate
 
 Asserted subjects without predicates keep the `asserts` keyword.

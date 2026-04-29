@@ -99,6 +99,38 @@ Config {
 };
 ```
 
+## Comments
+
+### struct field sibling comments
+
+Trailing field comments and next field leading comments keep separate ownership.
+
+```ds
+Point { x: first, // x field
+// y field
+y: second }
+```
+
+```ds expected
+Point {
+    x: first, // x field
+    // y field
+    y: second,
+};
+```
+
+### struct shorthand comments
+
+Comments around shorthand fields stay inside the struct literal.
+
+```ds
+Point { /* x */ x, /* y */ y }
+```
+
+```ds expected
+Point { /* x */ x, /* y */ y };
+```
+
 ## Nested Structs
 
 ### nested struct literal

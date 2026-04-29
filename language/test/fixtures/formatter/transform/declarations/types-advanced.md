@@ -16,6 +16,58 @@ type Predicate = (value: string) => boolean
 type Predicate = (value: string) => boolean;
 ```
 
+### function type predicate return
+
+Function type returns can narrow their parameter type.
+
+```ds
+type Is<T> = (value: any) => value is T
+```
+
+```ds expected
+type Is<T> = (value: any) => value is T;
+```
+
+### function type predicate in conditional
+
+Predicate function types stay parenthesized in conditional type constraints.
+
+```ds
+type Guarded<Actual> = Actual extends (value: any, ...args: any[]) => value is infer T ? T : never
+```
+
+```ds expected
+type Guarded<Actual> = Actual extends ((value: any, ...args: any[]) => value is infer T)
+    ? T
+    : never;
+```
+
+### function type predicate comments
+
+Comments before and after `is` stay inside the predicate return.
+
+```ds
+type Guard<T> = (value: unknown) => value /* value */ is /* type */ T
+```
+
+```ds expected
+type Guard<T> = (value: unknown) => value /* value */ is /* type */ T;
+```
+
+### function type predicate comments in conditional
+
+Predicate comments survive when the function type is the conditional constraint.
+
+```ds
+type PickGuard<Actual> = Actual extends (value: unknown) => value /* value */ is infer T ? T : never
+```
+
+```ds expected
+type PickGuard<Actual> = Actual extends ((value: unknown) => value /* value */ is infer T)
+    ? T
+    : never;
+```
+
 ## Indexed Access and Queries
 
 ### bracket tuple type
@@ -147,6 +199,26 @@ type Maybe<T> = T extends string ? T | null : T
 type Maybe<T> = T extends string ? T | null : T;
 ```
 
+### conditional branch comments
+
+Conditional type branch comments stay attached to their original branch boundaries.
+
+```ds
+type Result<T> = T extends string // test-line
+  ? // then-line
+    StringValue
+  : // else-line
+    OtherValue
+```
+
+```ds expected
+type Result<T> = T extends string // test-line
+    ? // then-line
+      StringValue
+    : // else-line
+      OtherValue;
+```
+
 ## Type Template Literals
 
 ### typescript template literal type keeps assignment readable
@@ -260,6 +332,30 @@ type Owned = ^Result
 type Owned = ^Result;
 ```
 
+### ownership type comments
+
+Comments after ownership operators group the target type.
+
+```ds
+type Handles = (& /* borrowed */ Buffer, ^ /* owned */ Result, * /* pointer */ Raw)
+```
+
+```ds expected
+type Handles = (&(/* borrowed */ Buffer), ^(/* owned */ Result), *(/* pointer */ Raw));
+```
+
+### readonly ownership type comments
+
+Comments after readonly ownership prefixes group the target type.
+
+```ds
+type Handles = (&readonly /* borrowed */ Buffer, *readonly /* pointer */ Raw)
+```
+
+```ds expected
+type Handles = (&readonly (/* borrowed */ Buffer), *readonly (/* pointer */ Raw));
+```
+
 ## Tuple Types
 
 ### tuple type alias
@@ -350,6 +446,31 @@ type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K]
 
 ```ts expected
 type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
+```
+
+### mapped type separator comments
+
+Mapped type comments format at remap and value boundaries.
+
+```ds
+type Flags<T> = {
+  [K in keyof T as /* remap */ `can${Capitalize<K & string>}`]: /* value */ boolean
+}
+
+type Values<T> = {
+  [K in keyof T]: // value-line
+    boolean
+}
+```
+
+```ds expected
+type Flags<T> = {
+    [K in keyof T as /* remap */ `can${Capitalize<K & string>}`]: /* value */ boolean;
+};
+
+type Values<T> = {
+    [K in keyof T]: boolean; // value-line
+};
 ```
 
 ### exported mapped type stays inline

@@ -27,3 +27,35 @@ const ( a , b ) = getTuple()
 ```ds expected
 const (a, b) = getTuple();
 ```
+
+## Comments
+
+### tuple element comments
+
+Tuple element comments keep trailing and leading ownership separate.
+
+```ds
+const value = (first, // first
+// second
+second)
+```
+
+```ds expected
+const value = (
+    first, // first
+    // second
+    second,
+);
+```
+
+### tuple pattern comments
+
+Tuple pattern comments stay with the corresponding fields.
+
+```ds
+const (first, /* middle */ second, ...rest) = getTuple()
+```
+
+```ds expected
+const (first, /* middle */ second, ...rest) = getTuple();
+```

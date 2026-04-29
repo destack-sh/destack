@@ -387,3 +387,18 @@ interface Callable {
     (...args): Foo;
 }
 ```
+
+### callable predicate signature in declaration interface
+
+Declaration interfaces can expose callable type predicate signatures.
+
+```ds
+interface Guard<T> { (value: unknown): value is T; readonly source?: string }
+```
+
+```ds expected
+interface Guard<T> {
+    (value: unknown): value is T;
+    readonly source?: string;
+}
+```

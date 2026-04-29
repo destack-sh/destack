@@ -128,6 +128,30 @@ const ptr = *value
 const ptr = *value;
 ```
 
+### reference operator comments
+
+Comments after ownership operators group the operand.
+
+```ds
+const refs = (& /* borrow */ value, ^ /* own */ value, * /* pointer */ value)
+```
+
+```ds expected
+const refs = (&(/* borrow */ value), ^(/* own */ value), *(/* pointer */ value));
+```
+
+### readonly reference operator comments
+
+Comments after readonly ownership prefixes group the operand.
+
+```ds
+const refs = (&readonly /* borrow */ value, *readonly /* pointer */ value)
+```
+
+```ds expected
+const refs = (&readonly (/* borrow */ value), *readonly (/* pointer */ value));
+```
+
 ## Increment and Decrement
 
 ### prefix increment

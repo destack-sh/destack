@@ -76,6 +76,26 @@ Extra spaces around elements are normalized.
 [1, 2, 3];
 ```
 
+## Comments
+
+### array element sibling comments
+
+Trailing element comments and next element leading comments keep separate ownership.
+
+```ds
+const value = [first, // first
+// second
+second]
+```
+
+```ds expected
+const value = [
+    first, // first
+    // second
+    second,
+];
+```
+
 ## Line Breaking
 
 ### array breaks when line width is exceeded

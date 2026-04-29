@@ -87,3 +87,31 @@ const value = if (
     0
 };
 ```
+
+### if let nested pattern comments
+
+Comments in nested patterns stay with the pattern fields they describe.
+
+```ds
+if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) { x + y } else { 0 }
+```
+
+```ds expected
+if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) {
+    x + y;
+} else {
+    0;
+}
+```
+
+### if let assignment boundary comments
+
+Comments around the matched value stay on their side of the `=`.
+
+```ds
+const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback }
+```
+
+```ds expected
+const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback };
+```

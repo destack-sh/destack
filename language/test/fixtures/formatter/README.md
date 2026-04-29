@@ -36,7 +36,7 @@ Run these commands from `language/`.
 just test-formatter
 ```
 
-To fetch upstream formatter conformance sources:
+To install external formatter fixtures:
 
 ```bash
 just install-conformance-formatter

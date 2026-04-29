@@ -197,6 +197,18 @@ const x = { a: 1, "needs-quotes": 2, "default": 3 }
 const x = { "a": 1, "needs-quotes": 2, "default": 3 };
 ```
 
+### destack quote props consistent
+
+Consistent quote props applies to shared object expression syntax.
+
+```ds quote-props=consistent
+const x = { a: 1, "needs-quotes": 2, "default": 3 }
+```
+
+```ds expected
+const x = { "a": 1, "needs-quotes": 2, "default": 3 };
+```
+
 ### typescript quote props preserve
 
 Preserve keeps original quoting.

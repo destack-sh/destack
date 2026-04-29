@@ -147,3 +147,29 @@ send(
     options,
 );
 ```
+
+### jsx argument followed by line comments
+
+Line comments after a JSX argument stay in the following argument position.
+
+```tsx:main.tsx
+someFunction(
+  <Component
+    value1={{
+      foo: "bar",
+    }}
+  />,
+  // option stays after jsx argument
+)
+```
+
+```tsx expected
+someFunction(
+    <Component
+        value1={{
+            foo: "bar",
+        }}
+    />,
+    // option stays after jsx argument
+);
+```

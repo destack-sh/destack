@@ -221,3 +221,54 @@ Array rest patterns format with spread in assignment.
 ```ts expected
 [...rest] = arr;
 ```
+
+### object assignment defaults
+
+Object assignment targets keep shorthand and property defaults.
+
+```ds
+({ x = fallback, y: z = other, [key]: target, ...rest } = value)
+```
+
+```ds expected
+({ x = fallback, y: z = other, [key]: target, ...rest } = value);
+```
+
+### array assignment defaults
+
+Array assignment targets keep elisions, defaults, and rest.
+
+```ds
+[first, , second = fallback, ...rest] = value
+```
+
+```ds expected
+[first, , second = fallback, ...rest] = value;
+```
+
+### nested assignment defaults
+
+Defaults inside nested object and array targets stay assignable.
+
+```ds
+({ a: { b = c } = d, e: [f = g] } = h)
+```
+
+```ds expected
+({
+    a: { b = c } = d,
+    e: [f = g],
+} = h);
+```
+
+### member assignment targets
+
+Object assignment targets keep member and index targets.
+
+```ds
+({ value: object.property, [key]: target[index] } = source)
+```
+
+```ds expected
+({ value: object.property, [key]: target[index] } = source);
+```

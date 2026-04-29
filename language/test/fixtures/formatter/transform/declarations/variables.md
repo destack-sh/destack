@@ -185,6 +185,24 @@ let Some(value) = maybe else {
 };
 ```
 
+### let else comments
+
+Comments around the fallback boundary stay attached to the pattern and fallback block.
+
+```ds
+let Some(value) /* pattern */ = maybe
+// no value
+else { return }
+```
+
+```ds expected
+let Some(value) /* pattern */ = maybe
+    // no value
+    else {
+        return;
+    };
+```
+
 ## var
 
 ### basic var
@@ -211,6 +229,22 @@ declare const PAGE_PATH: string;
 
 ```ts expected
 declare const PAGE_PATH: string;
+```
+
+### declare const comment before terminator
+
+Comments before a declaration terminator stay after the emitted declaration semicolon.
+
+```ts:main.ts
+declare const PAGE_PATH: string
+  // declaration tail
+;(()=>{})()
+```
+
+```ts expected
+declare const PAGE_PATH: string;
+    // declaration tail
+(() => {})();
 ```
 
 ### assignment comments keep initializer attachment

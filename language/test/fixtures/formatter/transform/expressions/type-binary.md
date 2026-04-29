@@ -41,3 +41,17 @@ const value = call(input as Foo, other satisfies Bar)
 ```ts expected
 const value = call(input as Foo, other satisfies Bar);
 ```
+
+## Runtime Guards
+
+### runtime type guard comments
+
+Runtime type guard comments stay on the side of the operator they describe.
+
+```ds
+const ok = value /* checked value */ is /* expected type */ string
+```
+
+```ds expected
+const ok = value /* checked value */ is /* expected type */ string;
+```

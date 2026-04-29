@@ -10,14 +10,14 @@
         {
             "patterns": ["js/arguments/empty-lines.js"],
             "status": "known-fail-idempotence",
-            "reason": "upstream",
-            "note": "Oxc itself is non-idempotent for this fixture; first pass matches oxfmt, second pass collapses grouped call arguments"
+            "reason": "idempotence",
+            "note": "The source fixture is non-idempotent"
         },
         {
             "patterns": ["js/comments/logical.js"],
             "status": "known-fail-idempotence",
-            "reason": "upstream",
-            "note": "Oxc itself is non-idempotent for this fixture; second pass moves the trailing logical-expression comment outside the inner parentheses"
+            "reason": "idempotence",
+            "note": "The source fixture is non-idempotent"
         },
         {
             "patterns": [
@@ -76,14 +76,14 @@
         {
             "patterns": ["ts/comments/union.ts"],
             "status": "known-fail-idempotence",
-            "reason": "upstream",
-            "note": "Oxc itself is non-idempotent for this fixture"
+            "reason": "idempotence",
+            "note": "The source fixture is non-idempotent"
         },
         {
             "patterns": ["ts/variable-declarations/issue-16193.ts"],
             "status": "known-fail-idempotence",
-            "reason": "upstream",
-            "note": "Oxc itself is non-idempotent for this fixture"
+            "reason": "idempotence",
+            "note": "The source fixture is non-idempotent"
         },
         {
             "patterns": ["ts/union/issue-16902.ts"],
