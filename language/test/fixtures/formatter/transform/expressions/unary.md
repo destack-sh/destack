@@ -1,6 +1,6 @@
 # Unary Expressions
 
-Tests for unary operator spacing and grouping.
+Unary fixtures cover prefix operators, ownership operators, comments, and precedence grouping.
 
 ## Prefix Operators
 

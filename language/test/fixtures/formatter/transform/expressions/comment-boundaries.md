@@ -1,6 +1,6 @@
 # Expression Comment Boundaries
 
-Tests for expression level comment ownership and stability.
+Expression comment fixtures cover boundary comments inside expression layouts.
 
 ## Conditionals
 
@@ -65,7 +65,7 @@ const value = cond
     : new Right();
 ```
 
-## Binary And Assignment
+## Binary and Assignment
 
 ### binary operator boundary comment
 
@@ -200,7 +200,7 @@ const value = source /* before-index */ [key]
 const value = source /* before-index */[key];
 ```
 
-## New And Parentheses
+## New and Parentheses
 
 ### new expression callee boundary comment
 
@@ -214,7 +214,7 @@ const value = new Factory /* new-call */ (arg)
 const value = new Factory(/* new-call */ arg);
 ```
 
-## Template Literals And Unary Boundaries
+## Template Literals and Unary Boundaries
 
 ### tagged template with trailing call comment
 
@@ -286,7 +286,7 @@ start: while (true) {
 }
 ```
 
-## Callee And First Argument Comment Shapes
+## Callee and First Argument Comment Shapes
 
 ### callee boundary comment before call parentheses
 

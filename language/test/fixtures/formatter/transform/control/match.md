@@ -1,10 +1,10 @@
 # Match and Switch Expressions
 
-Tests for match and switch expression formatting, ensuring the formatter preserves the keyword used.
+Match expression fixtures cover match and switch expressions in value and statement contexts.
 
 ## Match Expressions
 
-### basic match expression
+### match expression
 
 Match expressions use arrow syntax for cases.
 
@@ -197,7 +197,7 @@ match (result) {
 
 ### match tail arm comments
 
-Comments inside value-producing arms stay before the arm tail expression.
+Comments inside value arms stay before the arm tail expression.
 
 ```ds
 function statusText(status: Status): string { match (status) { Ready => { // ready branch
@@ -244,7 +244,7 @@ match (value) {
 
 ## Switch Expressions
 
-### basic switch expression
+### switch expression
 
 Switch expressions use case/colon syntax.
 

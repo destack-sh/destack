@@ -1,6 +1,6 @@
 # TSX Comments
 
-Tests for TSX comment formatting in tree literals.
+TSX comment fixtures cover comment containers, dangling comments, and arrow-expression comments.
 
 ## Comment Containers
 

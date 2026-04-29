@@ -1,10 +1,10 @@
 # Class Declarations
 
-Tests for class declaration formatting.
+Class fixtures cover class heads, members, modifiers, decorators, and heritage clauses.
 
-## Basic Classes
+## Class Forms
 
-### simple class
+### class declaration
 
 Extra whitespace in class declarations should be normalized.
 
@@ -137,7 +137,7 @@ class Foo {
 
 ### class constructor and setter bodies
 
-Constructors and setters keep terminal expressions statement-valued.
+Constructors and setters keep terminal expressions as statements.
 
 ```ds
 class Foo { constructor() { initialize() } set value(next: number) { this.current = next } }
@@ -367,9 +367,9 @@ class Foo {
 }
 ```
 
-## TypeScript Classes
+## TypeScript Class Forms
 
-### typescript class fields use semicolons
+### TypeScript class fields use semicolons
 
 TypeScript class fields use semicolons instead of commas.
 
@@ -384,7 +384,7 @@ class Foo {
 }
 ```
 
-### typescript accessor field
+### TypeScript accessor field
 
 Accessor fields keep the `accessor` keyword and use semicolons.
 
@@ -398,7 +398,7 @@ class Box {
 }
 ```
 
-### typescript private hash members
+### TypeScript private hash members
 
 Private hash members keep the `#` prefix and use semicolons.
 
@@ -414,7 +414,7 @@ class Foo {
 }
 ```
 
-### typescript class quoted keys
+### TypeScript class quoted keys
 
 Quoted class members preserve their original quoting unless quote-props mode says otherwise.
 
@@ -430,7 +430,7 @@ class Config {
 }
 ```
 
-### destack class quoted members
+### Destack class quoted members
 
 Quoted class members preserve their original quoting unless quote-props mode says otherwise.
 
@@ -446,7 +446,7 @@ class Config {
 }
 ```
 
-### typescript class quote props consistent
+### TypeScript class quote props consistent
 
 Consistent quote props quotes all keys when any require quotes.
 
@@ -462,7 +462,7 @@ class Options {
 }
 ```
 
-### destack class quote props consistent
+### Destack class quote props consistent
 
 Consistent quote props applies to shared class member syntax.
 
@@ -478,7 +478,7 @@ class Options {
 }
 ```
 
-### typescript class unicode methods
+### TypeScript class unicode methods
 
 Unicode method names stay quoted and normalize quote style.
 
@@ -493,7 +493,7 @@ class A {
 }
 ```
 
-### typescript abstract class preserves keyword
+### TypeScript abstract class preserves keyword
 
 Abstract classes keep the `abstract` modifier.
 
@@ -507,7 +507,7 @@ abstract class Foo {
 }
 ```
 
-### typescript override method preserves keyword
+### TypeScript override method preserves keyword
 
 Override methods keep the `override` modifier.
 
@@ -525,7 +525,7 @@ class Child extends Base {
 }
 ```
 
-### typescript abstract override method preserves keywords
+### TypeScript abstract override method preserves keywords
 
 Abstract override methods keep both modifiers.
 
@@ -543,7 +543,7 @@ abstract class Child extends Base {
 }
 ```
 
-### typescript declaration method signatures use semicolons
+### TypeScript declaration method signatures use semicolons
 
 TypeScript declaration class signatures end with semicolons.
 
@@ -559,7 +559,7 @@ declare class Foo {
 
 ## Methods
 
-### simple method
+### method declaration
 
 Simple single-statement method bodies stay on one line.
 

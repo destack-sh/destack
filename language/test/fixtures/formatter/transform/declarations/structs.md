@@ -1,10 +1,10 @@
 # Struct Declarations
 
-Tests for struct declaration formatting.
+Struct fixtures cover declaration heads, fields, methods, and comptime member blocks.
 
-## Basic Structs
+## Struct Forms
 
-### simple struct
+### struct declaration
 
 Structs format like nominal value types with semicolon-terminated members.
 

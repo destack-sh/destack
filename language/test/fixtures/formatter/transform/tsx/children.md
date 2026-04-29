@@ -1,6 +1,6 @@
 # TSX Children
 
-Tests for TSX children formatting and line breaking.
+TSX child fixtures cover text, expression children, fragments, and multiline child layout.
 
 ## Text and Expressions
 
@@ -148,7 +148,7 @@ const node = (
 
 ### text with inline elements breaks into lines
 
-Inline elements inside text blocks break into readable lines.
+Inline elements inside text blocks break into separate lines.
 
 ```tsx:main.tsx
 export default function ProTip() {

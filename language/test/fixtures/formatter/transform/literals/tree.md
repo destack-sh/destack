@@ -1,6 +1,6 @@
 # Tree Literals
 
-Tests for Destack tree literal (JSX-like) formatting.
+Tree literal fixtures cover Destack tree elements, attributes, children, expressions, and layout options.
 
 ## Self-Closing Elements
 
@@ -125,7 +125,7 @@ Elements can contain other elements.
 
 ### nested elements
 
-Deeply nested elements format with proper indentation.
+Deeply nested elements expand with stable indentation.
 
 ```ds line-width=40
 <Outer><Middle><Inner>content</Inner></Middle></Outer>
@@ -141,7 +141,7 @@ Deeply nested elements format with proper indentation.
 
 ### mixed children
 
-Elements with mixed text and element children expand into a readable multiline layout.
+Elements with mixed text and element children expand into a multiline layout.
 
 ```ds
 <Paragraph>Hello <Strong>World</Strong>!</Paragraph>
@@ -242,7 +242,8 @@ Boolean attributes can omit the value.
 
 ### comment in expression container
 
-Comments inside JSX use expression containers. Block infix comments cause expansion with proper indent.
+Comments inside JSX use expression containers.
+Block infix comments cause expansion with stable indentation.
 
 ```ds
 <Container>{/* XOXO: something something add content */}</Container>
@@ -272,7 +273,8 @@ Map expressions can generate multiple elements.
 
 ### long map with block body
 
-Map with block body breaks appropriately. Return JSX gets parens when multi-line.
+Map with block body breaks.
+Return JSX gets parens when multi-line.
 
 ```ds line-width=40
 <List>{items.map((item) => { return <Item key={item.id} name={item.name} /> })}</List>
@@ -390,7 +392,8 @@ render(<App />);
 
 ### jsx with props in function call
 
-JSX with attributes in function arguments. Boolean `{true}` uses shorthand.
+JSX with attributes can appear in function arguments.
+Boolean `{true}` uses shorthand.
 
 ```ds
 createPortal(<Modal isOpen={true} />, document.body)

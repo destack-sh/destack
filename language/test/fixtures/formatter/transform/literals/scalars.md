@@ -1,8 +1,8 @@
-# String Literals
+# Scalar Literals
 
-Tests for string literal formatting.
+Literal fixtures cover strings, templates, numeric literals, booleans, nullish literals, and regular expressions.
 
-## Basic Strings
+## Strings
 
 ### double quoted string
 
@@ -104,7 +104,7 @@ const x = 'say "hello"';
 
 ## Template Literals
 
-### simple template literal
+### template literal
 
 Template literals use backticks.
 
@@ -540,7 +540,7 @@ const x = undefined;
 
 ## Regex Literals
 
-### simple regex
+### regex literal
 
 Regex literals use forward slashes.
 
@@ -576,7 +576,7 @@ const x = /hello/gi
 const x = /hello/gi;
 ```
 
-### complex regex
+### regex with escaped pattern
 
 Complex patterns are preserved exactly.
 

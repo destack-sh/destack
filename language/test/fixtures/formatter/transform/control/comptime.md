@@ -1,8 +1,8 @@
 # Comptime Expressions
 
-Tests for `comptime` expression formatting.
+Comptime fixtures cover `comptime` conditions, blocks, and value-tail behavior.
 
-## Basic Comptime
+## Comptime Forms
 
 ### comptime expression
 
@@ -64,7 +64,7 @@ function table(): number {
 
 ### comptime block statement position
 
-Comptime blocks in statement position keep the outer expression statement-valued.
+Comptime blocks in statement position keep the outer expression as a statement.
 
 ```ds
 function prepare(): void { comptime { const value = buildTable(); install(value) } }

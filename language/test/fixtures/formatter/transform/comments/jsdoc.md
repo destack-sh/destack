@@ -1,6 +1,6 @@
 # JSDoc
 
-Tests for supported declaration documentation formatting.
+JSDoc fixtures cover declaration documentation formatting.
 
 ## Declarations
 
@@ -26,7 +26,7 @@ function readReader() {}
 function readReader() {}
 ```
 
-### jsdoc simple declarations
+### jsdoc declaration comments
 
 Declaration comments can collapse to single-line JSDoc.
 
@@ -145,7 +145,7 @@ function readConfig() {}
 
 ### jsdoc tag aliases
 
-Supported tag aliases normalize to canonical tag names.
+Recognized tag aliases normalize to canonical tag names.
 
 ```ts:main.ts jsdoc=true line-width=80
 /**
@@ -295,7 +295,7 @@ function read(x) {}
 
 ### jsdoc single-line tags
 
-Short supported tags collapse to single-line JSDoc.
+Short recognized tags collapse to single-line JSDoc.
 
 ```js:main.js jsdoc=true line-width=80 indent-width=2
 /**
@@ -509,7 +509,7 @@ function example() {}
 function example() {}
 ```
 
-### jsdoc example fenced destack code
+### jsdoc example fenced Destack code
 
 Destack code fences are formatted as embedded code.
 

@@ -1,10 +1,10 @@
 # Type Alias Declarations
 
-Tests for type alias declaration formatting.
+Type alias fixtures cover aliases, generics, object types, mapped types, and conditional types.
 
-## Basic Type Aliases
+## Type Alias Forms
 
-### simple type alias
+### type alias
 
 Extra whitespace around the type alias should be normalized.
 
@@ -42,7 +42,7 @@ type   Foo   =   A   &   B
 type Foo = A & B;
 ```
 
-### typescript type literal uses semicolons
+### TypeScript type literal uses semicolons
 
 TypeScript type literals use semicolons between properties.
 
@@ -54,7 +54,7 @@ type Foo = { a: string, b: number }
 type Foo = { a: string; b: number };
 ```
 
-### typescript type literal keeps semicolons when multiline
+### TypeScript type literal keeps semicolons when multiline
 
 Multiline TypeScript type literals include semicolons after each property.
 
@@ -153,9 +153,9 @@ type MaybeUser =
     | undefined;
 ```
 
-### intersection with object types stays readable
+### intersection with object types expands
 
-Object-like intersection arms keep `&` separators readable when object arms expand.
+Object-like intersection arms keep `&` separators clear when object arms expand.
 
 ```ds line-width=30
 type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
@@ -172,7 +172,7 @@ type WithDetails = {
 
 ## Mapped Types
 
-### simple mapped type
+### mapped type
 
 Mapped types iterate over keys and transform values.
 
@@ -250,7 +250,7 @@ type DeepReadonly<T> = {
 
 ## Conditional Types
 
-### simple conditional type
+### conditional type
 
 Conditional types use `extends` with ternary syntax.
 
@@ -338,7 +338,8 @@ type Block<T, N: number> = T[N as comptime];
 
 ### template literal type
 
-Template literal types create string literal unions. Destack uses `: Type` for type parameter constraints (not `extends Type` like TypeScript).
+Template literal types create string literal unions.
+Destack uses `: Type` for type parameter constraints, not `extends Type` like TypeScript.
 
 ```ds
 type EventName<T: string> = `on${Capitalize<T>}`

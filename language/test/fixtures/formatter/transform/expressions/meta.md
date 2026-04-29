@@ -1,6 +1,6 @@
 # Meta Expressions
 
-Tests for meta property expressions like `import.meta` and `new.target`.
+Meta expression fixtures cover `import.meta` and `new.target` member chains.
 
 ## Import Meta
 

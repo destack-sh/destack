@@ -1,10 +1,10 @@
 # Function Declarations
 
-Tests for function declaration formatting.
+Function fixtures cover signatures, bodies, overloads, generators, and async declarations.
 
-## Basic Functions
+## Function Forms
 
-### simple function
+### function declaration
 
 Extra whitespace in the function signature should be removed.
 
@@ -60,7 +60,7 @@ function add(a: number, b: number): number {
 
 ### function with multiple statements
 
-Each statement goes on its own line with proper indentation.
+Each statement goes on its own line with stable indentation.
 
 ```ds
 function process(x: number) { const y = x * 2; const z = y + 1; return z; }
@@ -244,7 +244,8 @@ async function* items() {
 
 ### arrow function expression
 
-Arrow functions with expression bodies stay on one line. Single parameters get parentheses.
+Arrow functions with expression bodies stay on one line.
+Single parameters get parentheses.
 
 ```ds
 const   foo   =   (  x  )   =>   x  +  1
@@ -633,7 +634,7 @@ function parse(x: string | number): number {
 }
 ```
 
-## Type Predicates (TypeScript)
+## Type Predicates
 
 ### type predicate return type
 

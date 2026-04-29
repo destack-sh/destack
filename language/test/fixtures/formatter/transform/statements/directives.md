@@ -1,8 +1,8 @@
 # Directive Prologues
 
-Tests for directive prologue formatting.
+Directive fixtures cover directive prologues and comments around directives.
 
-## Basic Directives
+## Directive Prologues
 
 ### single directive
 
@@ -38,7 +38,7 @@ render();
 
 ### suppression aliases preserve ignored statements
 
-Supported suppression aliases should preserve ignored source and keep formatted statements stable.
+Recognized suppression aliases preserve ignored source and keep formatted statements stable.
 
 ```ts:main.ts
 const keepFormatted = 1;

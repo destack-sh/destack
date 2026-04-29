@@ -1,8 +1,8 @@
 # Type Binary Operators
 
-Tests for TypeScript type binary operators like `as` and `satisfies`.
+Type binary fixtures cover `as`, `satisfies`, non-null assertions, and assertion grouping.
 
-## Basic Casts
+## Cast Expressions
 
 ### as cast expression
 

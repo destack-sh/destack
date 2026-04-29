@@ -1,8 +1,8 @@
 # New Expressions
 
-Tests for `new` expression formatting.
+New expression fixtures cover constructor calls, type arguments, JSX arguments, and member grouping.
 
-## Basic New
+## Constructor Calls
 
 ### new with empty args
 
@@ -48,7 +48,7 @@ const value = new Foo(
 
 ## Type Arguments
 
-### new with type arguments (TypeScript)
+### new with type arguments
 
 Type arguments keep tight spacing.
 

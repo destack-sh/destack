@@ -1,11 +1,16 @@
 # Formatter Test Fixtures
 
-This directory contains formatter test fixtures with two fixture groups: transform and roundtrip tests. 
-They test exactly what the name implies.
+Formatter fixtures use targeted transform cases and idempotent roundtrip files.
 
 ## Transform Tests (`.md` files)
 
-MDTest format for verifying formatting transformations. Each test specifies input code and expected formatted output.
+Transform fixtures use MDTest cases with input code and the expected formatted output.
+Cases should be organized by syntax family first and by formatting contract second.
+Headings should name the behavior, not the source language mode.
+Use `control` for branch, loop, try, match, and other flow constructs.
+Use `patterns` for destructuring and pattern matching.
+Use `types` for type syntax and type comment ownership.
+Use `integration` only for cross-family cases that do not belong to one formatter family.
 
 ````markdown
 ## Section Name
@@ -16,7 +21,7 @@ MDTest format for verifying formatting transformations. Each test specifies inpu
 input code here (possibly messy)
 ```
 
-```expected
+```ds expected
 expected formatted output
 ```
 ````
@@ -25,7 +30,6 @@ expected formatted output
 ## Roundtrip Tests (`roundtrip/*.{ds,d.ds,js,jsx,ts,tsx,d.ts}`)
 
 Pre-formatted code that should remain unchanged when formatted.
-
 Roundtrip fixtures cover canonicalized shared JS, JSX, TS, and TSX code as well as reviewed Destack local syntax.
 
 ## Running Tests
@@ -43,6 +47,7 @@ just install-conformance-formatter
 ```
 
 To run a specific test:
+
 ```bash
 cargo test --release --test formatter -- spacing  # runs tests matching "spacing"
 ```

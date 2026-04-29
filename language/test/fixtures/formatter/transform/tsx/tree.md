@@ -1,10 +1,10 @@
 # TSX Tree Literals
 
-Tests for TSX formatting with tree literal syntax.
+TSX tree fixtures cover elements, generic tags, attributes, expressions, and multiline wrappers.
 
-## Basic Elements
+## Elements
 
-### simple element with text
+### element with text
 
 Text content stays inline when it fits.
 
@@ -54,7 +54,7 @@ const node = <div> Hello World </div>;
 
 ## Generic Tags
 
-### simple generic tag
+### generic tag
 
 Generic tag parameters stay attached to the tag name.
 

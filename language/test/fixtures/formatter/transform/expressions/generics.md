@@ -1,6 +1,6 @@
 # Generics
 
-Tests for generic type argument formatting.
+Generic fixtures cover type arguments on calls, members, and instantiation expressions.
 
 ## Type Arguments
 

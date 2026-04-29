@@ -1,10 +1,10 @@
 # Assignment Expressions
 
-Tests for assignment operator spacing and chaining.
+Assignment fixtures cover operator spacing, chaining, patterns, comments, and assignment targets.
 
-## Basic Assignments
+## Assignment Forms
 
-### simple assignment
+### assignment expression
 
 Simple assignments keep spaces around the operator.
 
@@ -273,7 +273,7 @@ Object assignment targets keep member and index targets.
 ({ value: object.property, [key]: target[index] } = source);
 ```
 
-### nested assignment target matrix
+### nested assignment targets
 
 Nested assignment targets keep aliases, defaults, computed keys, and rest fields.
 
@@ -290,7 +290,7 @@ Nested assignment targets keep aliases, defaults, computed keys, and rest fields
 } = source);
 ```
 
-### array assignment target matrix
+### array assignment targets
 
 Array assignment targets keep elisions, defaults, nested targets, and rest fields.
 

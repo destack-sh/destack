@@ -1,6 +1,6 @@
-# Comments
+# Comment Primitives
 
-Tests for comment formatting and preservation.
+Comment fixtures cover standalone comments, documentation comments, and formatter directives.
 
 ## Line Comments
 
@@ -168,7 +168,7 @@ call(   a, b)
 call(   a, b)
 ```
 
-### typescript directive comments do not disable formatting
+### TypeScript directive comments do not disable formatting
 
 TypeScript diagnostic directives preserve the comment but still format code.
 

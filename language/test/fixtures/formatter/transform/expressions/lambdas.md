@@ -1,10 +1,10 @@
 # Lambda Expressions
 
-Tests for arrow function and lambda expression formatting.
+Lambda fixtures cover arrow heads, block bodies, callbacks, destructuring, and generic parameters.
 
-## Basic Arrow Functions
+## Arrow Function Heads
 
-### simple arrow function with parens
+### parenthesized arrow parameter
 
 Arrow functions with parenthesized params are preserved.
 
@@ -92,7 +92,7 @@ const f = (x: number): number => x * 2;
 
 ### arrow function with complex types
 
-Union types and multiple typed parameters are supported.
+Union types and multiple typed parameters stay in the arrow head.
 
 ```ts:main.ts
 const f = (a: string, b: number): string | number => a || b

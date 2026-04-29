@@ -1,8 +1,8 @@
 # Ternary Expressions
 
-Tests for ternary (conditional) expression formatting.
+Ternary fixtures cover conditional expression layout, comments, and nested branches.
 
-## Basic Ternary
+## Ternary Forms
 
 ### ternary as variable value
 
@@ -91,7 +91,7 @@ const value = options.singleRun
 
 ### nested ternary in assignment
 
-Nested ternaries format with proper indentation.
+Nested ternaries expand with stable indentation.
 
 ```ds line-width=50
 const x = a ? b : c ? d : e

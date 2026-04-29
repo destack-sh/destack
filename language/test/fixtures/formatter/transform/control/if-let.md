@@ -1,8 +1,8 @@
 # If Let Expressions
 
-Tests for `if let` expression formatting.
+If-let fixtures cover pattern conditions, branch tails, comments, and nested control flow.
 
-## Basic If Let
+## If-Let Forms
 
 ### if let expression
 
@@ -231,7 +231,7 @@ function unwrap(maybe: Maybe<number>): number {
 
 ### if let tail branch comments
 
-Branch comments keep the value-producing tail expression semicolonless.
+Branch comments keep tail expressions semicolonless.
 
 ```ds
 function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { // present

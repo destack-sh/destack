@@ -1,8 +1,8 @@
 # TSX Attributes
 
-Tests for TSX attribute formatting and layout behavior.
+TSX attribute fixtures cover attribute spacing, expressions, comments, spread attributes, and layout options.
 
-## Basic Attributes
+## Attribute Forms
 
 ### spacing and boolean shorthand
 

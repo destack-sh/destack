@@ -1,6 +1,6 @@
 # Object Literals
 
-Tests for object literal formatting.
+Object fixtures cover object spacing, properties, methods, comments, type assertions, and quoted keys.
 
 ## Spacing
 
@@ -173,7 +173,7 @@ const x = { normal: 1, "needs-quotes": 2 }
 const x = { normal: 1, "needs-quotes": 2 };
 ```
 
-### typescript quote props as needed
+### TypeScript quote props as needed
 
 TypeScript removes quotes when they are not required.
 
@@ -185,7 +185,7 @@ const x = { "data-id": 1, "default": 2, "normal": 3 }
 const x = { "data-id": 1, default: 2, normal: 3 };
 ```
 
-### typescript quote props consistent
+### TypeScript quote props consistent
 
 Consistent quote props quotes all keys when any require quotes.
 
@@ -197,7 +197,7 @@ const x = { a: 1, "needs-quotes": 2, "default": 3 }
 const x = { "a": 1, "needs-quotes": 2, "default": 3 };
 ```
 
-### destack quote props consistent
+### Destack quote props consistent
 
 Consistent quote props applies to shared object expression syntax.
 
@@ -209,7 +209,7 @@ const x = { a: 1, "needs-quotes": 2, "default": 3 }
 const x = { "a": 1, "needs-quotes": 2, "default": 3 };
 ```
 
-### typescript quote props preserve
+### TypeScript quote props preserve
 
 Preserve keeps original quoting.
 
@@ -557,7 +557,7 @@ const settings = { retries: 3, verbose: false } as const
 const settings = { retries: 3, verbose: false } as const;
 ```
 
-## Unicode Keys (TypeScript)
+## Unicode Keys
 
 ### object with unicode keys
 

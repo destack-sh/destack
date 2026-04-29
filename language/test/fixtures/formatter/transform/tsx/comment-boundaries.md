@@ -1,6 +1,6 @@
 # TSX Comment Boundaries
 
-Tests for TSX comment attachment boundaries.
+TSX comment boundary fixtures cover comments around children, ternaries, inline expressions, and call arguments.
 
 ## Child Containers
 
@@ -74,6 +74,58 @@ const node = (
             <B />
         )}
     </>
+);
+```
+
+### ternary branch inline comments
+
+Inline comments inside TSX ternary branches stay attached on both sides.
+
+```tsx:main.tsx line-width=40
+const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
+```
+
+```tsx expected
+const node = (
+    <div>
+        {
+            isVideo ? (
+                <Video />
+            ) : (
+                /* keep-video */ <Image />
+            ) /* keep-image */
+        }
+    </div>
+);
+```
+
+### ternary alternate block comment
+
+Block comments inside alternate TSX branches stay with the alternate branch.
+
+```tsx:main.tsx
+const Component = () => (
+  <div>
+    {"error" ? (
+      <Error />
+    ) : (
+      <Success />
+      /* keep-inside-branch */
+    )}
+  </div>
+)
+```
+
+```tsx expected
+const Component = () => (
+    <div>
+        {"error" ? (
+            <Error />
+        ) : (
+            <Success />
+            /* keep-inside-branch */
+        )}
+    </div>
 );
 ```
 

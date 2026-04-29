@@ -1,10 +1,10 @@
 # Tuple Literals
 
-Tests for Destack tuple literal formatting.
+Tuple fixtures cover tuple literals, tuple patterns, and comments.
 
-## Basic Tuples
+## Tuple Forms
 
-### simple tuple
+### tuple literal
 
 Multi-element tuple literals do not need an extra trailing comma.
 

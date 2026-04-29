@@ -1,6 +1,6 @@
 # Parenthesized Expressions
 
-Tests for parenthesized expression formatting.
+Parentheses fixtures cover removable grouping and semantically required parentheses.
 
 ## Spacing
 
