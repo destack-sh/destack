@@ -8,8 +8,6 @@ pub const DESTACK_WATCH_POLL_MS: &str = "DESTACK_WATCH_POLL_MS";
 pub const DESTACK_WATCH_DEBOUNCE_MS: &str = "DESTACK_WATCH_DEBOUNCE_MS";
 /// Environment key used to override the worker count.
 pub const DESTACK_WORKERS: &str = "DESTACK_WORKERS";
-/// Environment key used to override the slow task threshold in milliseconds.
-pub const DESTACK_SLOW_TASK_MS: &str = "DESTACK_SLOW_TASK_MS";
 /// Environment key used to override the default target selection.
 pub const DESTACK_TARGET: &str = "DESTACK_TARGET";
 /// Environment key used to override the default environment selection.
