@@ -71,6 +71,28 @@ fn test_reject_type_predicate_in_plain_type_before_block_context() {
     );
 }
 
+/// Reject TypeScript `asserts` predicate subjects after a line break.
+#[test]
+fn test_reject_asserts_type_predicate_subject_on_new_line() {
+    let mut test = TestParser::new_with_options(
+        r"
+function assertFoo(value: unknown): asserts
+value is Foo {
+    return;
+}
+",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+
+    parser.parse();
+
+    test.assert_error_leaves(
+        &parser,
+        &[(None, None, "is"), (None, None, "Foo"), (None, None, "{")],
+    );
+}
+
 /// Parse a predicate return type whose subject is also a contextual type literal.
 #[test]
 fn test_parse_return_type_predicate_with_object_subject() {

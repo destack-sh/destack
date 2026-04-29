@@ -1,7 +1,7 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
-use destack_source::LanguageType;
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse an if extends condition without consuming the block.
 #[test]
@@ -118,6 +118,51 @@ if (value is string) {
         });
     });
 
+    test.assert_no_errors(&parser);
+}
+
+/// Parse runtime type guard comments into expression and target boundaries.
+#[test]
+fn test_parse_if_is_type_guard_comment_boundaries() {
+    let mut test = TestParser::new_with_options(
+        "if (value /* checked value */ is /* expected type */ string) { value }",
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_comments();
+
+    assert_eq!(parser.tree.comments().len(), 2);
+
+    assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
+        let condition_id = match condition {
+            IfCondition::Expression { condition } => *condition,
+            IfCondition::Let { .. } => panic!("expected expression condition"),
+        };
+
+        // value /* checked value */ is /* expected type */ string
+        assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
+            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::String);
+            });
+
+            let operator_span = parser
+                .tree
+                .get_main_span(condition_id)
+                .expect("expected guard operator span");
+            let target_leading_span = parser
+                .tree
+                .get_side_span(*target_type, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
+                .expect("expected target leading span");
+
+            assert_eq!(parser.get_span_str(operator_span), "is");
+            assert_eq!(parser.get_span_str(target_leading_span), " /* expected type */ ");
+        });
+    });
+
+    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " checked value");
+    assert_comment!(parser, 1, CommentKind::SingleLineBlock, " expected type");
     test.assert_no_errors(&parser);
 }
 

@@ -11,7 +11,7 @@ use destack_ast::{
     AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
     OperatorPrecedence, TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 const AS_ASSERTION_PRECEDENCE: u16 = 1355;
 const SATISFIES_ASSERTION_PRECEDENCE: u16 = 1003;
@@ -218,7 +218,7 @@ impl Parser {
         if !self.options.is_in_super_type()
             && identifier_keyword == Some(Keyword::Is)
             && (self.options.is_in_type() || self.language.is_destack())
-            && (self.language.is_destack() || !has_newline)
+            && !has_newline
         {
             return Ok((ParseInfixOperator::Is, 1));
         }
@@ -228,7 +228,7 @@ impl Parser {
             && !self.options.is_in_type()
             && let Some(keyword) = identifier_keyword
             && matches!(keyword, Keyword::As | Keyword::Satisfies)
-            && (self.language.is_destack() || !has_newline)
+            && !has_newline
         {
             let next_token_type = next_token
                 .map(|next| next.token.ty)
@@ -258,7 +258,6 @@ impl Parser {
         if !self.options.is_in_super_type()
             && !self.options.is_in_type()
             && let Some(keyword) = identifier_keyword
-            && (self.language.is_destack() || !has_newline)
         {
             // `x instanceof C`
             if keyword == Keyword::InstanceOf {
@@ -278,7 +277,7 @@ impl Parser {
                         type_binary_operator,
                         TypeBinaryOperator::Extends | TypeBinaryOperator::Implements
                     )))
-            && (self.language.is_destack() || !has_newline)
+            && !has_newline
         {
             return Ok((ParseInfixOperator::TypeBinary(type_binary_operator), 1));
         }
@@ -558,6 +557,8 @@ impl Parser {
                     return Err(ParseError::unexpected(self.tree.get_span(left_type_id)));
                 };
 
+                self.set_node_leading_span(right_type_id, operator_span.end);
+
                 let predicate_id = self.insert_node(
                     TypeExpression::Predicate {
                         asserts: false,
@@ -567,6 +568,11 @@ impl Parser {
                     source_span,
                 );
                 self.tree.set_head_span(predicate_id, head_span);
+                self.tree.set_side_span(
+                    predicate_id,
+                    NodeSpanType::Region(NodeSpanRegion::Type),
+                    operator_span,
+                );
 
                 Ok(predicate_id)
             }
