@@ -461,6 +461,14 @@ fn expression_binary_like_needs_parentheses_in_parent(
         return is_class_extends(context, parent_id, parent_type, parent_child_id);
     }
 
+    // assertion parents
+    if matches!(
+        parent_expression,
+        Expression::As { .. } | Expression::Satisfies { .. }
+    ) {
+        return true;
+    }
+
     let Expression::Binary { operator, .. } = context.tree.get(node_id) else {
         return type_cast_like_needs_parentheses(parent_expression, parent_child_id);
     };
