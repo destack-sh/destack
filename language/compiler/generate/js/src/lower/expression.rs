@@ -413,7 +413,7 @@ impl ModuleLowerer<'_> {
                 if *source == dir::ImportSource::ImportCall {
                     let target_expression = match target {
                         dir::ImportTarget::String(target) => {
-                            let target = self.strings.intern_from(self.source_strings, *target);
+                            let target = *target;
                             self.tree.insert_from_source(
                                 js::Expression::ScalarLiteral {
                                     value: js::ScalarLiteral::String(target),
@@ -458,9 +458,7 @@ impl ModuleLowerer<'_> {
                         .into_any()
                 } else {
                     let target = match target {
-                        dir::ImportTarget::String(target) => {
-                            self.strings.intern_from(self.source_strings, *target)
-                        }
+                        dir::ImportTarget::String(target) => *target,
                         dir::ImportTarget::Expression { .. } => {
                             return Err(CodegenJsError::UnsupportedConstruct {
                                 node: expression_id.into_global_any(self.module.id),
@@ -505,7 +503,7 @@ impl ModuleLowerer<'_> {
             } => {
                 // resolved import calls keep expression semantics
                 if *source == dir::ImportSource::ImportCall {
-                    let target = self.strings.intern_from(self.source_strings, *target);
+                    let target = *target;
                     let target_expression = self.tree.insert_from_source(
                         js::Expression::ScalarLiteral {
                             value: js::ScalarLiteral::String(target),
@@ -534,7 +532,7 @@ impl ModuleLowerer<'_> {
                         )
                         .into_any()
                 } else {
-                    let target = self.strings.intern_from(self.source_strings, *target);
+                    let target = *target;
                     let items = items
                         .as_ref()
                         .map(|items| self.lower_dependency_items(*kind, items.as_slice()))
@@ -564,7 +562,7 @@ impl ModuleLowerer<'_> {
                 items,
                 attributes,
             } => {
-                let target = self.strings.intern_from(self.source_strings, *target);
+                let target = *target;
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
@@ -591,7 +589,7 @@ impl ModuleLowerer<'_> {
                 items,
                 attributes,
             } => {
-                let target = self.strings.intern_from(self.source_strings, *target);
+                let target = *target;
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
@@ -796,7 +794,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::PrivateIdentifier { name } => {
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let expression = js::Expression::PrivateIdentifier { name };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -929,14 +927,11 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::TemplateExpression { value } => {
                 let value = match value {
-                    dir::TemplateLiteral::String { string } => js::TemplateLiteral::String {
-                        template: self.strings.intern_from(self.source_strings, *string),
-                    },
+                    dir::TemplateLiteral::String { string } => {
+                        js::TemplateLiteral::String { template: *string }
+                    }
                     dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                        let template = strings
-                            .iter()
-                            .map(|string| self.strings.intern_from(self.source_strings, *string))
-                            .collect();
+                        let template = strings.iter().map(|string| *string).collect();
                         let expressions = arguments
                             .iter()
                             .map(|argument_id| {
@@ -1059,7 +1054,7 @@ impl ModuleLowerer<'_> {
                         message: Some("missing member name".to_string()),
                     });
                 };
-                let name = self.strings.intern_from(self.source_strings, name);
+                let name = name;
                 let expression = js::Expression::Member {
                     left: left_id,
                     name,
@@ -1078,7 +1073,7 @@ impl ModuleLowerer<'_> {
                         message: Some("missing private member name".to_string()),
                     });
                 };
-                let name = self.strings.intern_from(self.source_strings, name);
+                let name = name;
                 let expression = js::Expression::PrivateMember {
                     left: left_id,
                     name,
@@ -1507,8 +1502,7 @@ impl ModuleLowerer<'_> {
                     });
                 }
 
-                let label =
-                    target.map(|target| self.strings.intern_from(self.source_strings, target));
+                let label = target.map(|target| target);
                 let statement = js::Statement::Break { label };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
@@ -1518,8 +1512,7 @@ impl ModuleLowerer<'_> {
                 target,
                 target_symbol: _,
             } => {
-                let label =
-                    target.map(|target| self.strings.intern_from(self.source_strings, target));
+                let label = target.map(|target| target);
                 let statement = js::Statement::Continue { label };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
@@ -1615,7 +1608,7 @@ impl ModuleLowerer<'_> {
                 body,
                 symbol: _,
             } => {
-                let label = self.strings.intern_from(self.source_strings, *label);
+                let label = *label;
                 let body_id = self.lower_expression_as_statement(*body)?;
                 let statement = js::Statement::Labelled {
                     label,

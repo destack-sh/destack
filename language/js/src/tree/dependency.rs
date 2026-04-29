@@ -1,7 +1,8 @@
 use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
+use serde::{Deserialize, Serialize};
 /// How an Export should be treated for processing by the system.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyMode {
     /// Export as regular item (like `export foo`).
     Item,
@@ -12,7 +13,7 @@ pub enum DependencyMode {
 }
 
 /// The kind of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
@@ -27,7 +28,7 @@ pub enum DependencyKind {
 /// baz
 /// qux as quux
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DependencyItem {
     /// The mode of the item (Item, Default, Namespace).
     pub mode: DependencyMode,

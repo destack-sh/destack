@@ -65,7 +65,7 @@ impl ModuleLowerer<'_> {
                     None,
                     None,
                 );
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let ty = self
                     .types
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
@@ -159,7 +159,7 @@ impl ModuleLowerer<'_> {
                     None,
                     None,
                 );
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let ty = self
                     .types
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))

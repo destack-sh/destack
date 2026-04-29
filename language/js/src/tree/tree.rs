@@ -5,6 +5,7 @@ use destack_core::Arena;
 use destack_dir as dir;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
@@ -17,7 +18,7 @@ use crate::{
 pub const MODULE_DEFAULT_NAME: &str = "_default";
 
 /// Dense metadata for one JS node id.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub(crate) struct NodeIndexEntry {
     /// The packed local id and node type.
     packed: u32,
@@ -109,7 +110,7 @@ impl NodeIndexEntry {
 }
 
 /// One stable symbol identity in lowered script output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ScriptSymbolId {
     /// One symbol lowered directly from source DIR.
     Source(GlobalSymbolId),
@@ -118,7 +119,7 @@ pub enum ScriptSymbolId {
 }
 
 /// Mutable AST tree for a single source unit. NOT THREAD-SAFE.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Tree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,

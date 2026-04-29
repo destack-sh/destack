@@ -1,51 +1,56 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirPatched, EmitFormat, ScriptArtifact, ScriptDeclaration, ScriptLanguage,
+    Ast, DirChecked, DirDeclared, EmitFormat, ScriptDeclaration, ScriptLanguage, ScriptOutput,
 };
 use destack_core::StringPool;
+use destack_js as js;
 use destack_workspace::{Module, Target};
 
-use super::{JsBackend, lower_module};
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptModule};
+use super::lower_module;
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
 
-/// One generator for script module artifacts.
+/// One generator for script module outputs.
 #[derive(Debug)]
-pub struct ScriptArtifactGenerator<'a> {
+pub struct ScriptOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// The current module AST.
     ast: Arc<Ast>,
-    /// The current patched DIR artifact.
-    dir: Arc<DirPatched>,
+    /// The current declared DIR artifact.
+    declared: Arc<DirDeclared>,
+    /// The current checked DIR artifact.
+    checked: Arc<DirChecked>,
     /// The shared string pool.
     strings: Arc<StringPool>,
     /// The target configuration.
     target: &'a Target,
 }
 
-impl<'a> ScriptArtifactGenerator<'a> {
-    /// Create one script artifact generator.
+impl<'a> ScriptOutputGenerator<'a> {
+    /// Create one script output generator.
     pub fn new(
         module: Arc<Module>,
         ast: Arc<Ast>,
-        dir: Arc<DirPatched>,
+        declared: Arc<DirDeclared>,
+        checked: Arc<DirChecked>,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {
         Self {
             module,
             ast,
-            dir,
+            declared,
+            checked,
             strings,
             target,
         }
     }
 
-    /// Generate one script artifact.
+    /// Generate one script output.
     pub fn generate(
         self,
-    ) -> CodegenJsResult<(ScriptArtifact, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
+    ) -> CodegenJsResult<(ScriptOutput, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
         // validate target
         if !self.target.uses_js_generate_pipeline() {
             return Err(CodegenJsError::UnsupportedTarget {
@@ -57,20 +62,28 @@ impl<'a> ScriptArtifactGenerator<'a> {
         // current module inputs
         let module = self.module.as_ref();
         let ast = self.ast.as_ref();
-        let dir = self.dir.as_ref();
+        let declared = self.declared.as_ref();
+        let checked = self.checked.as_ref();
 
         // resource modules are linked directly in the script linker
         if !module.is_code() {
             return Err(CodegenJsError::Internal {
                 message: format!(
-                    "resource script artifacts are linked directly for module '{}'",
+                    "resource script outputs are linked directly for module '{}'",
                     module.uri
                 ),
             });
         }
 
         // emit one lowered JavaScript module tree
-        let lower = lower_module(module, ast, self.strings.as_ref(), dir, self.target)?;
+        let lower = lower_module(
+            module,
+            ast,
+            self.strings.as_ref(),
+            declared,
+            checked,
+            self.target,
+        )?;
         let warnings = lower.warnings;
         let errors = lower.errors;
         let artifact = self.build_script_artifact(lower.module, true)?;
@@ -78,12 +91,12 @@ impl<'a> ScriptArtifactGenerator<'a> {
         Ok((artifact, warnings, errors))
     }
 
-    /// Build one script artifact from one lowered module tree.
+    /// Build one script output from one lowered module tree.
     fn build_script_artifact(
         &self,
-        module: ScriptModule,
+        module: js::Module,
         has_top_level_side_effects: bool,
-    ) -> CodegenJsResult<ScriptArtifact> {
+    ) -> CodegenJsResult<ScriptOutput> {
         // declaration output
         let declaration = if self.target.declaration && matches!(self.target.emit, EmitFormat::Js) {
             Some(ScriptDeclaration::default())
@@ -103,13 +116,9 @@ impl<'a> ScriptArtifactGenerator<'a> {
             }
         };
 
-        // linkage metadata
-        let linkage = JsBackend::collect_script_linkage(&module);
-
-        Ok(ScriptArtifact {
+        Ok(ScriptOutput {
             language,
             module,
-            linkage,
             declaration,
             source_map: None,
             has_top_level_side_effects,

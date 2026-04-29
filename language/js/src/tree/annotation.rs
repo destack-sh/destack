@@ -1,7 +1,8 @@
 use crate::{Node, NodeType, StringId};
 
+use serde::{Deserialize, Serialize};
 /// The position of a JS annotation.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnnotationPosition {
     /// Before the node.
     Prefix,
@@ -12,7 +13,7 @@ pub enum AnnotationPosition {
 }
 
 /// Annotation to a JS node.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Annotation {
     /// Comment annotation (like `//` or `/*`).
     Comment {

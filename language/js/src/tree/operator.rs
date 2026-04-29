@@ -1,5 +1,6 @@
+use serde::{Deserialize, Serialize};
 /// Unary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UnaryOperator {
     /// `++`
     PostIncrement,
@@ -48,7 +49,7 @@ impl UnaryOperator {
 }
 
 /// Binary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
@@ -116,7 +117,7 @@ pub enum BinaryOperator {
 }
 
 /// Assignment operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignOperator {
     /// `+=`
     AddAssign,

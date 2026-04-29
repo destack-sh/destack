@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
     DependencyKind, DependencyMode, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
@@ -6,7 +8,7 @@ use crate::{
 use destack_source::ModuleId;
 
 /// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DependencyAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
@@ -15,7 +17,7 @@ pub enum DependencyAttributeClauseKind {
 }
 
 /// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DependencyAttributeClause {
     /// The clause introducer.
     pub kind: DependencyAttributeClauseKind,
@@ -24,7 +26,7 @@ pub struct DependencyAttributeClause {
 }
 
 /// A Statement is a JS/TS top-level statement in some container/block.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Statement {
     /// Import items (including type items).
     Import {
@@ -155,7 +157,7 @@ impl Node for Statement {
 }
 
 /// The declaration keyword used by a for each binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ForEachDeclarationKind {
     /// `var` declaration keyword.
     Var,
@@ -166,7 +168,7 @@ pub enum ForEachDeclarationKind {
 }
 
 /// The initializer of one for statement.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ForInitialization {
     /// One expression initializer.
     Expression(LocalNodeId<Expression>),

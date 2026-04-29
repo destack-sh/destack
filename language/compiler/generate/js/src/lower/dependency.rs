@@ -50,8 +50,7 @@ impl ModuleLowerer<'_> {
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
-                    let alias =
-                        alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
+                    let alias = alias.map(|alias| alias);
                     let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -79,8 +78,7 @@ impl ModuleLowerer<'_> {
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
-                    let alias =
-                        alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
+                    let alias = alias.map(|alias| alias);
                     let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -122,8 +120,7 @@ impl ModuleLowerer<'_> {
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
-                    let alias =
-                        alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
+                    let alias = alias.map(|alias| alias);
                     let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -152,8 +149,7 @@ impl ModuleLowerer<'_> {
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
                     let name = name.map(|name| self.lower_name(name));
-                    let alias =
-                        alias.map(|alias| self.strings.intern_from(self.source_strings, alias));
+                    let alias = alias.map(|alias| alias);
                     let item = DependencyItem {
                         mode,
                         kind: if *item_kind != kind {

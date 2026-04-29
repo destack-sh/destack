@@ -46,9 +46,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         element: &dir::TypeElement,
     ) -> CodegenJsResult<js::LocalNodeId<js::TupleElement>> {
-        let label = element
-            .label
-            .map(|label| self.strings.intern_from(self.source_strings, label));
+        let label = element.label.map(|label| label);
         let ty = self.lower_type(element.ty)?;
         let tuple_element = js::TupleElement {
             label,
@@ -99,7 +97,7 @@ impl ModuleLowerer<'_> {
                     }),
                     ..js::BindingModifier::default()
                 });
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let ty = constraint
                     .map(|constraint| self.lower_type_annotation_expression(constraint))
                     .transpose()?;
@@ -241,7 +239,7 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<js::TypePredicateSubject> {
         let subject = match subject {
             dir::PredicateSubject::Unresolved(name) => {
-                let name = self.strings.intern_from(self.source_strings, name);
+                let name = name;
                 js::TypePredicateSubject::Identifier(name)
             }
             dir::PredicateSubject::Symbol(symbol_id) => {
@@ -267,7 +265,7 @@ impl ModuleLowerer<'_> {
                     });
                 };
 
-                let name = self.strings.intern_from(self.source_strings, name);
+                let name = name;
                 js::TypePredicateSubject::Identifier(name)
             }
             dir::PredicateSubject::This => js::TypePredicateSubject::This,
@@ -484,7 +482,7 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        let segment = self.strings.intern_from(self.source_strings, name);
+        let segment = name;
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
@@ -727,9 +725,7 @@ impl ModuleLowerer<'_> {
         } else {
             None
         };
-        let name = self
-            .strings
-            .intern_from(self.source_strings, signature.name);
+        let name = signature.name;
         let key_type = self.lower_type(signature.key_type)?;
         let value_type = self.lower_type(signature.value_type)?;
         let field = js::TypeMember::IndexSignature {
@@ -814,9 +810,7 @@ impl ModuleLowerer<'_> {
                 modifiers,
                 value,
             } => {
-                let name = self
-                    .strings
-                    .intern_from(self.source_strings, parameter.name);
+                let name = parameter.name;
                 let source_type = self.lower_type(parameter.constraint)?;
                 let key_remap = parameter
                     .key_remap
@@ -845,10 +839,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::TemplateLiteral { strings, spans } => {
-                let strings = strings
-                    .iter()
-                    .map(|string| self.strings.intern_from(self.source_strings, *string))
-                    .collect::<Vec<_>>();
+                let strings = strings.iter().map(|string| *string).collect::<Vec<_>>();
                 let spans = spans
                     .iter()
                     .map(|span| self.lower_type(*span))
@@ -864,7 +855,7 @@ impl ModuleLowerer<'_> {
                 qualifier,
                 generic_arguments,
             } => {
-                let target = self.strings.intern_from(self.source_strings, *target);
+                let target = *target;
                 let qualifier = qualifier
                     .as_ref()
                     .map(|path| self.lower_path(source_id, path))
@@ -885,7 +876,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Infer { name, constraint } => {
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let constraint = constraint
                     .map(|constraint| self.lower_type(constraint))
                     .transpose()?;

@@ -1,7 +1,8 @@
 use crate::{Asynchrony, GenericParameter, Keyword, LocalNodeId, Parameter, TypeExpression};
 
+use serde::{Deserialize, Serialize};
 /// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionCardinality {
     /// Scalar function.
     Scalar,
@@ -10,7 +11,7 @@ pub enum FunctionCardinality {
 }
 
 /// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionMode {
     /// Getter method.
     Getter,
@@ -33,7 +34,7 @@ impl FunctionMode {
 }
 
 /// The style of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionKind {
     /// Function with a body.
     Function,
@@ -42,7 +43,7 @@ pub enum FunctionKind {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
     /// Whether the function is abstract.
     pub is_abstract: bool,
