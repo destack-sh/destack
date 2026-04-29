@@ -249,14 +249,14 @@ impl Resolver {
             return Ok(None);
         };
         let package_declaration = repository
-            .package_declaration(revision, package.as_ref())
+            .package_declaration_for_package(revision, package.as_ref())
             .map_err(|error| ResolveError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })?
             .map(|declaration| declaration.as_ref().clone());
         let destack_declaration = repository
-            .package_destack_declaration(revision, package.as_ref())
+            .destack_declaration_for_package(revision, package.as_ref())
             .map_err(|error| ResolveError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
