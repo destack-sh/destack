@@ -302,9 +302,7 @@ impl ModuleLowerer<'_> {
         field_id: dir::LocalNodeId<dir::EnumField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::EnumField>> {
         let field = self.dir_tree.get(field_id);
-        let name = self
-            .strings
-            .intern_from(self.source_strings, field.name.string());
+        let name = field.name.string();
         let value = field
             .value
             .map(|value_id| {

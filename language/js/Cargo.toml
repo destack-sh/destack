@@ -19,8 +19,9 @@ destack_fir = { workspace = true }
 destack_source = { workspace = true }
 
 # general
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-smallvec = { workspace = true }
+smallvec = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true

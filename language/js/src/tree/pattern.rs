@@ -1,7 +1,8 @@
 use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, StringId};
 
+use serde::{Deserialize, Serialize};
 /// A Pattern is a pattern to match something and unwrap it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
     /// Binding pattern (like `x`).
     Binding {
@@ -30,7 +31,7 @@ impl Node for Pattern {
 }
 
 /// A PatternField is a field in a pattern (object, array, etc.).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
     /// Named pattern field (like `x` or `x: y` or `x = 4`).
     Named {
@@ -61,7 +62,7 @@ impl Node for PatternField {
 }
 
 /// An AssignPattern is one assignment left hand side.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignPattern {
     /// Expression target like `x`, `obj.x`, or `obj[key]`.
     Expression { value: LocalNodeId<Expression> },
@@ -85,7 +86,7 @@ impl Node for AssignPattern {
 }
 
 /// An AssignPatternField is one field in a destructuring assignment target.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {

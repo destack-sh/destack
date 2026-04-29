@@ -1,15 +1,16 @@
-use destack_artifact::{Ast, DirPatched};
+use destack_artifact::{Ast, DirChecked, DirDeclared};
 use destack_core::StringPool;
+use destack_js as js;
 use destack_workspace::{Module, Target};
 
 use crate::lower::ModuleLowerer;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptModule};
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
 
 /// Structured JavaScript lowering output for one module.
 #[derive(Debug)]
 pub struct ModuleLowerOutput {
     /// The lowered script module.
-    pub module: ScriptModule,
+    pub module: js::Module,
     /// Warnings encountered during emission.
     pub warnings: Vec<CodegenJsWarning>,
     /// Non fatal errors encountered during emission.
@@ -21,14 +22,15 @@ pub fn lower_module(
     module: &Module,
     ast: &Ast,
     strings: &StringPool,
-    dir: &DirPatched,
+    declared: &DirDeclared,
+    checked: &DirChecked,
     target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
-    let mut lowerer = ModuleLowerer::new(module, ast, strings, dir, target);
+    let mut lowerer = ModuleLowerer::new(module, ast, strings, declared, checked, target);
     lowerer.lower_module()?;
 
     Ok(ModuleLowerOutput {
-        module: ScriptModule {
+        module: js::Module {
             tree: lowerer.tree,
             roots: lowerer.roots,
             strings: lowerer.strings,

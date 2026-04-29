@@ -11,11 +11,8 @@ impl ModuleLowerer<'_> {
         _scope_id: dir::LocalNodeIdAny,
         path: &dir::Path,
     ) -> CodegenJsResult<js::Path> {
-        let segments: SmallVec<[StringId; 3]> = path
-            .segments
-            .iter()
-            .map(|segment| self.strings.intern_from(self.source_strings, *segment))
-            .collect();
+        let segments: SmallVec<[StringId; 3]> =
+            path.segments.iter().map(|segment| *segment).collect();
         let path = js::Path { segments };
         Ok(path)
     }

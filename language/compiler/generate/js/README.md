@@ -6,19 +6,18 @@ Takes elaborated DIR and produces final JavaScript oriented target outputs.
 ## Pipeline
 
 ```text
-DIR → lower → script artifact → linkage metadata → print
+DIR → lower → script output → print
 ```
 
 1. **Lower** (`lower/`): Walk DIR and build a simplified JS tree.
-2. **Artifact** (`backend/artifact.rs`): Package one generated `ScriptArtifact`.
-3. **Linkage** (`backend/backend.rs`): Collect static and dynamic dependency metadata from the JS tree.
-4. **Print** (`backend/print.rs`, `format/`): Convert the JS tree to FIR and final source text.
+2. **Artifact** (`backend/artifact.rs`): Package one generated `ScriptOutput`.
+3. **Print** (`backend/print.rs`, `format/`): Convert the JS tree to FIR and final source text.
 
 The intermediate JS AST (`tree/`) is simpler than the Destack AST.
 It only has constructs that exist in JavaScript/TypeScript.
 
 Bundling, chunking, HTML/CSS coordination, asset linking, and final package assembly live in `language/compiler/src/link/script/`.
-This crate only owns JavaScript oriented lowering, artifact construction, linkage extraction, and compact printing.
+This crate only owns JavaScript oriented lowering, output construction, and compact printing.
 
 ## What Gets Lowered
 

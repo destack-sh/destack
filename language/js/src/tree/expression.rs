@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, Declaration, FunctionSignature,
     LocalNodeId, Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral,
@@ -6,7 +8,7 @@ use crate::{
 use destack_source::ModuleId;
 
 /// The position of a postfix expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PostfixPosition {
     // Regular postfix (just `x?`)
     Direct,
@@ -15,7 +17,7 @@ pub enum PostfixPosition {
 }
 
 /// An Expression is value-producing JS form.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
     /// Declaration expression.
     Declaration {
@@ -180,7 +182,7 @@ impl Node for Expression {
 }
 
 /// One arrow function body.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArrowFunctionBody {
     /// Expression body.
     Expression(LocalNodeId<Expression>),
@@ -189,7 +191,7 @@ pub enum ArrowFunctionBody {
 }
 
 /// One element in an array literal.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArrayElement {
     /// One positional array element.
     Expression { value: LocalNodeId<Expression> },
@@ -204,7 +206,7 @@ impl Node for ArrayElement {
 }
 
 /// One local expression precedence level for JS printing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Precedence {
     /// Comma and lowest-precedence expressions.
     Lowest,

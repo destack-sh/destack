@@ -1,8 +1,9 @@
 use crate::{Expression, LocalNodeId, TypeExpression};
 use destack_core::StringId;
 
+use serde::{Deserialize, Serialize};
 /// A Name is a regular or string identifier.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Name {
     /// A regular identifier (regular `x` or `someThing`).
     Identifier(StringId),
@@ -11,7 +12,7 @@ pub enum Name {
 }
 
 /// A Key is a name or a dynamic key.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Key {
     /// Name (like `x` or `someThing`).
     Name(Name),

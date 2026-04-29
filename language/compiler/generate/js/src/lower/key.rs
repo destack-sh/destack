@@ -31,7 +31,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         value: StringId,
     ) -> js::LocalNodeId<js::Expression> {
-        let value = self.strings.intern_from(self.source_strings, value);
+        let value = value;
         let expression = js::Expression::ScalarLiteral {
             value: js::ScalarLiteral::String(value),
         };
@@ -88,7 +88,7 @@ impl ModuleLowerer<'_> {
                     });
                 };
 
-                let segment = self.strings.intern_from(self.source_strings, name);
+                let segment = name;
                 let path = js::Path {
                     segments: smallvec![segment],
                 };
@@ -121,7 +121,7 @@ impl ModuleLowerer<'_> {
 
     /// Lower a name from DIR into JS AST.
     pub fn lower_name(&mut self, name: dir::Name) -> js::Name {
-        let name_id = self.strings.intern_from(self.source_strings, name.string());
+        let name_id = name.string();
 
         match name {
             dir::Name::Identifier(_) => js::Name::Identifier(name_id),
@@ -138,7 +138,7 @@ impl ModuleLowerer<'_> {
                 js::Key::Name(name)
             }
             dir::Key::Private(name) => {
-                let name = self.strings.intern_from(self.source_strings, name);
+                let name = name;
                 js::Key::Private(name)
             }
             dir::Key::Expression(expression_id) => {

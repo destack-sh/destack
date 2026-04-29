@@ -1,5 +1,5 @@
 use crate::{CodegenJsError, CodegenJsResult};
-use destack_artifact::{Ast, DirPatched, ScriptModule};
+use destack_artifact::{Ast, DirDeclared};
 use destack_fir::format::{Document, FormatState, Formatter, VecBuffer};
 use destack_fir::print::Printer as FirPrinter;
 use destack_js as js;
@@ -18,26 +18,26 @@ pub struct PrintedScriptModule {
 pub fn print_script_module(
     options: js::JsFormatOptions,
     ast: &Ast,
-    dir: &DirPatched,
+    declared: &DirDeclared,
     source_file: &File,
-    module: &ScriptModule,
+    module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
     if options.mode == js::FormatMode::Minimal {
-        return print_script_module_minified(options, ast, dir, source_file, module);
+        return print_script_module_minified(options, ast, declared, source_file, module);
     }
 
-    print_script_module_pretty(options, ast, dir, source_file, module)
+    print_script_module_pretty(options, ast, declared, source_file, module)
 }
 
 /// Print one generated script module through the direct minified printer.
 pub fn print_script_module_minified(
     options: js::JsFormatOptions,
     ast: &Ast,
-    dir: &DirPatched,
+    declared: &DirDeclared,
     source_file: &File,
-    module: &ScriptModule,
+    module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
-    let source_map = CodegenJsSourceMap { ast, dir };
+    let source_map = CodegenJsSourceMap { ast, declared };
     let strings = module.strings.clone().into_immutable();
     let printed = js::print_roots_minified_with_source_map(
         options.file_type,
@@ -58,8 +58,8 @@ pub fn print_script_module_minified(
 struct CodegenJsSourceMap<'a> {
     /// The original source AST.
     ast: &'a Ast,
-    /// The patched DIR artifact.
-    dir: &'a DirPatched,
+    /// The declared DIR artifact.
+    declared: &'a DirDeclared,
 }
 
 impl CodegenJsSourceMap<'_> {
@@ -68,16 +68,16 @@ impl CodegenJsSourceMap<'_> {
         let (module_id, source_id) = tree.get_source(node_id);
 
         // skip nodes lowered from another source module
-        if module_id != self.ast.id {
+        if module_id != self.declared.tree.module_id {
             return None;
         }
 
         // JS nodes carry DIR ids, so resolve them back to AST ids first
-        if !self.dir.tree.has_node_id(source_id) {
+        if !self.declared.tree.has_node_id(source_id) {
             return None;
         }
 
-        Some(self.dir.tree.get_source(source_id))
+        Some(self.declared.tree.get_source(source_id))
     }
 }
 
@@ -118,11 +118,11 @@ impl PrintedScriptModule {
 fn print_script_module_pretty(
     options: js::JsFormatOptions,
     ast: &Ast,
-    dir: &DirPatched,
+    declared: &DirDeclared,
     source_file: &File,
-    module: &ScriptModule,
+    module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
-    let source_map = CodegenJsSourceMap { ast, dir };
+    let source_map = CodegenJsSourceMap { ast, declared };
     let strings = module.strings.clone().into_immutable();
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {

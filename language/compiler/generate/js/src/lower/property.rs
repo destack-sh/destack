@@ -270,7 +270,7 @@ impl ModuleLowerer<'_> {
                     None,
                     None,
                 );
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let key_type = self.lower_type_annotation_expression(*key_type)?;
                 let value_type = self.lower_type_annotation_expression(*value_type)?;
 

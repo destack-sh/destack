@@ -174,7 +174,7 @@ impl ModuleLowerer<'_> {
                     PatternMutabilityMode::Keep => mutability.map(|m| self.lower_mutability(m)),
                     PatternMutabilityMode::Omit => None,
                 };
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let pattern = js::Pattern::Binding { mutability, name };
                 let pattern_id = self
                     .tree
@@ -245,7 +245,7 @@ impl ModuleLowerer<'_> {
                             }
                             PatternMutabilityMode::Omit => None,
                         };
-                        let name = self.strings.intern_from(self.source_strings, *name);
+                        let name = *name;
                         let pattern = js::Pattern::Binding { mutability, name };
                         let pattern_id =
                             self.tree
@@ -303,7 +303,7 @@ impl ModuleLowerer<'_> {
                     }
                     PatternMutabilityMode::Omit => None,
                 };
-                let name = self.strings.intern_from(self.source_strings, *name);
+                let name = *name;
                 let pattern = pattern
                     .map(|pattern| self.lower_pattern_in_mode(pattern, mode))
                     .transpose()?;

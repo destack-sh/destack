@@ -17,12 +17,12 @@ impl ModuleLowerer<'_> {
                 js::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::String(string) => {
-                let string = self.strings.intern_from(self.source_strings, *string);
+                let string = *string;
                 js::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
-                let content = self.strings.intern_from(self.source_strings, *content);
-                let flags = flags.map(|flag| self.strings.intern_from(self.source_strings, flag));
+                let content = *content;
+                let flags = flags.map(|flag| flag);
                 js::ScalarLiteral::RegexString { content, flags }
             }
         }

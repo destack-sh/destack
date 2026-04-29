@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId, TypeExpression,
     Visibility,
 };
 
 /// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingKind {
     /// Must binding (like `x`).
     Must,
@@ -13,7 +15,7 @@ pub enum BindingKind {
 }
 
 /// Variance annotation for type parameters.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VarianceModifier {
     /// Contravariant type parameter.
     In,
@@ -24,7 +26,7 @@ pub enum VarianceModifier {
 }
 
 /// The scope of a binding (dynamic or static).
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingAnchor {
     /// Container scope.
     Instance,
@@ -33,42 +35,42 @@ pub enum BindingAnchor {
 }
 
 /// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingOperator {
     /// Apply `as const` to the value of the binding.
     AsConst,
 }
 
 /// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AccessorKind {
     /// Auto-accessor (generates getter/setter).
     Accessor,
 }
 
 /// The modifiers of a field-like item.
-#[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct BindingModifier {
     /// The kind of the binding.
-    pub kind: Option<BindingKind> = None,
+    pub kind: Option<BindingKind>,
     /// The variance of a type parameter.
-    pub variance: Option<VarianceModifier> = None,
+    pub variance: Option<VarianceModifier>,
     /// The scope of the binding.
-    pub anchor: Option<BindingAnchor> = None,
+    pub anchor: Option<BindingAnchor>,
     /// The mutability of the field.
-    pub mutability: Option<Mutability> = None,
+    pub mutability: Option<Mutability>,
     /// The visibility of the field.
-    pub visibility: Option<Visibility> = None,
+    pub visibility: Option<Visibility>,
     /// The operator to apply to the binding.
-    pub operator: Option<BindingOperator> = None,
+    pub operator: Option<BindingOperator>,
     /// Whether the binding uses a definite assignment assertion.
-    pub definite: bool = false,
+    pub definite: bool,
     /// The accessor kind of the binding.
-    pub accessor: Option<AccessorKind> = None,
+    pub accessor: Option<AccessorKind>,
 }
 
 /// One generic parameter.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericParameter {
     /// Type parameter.
     Type {
@@ -84,7 +86,7 @@ impl Node for GenericParameter {
 }
 
 /// Named or positional parameter to some construct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Parameter {
     /// Named parameter (like `x: int32` or `Validate: boolean = true`).
     Named {
@@ -119,7 +121,7 @@ impl Node for Parameter {
 }
 
 /// Positional argument to some construct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).
     Positional { value: LocalNodeId<Expression> },

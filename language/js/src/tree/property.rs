@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     BindingModifier, Block, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
     TypeExpression,
 };
 
 /// A Property is a property of an object literal (may be a field, method, or spread).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Property {
     /// Named field (like `x: int32`).
     Field {
@@ -32,7 +34,7 @@ impl Node for Property {
 }
 
 /// A Member is a member of a object-like declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Member {
     /// Named field (like `x: int32`).
     Field {

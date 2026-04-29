@@ -1,7 +1,8 @@
 use crate::{Expression, LocalNodeId, Node, NodeType, Statement};
 
+use serde::{Deserialize, Serialize};
 /// Block of statements.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// The statements in the block.
     pub statements: Vec<LocalNodeId<Statement>>,
@@ -12,7 +13,7 @@ impl Node for Block {
 }
 
 /// A catch clause.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CatchClause {
     /// The optional catch pattern.
     pub pattern: Option<LocalNodeId<crate::Pattern>>,
@@ -25,7 +26,7 @@ impl Node for CatchClause {
 }
 
 /// A switch case.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SwitchCase {
     /// The optional case selector.
     pub value: Option<LocalNodeId<Expression>>,
