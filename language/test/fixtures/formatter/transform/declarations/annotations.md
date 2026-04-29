@@ -60,6 +60,19 @@ declare const PAGE_PATH: string;
 (() => {})();
 ```
 
+### statement decorator stays on its own line
+
+Statement-level decorators stay above the decorated expression.
+
+```ds
+@trace run()
+```
+
+```ds expected
+@trace
+run();
+```
+
 ## Functions
 
 ### parameter annotation stays attached

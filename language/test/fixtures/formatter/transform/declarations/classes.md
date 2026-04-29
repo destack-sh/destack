@@ -351,6 +351,22 @@ class Config {
 }
 ```
 
+### destack class quoted members
+
+Quoted class members preserve their original quoting unless quote-props mode says otherwise.
+
+```ds
+class Config { "normal" = 1; "data-id" = 2; "default"() { } }
+```
+
+```ds expected
+class Config {
+    "normal" = 1;
+    "data-id" = 2;
+    default() {}
+}
+```
+
 ### typescript class quote props consistent
 
 Consistent quote props quotes all keys when any require quotes.
@@ -360,6 +376,22 @@ class Options { normal = 1; "data-id" = 2; "default"() { } }
 ```
 
 ```ts expected
+class Options {
+    "normal" = 1;
+    "data-id" = 2;
+    "default"() {}
+}
+```
+
+### destack class quote props consistent
+
+Consistent quote props applies to shared class member syntax.
+
+```ds quote-props=consistent
+class Options { normal = 1; "data-id" = 2; "default"() { } }
+```
+
+```ds expected
 class Options {
     "normal" = 1;
     "data-id" = 2;

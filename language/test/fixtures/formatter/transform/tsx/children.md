@@ -16,6 +16,28 @@ const node = <div>Hello {name}!</div>
 const node = <div>Hello {name}!</div>;
 ```
 
+### expression child comments
+
+Expression child comments stay in source order around the expression child.
+
+```tsx:main.tsx
+const node = <List>{items.map((item) => <Item key={item.id}>{/* before */}{item.label}{/* after */}</Item>)}</List>
+```
+
+```tsx expected
+const node = (
+    <List>
+        {items.map((item) => (
+            <Item key={item.id}>
+                {/* before */}
+                {item.label}
+                {/* after */}
+            </Item>
+        ))}
+    </List>
+);
+```
+
 ### adjacent expression children stay inline
 
 Adjacent expression children stay inline when short.

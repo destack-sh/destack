@@ -321,6 +321,26 @@ Ternary with multi-attribute JSX in branches.
 </div>;
 ```
 
+### ternary branch comments
+
+Trailing JSX branch comments format at conditional branch boundaries.
+
+```ds line-width=40
+<div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
+```
+
+```ds expected
+<div>
+    {
+        isVideo ? (
+            <Video />
+        ) : (
+            /* keep-video */ <Image />
+        ) /* keep-image */
+    }
+</div>;
+```
+
 ## Multiple Callbacks
 
 ### element with multiple callback props

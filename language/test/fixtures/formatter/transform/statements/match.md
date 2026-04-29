@@ -404,3 +404,55 @@ match (event) {
     Error(e) => logError(e)
 }
 ```
+
+## Trivia Stress
+
+### match comments around selector and arms
+
+Comments around selectors and arms stay on the same syntax boundaries.
+
+```ds
+match (
+    // selected event
+    event
+) {
+    // click arm
+    Click(pos) /* click pattern */ if (
+        // valid position
+        pos.isValid()
+    ) => /* click body */ handleClick(pos);
+    // fallback arm
+    _ => fallback()
+}
+```
+
+```ds expected
+match (
+    // selected event
+    event
+) {
+    // click arm
+    Click(pos) /* click pattern */ if (
+        // valid position
+        pos.isValid()
+    ) => /* click body */ handleClick(pos)
+    // fallback arm
+    _ => fallback()
+}
+```
+
+### nested pattern trivia
+
+Nested pattern comments stay inside their pattern containers.
+
+```ds
+match (value) { Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y; [first, /* middle */ ..., last] => first + last; _ => 0 }
+```
+
+```ds expected
+match (value) {
+    Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y
+    [first, /* middle */ ..., last] => first + last
+    _ => 0
+}
+```

@@ -52,6 +52,28 @@ const node = <div className={cx("a", { b: cond })} />
 const node = <div className={cx("a", { b: cond })} />;
 ```
 
+### attributes with trailing comments
+
+Trailing attribute comments stay attached to the same attributes.
+
+```tsx:main.tsx
+const node = <div
+  key={formMessageId} // key-tail
+  initial={{ opacity: 0, y: -5, height: 0 }} // initial-tail
+  style={{ /* before */ overflow: "hidden" /* after */  }}
+></div>
+```
+
+```tsx expected
+const node = (
+    <div
+        key={formMessageId} // key-tail
+        initial={{ opacity: 0, y: -5, height: 0 }} // initial-tail
+        style={{ /* before */ overflow: "hidden" /* after */ }}
+    ></div>
+);
+```
+
 ## Spread Attributes
 
 ### spread attributes keep order
@@ -64,6 +86,32 @@ const node = <Widget {...props} kind="primary" {...extra} />
 
 ```tsx expected
 const node = <Widget {...props} kind="primary" {...extra} />;
+```
+
+### spread attributes with comments
+
+Spread attribute comments stay attached to the same attribute boundaries.
+
+```tsx:main.tsx
+const node = <Widget
+  // props-leading
+  {...props} // props-tail
+  kind="primary"
+  // extra-leading
+  {...extra}
+/>
+```
+
+```tsx expected
+const node = (
+    <Widget
+        // props-leading
+        {...props} // props-tail
+        kind="primary"
+        // extra-leading
+        {...extra}
+    />
+);
 ```
 
 ## Line Breaking

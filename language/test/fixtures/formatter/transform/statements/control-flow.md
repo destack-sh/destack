@@ -140,6 +140,48 @@ const result = if (x > 0) { "positive" } else { "negative" }
 const result = if (x > 0) { "positive" } else { "negative" };
 ```
 
+### if tail expression preserves branch values
+
+If expressions in tail position keep their branch tail expressions value-producing.
+
+```ds
+function absolute(value: number): number {
+    if (value >= 0) {
+        value
+    } else {
+        -value
+    }
+}
+```
+
+```ds expected
+function absolute(value: number): number {
+    if (value >= 0) {
+        value
+    } else {
+        -value
+    }
+}
+```
+
+### terminal block semicolons preserve statement position
+
+Terminal semicolons keep block tail expressions statement-valued.
+
+```ds
+function run(): void {
+    prepare()
+    finish();
+}
+```
+
+```ds expected
+function run(): void {
+    prepare();
+    finish();
+}
+```
+
 ### nested if
 
 Simple nested blocks with single statements stay on one line.

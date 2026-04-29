@@ -261,6 +261,84 @@ function add(first, second) {
 }
 ```
 
+### jsdoc dash descriptions
+
+Dash-separated tag descriptions format as declaration docs.
+
+```js:main.js jsdoc=true line-width=80 indent-width=2
+/**
+ * @param {string} name - the user name
+ */
+function greet(name) {}
+
+/**
+ * @returns {string} the greeting
+ */
+function hello() {}
+
+/**
+ * @param {number} x - 123 starts with number
+ */
+function read(x) {}
+```
+
+```js expected
+/** @param {string} name - The user name */
+function greet(name) {}
+
+/** @returns {string} The greeting */
+function hello() {}
+
+/** @param {number} x - 123 starts with number */
+function read(x) {}
+```
+
+### jsdoc single-line tags
+
+Short supported tags collapse to single-line JSDoc.
+
+```js:main.js jsdoc=true line-width=80 indent-width=2
+/**
+ * @deprecated
+ */
+function old() {}
+
+/**
+ * @returns {number}
+ */
+function count() {}
+```
+
+```js expected
+/** @deprecated */
+function old() {}
+
+/** @returns {number} */
+function count() {}
+```
+
+### jsdoc tag blank line descriptions
+
+Blank lines between tags and descriptions preserve continuation indentation.
+
+```js:main.js jsdoc=true line-width=80 indent-width=2
+/**
+ * @param {string} name
+ *
+ * Description after blank line for a param tag.
+ */
+function withParamBlank(name) {}
+```
+
+```js expected
+/**
+ * @param {string} name
+ *
+ *   Description after blank line for a param tag.
+ */
+function withParamBlank(name) {}
+```
+
 ### jsdoc typeless parameter docs
 
 Typeless parameter and return tags format their descriptions.
@@ -457,6 +535,38 @@ function example() {}
  *     ```
  */
 function example() {}
+```
+
+### jsdoc example typed snippets in javascript docs
+
+Example snippets in JavaScript files keep TypeScript generic syntax intact.
+
+```js:main.js jsdoc=true line-width=80 indent-width=2
+/**
+ * @example
+ * await storage.getItem<number>("key");
+ */
+function foo() {}
+
+/**
+ * @example
+ * const result = override<{ opt: string }>({ opt: "value" });
+ */
+function bar() {}
+```
+
+```js expected
+/**
+ * @example
+ *   await storage.getItem<number>("key");
+ */
+function foo() {}
+
+/**
+ * @example
+ *   const result = override<{ opt: string }>({ opt: "value" });
+ */
+function bar() {}
 ```
 
 ## Indentation
