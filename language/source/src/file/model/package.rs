@@ -1,9 +1,8 @@
 use std::path::Path;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
-use super::id;
 use crate::Uri;
 
 const PACKAGE_ID_DOMAIN: &[u8] = b"destack.source.package.v1";
@@ -13,26 +12,9 @@ const PACKAGE_KIND_URI: &[u8] = b"uri";
 
 /// Unique identifier for one source package.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PackageId(pub u128);
-
-impl Serialize for PackageId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        id::serialize_u128(self.0, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for PackageId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        id::deserialize_u128(deserializer).map(Self)
-    }
-}
 
 impl std::fmt::Debug for PackageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -84,66 +66,6 @@ impl PackageId {
     /// Get the raw id value.
     pub fn raw(&self) -> u128 {
         self.0
-    }
-}
-
-/// Repository-local package snapshot version.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct PackageVersion(pub u128);
-
-impl std::fmt::Debug for PackageVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl std::fmt::Display for PackageVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl PackageVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new PackageVersion.
-    pub fn new(version: u128) -> Self {
-        Self(version)
-    }
-
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
-    }
-}
-
-/// A package id and version captured together.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PackageStamp {
-    /// The package id.
-    pub id: PackageId,
-    /// The package version.
-    pub version: PackageVersion,
-}
-
-impl std::fmt::Debug for PackageStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl std::fmt::Display for PackageStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl PackageStamp {
-    /// Create a new PackageStamp.
-    pub fn new(id: PackageId, version: PackageVersion) -> Self {
-        Self { id, version }
     }
 }
 

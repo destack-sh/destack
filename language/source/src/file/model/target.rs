@@ -1,33 +1,15 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use super::hash::stable_source_id;
-use super::id;
 use crate::PackageId;
 
 const TARGET_KEY_DOMAIN: &[u8] = b"destack.source.target.v1";
 
 /// Stable key for one target within a package.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct TargetKey(pub u128);
-
-impl Serialize for TargetKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        id::serialize_u128(self.0, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for TargetKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        id::deserialize_u128(deserializer).map(Self)
-    }
-}
 
 impl std::fmt::Display for TargetKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

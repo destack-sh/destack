@@ -1,68 +1,18 @@
 use std::path::Path;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
-use super::id;
 use crate::PackageId;
 
 const MODULE_KEY_DOMAIN: &[u8] = b"destack.source.module.v1";
 const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 
-/// Repository-local module snapshot version.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct ModuleVersion(pub u128);
-
-impl std::fmt::Debug for ModuleVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ModuleVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl ModuleVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new ModuleVersion.
-    pub fn new(version: u128) -> Self {
-        Self(version)
-    }
-
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
-    }
-}
-
 /// Stable key for one module within a package.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ModuleKey(pub u128);
-
-impl Serialize for ModuleKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        id::serialize_u128(self.0, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ModuleKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        id::deserialize_u128(deserializer).map(Self)
-    }
-}
 
 impl std::fmt::Debug for ModuleKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -181,34 +131,6 @@ impl ModuleId {
     }
 }
 
-/// A module id and version captured together.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ModuleStamp {
-    /// The module id.
-    pub id: ModuleId,
-    /// The module version.
-    pub version: ModuleVersion,
-}
-
-impl std::fmt::Debug for ModuleStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl std::fmt::Display for ModuleStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl ModuleStamp {
-    /// Create a new ModuleStamp.
-    pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
-        Self { id, version }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -217,7 +139,7 @@ mod tests {
     use crate::PackageId;
 
     #[test]
-    fn test_hash_module_loader_as_framed_component() {
+    fn test_hash_module_loader_as_length_prefixed_component() {
         let package = PackageId::new(1);
         let left = ModuleId::from_path_with_loader(package, Path::new("a"), None, Some("b::c"));
         let right = ModuleId::from_path_with_loader(package, Path::new("a::b"), None, Some("c"));

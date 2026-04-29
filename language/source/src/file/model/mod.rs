@@ -1,19 +1,24 @@
+mod edge;
 mod file;
 mod hash;
-mod id;
 mod language;
+mod loader;
 mod module;
 mod package;
 mod profile;
+mod relation;
 mod span;
 mod target;
 mod r#type;
 
+pub use edge::*;
 pub use file::*;
 pub use language::*;
+pub use loader::*;
 pub use module::*;
 pub use package::*;
 pub use profile::*;
+pub use relation::*;
 pub use span::*;
 pub use target::*;
 pub use r#type::*;

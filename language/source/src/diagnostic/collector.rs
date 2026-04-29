@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 
 use crate::{Diagnostic, DiagnosticOptions, DiagnosticSeverity};
 
 /// A collection of diagnostics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticCollection {
     /// The diagnostics.
     diagnostics: Vec<Diagnostic>,

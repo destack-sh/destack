@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_core::StableHasher;
 
-/// Hash one source id domain and framed components into a stable 128-bit id.
+/// Hash one source id domain and length-prefixed components into a stable 128-bit id.
 pub(super) fn stable_source_id(domain: &[u8], parts: &[&[u8]]) -> u128 {
     let mut hasher = StableHasher::new();
     hasher.update_len_prefixed(domain);
