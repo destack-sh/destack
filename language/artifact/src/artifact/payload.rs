@@ -1,6 +1,6 @@
 use crate::{
     AmbientEnvironment, Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExported,
-    LanguageEnvironment, Mir, MirOptimized, ModuleLinted, ModuleOutput, PackageLinted,
+    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, PackageLinted,
     PackageOutput, WorkspaceLinted,
 };
 
@@ -23,11 +23,11 @@ pub enum ArtifactPayload {
     DirChecked(DirChecked),
     /// Elaborated DIR.
     DirElaborated(DirElaborated),
-    /// MIR before optimization.
-    Mir(Mir),
+    /// Lowered MIR before optimization.
+    MirLowered(MirLowered),
     /// Optimized MIR.
     MirOptimized(MirOptimized),
-    /// One generated module artifact for one target.
+    /// One generated module output for one target.
     ModuleOutput(ModuleOutput),
     /// Output entries for one package target.
     PackageOutput(PackageOutput),
@@ -95,10 +95,10 @@ impl From<DirElaborated> for ArtifactPayload {
     }
 }
 
-impl From<Mir> for ArtifactPayload {
+impl From<MirLowered> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Mir) -> Self {
-        Self::Mir(payload)
+    fn from(payload: MirLowered) -> Self {
+        Self::MirLowered(payload)
     }
 }
 

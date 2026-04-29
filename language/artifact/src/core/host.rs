@@ -1,18 +1,18 @@
 use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
-/// Comptime environment input used for profile identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EnvironmentInput {
-    /// Full environment snapshot with keys and hashed values.
+/// Stable identity for host environment variables read by one profile.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum HostEnvironmentKey {
+    /// All captured environment variables by key and hash.
     All { keys: Vec<String>, hash: u128 },
-    /// Whitelisted environment snapshot with keys and hashed values.
+    /// Whitelisted environment variables by key and hash.
     Whitelist { keys: Vec<String>, hash: u128 },
 }
 
-impl EnvironmentInput {
-    /// Snapshot all provided environment keys and values.
-    pub fn from_entries_all(entries: Vec<(String, String)>) -> Self {
+impl HostEnvironmentKey {
+    /// Build one key from all provided environment variables.
+    pub fn all(entries: Vec<(String, String)>) -> Self {
         let mut entries = entries;
         entries.sort_by(|left, right| left.0.cmp(&right.0));
 
@@ -22,18 +22,8 @@ impl EnvironmentInput {
         Self::All { keys, hash }
     }
 
-    /// Snapshot all environment keys and values.
-    pub fn from_env_all() -> Self {
-        let entries: Vec<(String, String)> = std::env::vars().collect();
-
-        Self::from_entries_all(entries)
-    }
-
-    /// Snapshot only whitelisted environment keys and values from one value provider.
-    pub fn from_values_whitelist(
-        keys: &[String],
-        mut value_for: impl FnMut(&str) -> Option<String>,
-    ) -> Self {
+    /// Build one key from whitelisted environment variables.
+    pub fn whitelist(keys: &[String], mut value_for: impl FnMut(&str) -> Option<String>) -> Self {
         let keys = normalize_profile_keys(keys.to_vec());
         let mut entries = Vec::with_capacity(keys.len());
 
@@ -47,12 +37,7 @@ impl EnvironmentInput {
         Self::Whitelist { keys, hash }
     }
 
-    /// Snapshot only whitelisted environment keys and values.
-    pub fn from_env_whitelist(keys: &[String]) -> Self {
-        Self::from_values_whitelist(keys, |key| std::env::var(key).ok())
-    }
-
-    /// Return the environment keys included in this snapshot.
+    /// Return the environment variable names included in this identity.
     pub fn keys(&self) -> &[String] {
         match self {
             Self::All { keys, .. } | Self::Whitelist { keys, .. } => keys,

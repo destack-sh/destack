@@ -69,7 +69,6 @@ impl ArtifactPinSet {
             .pins
             .lock()
             .unwrap_or_else(|_| panic!("artifact pin set should not be poisoned"));
-
         if pins.contains_key(&version) {
             return;
         }
@@ -78,7 +77,6 @@ impl ArtifactPinSet {
             .store
             .pin(&version)
             .unwrap_or_else(|| panic!("missing artifact version to pin: {version:?}"));
-
         pins.insert(version, pin);
     }
 }

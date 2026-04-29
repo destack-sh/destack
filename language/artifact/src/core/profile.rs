@@ -2,14 +2,16 @@ use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    EmitFormat, EnvironmentInput, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
+    EmitFormat, HostEnvironmentKey, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
     normalize_profile_keys,
 };
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
 /// Flags that affect profile identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
 pub struct ProfileFlags {
     /// Forbid use of `any`.
     pub no_any: bool,
@@ -68,7 +70,7 @@ pub struct ProfileFlags {
 }
 
 /// Canonical profile key for semantic identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ProfileKey {
     /// Emit format for the profile.
     pub emit: EmitFormat,
@@ -81,7 +83,7 @@ pub struct ProfileKey {
     /// Target vendor for the profile.
     pub target_vendor: Option<TargetVendor>,
     /// Target environment for the profile.
-    pub target_env: Option<TargetEnv>,
+    pub target_abi: Option<TargetAbi>,
     /// Normalized library set for the profile.
     pub lib: Vec<String>,
     /// Debug flag exposed to `import.meta`.
@@ -90,8 +92,8 @@ pub struct ProfileKey {
     pub test: bool,
     /// Skip declaration diagnostics in compatibility mode.
     pub skip_lib_check: bool,
-    /// Comptime environment input for `import.meta.env`.
-    pub env: EnvironmentInput,
+    /// Compile-time environment identity for `import.meta.env`.
+    pub env: HostEnvironmentKey,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
@@ -105,12 +107,12 @@ impl ProfileKey {
         platform: Platform,
         target_arch: Option<TargetArch>,
         target_vendor: Option<TargetVendor>,
-        target_env: Option<TargetEnv>,
+        target_abi: Option<TargetAbi>,
         lib: Vec<String>,
         debug: bool,
         test: bool,
         skip_lib_check: bool,
-        env: EnvironmentInput,
+        env: HostEnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
         let lib = normalize_profile_keys(lib);
@@ -121,7 +123,7 @@ impl ProfileKey {
             platform,
             target_arch,
             target_vendor,
-            target_env,
+            target_abi,
             lib,
             debug,
             test,

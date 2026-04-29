@@ -2,6 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
+/// Provider family for one artifact key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum ArtifactProvider {
+    /// Source artifacts derived directly from repository file contents.
+    Source,
+    /// Compiler artifacts derived by compiler phases.
+    Compiler,
+    /// Linter artifacts derived by lint rules.
+    Linter,
+}
+
 /// Semantic artifact identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactKey {
@@ -36,8 +47,8 @@ pub enum ArtifactKey {
         profile: ProfileId,
     },
 
-    /// MIR before optimization.
-    Mir {
+    /// Lowered MIR before optimization.
+    MirLowered {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
@@ -49,7 +60,7 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
-    /// One generated module artifact for one target.
+    /// One generated module output for one target.
     ModuleOutput { module: ModuleId, target: TargetId },
     /// Output entries for one package target.
     PackageOutput {
@@ -69,6 +80,26 @@ pub enum ArtifactKey {
 }
 
 impl ArtifactKey {
+    /// Return the provider family responsible for this artifact.
+    pub fn provider(self) -> ArtifactProvider {
+        match self {
+            Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Source,
+            Self::LanguageEnvironment { .. }
+            | Self::AmbientEnvironment { .. }
+            | Self::DirDeclared { .. }
+            | Self::DirExported { .. }
+            | Self::DirChecked { .. }
+            | Self::DirElaborated { .. }
+            | Self::MirLowered { .. }
+            | Self::MirOptimized { .. }
+            | Self::ModuleOutput { .. }
+            | Self::PackageOutput { .. } => ArtifactProvider::Compiler,
+            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
+                ArtifactProvider::Linter
+            }
+        }
+    }
+
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
@@ -117,9 +148,9 @@ impl ArtifactKey {
         Self::DirElaborated { module, profile }
     }
 
-    /// Build one MIR artifact key.
-    pub fn mir(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
-        Self::Mir {
+    /// Build one lowered MIR artifact key.
+    pub fn mir_lowered(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirLowered {
             module,
             profile,
             target,
@@ -135,7 +166,7 @@ impl ArtifactKey {
         }
     }
 
-    /// Build one module artifact key.
+    /// Build one module output key.
     pub fn module_output(module: ModuleId, target: TargetId) -> Self {
         Self::ModuleOutput { module, target }
     }
@@ -171,7 +202,7 @@ impl ArtifactKey {
             Self::DirExported { .. } => "dir_exported",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirElaborated { .. } => "dir_elaborated",
-            Self::Mir { .. } => "mir",
+            Self::MirLowered { .. } => "mir_lowered",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleOutput { .. } => "module_output",
             Self::PackageOutput { .. } => "package_output",
@@ -179,14 +210,6 @@ impl ArtifactKey {
             Self::PackageLinted { .. } => "package_linted",
             Self::WorkspaceLinted => "workspace_linted",
         }
-    }
-
-    /// Return whether this key is provided by the linter.
-    pub fn is_lint(&self) -> bool {
-        matches!(
-            self,
-            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted
-        )
     }
 
     /// Return the module id encoded in this key when one exists.
@@ -198,7 +221,7 @@ impl ArtifactKey {
             | Self::DirExported { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirElaborated { module, .. }
-            | Self::Mir { module, .. }
+            | Self::MirLowered { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleOutput { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
@@ -221,7 +244,7 @@ impl ArtifactKey {
             | Self::DirExported { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirElaborated { profile, .. }
-            | Self::Mir { profile, .. }
+            | Self::MirLowered { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleLinted { profile, .. } => Some(*profile),
             Self::Ast { .. }

@@ -4,8 +4,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::{
-    ARTIFACT_IMAGE_LIMIT_BYTES, ARTIFACT_IMAGE_MAGIC, ArtifactImage, ArtifactImageCacheLayout,
-    ArtifactImageError, ArtifactImageHeader, CacheStore, CacheStoreError,
+    ARTIFACT_IMAGE_LIMIT_BYTES, ArtifactImage, ArtifactImageCacheLayout, ArtifactImageError,
+    ArtifactVersion, CacheStore, CacheStoreError,
 };
 
 /// Cache of canonical artifact images.
@@ -29,7 +29,7 @@ impl<'a> ArtifactImageCache<'a> {
     /// Load one exact artifact image.
     pub fn load<T>(
         &self,
-        expected: &ArtifactImageHeader,
+        expected: &ArtifactVersion,
     ) -> Result<Option<ArtifactImage<T>>, ArtifactImageError>
     where
         T: DeserializeOwned,
@@ -41,16 +41,10 @@ impl<'a> ArtifactImageCache<'a> {
 
         // payload decode
         let image = ArtifactImage::<T>::deserialize(&bytes)?;
-        if image.header.magic != ARTIFACT_IMAGE_MAGIC {
-            return Err(ArtifactImageError::InvalidMagic {
-                expected: ARTIFACT_IMAGE_MAGIC,
-                found: image.header.magic,
-            });
-        }
-        if image.header.version != expected.version {
-            return Err(ArtifactImageError::UnexpectedImageVersion {
-                expected: expected.version.clone(),
-                found: image.header.version,
+        if image.version() != *expected {
+            return Err(ArtifactImageError::Version {
+                expected: *expected,
+                found: image.version(),
             });
         }
 
@@ -67,7 +61,7 @@ impl<'a> ArtifactImageCache<'a> {
 
         // publish image
         self.with_write_lock(|| {
-            self.write_image_bytes(&image.header, &bytes)?;
+            self.write_image_bytes(&image.version(), &bytes)?;
 
             Ok(())
         })?;
@@ -101,7 +95,7 @@ impl<'a> ArtifactImageCache<'a> {
     /// Read one exact image.
     fn read_image_bytes(
         &self,
-        expected: &ArtifactImageHeader,
+        expected: &ArtifactVersion,
     ) -> Result<Option<Vec<u8>>, ArtifactImageError> {
         // image bytes
         let image_path = self.image_path(expected)?;
@@ -109,7 +103,7 @@ impl<'a> ArtifactImageCache<'a> {
             return Ok(None);
         };
         if byte_len > ARTIFACT_IMAGE_LIMIT_BYTES {
-            return Err(ArtifactImageError::SizeLimitExceeded {
+            return Err(ArtifactImageError::Size {
                 limit: ARTIFACT_IMAGE_LIMIT_BYTES,
                 actual: byte_len,
             });
@@ -125,15 +119,13 @@ impl<'a> ArtifactImageCache<'a> {
     /// Write one exact image blob.
     fn write_image_bytes(
         &self,
-        header: &ArtifactImageHeader,
+        version: &ArtifactVersion,
         bytes: &[u8],
     ) -> Result<(), ArtifactImageError> {
-        let image_path = self.image_path(header)?;
+        let image_path = self.image_path(version)?;
         if let Some(existing_bytes) = self.store.read(&image_path)? {
             if existing_bytes != bytes {
-                return Err(ArtifactImageError::ConflictingImageVersion {
-                    version: header.version.clone(),
-                });
+                return Err(ArtifactImageError::Conflict { version: *version });
             }
 
             return Ok(());
@@ -143,12 +135,12 @@ impl<'a> ArtifactImageCache<'a> {
             Ok(()) => {}
             Err(CacheStoreError::AlreadyExists) => {
                 let Some(existing_bytes) = self.store.read(&image_path)? else {
-                    return Err(ArtifactImageError::CacheConflict);
+                    return Err(ArtifactImageError::Corrupt(
+                        "cache entry disappeared after write conflict",
+                    ));
                 };
                 if existing_bytes != bytes {
-                    return Err(ArtifactImageError::ConflictingImageVersion {
-                        version: header.version.clone(),
-                    });
+                    return Err(ArtifactImageError::Conflict { version: *version });
                 }
             }
             Err(error) => return Err(error.into()),
@@ -158,9 +150,8 @@ impl<'a> ArtifactImageCache<'a> {
     }
 
     /// Return the cached image path for one exact header.
-    fn image_path(&self, header: &ArtifactImageHeader) -> Result<PathBuf, ArtifactImageError> {
-        let image_key_bytes =
-            postcard::to_allocvec(&header.version).map_err(ArtifactImageError::Serialize)?;
+    fn image_path(&self, version: &ArtifactVersion) -> Result<PathBuf, ArtifactImageError> {
+        let image_key_bytes = postcard::to_allocvec(version).map_err(ArtifactImageError::Codec)?;
         let image_token = artifact_image_token(&image_key_bytes);
         let shard = &image_token[0..2];
 
@@ -181,9 +172,6 @@ fn artifact_image_token(bytes: &[u8]) -> String {
 
 impl From<CacheStoreError> for ArtifactImageError {
     fn from(error: CacheStoreError) -> Self {
-        match error {
-            CacheStoreError::Io(error) => Self::Io(error),
-            CacheStoreError::AlreadyExists => Self::CacheConflict,
-        }
+        Self::Cache(error)
     }
 }
