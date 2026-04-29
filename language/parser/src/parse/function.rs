@@ -1045,10 +1045,9 @@ impl Parser {
                 if self.options.is_in_static() {
                     return_type_options = return_type_options.in_static();
                 }
+                return_type_options = return_type_options.allow_type_predicate();
                 if !self.options.is_in_type() {
-                    return_type_options = return_type_options
-                        .in_arrow_return_type()
-                        .allow_type_predicate();
+                    return_type_options = return_type_options.in_arrow_return_type();
                 }
                 let return_type = self.eat_type_expression_node_or_recover_missing(
                     return_type_options,

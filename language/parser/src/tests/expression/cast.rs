@@ -288,51 +288,57 @@ fn test_parse_type_unary_postfix_as_comptime_expression() {
 /// Parse comparisons against members on an identifier named `as`.
 #[test]
 fn test_parse_comparison_with_as_identifier_member_access() {
-    let mut test = TestParser::new_with_options("i > as.length", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("i > as.length", language);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // i > as.length
-    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::GreaterThan);
-        assert_expression_path!(parser, parser.tree.get(*left), "i");
-        assert_expression_path!(parser, parser.tree.get(*right), "as.length");
-    });
+        // i > as.length
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThan);
+            assert_expression_path!(parser, parser.tree.get(*left), "i");
+            assert_expression_path!(parser, parser.tree.get(*right), "as.length");
+        });
+    }
 }
 
 /// Parse comparisons against members on an identifier named `satisfies`.
 #[test]
 fn test_parse_comparison_with_satisfies_identifier_member_access() {
-    let mut test = TestParser::new_with_options("i > satisfies.length", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("i > satisfies.length", language);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // i > satisfies.length
-    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::GreaterThan);
-        assert_expression_path!(parser, parser.tree.get(*left), "i");
-        assert_expression_path!(parser, parser.tree.get(*right), "satisfies.length");
-    });
+        // i > satisfies.length
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThan);
+            assert_expression_path!(parser, parser.tree.get(*left), "i");
+            assert_expression_path!(parser, parser.tree.get(*right), "satisfies.length");
+        });
+    }
 }
 
 /// Parse comparisons against optional members on an identifier named `as`.
 #[test]
 fn test_parse_comparison_with_as_identifier_optional_member_access() {
-    let mut test = TestParser::new_with_options("i > as?.length", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("i > as?.length", language);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // i > as?.length
-    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::GreaterThan);
-        assert_expression_path!(parser, parser.tree.get(*left), "i");
-        assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "length");
-            assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "as");
+        // i > as?.length
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThan);
+            assert_expression_path!(parser, parser.tree.get(*left), "i");
+            assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "length");
+                assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "as");
+                });
             });
         });
-    });
+    }
 }
 
 /// Parse typed arrow bodies that reference a parameter named `as`.
@@ -492,6 +498,29 @@ fn test_parse_satisfies_missing_type_target() {
     });
 }
 
+/// Reject assertion operators that start on a new line.
+#[test]
+fn test_reject_newline_before_assertion_operator() {
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        for operator in ["as", "satisfies"] {
+            let source = format!("call(value\n{operator} number)");
+            let mut test = TestParser::new_with_options(&source, language);
+            let mut parser = test.prepare();
+
+            parser.parse();
+
+            test.assert_error_leaves(
+                &parser,
+                &[
+                    (Some(NodeType::Expression), None, operator),
+                    (None, None, "number"),
+                    (None, None, ")"),
+                ],
+            );
+        }
+    }
+}
+
 /// Parse multiline cast rhs unions after an own-line boundary comment.
 #[test]
 fn test_parse_cast_rhs_leading_union_after_own_line_comment() {
@@ -543,39 +572,41 @@ fn test_parse_satisfies_rhs_leading_intersection() {
 /// Parse `as` rhs comments without synthetic separator ownership.
 #[test]
 fn test_parse_as_rhs_with_line_comment() {
-    let mut test =
-        TestParser::new_with_options("value as // as-tail\nnumber", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.attach_comments();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("value as // as-tail\nnumber", language);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+        parser.attach_comments();
 
-    assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
-        assert_expression_path!(parser, parser.tree.get(*expression), "value");
-        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
-            assert_eq!(*value, TypeLiteral::Number);
+        assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "value");
+            assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Number);
+            });
         });
-    });
 
-    assert_eq!(parser.tree.comments().len(), 1);
-    assert_comment!(parser, 0, CommentKind::Line, "as-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "as-tail");
+    }
 }
 
 /// Parse `satisfies` rhs comments without synthetic separator ownership.
 #[test]
 fn test_parse_satisfies_rhs_with_line_comment() {
-    let mut test =
-        TestParser::new_with_options("value satisfies // sat-tail\nFoo", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.attach_comments();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("value satisfies // sat-tail\nFoo", language);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+        parser.attach_comments();
 
-    assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
-        assert_expression_path!(parser, parser.tree.get(*expression), "value");
-        assert_expression_path!(parser, parser.tree.get(*target_type), "Foo");
-    });
+        assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "value");
+            assert_expression_path!(parser, parser.tree.get(*target_type), "Foo");
+        });
 
-    assert_eq!(parser.tree.comments().len(), 1);
-    assert_comment!(parser, 0, CommentKind::Line, "sat-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentKind::Line, "sat-tail");
+    }
 }
 
 /// Parse async arrows with a parameter named `as`.

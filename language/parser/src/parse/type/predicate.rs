@@ -1,6 +1,7 @@
 use crate::{ParseResult, Parser};
 
 use destack_ast::{Keyword, LocalNodeId, NodeType, TypeExpression, TypePredicateSubject};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
     /// Eat one `asserts` type predicate.
@@ -26,8 +27,10 @@ impl Parser {
         };
 
         // target: `asserts x is T`
+        let mut operator_span = None;
         let target = if self.is_keyword(Keyword::Is) {
-            self.bump(); // eat is
+            let is_span = self.eat_keyword(Keyword::Is)?.span;
+            operator_span = Some(is_span);
 
             let mut target_options = self.options.not_in_position().in_type();
             if self.options.is_in_type_conditional_right() {
@@ -36,6 +39,12 @@ impl Parser {
 
             let target = self
                 .eat_type_expression_or_recover_missing(target_options, NodeType::TypeExpression)?;
+            let target_span = self.tree.get_span(target);
+            self.tree.set_side_span(
+                target,
+                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+                Span::new(target_span.file, is_span.end, target_span.start),
+            );
             Some(target)
         } else {
             None
@@ -51,6 +60,13 @@ impl Parser {
             self.get_span_from(&start),
         );
         self.tree.set_main_span(type_expression_id, subject_span);
+        if let Some(operator_span) = operator_span {
+            self.tree.set_side_span(
+                type_expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Type),
+                operator_span,
+            );
+        }
 
         Ok(type_expression_id)
     }
