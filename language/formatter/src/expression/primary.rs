@@ -365,8 +365,10 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
 
         let trailing_separator = if elements_ids.len() == 1 {
             TrailingSeparator::Mandatory
-        } else {
+        } else if f.context().options.trailing_comma == TrailingComma::None {
             TrailingSeparator::Omit
+        } else {
+            TrailingSeparator::Allowed
         };
 
         // tuple delimiters

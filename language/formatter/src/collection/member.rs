@@ -77,10 +77,6 @@ fn class_member_should_force_quote_keys<'ast>(
         return false;
     }
 
-    if f.context().options.language_type.is_destack() {
-        return false;
-    }
-
     let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
         return false;
     };

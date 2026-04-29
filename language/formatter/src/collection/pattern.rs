@@ -507,6 +507,22 @@ fn object_assign_pattern_has_assignment_wrapper_parent(
     )
 }
 
+/// Return whether one object-like assign-pattern is the direct target of an assignment.
+fn object_assign_pattern_is_assignment_target(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<AssignPattern>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    matches!(expression, Expression::Assign { left, .. } if *left == node_id)
+}
+
 /// Return whether one assign-pattern field contains a direct nested object or array pattern.
 fn object_assign_pattern_field_has_direct_nested_pattern(
     tree: &Tree,
@@ -589,27 +605,13 @@ fn object_assign_pattern_should_break_properties(
     // separator comments
     let has_separator_comments = object_assign_pattern_has_separator_comments(context, fields);
 
-    // wide expanded destructuring
-    let has_expanded_field = fields.len() > 2
-        && fields.iter().copied().any(|field_id| {
-            matches!(
-                context.tree.get(field_id),
-                AssignPatternField::Named {
-                    is_shorthand: false,
-                    ..
-                } | AssignPatternField::Named {
-                    pattern: Some(_),
-                    ..
-                } | AssignPatternField::Computed { .. }
-            )
-        });
-
-    has_direct_nested_pattern || has_separator_comments || has_expanded_field
+    has_direct_nested_pattern || has_separator_comments
 }
 
 #[derive(Clone, Copy, Debug)]
 enum ObjectAssignPatternLayout {
     Empty,
+    Inline,
     Group { expand: bool },
 }
 
@@ -627,6 +629,11 @@ fn object_assign_pattern_layout(
     // expanded nested destructuring
     if object_assign_pattern_should_break_properties(context, node_id, fields) {
         return ObjectAssignPatternLayout::Group { expand: true };
+    }
+
+    // assignment-like layout
+    if object_assign_pattern_is_assignment_target(context, node_id) {
+        return ObjectAssignPatternLayout::Inline;
     }
 
     ObjectAssignPatternLayout::Group { expand: false }
@@ -679,6 +686,7 @@ fn format_object_assign_pattern_like<'ast>(
 
     match layout {
         ObjectAssignPatternLayout::Empty => unreachable!(),
+        ObjectAssignPatternLayout::Inline => write!(f, [format_properties])?,
         ObjectAssignPatternLayout::Group { expand } => {
             write!(f, [group(&format_properties).should_expand(expand)])?;
         }
@@ -717,7 +725,7 @@ fn format_pattern_assignment<'ast>(
     )
 }
 
-/// Format one assignment-target default in assignment-pattern order.
+/// Format one assignment target default in assignment pattern order.
 fn format_assign_pattern_assignment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     pattern: LocalNodeId<AssignPattern>,

@@ -20,12 +20,20 @@ const DESTACK_DECLARATION_EMBEDDED_FILE_TYPES: &[FileType] = &[
 ];
 
 /// Embedded file types to try in JavaScript source docs.
-const JAVASCRIPT_EMBEDDED_FILE_TYPES: &[FileType] =
-    &[FileType::JavaScript, FileType::JavaScriptXml];
+const JAVASCRIPT_EMBEDDED_FILE_TYPES: &[FileType] = &[
+    FileType::TypeScript,
+    FileType::TypeScriptXml,
+    FileType::JavaScript,
+    FileType::JavaScriptXml,
+];
 
 /// Embedded file types to try in JSX source docs.
-const JAVASCRIPT_XML_EMBEDDED_FILE_TYPES: &[FileType] =
-    &[FileType::JavaScriptXml, FileType::JavaScript];
+const JAVASCRIPT_XML_EMBEDDED_FILE_TYPES: &[FileType] = &[
+    FileType::TypeScriptXml,
+    FileType::TypeScript,
+    FileType::JavaScriptXml,
+    FileType::JavaScript,
+];
 
 /// Embedded file types to try in TypeScript source docs.
 const TYPESCRIPT_EMBEDDED_FILE_TYPES: &[FileType] =
@@ -269,6 +277,22 @@ mod tests {
         assert_eq!(
             default_embedded_file_types(LanguageType::TypeScript),
             TYPESCRIPT_EMBEDDED_FILE_TYPES
+        );
+    }
+
+    /// Return typed parsers first for JavaScript documentation examples.
+    #[test]
+    fn test_choose_typescript_embedded_file_types_for_javascript_docs() {
+        let file_types = default_embedded_file_types(LanguageType::JavaScript);
+
+        assert_eq!(
+            file_types,
+            &[
+                FileType::TypeScript,
+                FileType::TypeScriptXml,
+                FileType::JavaScript,
+                FileType::JavaScriptXml,
+            ]
         );
     }
 }

@@ -6,7 +6,7 @@ use super::child::{
 };
 use crate::annotation::{
     FormatTrailingComments, format_trailing_comments, infix_or_postfix_annotations,
-    prefix_annotations,
+    prefix_annotations, prefix_annotations_after_offset, prefix_annotations_before_offset,
 };
 use crate::chain::transparent_inner_expression;
 use crate::expression::argument_value;
@@ -339,19 +339,37 @@ pub(crate) fn write_tree_expression_argument<'ast>(
             }
         }
         Argument::Spread { value, .. } => {
-            // keep spread-head annotations inside `{ ... }` like the standard formatters
             let argument_span = f.context().span(argument_id);
+            let argument_start = f.context().node_token_start(argument_id);
             let value_span = f.context().span(*value);
+            write!(
+                f,
+                [prefix_annotations_before_offset(
+                    f.context(),
+                    argument_id,
+                    argument_start
+                )]
+            )?;
+
             let has_spread_comment = !f
                 .context()
-                .comment_tokens_in_range(argument_span.start, argument_span.end)
+                .comments()
+                .comments_before(value_span.start)
                 .is_empty()
                 || !f
                     .context()
-                    .comment_tokens_in_range(value_span.start, value_span.end)
+                    .comments()
+                    .comments_in_range(value_span.end, argument_span.end)
                     .is_empty();
             let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [prefix_annotations(f.context(), argument_id)])?;
+                write!(
+                    f,
+                    [prefix_annotations_after_offset(
+                        f.context(),
+                        argument_id,
+                        argument_start
+                    )]
+                )?;
                 write!(f, [token("..."), value])
             });
 

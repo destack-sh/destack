@@ -673,6 +673,16 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         return true;
     }
 
+    // object assignment targets need statement start disambiguation
+    if matches!(
+        context.tree.get(node_id),
+        Expression::Assign { left, .. }
+            if matches!(context.tree.get(*left), AssignPattern::Object { .. })
+    ) && expression_is_in_statement_position(context, node_id)
+    {
+        return true;
+    }
+
     let Some((parent_id, parent_type, parent_child_id)) =
         effective_expression_parent(context, node_id)
     else {
@@ -856,7 +866,7 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    // object expressions need statement-start disambiguation
+    // object expressions need statement start disambiguation
     if expression_is_in_statement_position(context, node_id)
         && matches!(
             context.tree.get(expression_id),

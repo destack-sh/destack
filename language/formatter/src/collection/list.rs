@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
+use crate::context::with_following_span_start;
 use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
 use destack_ast::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl};
@@ -37,8 +38,6 @@ where
     Tree: TreeImpl<T>,
 {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        write!(f, [self.element])?;
-
         let element_span = f.context().span(self.element);
         let element_anchor_end = f
             .context()
@@ -51,6 +50,11 @@ where
                 .first_non_trivia_token_in_span(next_element_span)
                 .map_or(next_element_span.start, |token| token.span.start)
         });
+        let element_following_start =
+            next_element_start.unwrap_or_else(|| f.context().following_span_start());
+
+        with_following_span_start(f, element_following_start, |f| write!(f, [self.element]))?;
+
         let source_separator = separator_token_after_element(
             f.context(),
             element_span,
