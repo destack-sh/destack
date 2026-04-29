@@ -8,6 +8,7 @@ mod package;
 mod profile;
 mod relation;
 mod span;
+mod specifier;
 mod target;
 mod r#type;
 
@@ -20,5 +21,6 @@ pub use package::*;
 pub use profile::*;
 pub use relation::*;
 pub use span::*;
+pub use specifier::*;
 pub use target::*;
 pub use r#type::*;
