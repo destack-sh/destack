@@ -73,6 +73,38 @@ Statement-level decorators stay above the decorated expression.
 run();
 ```
 
+### statement decorator inside control flow
+
+Statement-level decorators inside blocks stay above the decorated statement.
+
+```ds
+if (ready) { @trace run() } else { @fallback reset() }
+```
+
+```ds expected
+if (ready) {
+    @trace
+    run()
+} else {
+    @fallback
+    reset()
+}
+```
+
+### stacked statement decorators
+
+Stacked statement decorators each stay on their own line.
+
+```ds
+@trace @measure run()
+```
+
+```ds expected
+@trace
+@measure
+run();
+```
+
 ## Functions
 
 ### parameter annotation stays attached
@@ -198,6 +230,23 @@ class Box {
     compute(): number {
         return 1;
     }
+}
+```
+
+### decorated accessor stays on its own line
+
+Accessor decorators stay on their own line above the accessor.
+
+```ts:main.ts
+class Box {
+  @observable accessor value: number
+}
+```
+
+```ts expected
+class Box {
+    @observable
+    accessor value: number;
 }
 ```
 

@@ -26,7 +26,7 @@ if (let (x, y) = point) { print(x + y) }
 
 ```ds expected
 if (let (x, y) = point) {
-    print(x + y);
+    print(x + y)
 }
 ```
 
@@ -40,9 +40,9 @@ if (let Point { x, y } = value) { x + y } else { 0 }
 
 ```ds expected
 if (let Point { x, y } = value) {
-    x + y;
+    x + y
 } else {
-    0;
+    0
 }
 ```
 
@@ -56,11 +56,11 @@ if(let Some(value)=maybe){value}else if(let Err(error)=result){handle(error)}els
 
 ```ds expected
 if (let Some(value) = maybe) {
-    value;
+    value
 } else if (let Err(error) = result) {
-    handle(error);
+    handle(error)
 } else {
-    fallback();
+    fallback()
 }
 ```
 
@@ -98,9 +98,46 @@ if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) { x + y } else 
 
 ```ds expected
 if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) {
-    x + y;
+    x + y
 } else {
-    0;
+    0
+}
+```
+
+### if let nested tagged object pattern
+
+Nested tagged object patterns break inside the parenthesized condition when needed.
+
+```ds line-width=80
+if (let Shape.Line { start: Point { x, y }, end } = shape) { x + y } else { 0 }
+```
+
+```ds expected
+if (
+    let Shape.Line {
+        start: Point { x, y },
+        end,
+    } = shape
+) {
+    x + y
+} else {
+    0
+}
+```
+
+### if let array boundary pattern
+
+Array patterns keep omitted rest boundaries in conditions.
+
+```ds
+if (let [first, ..., last] = items) { use(first, last) } else { reset() }
+```
+
+```ds expected
+if (let [first, ..., last] = items) {
+    use(first, last)
+} else {
+    reset()
 }
 ```
 
@@ -114,4 +151,123 @@ const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } els
 
 ```ds expected
 const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback };
+```
+
+### if let function tail expression
+
+If let expressions in function tail position preserve branch values.
+
+```ds
+function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { value } else { 0 } }
+```
+
+```ds expected
+function unwrap(maybe: Maybe<number>): number {
+    if (let Some(value) = maybe) {
+        value
+    } else {
+        0
+    }
+}
+```
+
+### if let method tail expression
+
+If let expressions in method tail position preserve branch values.
+
+```ds
+class Box { value(): number { if (let Some(value) = this.cached) { value } else { this.compute() } } }
+```
+
+```ds expected
+class Box {
+    value(): number {
+        if (let Some(value) = this.cached) {
+            value
+        } else {
+            this.compute()
+        }
+    }
+}
+```
+
+### if let void method tail
+
+Void method bodies keep branch tail expressions semicolonless unless the semicolon was explicit.
+
+```ds
+class Box { apply(): void { if (let Some(value) = this.cached) { use(value) } else { reset() } } }
+```
+
+```ds expected
+class Box {
+    apply(): void {
+        if (let Some(value) = this.cached) {
+            use(value)
+        } else {
+            reset()
+        }
+    }
+}
+```
+
+### if let tail with explicit branch statements
+
+Explicit semicolons inside value-tail branches are preserved.
+
+```ds
+function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { value; } else { 0 } }
+```
+
+```ds expected
+function unwrap(maybe: Maybe<number>): number {
+    if (let Some(value) = maybe) {
+        value;
+    } else {
+        0
+    }
+}
+```
+
+### if let tail branch comments
+
+Branch comments keep the value-producing tail expression semicolonless.
+
+```ds
+function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { // present
+value } else { // missing
+0 } }
+```
+
+```ds expected
+function unwrap(maybe: Maybe<number>): number {
+    if (let Some(value) = maybe) {
+        // present
+        value
+    } else {
+        // missing
+        0
+    }
+}
+```
+
+### if let nested match tail
+
+Nested matches inside if-let tails preserve arm values.
+
+```ds
+function unwrap(maybe: Maybe<Result<number, Error>>): number { if (let Some(result) = maybe) { match (result) { Ok(value) => value; Err(_) => 0 } } else { 0 } }
+```
+
+```ds expected
+function unwrap(maybe: Maybe<Result<number, Error>>): number {
+    if (let Some(result) = maybe) {
+        match (result) {
+            Ok(value) => value
+            Err(_) => 0
+        }
+    } else {
+        0
+    }
+}
 ```

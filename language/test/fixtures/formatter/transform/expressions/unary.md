@@ -152,6 +152,38 @@ const refs = (&readonly /* borrow */ value, *readonly /* pointer */ value)
 const refs = (&readonly (/* borrow */ value), *readonly (/* pointer */ value));
 ```
 
+### reference operators in return tail
+
+Ownership operators stay semicolonless when returned as function tail values.
+
+```ds
+function borrow(value: Buffer): &readonly Buffer { &readonly value }
+```
+
+```ds expected
+function borrow(value: Buffer): &readonly Buffer {
+    &readonly value
+}
+```
+
+### reference operators in nested value tail
+
+Ownership operators compose with nested control-flow value tails.
+
+```ds
+function borrow(value: Buffer, fallback: Buffer): &readonly Buffer { if (ready) { &readonly value } else { &readonly fallback } }
+```
+
+```ds expected
+function borrow(value: Buffer, fallback: Buffer): &readonly Buffer {
+    if (ready) {
+        &readonly value
+    } else {
+        &readonly fallback
+    }
+}
+```
+
 ## Increment and Decrement
 
 ### prefix increment

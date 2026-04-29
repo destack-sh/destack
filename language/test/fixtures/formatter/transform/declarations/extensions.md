@@ -64,6 +64,25 @@ extension<T> of Box<T> {
 }
 ```
 
+### extension method tail expression
+
+Value-returning extension methods keep terminal expressions semicolonless.
+
+```ds
+extension<T> of Box<T> { clone(): Box<T> { Box { value: this.value } } clear(): void { reset() } }
+```
+
+```ds expected
+extension<T> of Box<T> {
+    clone(): Box<T> {
+        Box { value: this.value }
+    }
+    clear(): void {
+        reset();
+    }
+}
+```
+
 ### extension with implements and where clause
 
 Extensions can include implements and where constraints.

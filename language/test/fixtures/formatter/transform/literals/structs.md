@@ -66,6 +66,34 @@ Point { x, y }
 Point { x, y };
 ```
 
+### tail struct literal expression
+
+Struct literals in function tail position keep expression value.
+
+```ds
+function point(x: number, y: number): Point { Point { x, y } }
+```
+
+```ds expected
+function point(x: number, y: number): Point {
+    Point { x, y }
+}
+```
+
+### parenthesized statement struct literal
+
+Parenthesized struct literal statements drop the grouping and keep the semicolon.
+
+```ds
+function point(x: number, y: number): void { (Point { x, y }); }
+```
+
+```ds expected
+function point(x: number, y: number): void {
+    Point { x, y };
+}
+```
+
 ## Line Breaking
 
 ### struct breaks at line width

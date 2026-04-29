@@ -320,6 +320,66 @@ const x = {
 };
 ```
 
+### method tail expression
+
+Value-returning object methods keep terminal expressions semicolonless.
+
+```ds
+const x = { value(): number { this.current } }
+```
+
+```ds expected
+const x = {
+    value(): number {
+        this.current
+    },
+};
+```
+
+### method short nested value tail
+
+Short object methods expand nested control-flow tails.
+
+```ds
+const x = { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { this.limit } else { doubled } } }
+```
+
+```ds expected
+const x = {
+    value(next: number): number {
+        const doubled = next * 2;
+        if (doubled > this.limit) {
+            this.limit
+        } else {
+            doubled
+        }
+    },
+};
+```
+
+### method expanded nested value tail
+
+Object methods preserve expression tails through nested control flow.
+
+```ds
+const x = { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { const capped = this.limit - 1; capped } else { const returned = doubled + 1; returned } } }
+```
+
+```ds expected
+const x = {
+    value(next: number): number {
+        const doubled = next * 2;
+        if (doubled > this.limit) {
+            const capped = this.limit - 1;
+            capped
+        } else {
+            const returned = doubled + 1;
+            returned
+        }
+    },
+};
+```
+
 ## Nested Objects
 
 ### nested object

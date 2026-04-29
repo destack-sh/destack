@@ -74,6 +74,84 @@ function process(x: number) {
 }
 ```
 
+### short value function with nested tail expression
+
+Short value-returning functions expand nested control-flow tails.
+
+```ds
+function score(value: number): number { const base = value * 2; if (base > 10) { base } else { base + 1 } }
+```
+
+```ds expected
+function score(value: number): number {
+    const base = value * 2;
+    if (base > 10) {
+        base
+    } else {
+        base + 1
+    }
+}
+```
+
+### expanded value function with nested tail expression
+
+Value-returning functions preserve expression tails through nested blocks.
+
+```ds
+function score(value: number): number { const base = value * 2; if (base > 10) { const capped = base - 1; capped } else { const boosted = base + 1; boosted } }
+```
+
+```ds expected
+function score(value: number): number {
+    const base = value * 2;
+    if (base > 10) {
+        const capped = base - 1;
+        capped
+    } else {
+        const boosted = base + 1;
+        boosted
+    }
+}
+```
+
+### void function with nested if tail
+
+Void functions keep nested if branch tails semicolonless unless the semicolon was explicit.
+
+```ds
+function score(value: number): void { const base = value * 2; if (base > 10) { report(base) } else { report(base + 1) } }
+```
+
+```ds expected
+function score(value: number): void {
+    const base = value * 2;
+    if (base > 10) {
+        report(base)
+    } else {
+        report(base + 1)
+    }
+}
+```
+
+### value function with match tail expression
+
+Match expressions in function tail position keep arm values.
+
+```ds
+function label(status: Status): string { const normalized = status.normalize(); match (normalized) { Ready => "ready"; Waiting => "waiting"; Failed(error) => error.message } }
+```
+
+```ds expected
+function label(status: Status): string {
+    const normalized = status.normalize();
+    match (normalized) {
+        Ready => "ready"
+        Waiting => "waiting"
+        Failed(error) => error.message
+    }
+}
+```
+
 ## Async Functions
 
 ### async function

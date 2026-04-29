@@ -272,3 +272,32 @@ Object assignment targets keep member and index targets.
 ```ds expected
 ({ value: object.property, [key]: target[index] } = source);
 ```
+
+### nested assignment target matrix
+
+Nested assignment targets keep aliases, defaults, computed keys, and rest fields.
+
+```ts:main.ts
+({ a, b: { c = d }, [key]: target[index], ...rest } = source)
+```
+
+```ts expected
+({
+    a,
+    b: { c = d },
+    [key]: target[index],
+    ...rest
+} = source);
+```
+
+### array assignment target matrix
+
+Array assignment targets keep elisions, defaults, nested targets, and rest fields.
+
+```ts:main.ts
+[first, , second = fallback, { value: object.property }, ...rest] = source
+```
+
+```ts expected
+[first, , second = fallback, { value: object.property }, ...rest] = source;
+```

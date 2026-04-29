@@ -116,6 +116,132 @@ const x = match (status) {
 };
 ```
 
+### match function tail expression
+
+Match expressions in function tail position preserve arm values.
+
+```ds
+function statusText(status: Status): string { match (status) { Ready => "ready"; Waiting => "waiting"; Failed(error) => error.message } }
+```
+
+```ds expected
+function statusText(status: Status): string {
+    match (status) {
+        Ready => "ready"
+        Waiting => "waiting"
+        Failed(error) => error.message
+    }
+}
+```
+
+### match arm block tail control flow
+
+Block arms preserve nested control-flow values.
+
+```ds
+match (result) { Ok(value) => { const normalized = value.normalize(); if (normalized.valid) { normalized.value } else { fallback } }; Err(error) => { log(error); fallback } }
+```
+
+```ds expected
+match (result) {
+    Ok(value) => {
+        const normalized = value.normalize();
+        if (normalized.valid) {
+            normalized.value
+        } else {
+            fallback
+        }
+    }
+    Err(error) => {
+        log(error);
+        fallback
+    }
+}
+```
+
+### match statement arm control flow
+
+Match expressions in statement position keep nested branch statements.
+
+```ds
+match (result) { Ok(value) => { if (value.valid) { use(value); } else { reset(); } }; Err(error) => report(error) }
+```
+
+```ds expected
+match (result) {
+    Ok(value) => {
+        if (value.valid) {
+            use(value);
+        } else {
+            reset();
+        }
+    }
+    Err(error) => report(error)
+}
+```
+
+### match arm explicit block statement
+
+Explicit statement terminators inside block arms are preserved.
+
+```ds
+match (result) { Ok(value) => { use(value); }; Err(error) => { report(error); } }
+```
+
+```ds expected
+match (result) {
+    Ok(value) => { use(value); }
+    Err(error) => { report(error); }
+}
+```
+
+### match tail arm comments
+
+Comments inside value-producing arms stay before the arm tail expression.
+
+```ds
+function statusText(status: Status): string { match (status) { Ready => { // ready branch
+"ready" }; Failed(error) => { // failed branch
+error.message } } }
+```
+
+```ds expected
+function statusText(status: Status): string {
+    match (status) {
+        Ready => {
+            // ready branch
+            "ready"
+        }
+        Failed(error) => {
+            // failed branch
+            error.message
+        }
+    }
+}
+```
+
+### match guarded arm comments
+
+Comments before guarded arms stay attached to the arm.
+
+```ds
+match (value) {
+    // positive
+    n if (n > 0) => n;
+    // fallback
+    _ => 0
+}
+```
+
+```ds expected
+match (value) {
+    // positive
+    n if (n > 0) => n
+    // fallback
+    _ => 0
+}
+```
+
 ## Switch Expressions
 
 ### basic switch expression
