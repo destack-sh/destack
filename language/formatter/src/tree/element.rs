@@ -1,12 +1,13 @@
 use crate::annotation::FormatTrailingComments;
+use crate::context::with_following_span_start;
 use crate::expression::format_generic_argument_list;
 use crate::tree::{tree_argument_is_wrapped_in_braces, write_tree_expression_argument};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Argument, Expression, GenericArgument, LocalNodeId, ScalarLiteral};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
-    expand_parent, format_with, group, hard_line_break, if_group_fits_on_line, soft_block_indent,
-    soft_line_break, soft_line_break_or_space, space, token,
+    expand_parent, format_with, group, hard_line_break, soft_line_break, soft_line_break_or_space,
+    soft_line_indent_or_space, space, token,
 };
 use destack_fir::write;
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -103,10 +104,21 @@ impl<'tree> FormatTreeOpeningElement<'tree> {
 impl<'ast> Format<DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let layout = self.compute_layout(f.context());
-        let format_open = format_with(|f| {
+        let format_open = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write!(f, [token("<")])?;
             if let Some(left) = self.left {
-                write!(f, [left])?;
+                let attributes = self.arguments.as_deref().unwrap_or(&[]);
+                let left_following_span_start = self
+                    .generic_arguments
+                    .first()
+                    .map(|argument_id| f.context().span(*argument_id).start)
+                    .or_else(|| {
+                        attributes
+                            .first()
+                            .map(|argument_id| f.context().span(*argument_id).start)
+                    })
+                    .unwrap_or_else(|| f.context().following_span_start());
+                with_following_span_start(f, left_following_span_start, |f| write!(f, [left]))?;
             }
             if !self.generic_arguments.is_empty() {
                 format_generic_argument_list(f, self.generic_arguments)?;
@@ -285,23 +297,7 @@ fn format_tree_attributes<'ast>(
         write!(f, [expand_parent()])?;
     }
 
-    if force_break_attributes {
-        write!(
-            f,
-            [
-                if_group_fits_on_line(&space()),
-                group(&soft_block_indent(&format_attrs)).should_expand(true)
-            ]
-        )?;
-    } else {
-        write!(
-            f,
-            [
-                if_group_fits_on_line(&space()),
-                soft_block_indent(&format_attrs)
-            ]
-        )?;
-    }
+    write!(f, [soft_line_indent_or_space(&format_attrs)])?;
 
     Ok(())
 }

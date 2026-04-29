@@ -884,10 +884,6 @@ pub(crate) fn tree_literal_uses_conditional_trailing_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if context.options.language_type.is_destack() {
-        return false;
-    }
-
     let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
         return false;
     };

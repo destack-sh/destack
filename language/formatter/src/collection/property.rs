@@ -397,10 +397,6 @@ fn property_should_force_quote_keys<'ast>(
         return false;
     }
 
-    if f.context().options.language_type.is_destack() {
-        return false;
-    }
-
     let Some((parent_id, parent_type)) = f.context().parent(node_id) else {
         return false;
     };
@@ -532,7 +528,7 @@ where
     Tree: TreeImpl<T>,
 {
     let force_quote_keys =
-        force_quote_keys || should_preserve_typescript_class_field_quote(f.context(), node_id, key);
+        force_quote_keys || should_preserve_class_field_quote(f.context(), node_id, key);
 
     // prefixes
     write_ambient_prefix(f, ambient)?;
@@ -569,8 +565,8 @@ where
     Ok(())
 }
 
-/// Return whether a TypeScript class field string key should preserve quotes.
-fn should_preserve_typescript_class_field_quote<T>(
+/// Return whether a class field string key should preserve quotes.
+fn should_preserve_class_field_quote<T>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
     key: Key,
@@ -579,11 +575,12 @@ where
     T: Node + Clone,
     Tree: TreeImpl<T>,
 {
-    if !context.options.language_type.is_typescript() {
+    if !matches!(key, Key::Name(Name::String(_))) {
         return false;
     }
 
-    if !matches!(key, Key::Name(Name::String(_))) {
+    if !context.options.language_type.is_destack() && !context.options.language_type.is_typescript()
+    {
         return false;
     }
 

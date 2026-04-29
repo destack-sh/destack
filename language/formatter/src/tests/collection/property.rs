@@ -178,3 +178,19 @@ fn test_format_class_quote_props_consistent_without_required_quotes() {
         }
     );
 }
+
+/// JavaScript class fields should drop unnecessary key quotes.
+#[test]
+fn test_format_javascript_class_quote_props_as_needed() {
+    assert_format_program!(
+        r#"class Example { "a" = 1; "needs-quotes" = 2; }
+"#,
+        r#"class Example {
+  a = 1;
+  "needs-quotes" = 2;
+}
+"#,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
