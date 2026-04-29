@@ -8,7 +8,7 @@ use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::AmbientSnapshot;
+use destack_workspace::HostEnvironment;
 
 use crate::{LanguageService, LanguageServiceResult};
 
@@ -44,7 +44,7 @@ impl TestLanguageService {
             open_repository_from_fs(
                 root.clone(),
                 overlay.clone(),
-                AmbientSnapshot::capture_process(),
+                HostEnvironment::capture_process(),
             )
             .expect("failed to import repository from overlay fs"),
         );
@@ -58,7 +58,6 @@ impl TestLanguageService {
             Some(overlay),
             roots.clone(),
             compiler_options,
-            None,
             None,
         )
         .expect("expected workspace service");

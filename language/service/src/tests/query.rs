@@ -101,7 +101,7 @@ fn test_workspace_service_revisions_advance_after_updates() {
         .revision_for_path(&path)
         .expect("expected second revision");
 
-    assert!(revision_b > revision_a, "expected revision to increase");
+    assert_ne!(revision_b, revision_a, "expected revision to change");
 }
 
 /// Require revision preconditions for mutating queries.
@@ -130,12 +130,8 @@ fn test_workspace_service_query_requires_revision_for_mutation() {
     ));
 
     // reject stale revision preconditions
-    let current_revision = test
-        .service
-        .revision_for_path(&path)
-        .expect("expected current revision");
     let stale_revision = query::QueryRequestEnvelope {
-        expected_revision: Some(Revision::new(current_revision.0.saturating_sub(1))),
+        expected_revision: Some(Revision::NULL),
         request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
             renames: Vec::new(),
         }),
@@ -202,7 +198,7 @@ fn test_workspace_service_read_query_rejects_expected_revision() {
     let _ = test.update_virtual_text(&path, source);
 
     let envelope = query::QueryRequestEnvelope {
-        expected_revision: Some(Revision::INITIAL),
+        expected_revision: Some(Revision::NULL),
         request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
     };
     let error = test
@@ -212,7 +208,7 @@ fn test_workspace_service_read_query_rejects_expected_revision() {
     assert!(matches!(
         error,
         LanguageServiceError::UnexpectedExpectedRevisionOnRead {
-            expected_revision: Revision::INITIAL
+            expected_revision: Revision::NULL
         }
     ));
 }

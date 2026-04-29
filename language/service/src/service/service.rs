@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_compiler::CompilerOptions;
-use destack_session::{Session, SessionEventHandler, SessionObservationHandler};
+use destack_session::{Session, SessionEventHandler};
 use destack_source::{OverlayFileSystem, Uri};
 use destack_workspace::Repository;
 
@@ -19,8 +19,6 @@ pub struct LanguageService {
     pub(super) compiler_execution_options: CompilerOptions,
     /// Optional session event handler for local progress reporting.
     pub(super) session_event_handler: Option<SessionEventHandler>,
-    /// Optional session observation handler for local instrumentation reporting.
-    pub(super) session_observation_handler: Option<SessionObservationHandler>,
     /// Workspace state keyed by root path.
     pub(super) workspaces_by_root: DashMap<PathBuf, Arc<Session>>,
 }
@@ -40,10 +38,6 @@ impl std::fmt::Debug for LanguageService {
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
             )
-            .field(
-                "session_observation_handler",
-                &self.session_observation_handler.is_some(),
-            )
             .field("workspaces_by_root", &self.workspaces_by_root)
             .finish()
     }
@@ -55,14 +49,7 @@ impl LanguageService {
         repository: Arc<Repository>,
         roots: Vec<PathBuf>,
     ) -> Result<Self, LanguageServiceError> {
-        Self::with_options(
-            repository,
-            None,
-            roots,
-            CompilerOptions::default(),
-            None,
-            None,
-        )
+        Self::with_options(repository, None, roots, CompilerOptions::default(), None)
     }
 
     /// Return true when a path is tracked as one open document.

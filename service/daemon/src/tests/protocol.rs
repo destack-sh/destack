@@ -721,7 +721,7 @@ fn test_protocol_workspace_query_hover() {
     let envelope = envelope.decode_envelope().expect("query response decode");
 
     // assert hover response content
-    assert!(envelope.revision > Revision::INITIAL);
+    assert_ne!(envelope.revision, Revision::NULL);
     match envelope.response {
         QueryResponse::Hover(payload) => {
             if let Some(hover) = payload.hover {
@@ -764,7 +764,7 @@ fn test_protocol_workspace_query_requires_revision_for_mutation() {
 
     // reject stale revision preconditions
     let stale_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-        expected_revision: Some(Revision::INITIAL),
+        expected_revision: Some(Revision::NULL),
         request: QueryRequest::RenameFiles(RenameFilesRequest {
             renames: Vec::new(),
         }),

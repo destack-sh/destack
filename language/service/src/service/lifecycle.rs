@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
-use destack_session::{
-    Session, SessionEventHandler, SessionObservationHandler, canonical_path_or_original,
-};
+use destack_session::{Session, SessionEventHandler, canonical_path_or_original};
 use destack_source::OverlayFileSystem;
 use destack_workspace::{Ref, Repository, Revision};
 
@@ -117,14 +115,12 @@ impl LanguageService {
         roots: Vec<PathBuf>,
         compiler_options: CompilerOptions,
         session_event_handler: Option<SessionEventHandler>,
-        session_observation_handler: Option<SessionObservationHandler>,
     ) -> Result<Self, LanguageServiceError> {
         let service = Self {
             repository,
             overlay_fs,
             compiler_execution_options: compiler_options,
             session_event_handler,
-            session_observation_handler,
             workspaces_by_root: dashmap::DashMap::new(),
         };
 
@@ -301,7 +297,7 @@ impl LanguageService {
         if self.repository.current(&revision_ref).is_err() {
             let repository_root_ref = Ref::for_workspace_root(self.repository.workspace_root());
             self.repository
-                .fork(&repository_root_ref, revision_ref.clone())
+                .fork_ref(&repository_root_ref, revision_ref.clone())
                 .map_err(LanguageServiceError::from)?;
         }
 
@@ -322,7 +318,6 @@ impl LanguageService {
             compiler,
             linter,
             self.session_event_handler.clone(),
-            self.session_observation_handler.clone(),
         )
         .map_err(LanguageServiceError::from)
     }

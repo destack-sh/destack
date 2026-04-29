@@ -151,10 +151,10 @@ impl CommandContext<'_> {
             Vec::new()
         };
 
-        let package_paths: Vec<String> = self
+        let package_roots: Vec<String> = self
             .repository
-            .workspace_package_paths(revision)
-            .map_err(|error| format!("failed to derive workspace package paths: {error}"))?
+            .package_roots(revision)
+            .map_err(|error| format!("failed to derive workspace package roots: {error}"))?
             .iter()
             .map(|path| path.display().to_string())
             .collect();
@@ -169,9 +169,9 @@ impl CommandContext<'_> {
             workspace: CommandDoctorWorkspace {
                 root: workspace.root.display().to_string(),
                 kind: format!("{:?}", workspace.kind),
-                package_count: package_paths.len(),
+                package_count: package_roots.len(),
                 packages: if options.full {
-                    Some(package_paths)
+                    Some(package_roots)
                 } else {
                     None
                 },

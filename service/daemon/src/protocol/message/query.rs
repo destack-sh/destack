@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
-use destack_source::ProfileId;
 use destack_workspace::Revision;
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
@@ -157,13 +156,6 @@ impl std::error::Error for QueryPayloadCodecError {
 /// Query request payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonQuery {
-    /// Request module graph payload.
-    ModuleGraph {
-        /// Workspace handle.
-        handle: WorkspaceHandleId,
-        /// Profile id for the graph.
-        profile: ProfileId,
-    },
     /// Request diagnostics snapshot.
     Diagnostics { handle: WorkspaceHandleId },
     /// Request cache statistics.
@@ -189,8 +181,6 @@ pub enum DaemonQuery {
 /// Query response payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonQueryResponse {
-    /// Module graph payload.
-    ModuleGraph(BinaryPayload),
     /// Diagnostics snapshot.
     Diagnostics(Vec<DiagnosticBatch>),
     /// Cache stats payload.
@@ -224,7 +214,7 @@ mod tests {
     fn test_roundtrip_query_request_payload() {
         // build a representative query request envelope
         let envelope = QueryRequestEnvelope {
-            expected_revision: Some(Revision::new(7)),
+            expected_revision: Some(Revision::from_test_value(7)),
             request: QueryRequest::Hover(HoverRequest {
                 uri: Uri::from_string("/workspace/main.ds"),
                 offset: 42,
@@ -287,7 +277,7 @@ mod tests {
     fn test_roundtrip_query_response_payload() {
         // build a representative query response envelope
         let envelope = QueryResponseEnvelope {
-            revision: Revision::new(7),
+            revision: Revision::from_test_value(7),
             response: QueryResponse::Hover(HoverResponse { hover: None }),
         };
 

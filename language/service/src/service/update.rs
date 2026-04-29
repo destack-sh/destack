@@ -271,7 +271,7 @@ impl LanguageService {
         let profile_id = repository
             .default_profile_id_for_module(revision, module_id)
             .map_err(LanguageServiceError::from)?;
-        let artifact_keys = [ArtifactKey::dir_analyzed(module_id, profile_id)];
+        let artifact_keys = [ArtifactKey::dir_checked(module_id, profile_id)];
 
         session
             .provide(&artifact_keys)

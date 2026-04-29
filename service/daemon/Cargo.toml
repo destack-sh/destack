@@ -19,6 +19,7 @@ schema = ["schemars"]
 destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
