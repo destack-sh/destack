@@ -164,14 +164,26 @@ fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
     });
 }
 
-/// Parse a dereference expression.
+/// Parse a pointer expression.
 #[test]
-fn test_parse_dereference_variable() {
+fn test_parse_pointer_variable() {
     let mut test = TestParser::new("*x");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Unary { operator, right, .. } => {
-        assert_eq!(*operator, UnaryOperator::Dereference);
+    assert_node!(parser.tree, expr_id, Expression::PointerOf { mutability: Some(mutability), right } => {
+        assert_eq!(*mutability, Mutability::Mutable);
+        assert_expression_path!(parser, parser.tree.get(*right), "x");
+    });
+}
+
+/// Parse a readonly pointer expression.
+#[test]
+fn test_parse_readonly_pointer_variable() {
+    let mut test = TestParser::new("*readonly x");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(parser.tree, expr_id, Expression::PointerOf { mutability: Some(mutability), right } => {
+        assert_eq!(*mutability, Mutability::Immutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
     });
 }
