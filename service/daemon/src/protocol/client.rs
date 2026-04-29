@@ -314,7 +314,6 @@ impl PayloadInbox {
     ) -> Result<bool, ProtocolClientError> {
         // resolve binary payloads in query responses
         match response {
-            DaemonQueryResponse::ModuleGraph(payload) => self.resolve_payload(payload),
             DaemonQueryResponse::WorkspaceQuery(payload) => {
                 self.resolve_payload(&mut payload.payload)
             }

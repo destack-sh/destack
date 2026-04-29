@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use destack_source::ProfileId;
 use destack_workspace::{Ref, Repository, Revision};
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service};
@@ -700,11 +699,6 @@ impl ProtocolServer {
     fn handle_query(&self, query: DaemonQuery) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let response = match query {
-            DaemonQuery::ModuleGraph { handle, profile } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self.prepare_payload(self.module_graph_payload(&root, profile)?)?;
-                DaemonQueryResponse::ModuleGraph(payload)
-            }
             DaemonQuery::Diagnostics { handle } => {
                 let diagnostics = self.diagnostics_for_handle(handle)?;
                 DaemonQueryResponse::Diagnostics(diagnostics)
@@ -1132,28 +1126,6 @@ impl ProtocolServer {
         }
     }
 
-    /// Produce a module graph payload for a profile.
-    fn module_graph_payload(
-        &self,
-        root: &Path,
-        profile_id: ProfileId,
-    ) -> Result<BinaryPayload, ProtocolError> {
-        let repository = Arc::clone(&self.daemon.repository);
-        let revision = self.current_workspace_revision(root, &repository)?;
-        let graph = repository
-            .module_graph(revision, profile_id)
-            .ok_or_else(|| {
-                self.protocol_error(ProtocolErrorCode::NotFound, "module graph missing")
-            })?;
-        let bytes = postcard::to_allocvec(graph.as_ref()).map_err(|error| {
-            self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
-        })?;
-        Ok(BinaryPayload {
-            format: PayloadFormat::Postcard,
-            body: PayloadBody::Inline { bytes },
-        })
-    }
-
     /// Return diagnostics for one workspace handle.
     fn diagnostics_for_handle(
         &self,
@@ -1184,7 +1156,7 @@ impl ProtocolServer {
         let revision = self.current_workspace_revision(root, compiler.repository.as_ref())?;
         let module_count = compiler
             .repository
-            .workspace_module_ids(revision)
+            .module_ids(revision)
             .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()))?
             .len();
         let snapshot = compiler

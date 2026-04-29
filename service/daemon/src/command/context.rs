@@ -8,7 +8,6 @@ use destack_session::{FileMutation, Session};
 use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, TargetId, glob};
 use destack_workspace::{
     DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
-    TargetSelection,
 };
 
 use crate::Daemon;
@@ -196,7 +195,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn module_count(&self, revision: Revision) -> super::CommandResult<usize> {
         let modules = self
             .repository
-            .workspace_module_ids(revision)
+            .module_ids(revision)
             .map_err(|error| format!("failed to collect workspace modules: {error}"))?;
 
         Ok(modules.len())
@@ -305,52 +304,25 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| format!("failed to read module snapshot: {error}"))?
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         // use the package default target when it is unambiguous
-        match self
+        if let Some((target_id, target)) = self
             .repository
-            .default_target(revision, module.package_id)
+            .package_default_target(revision, module.package_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?
         {
-            TargetSelection::Selected { target_id, target } => {
-                if let Some(overrides) = overrides
-                    && !overrides.is_empty()
-                {
-                    return Err(
-                        "ad-hoc target overrides are not supported for named targets"
-                            .to_string()
-                            .into(),
-                    );
-                }
-
-                return Ok(ResolvedTarget {
-                    id: target_id,
-                    target,
-                });
-            }
-            TargetSelection::MissingConfigured { target_id } => {
+            if let Some(overrides) = overrides
+                && !overrides.is_empty()
+            {
                 return Err(
-                    format!("configured default target '{target_id}' is not defined").into(),
+                    "ad-hoc target overrides are not supported for named targets"
+                        .to_string()
+                        .into(),
                 );
             }
-            TargetSelection::None => {}
-            TargetSelection::Ambiguous { target_ids } => {
-                let mut target_names: Vec<String> = target_ids
-                    .iter()
-                    .filter_map(|target_id| {
-                        self.repository
-                            .target(revision, *target_id)
-                            .ok()
-                            .flatten()
-                            .map(|target| target.name)
-                    })
-                    .collect();
-                target_names.sort();
 
-                return Err(format!(
-                    "multiple targets configured ({}): specify --target",
-                    target_names.join(", ")
-                )
-                .into());
-            }
+            return Ok(ResolvedTarget {
+                id: target_id,
+                target,
+            });
         }
 
         // infer a fallback target when no explicit configuration exists
@@ -458,7 +430,7 @@ fn resolve_destack_config_path(
             cwd.join(config_path)
         };
         let metadata = repository
-            .metadata_for_path(revision, &resolved)
+            .metadata(revision, &resolved)
             .map_err(|error| error.to_string())?
             .ok_or_else(|| "destack.json not found".to_string())?;
 
@@ -512,7 +484,7 @@ fn load_workspace_declarations(
 ) -> super::CommandResult<Vec<DestackDeclaration>> {
     let mut configs = BTreeMap::new();
     for package_path in repository
-        .workspace_package_paths(revision)
+        .package_roots(revision)
         .map_err(|error| error.to_string())?
     {
         if let Some(path) = find_destack_config(resolver, package_path.as_path()) {

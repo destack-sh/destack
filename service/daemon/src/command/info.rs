@@ -67,10 +67,10 @@ impl CommandContext<'_> {
             .repository
             .workspace(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
-        let package_paths: Vec<String> = self
+        let package_roots: Vec<String> = self
             .repository
-            .workspace_package_paths(revision)
-            .map_err(|error| format!("failed to derive workspace package paths: {error}"))?
+            .package_roots(revision)
+            .map_err(|error| format!("failed to derive workspace package roots: {error}"))?
             .iter()
             .map(|path| path.display().to_string())
             .collect();
@@ -145,7 +145,7 @@ impl CommandContext<'_> {
             workspace: CommandInfoWorkspace {
                 root: workspace.root.display().to_string(),
                 kind: format!("{:?}", workspace.kind),
-                packages: package_paths,
+                packages: package_roots,
             },
             config: config_path.as_ref().map(|path| path.display().to_string()),
             targets,

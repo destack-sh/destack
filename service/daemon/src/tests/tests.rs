@@ -122,7 +122,7 @@ impl TestDaemon {
             Repository::open_root_from_fs(
                 workspace_root,
                 fs.clone(),
-                destack_workspace::AmbientSnapshot::capture_process(),
+                destack_workspace::HostEnvironment::capture_process(),
             )
             .expect("failed to import repository from test file system")
             .with_cache(Arc::new(MemoryCacheStore::new())),

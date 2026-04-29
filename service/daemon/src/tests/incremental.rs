@@ -1,11 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::MemoryCacheStore;
+use destack_artifact::{DiskCacheStore, MemoryCacheStore};
 use destack_compiler::CompilerOptions;
 use destack_query as query;
-use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::Repository;
+use destack_source::{FileContent, FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use destack_workspace::{HostEnvironment, Repository};
 
 use crate::Daemon;
 use crate::tests::{TestDaemon, current_workspace_revision};
@@ -102,10 +102,13 @@ fn test_daemon_virtual_update_emits_diagnostics() {
 fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     let fs = TemporaryPhysicalFileSystem::new_with_prefix("daemon_virtual_physical");
     let root = fs.root().to_path_buf();
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
     let repository = Arc::new(
-        Repository::open_root(
+        Repository::new(
             root.clone(),
-            destack_workspace::AmbientSnapshot::capture_process(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
         )
         .with_cache(Arc::new(MemoryCacheStore::new())),
     );

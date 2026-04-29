@@ -6,8 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
-use destack_artifact::hash_bytes;
-use destack_workspace::Repository;
+use destack_artifact::DiskCacheStore;
+use destack_core::stable_hash_bytes;
+use destack_source::{FileSystem, PhysicalFileSystem};
+use destack_workspace::{HostEnvironment, Repository};
 
 use crate::protocol::{MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, ProtocolRange};
 
@@ -330,7 +332,7 @@ impl From<serde_json::Error> for DaemonInstanceError {
 fn hash_workspace_root(root: &Path) -> String {
     // hash the workspace root string
     let root_bytes = root.to_string_lossy();
-    let hash = hash_bytes(root_bytes.as_bytes());
+    let hash = stable_hash_bytes(root_bytes.as_bytes());
 
     // format the hash as hex
     format!("{hash:016x}")
@@ -350,7 +352,6 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::TemporaryPhysicalFileSystem;
-    use destack_workspace::{AmbientSnapshot, Repository};
 
     use super::{DaemonInstance, DaemonInstanceError};
 
@@ -359,9 +360,12 @@ mod tests {
     fn test_daemon_instance_paths_are_stable() {
         // build two instances for the same root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_paths");
-        let repository = Arc::new(Repository::open_root(
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
-            AmbientSnapshot::capture_process(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root.clone());
@@ -378,9 +382,12 @@ mod tests {
     fn test_daemon_instance_lock_rejects_second_acquire() {
         // create a daemon instance for a temporary root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_lock");
-        let repository = Arc::new(Repository::open_root(
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
-            AmbientSnapshot::capture_process(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);

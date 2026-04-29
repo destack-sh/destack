@@ -398,7 +398,7 @@ fn load_workspace_task_projects(
 
     // collect unique project paths in workspace order
     for package_path in repository
-        .workspace_package_paths(revision)
+        .package_roots(revision)
         .map_err(|error| error.to_string())?
     {
         if seen.insert(package_path.clone()) {
@@ -796,7 +796,7 @@ fn resolve_task_project_path(
             cwd.join(override_path)
         };
         let metadata = repository
-            .metadata_for_path(revision, &resolved)
+            .metadata(revision, &resolved)
             .map_err(|error| error.to_string())?
             .ok_or_else(|| format!("project path not found: {}", resolved.display()))?;
 
@@ -833,7 +833,7 @@ fn exact_destack_config_path(
 ) -> Option<PathBuf> {
     let candidate = project_path.join("destack.json");
     if repository
-        .metadata_for_path(revision, &candidate)
+        .metadata(revision, &candidate)
         .ok()
         .flatten()
         .is_some_and(|metadata| metadata.is_file)

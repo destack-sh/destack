@@ -38,12 +38,14 @@ fn test_workspace_service_routes_queries_across_roots() {
         )
         .expect("expected root b query response");
 
-    assert!(
-        response_a.revision >= Revision::INITIAL,
+    assert_ne!(
+        response_a.revision,
+        Revision::NULL,
         "expected a valid root a revision"
     );
-    assert!(
-        response_b.revision >= Revision::INITIAL,
+    assert_ne!(
+        response_b.revision,
+        Revision::NULL,
         "expected a valid root b revision"
     );
 }

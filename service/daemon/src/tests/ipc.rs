@@ -2,8 +2,9 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
-use destack_source::TemporaryPhysicalFileSystem;
-use destack_workspace::Repository;
+use destack_artifact::DiskCacheStore;
+use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use destack_workspace::{HostEnvironment, Repository};
 
 use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions, DaemonShutdownOptions};
 use crate::protocol::{
@@ -128,9 +129,12 @@ impl TestIpcDaemon {
     fn new(prefix: &str) -> Self {
         // build a workspace and daemon instance
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
-        let repository = Arc::new(Repository::open_root(
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
-            destack_workspace::AmbientSnapshot::capture_process(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            HostEnvironment::capture_process(),
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
