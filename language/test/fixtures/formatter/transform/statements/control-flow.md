@@ -16,7 +16,7 @@ The condition gets space around it, and the body is indented.
 
 ```ds expected
 if (x) {
-    foo();
+    foo()
 }
 ```
 
@@ -30,9 +30,9 @@ if(x){foo()}else{bar()}
 
 ```ds expected
 if (x) {
-    foo();
+    foo()
 } else {
-    bar();
+    bar()
 }
 ```
 
@@ -46,11 +46,11 @@ if(a){foo()}else if(b){bar()}else{baz()}
 
 ```ds expected
 if (a) {
-    foo();
+    foo()
 } else if (b) {
-    bar();
+    bar()
 } else {
-    baz();
+    baz()
 }
 ```
 
@@ -112,7 +112,7 @@ if (x > 0 && y < 10) { foo() }
 
 ```ds expected
 if (x > 0 && y < 10) {
-    foo();
+    foo()
 }
 ```
 
@@ -164,7 +164,67 @@ function absolute(value: number): number {
 }
 ```
 
-### terminal block semicolons preserve statement position
+### nested block tail expression
+
+Nested value-capable blocks preserve the final expression at each level.
+
+```ds
+function compute(value: number): number {
+    {
+        const doubled = value * 2
+        if (doubled > 10) {
+            doubled
+        } else {
+            {
+                doubled + 1
+            }
+        }
+    }
+}
+```
+
+```ds expected
+function compute(value: number): number {
+    {
+        const doubled = value * 2;
+        if (doubled > 10) {
+            doubled
+        } else {
+            {
+                doubled + 1
+            }
+        }
+    }
+}
+```
+
+### nested block explicit tail statement
+
+Nested value-capable blocks preserve explicit terminal semicolons.
+
+```ds
+function compute(value: number): number {
+    {
+        const doubled = value * 2
+        {
+            doubled + 1;
+        }
+    }
+}
+```
+
+```ds expected
+function compute(value: number): number {
+    {
+        const doubled = value * 2;
+        {
+            doubled + 1;
+        }
+    }
+}
+```
+
+### terminal block semicolons
 
 Terminal semicolons keep block tail expressions statement-valued.
 
@@ -184,7 +244,7 @@ function run(): void {
 
 ### nested if
 
-Simple nested blocks with single statements stay on one line.
+Nested statement-position if expressions expand explicit branch blocks.
 
 ```ds
 if (a) { if (b) { foo() } }
@@ -193,7 +253,7 @@ if (a) { if (b) { foo() } }
 ```ds expected
 if (a) {
     if (b) {
-        foo();
+        foo()
     }
 }
 ```
@@ -253,6 +313,22 @@ loop { process() }
 ```ds expected
 loop {
     process();
+}
+```
+
+### loop with break value
+
+Break values stay statement-valued inside loop bodies.
+
+```ds
+function first(items: Array<number>): number { loop { break items[0] } }
+```
+
+```ds expected
+function first(items: Array<number>): number {
+    loop {
+        break items[0];
+    }
 }
 ```
 
@@ -415,6 +491,69 @@ for (const { name, value } of items) { process(name, value) }
 ```ds expected
 for (const { name, value } of items) {
     process(name, value);
+}
+```
+
+### for with tagged destructuring
+
+Tagged patterns in for-of headers keep their shape.
+
+```ds
+for (const Some(value, meta) of items) { process(value, meta) }
+```
+
+```ds expected
+for (const Some(value, meta) of items) {
+    process(value, meta);
+}
+```
+
+### for with nested tagged destructuring
+
+Nested tagged patterns in for-of headers break with the header.
+
+```ds line-width=80
+for (const Shape.Line { start: Point { x, y }, end } of lines) { draw(start, end) }
+```
+
+```ds expected
+for (const Shape.Line {
+    start: Point { x, y },
+    end,
+} of lines) {
+    draw(start, end);
+}
+```
+
+### for with array boundary destructuring
+
+Array boundary patterns stay compact in for-of headers.
+
+```ds
+for (const [first, ..., last] of windows) { use(first, last) }
+```
+
+```ds expected
+for (const [first, ..., last] of windows) {
+    use(first, last);
+}
+```
+
+### for with nested control flow
+
+Nested if branches inside loop bodies keep expression-tail semantics.
+
+```ds
+for (const item of items) { if (item.valid) { use(item) } else { skip(item) } }
+```
+
+```ds expected
+for (const item of items) {
+    if (item.valid) {
+        use(item)
+    } else {
+        skip(item)
+    }
 }
 ```
 

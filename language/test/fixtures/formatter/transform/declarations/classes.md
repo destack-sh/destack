@@ -119,6 +119,85 @@ class Foo {
 }
 ```
 
+### class method tail expression
+
+Value-returning methods keep terminal expressions semicolonless.
+
+```ds
+class Foo { value(): number { this.current } }
+```
+
+```ds expected
+class Foo {
+    value(): number {
+        this.current
+    }
+}
+```
+
+### class constructor and setter bodies
+
+Constructors and setters keep terminal expressions statement-valued.
+
+```ds
+class Foo { constructor() { initialize() } set value(next: number) { this.current = next } }
+```
+
+```ds expected
+class Foo {
+    constructor() {
+        initialize();
+    }
+    set value(next: number) {
+        this.current = next;
+    }
+}
+```
+
+### class method short nested value tail
+
+Short value-returning methods expand nested control-flow tails.
+
+```ds
+class Foo { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { this.limit } else { doubled } } }
+```
+
+```ds expected
+class Foo {
+    value(next: number): number {
+        const doubled = next * 2;
+        if (doubled > this.limit) {
+            this.limit
+        } else {
+            doubled
+        }
+    }
+}
+```
+
+### class method expanded nested value tail
+
+Value-returning methods preserve expression tails through nested control flow.
+
+```ds
+class Foo { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { const capped = this.limit - 1; capped } else { const returned = doubled + 1; returned } } }
+```
+
+```ds expected
+class Foo {
+    value(next: number): number {
+        const doubled = next * 2;
+        if (doubled > this.limit) {
+            const capped = this.limit - 1;
+            capped
+        } else {
+            const returned = doubled + 1;
+            returned
+        }
+    }
+}
+```
+
 ### class with constructor
 
 Constructor bodies follow the same rules as method bodies.

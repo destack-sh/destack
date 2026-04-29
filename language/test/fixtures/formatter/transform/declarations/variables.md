@@ -185,6 +185,34 @@ let Some(value) = maybe else {
 };
 ```
 
+### let else with tagged object pattern
+
+Tagged object patterns keep field defaults and the fallback block attached.
+
+```ds
+let Point { x, y = 0 } = maybePoint else { return }
+```
+
+```ds expected
+let Point { x, y = 0 } = maybePoint else {
+    return;
+};
+```
+
+### let else with tagged tuple pattern
+
+Tagged tuple patterns keep positional fields before the fallback block.
+
+```ds
+let Some(value, meta) = maybe else { return }
+```
+
+```ds expected
+let Some(value, meta) = maybe else {
+    return;
+};
+```
+
 ### let else comments
 
 Comments around the fallback boundary stay attached to the pattern and fallback block.
@@ -201,6 +229,53 @@ let Some(value) /* pattern */ = maybe
     else {
         return;
     };
+```
+
+### let else fallback control flow
+
+Fallback blocks keep nested if branch tails semicolonless.
+
+```ds
+let Some(value) = maybe else { if (shouldLog) { logMissing() } return fallback() }
+```
+
+```ds expected
+let Some(value) = maybe else {
+    if (shouldLog) {
+        logMissing()
+    }
+    return fallback();
+};
+```
+
+### let else nested pattern comments
+
+Comments inside tagged patterns stay attached before the fallback block.
+
+```ds
+let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else { return fallback() }
+```
+
+```ds expected
+let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else {
+    return fallback();
+};
+```
+
+### let else with multiline fallback comments
+
+Leading comments in fallback blocks stay inside the block.
+
+```ds
+let Some(value) = maybe else { // explain fallback
+return fallback() }
+```
+
+```ds expected
+let Some(value) = maybe else {
+    // explain fallback
+    return fallback();
+};
 ```
 
 ## var
@@ -284,4 +359,72 @@ class A {
             this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
     }
 }
+```
+
+## Pattern Matrix
+
+### tagged object destructuring
+
+Tagged object patterns keep aliases, defaults, and rest fields readable.
+
+```ds
+const Point { x, y: renamed = 0, ...rest } = point
+```
+
+```ds expected
+const Point { x, y: renamed = 0, ...rest } = point;
+```
+
+### tagged tuple destructuring
+
+Tagged tuple patterns keep tuple fields compact when they fit.
+
+```ds
+const Some(value, meta = defaultMeta) = maybe
+```
+
+```ds expected
+const Some(value, meta = defaultMeta) = maybe;
+```
+
+### nested pattern destructuring
+
+Nested tagged patterns preserve field shape across object and tuple forms.
+
+```ds
+const Result.Ok(Point { x, y }, meta) = result
+```
+
+```ds expected
+const Result.Ok(Point { x, y }, meta) = result;
+```
+
+### nested tagged object destructuring
+
+Nested tagged object fields break as a single pattern when they exceed the line width.
+
+```ds line-width=80
+const Shape.Line { start: Point { x, y }, end } = line
+```
+
+```ds expected
+const Shape.Line {
+    start: Point { x, y },
+    end,
+} = line;
+```
+
+### nested tagged destructuring with comments
+
+Comments inside nested tagged fields stay attached to their bindings.
+
+```ds
+const Shape.Line { start: Point { x: /* x */ x, y: /* y */ y }, end } = line
+```
+
+```ds expected
+const Shape.Line {
+    start: Point { x: /* x */ x, y: /* y */ y },
+    end,
+} = line;
 ```

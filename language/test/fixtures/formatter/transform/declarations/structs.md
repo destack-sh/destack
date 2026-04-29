@@ -111,6 +111,43 @@ struct Buffer<comptime N: number> {
 }
 ```
 
+### struct comptime block with nested control flow
+
+Comptime member blocks keep nested if branch tails semicolonless.
+
+```ds
+struct Buffer<comptime N: number> { comptime { if (N > 0) { assert(N) } else { fail() } } }
+```
+
+```ds expected
+struct Buffer<comptime N: number> {
+    comptime {
+        if (N > 0) {
+            assert(N)
+        } else {
+            fail()
+        }
+    }
+}
+```
+
+### struct value method tail
+
+Value-returning struct methods keep terminal expressions semicolonless.
+
+```ds
+struct Vec2 { length(): float { const squared = x * x + y * y; squared.sqrt() } }
+```
+
+```ds expected
+struct Vec2 {
+    length(): float {
+        const squared = x * x + y * y;
+        squared.sqrt()
+    }
+}
+```
+
 ## Generics and Heritage
 
 ### struct with generics and implements
