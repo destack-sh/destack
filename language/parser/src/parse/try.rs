@@ -296,6 +296,45 @@ try {
         });
     }
 
+    /// Parse explicit branch semicolons as statements inside try branches.
+    #[test]
+    fn test_parse_try_keeps_explicit_branch_semicolons_as_statements() {
+        let mut test = TestParser::new(
+            r#"
+try {
+    value();
+} catch (error) {
+    fallback(error);
+} finally {
+    cleanup();
+}
+"#,
+        );
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_expression: Some(catch_expression), finally_expression: Some(finally_expression), .. } => {
+            assert_node!(parser.tree, *try_expression, Expression::Block(try_block_id) => {
+                let try_block = parser.tree.get(*try_block_id);
+                assert_eq!(try_block.leading_expressions.len(), 1);
+                assert!(try_block.tail_expression.is_none());
+            });
+
+            assert_node!(parser.tree, *catch_expression, Expression::Block(catch_block_id) => {
+                let catch_block = parser.tree.get(*catch_block_id);
+                assert_eq!(catch_block.leading_expressions.len(), 1);
+                assert!(catch_block.tail_expression.is_none());
+            });
+
+            assert_node!(parser.tree, *finally_expression, Expression::Block(finally_block_id) => {
+                let finally_block = parser.tree.get(*finally_block_id);
+                assert_eq!(finally_block.leading_expressions.len(), 1);
+                assert!(finally_block.tail_expression.is_none());
+            });
+        });
+    }
+
     /// Recover a missing catch close parenthesis in place.
     #[test]
     fn test_try_expression_with_missing_catch_close_parenthesis() {

@@ -1966,6 +1966,46 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         });
     }
 
+    /// Parse explicit branch semicolons as statements inside value-tail if expressions.
+    #[test]
+    fn test_parse_function_body_keeps_if_else_branch_semicolons_as_statements() {
+        let mut test = TestParser::new(
+            r#"
+function choose(flag: boolean, a: int32, b: int32): int32 {
+    if (flag) { a; } else { b; }
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+                assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
+                    let function_block = parser.tree.get(*function_block_id);
+                    let tail_expression = function_block.tail_expression.expect("expected tail expression");
+
+                    assert_node!(parser.tree, tail_expression, Expression::If { then_expression, else_expression, .. } => {
+                        assert_node!(parser.tree, *then_expression, Expression::Block(then_block_id) => {
+                            let then_block = parser.tree.get(*then_block_id);
+                            assert_eq!(then_block.leading_expressions.len(), 1);
+                            assert!(then_block.tail_expression.is_none());
+                        });
+
+                        let else_expression = else_expression.expect("expected else expression");
+                        assert_node!(parser.tree, else_expression, Expression::Block(else_block_id) => {
+                            let else_block = parser.tree.get(*else_block_id);
+                            assert_eq!(else_block.leading_expressions.len(), 1);
+                            assert!(else_block.tail_expression.is_none());
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse a function declaration followed by a call on the same line in JavaScript.
     #[test]
     fn test_parse_function_declaration_followed_by_call_without_newline() {

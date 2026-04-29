@@ -202,11 +202,7 @@ impl Parser {
             }
 
             self.bump(); // eat using
-            let pattern_options = self
-                .options
-                .not_in_position()
-                .in_for_each()
-                .in_before_block();
+            let pattern_options = self.options.not_in_position().in_for_each();
             let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
             Ok(ForEachBinding::Using {
                 asynchrony: using_asynchrony,
@@ -235,11 +231,7 @@ impl Parser {
                 })
             } else {
                 // declaration forms keep binding-pattern parsing
-                let pattern_options = self
-                    .options
-                    .not_in_position()
-                    .in_for_each()
-                    .in_before_block();
+                let pattern_options = self.options.not_in_position().in_for_each();
                 let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
                 Ok(ForEachBinding::Pattern {
                     pattern,
@@ -391,7 +383,7 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_string,
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
         block_expression_ids,
     };
 
@@ -663,6 +655,54 @@ for (const { item } of fetchList<{ item: string }>(values)) {}
         });
 
         assert!(parser.peek_keyword(Keyword::Of).is_ok());
+    }
+
+    #[test]
+    fn test_parse_for_of_tagged_object_binding() {
+        let mut test = TestParser::new(
+            r###"
+for (const Shape.Line { start: Point { x, y }, end } of lines) {}
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+
+        assert!(parser.errors.is_empty());
+
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding, iterator, body, .. } => {
+            assert_eq!(*kind, ForEachKind::Of);
+
+            assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+                assert_eq!(*declaration_kind, Some(ForEachDeclarationKind::Const));
+                assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+                    assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                        assert_path!(parser, *path, "Shape.Line");
+                    });
+                    assert_eq!(fields.len(), 2);
+
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), .. } => {
+                        assert_name!(parser, *name, "start");
+                        assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+                            assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                                assert_path!(parser, *path, "Point");
+                            });
+                            assert_eq!(fields.len(), 2);
+                        });
+                    });
+
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
+                        assert_name!(parser, *name, "end");
+                    });
+                });
+            });
+
+            assert_expression_path!(parser, parser.tree.get(*iterator), "lines");
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
+                assert!(expressions.is_empty());
+            });
+        });
     }
 
     #[test]

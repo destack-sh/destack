@@ -570,32 +570,6 @@ impl Parser {
         let (name, _name_span) = self.eat_pattern_field_name_with_span(terminator)?;
         self.bump(); // eat colon
 
-        // aliases are lowered to binding patterns
-        if self.peek_identifier_is() {
-            let (alias, alias_span) = self
-                .eat_binding_identifier_with_span()
-                .for_node_type(NodeType::Pattern)?;
-            let alias_pattern = self.insert_node(
-                Pattern::Binding {
-                    mutability: None,
-                    name: alias,
-                    pattern: None,
-                },
-                alias_span,
-            );
-            let pattern =
-                self.eat_pattern_assignment_maybe(alias_pattern, self.get_span_from(&field_start))?;
-            let pattern_field = PatternField::Named {
-                mutability,
-                name,
-                is_shorthand: false,
-                pattern: Some(pattern),
-            };
-
-            return Ok((pattern_field, Some(alias_span)));
-        }
-
-        // nested patterns keep the field key as their main span
         let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
         let pattern =
             self.eat_pattern_assignment_maybe(pattern, self.get_span_from(&field_start))?;
@@ -1295,6 +1269,43 @@ mod tests {
             // y
             assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
                 assert_name!(parser, *name, "y");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_struct_with_nested_tagged_object_field() {
+        let mut test = TestParser::new("Shape.Line { start: Point { x, y }, end }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert!(parser.errors.is_empty());
+
+        assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                assert_path!(parser, *path, "Shape.Line");
+            });
+            assert_eq!(fields.len(), 2);
+
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false, mutability: None } => {
+                assert_name!(parser, *name, "start");
+                assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+                    assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                        assert_path!(parser, *path, "Point");
+                    });
+                    assert_eq!(fields.len(), 2);
+
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
+                        assert_name!(parser, *name, "x");
+                    });
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
+                        assert_name!(parser, *name, "y");
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true, mutability: None } => {
+                assert_name!(parser, *name, "end");
             });
         });
     }

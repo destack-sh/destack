@@ -603,6 +603,50 @@ match (value) {
         });
     }
 
+    #[test]
+    fn test_parse_match_arm_keeps_if_else_branch_semicolons_as_statements() {
+        let mut test = TestParser::new(
+            r#"
+match (result) {
+    Ok(value) => {
+        if (value.valid) { use(value); } else { reset(); }
+    };
+    Err(error) => report(error)
+}
+"#,
+        );
+        let mut parser = test.prepare();
+
+        let match_id = parser.eat_match().unwrap();
+
+        assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
+            assert_eq!(cases.len(), 2);
+
+            assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+                let body_block = parser.tree.get(*body);
+                assert!(body_block.leading_expressions.is_empty());
+                let if_expression_id = body_block
+                    .tail_expression
+                    .expect("expected match arm tail expression");
+
+                assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, else_expression, .. } => {
+                    assert_node!(parser.tree, *then_expression, Expression::Block(then_block_id) => {
+                        let then_block = parser.tree.get(*then_block_id);
+                        assert_eq!(then_block.leading_expressions.len(), 1);
+                        assert!(then_block.tail_expression.is_none());
+                    });
+
+                    let else_expression = else_expression.expect("expected else expression");
+                    assert_node!(parser.tree, else_expression, Expression::Block(else_block_id) => {
+                        let else_block = parser.tree.get(*else_block_id);
+                        assert_eq!(else_block.leading_expressions.len(), 1);
+                        assert!(else_block.tail_expression.is_none());
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse a switch-case statement.
     #[test]
     fn test_parse_match_from_switch_case() {
