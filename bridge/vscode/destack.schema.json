@@ -2492,15 +2492,6 @@
           "format": "uint64",
           "minimum": 0
         },
-        "minimumBudgetBytes": {
-          "description": "Minimum collector byte budget for one safepoint.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
         "hardLimitBytes": {
           "description": "Hard memory limit in bytes.",
           "type": [
@@ -2547,6 +2538,15 @@
         },
         "spanBytes": {
           "description": "The byte width for heap small-allocation spans.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "sharedSpanBytes": {
+          "description": "The byte width for shared heap worker-allocation spans.",
           "type": [
             "integer",
             "null"

@@ -1,9 +1,8 @@
 use destack_heap::{
-    DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_BUDGET_BYTES,
-    DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_TRIGGER_PERCENT,
-    DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
-    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES,
-    DEFAULT_YOUNG_BYTES,
+    DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES,
+    DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
+    DEFAULT_SHARED_SMALL_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES,
+    DEFAULT_SPACE_BYTES, DEFAULT_YOUNG_BYTES,
 };
 use serde::{Deserialize, Serialize};
 
@@ -39,8 +38,6 @@ pub struct LocalGcOptions {
     pub memory_limit_bytes: Option<u64>,
     /// Minimum heap floor in bytes.
     pub minimum_heap_bytes: Option<u64>,
-    /// Minimum collector byte budget for one safepoint.
-    pub minimum_budget_bytes: usize,
 }
 
 impl Default for LocalGcOptions {
@@ -50,7 +47,6 @@ impl Default for LocalGcOptions {
             trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             memory_limit_bytes: None,
             minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_budget_bytes: DEFAULT_GC_MINIMUM_BUDGET_BYTES,
         }
     }
 }
@@ -66,8 +62,6 @@ pub struct SharedGcOptions {
     pub memory_limit_bytes: Option<u64>,
     /// Minimum heap floor in bytes.
     pub minimum_heap_bytes: Option<u64>,
-    /// Minimum collector byte budget for one safepoint.
-    pub minimum_budget_bytes: usize,
 }
 
 impl Default for SharedGcOptions {
@@ -77,7 +71,6 @@ impl Default for SharedGcOptions {
             trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             memory_limit_bytes: None,
             minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_budget_bytes: DEFAULT_GC_MINIMUM_BUDGET_BYTES,
         }
     }
 }
@@ -124,6 +117,8 @@ pub struct HeapLayoutOptions {
     pub max_heap_young_allocation_bytes: usize,
     /// The byte width for heap small-allocation spans.
     pub heap_span_bytes: usize,
+    /// The byte width for shared heap worker-allocation spans.
+    pub shared_heap_span_bytes: usize,
     /// The byte width for raw small-allocation spans.
     pub raw_span_bytes: usize,
     /// The virtual byte capacity for managed heap space.
@@ -145,6 +140,7 @@ impl Default for HeapLayoutOptions {
             heap_young_bytes: DEFAULT_YOUNG_BYTES,
             max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
             heap_span_bytes: DEFAULT_SMALL_BYTES,
+            shared_heap_span_bytes: DEFAULT_SHARED_SMALL_BYTES,
             raw_span_bytes: DEFAULT_SMALL_BYTES,
             heap_space_bytes: DEFAULT_SPACE_BYTES,
             raw_space_bytes: DEFAULT_SPACE_BYTES,
@@ -179,6 +175,8 @@ pub struct HeapAllocatorOptionsJson {
     pub max_young_allocation_bytes: Option<usize>,
     /// The byte width for heap small-allocation spans.
     pub span_bytes: Option<usize>,
+    /// The byte width for shared heap worker-allocation spans.
+    pub shared_span_bytes: Option<usize>,
     /// The byte width for raw small-allocation spans.
     pub raw_span_bytes: Option<usize>,
     /// The virtual byte capacity for managed heap space.
@@ -210,6 +208,10 @@ impl HeapAllocatorOptionsJson {
 
         if self.span_bytes.is_none() {
             self.span_bytes = parent.span_bytes;
+        }
+
+        if self.shared_span_bytes.is_none() {
+            self.shared_span_bytes = parent.shared_span_bytes;
         }
 
         if self.raw_span_bytes.is_none() {
@@ -253,6 +255,10 @@ impl HeapAllocatorOptionsJson {
 
         if let Some(span_bytes) = self.span_bytes {
             options.heap_span_bytes = span_bytes;
+        }
+
+        if let Some(shared_span_bytes) = self.shared_span_bytes {
+            options.shared_heap_span_bytes = shared_span_bytes;
         }
 
         if let Some(raw_span_bytes) = self.raw_span_bytes {
@@ -312,8 +318,6 @@ pub struct HeapSpaceOptionsJson {
     pub growth_percent: Option<u32>,
     /// Soft memory limit in bytes.
     pub memory_limit_bytes: Option<u64>,
-    /// Minimum collector byte budget for one safepoint.
-    pub minimum_budget_bytes: Option<usize>,
     /// Hard memory limit in bytes.
     pub hard_limit_bytes: Option<u64>,
 }
@@ -327,10 +331,6 @@ impl HeapSpaceOptionsJson {
 
         if self.memory_limit_bytes.is_none() {
             self.memory_limit_bytes = parent.memory_limit_bytes;
-        }
-
-        if self.minimum_budget_bytes.is_none() {
-            self.minimum_budget_bytes = parent.minimum_budget_bytes;
         }
 
         if self.hard_limit_bytes.is_none() {
@@ -348,10 +348,6 @@ impl HeapSpaceOptionsJson {
             options.gc.local.memory_limit_bytes = Some(memory_limit_bytes);
         }
 
-        if let Some(minimum_budget_bytes) = self.minimum_budget_bytes {
-            options.gc.local.minimum_budget_bytes = minimum_budget_bytes;
-        }
-
         if let Some(hard_limit_bytes) = self.hard_limit_bytes {
             options.limit.local.max_bytes = Some(hard_limit_bytes);
         }
@@ -365,10 +361,6 @@ impl HeapSpaceOptionsJson {
 
         if let Some(memory_limit_bytes) = self.memory_limit_bytes {
             options.gc.shared.memory_limit_bytes = Some(memory_limit_bytes);
-        }
-
-        if let Some(minimum_budget_bytes) = self.minimum_budget_bytes {
-            options.gc.shared.minimum_budget_bytes = minimum_budget_bytes;
         }
 
         if let Some(hard_limit_bytes) = self.hard_limit_bytes {
