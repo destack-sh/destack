@@ -1,12 +1,16 @@
-mod env;
-mod input;
+mod dependency;
+mod failure;
+mod fingerprint;
+mod host;
 mod key;
 mod profile;
 mod target;
 mod version;
 
-pub use env::*;
-pub use input::*;
+pub use dependency::*;
+pub use failure::*;
+pub use fingerprint::*;
+pub use host::*;
 pub use key::*;
 pub use profile::*;
 pub use target::*;

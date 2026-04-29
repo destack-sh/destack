@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use destack_builtin::{BuiltinPlatform, BuiltinRuntime};
 
 /// Runtime environment that actually executes the compiled code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
 pub enum Runtime {
     /// Web browser.
     Browser,
@@ -113,7 +115,9 @@ impl Runtime {
 }
 
 /// Operating system or target platform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
 pub enum Platform {
     /// Web browser.
     #[default]
@@ -341,7 +345,7 @@ impl Platform {
 }
 
 /// CPU architecture for native targets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TargetArch {
     /// x86_64.
     X86_64,
@@ -433,7 +437,7 @@ impl TargetArch {
 }
 
 /// Target vendor for native targets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TargetVendor {
     /// Unknown vendor.
     Unknown,
@@ -493,9 +497,9 @@ impl TargetVendor {
     }
 }
 
-/// Target environment or ABI flavor.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TargetEnv {
+/// Target ABI flavor.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum TargetAbi {
     /// GNU environment.
     Gnu,
     /// Musl environment.
@@ -518,7 +522,7 @@ pub enum TargetEnv {
     Other(String),
 }
 
-impl std::str::FromStr for TargetEnv {
+impl std::str::FromStr for TargetAbi {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -538,13 +542,13 @@ impl std::str::FromStr for TargetEnv {
     }
 }
 
-impl TargetEnv {
-    /// Parse a target environment from a string value.
+impl TargetAbi {
+    /// Parse a target ABI from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
     }
 
-    /// Resolve the default environment for a platform when none is specified.
+    /// Resolve the default ABI for a platform when none is specified.
     pub fn default_for_platform(platform: Platform) -> Option<Self> {
         match platform {
             Platform::Linux => Some(Self::Gnu),
@@ -554,7 +558,7 @@ impl TargetEnv {
         }
     }
 
-    /// Format this environment as a target triple component.
+    /// Format this ABI as a target triple component.
     pub fn triple_component(&self) -> String {
         match self {
             Self::Gnu => "gnu".to_string(),

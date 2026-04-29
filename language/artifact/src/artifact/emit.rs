@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use destack_builtin::BuiltinOutputFormat;
 
 /// Emitted artifact family for a build target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
 pub enum EmitFormat {
     /// JavaScript (.js).
     #[default]

@@ -26,8 +26,6 @@ pub enum TargetOutputKind {
     Maps,
     /// Binary or wasm payload.
     Binary,
-    /// Debug symbol output.
-    Debug,
     /// Additional metadata output.
     Metadata,
 }
@@ -53,8 +51,6 @@ pub enum TargetOutputName {
     Maps,
     /// Binary or wasm payload.
     Binary,
-    /// Debug symbol output.
-    Debug,
     /// Additional metadata output.
     Metadata,
 }
@@ -71,7 +67,6 @@ impl TargetOutputName {
             Self::Manifest => "manifest",
             Self::Maps => "maps",
             Self::Binary => "binary",
-            Self::Debug => "debug",
             Self::Metadata => "metadata",
         }
     }
@@ -87,7 +82,6 @@ impl TargetOutputName {
             Self::Manifest => TargetOutputKind::Manifest,
             Self::Maps => TargetOutputKind::Maps,
             Self::Binary => TargetOutputKind::Binary,
-            Self::Debug => TargetOutputKind::Debug,
             Self::Metadata => TargetOutputKind::Metadata,
         }
     }
@@ -200,22 +194,6 @@ impl OutputContent {
         let content = serde_json::to_string(value)?;
         let value = value.to_json_value()?;
         Ok(Self::json(content, value, FileType::SourceMap))
-    }
-
-    /// Create WebAssembly content.
-    pub fn wasm(bytes: Vec<u8>) -> Self {
-        Self::Binary {
-            bytes,
-            file_type: FileType::Wasm,
-        }
-    }
-
-    /// Create object content.
-    pub fn object(bytes: Vec<u8>) -> Self {
-        Self::Binary {
-            bytes,
-            file_type: FileType::Object,
-        }
     }
 
     /// Return the file type for this content.
