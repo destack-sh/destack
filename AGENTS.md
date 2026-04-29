@@ -88,13 +88,26 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 - Usually you want the comment before the if clause / loop / whatever, not inside.
 - Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it.
 - The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
-
-Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
+- Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
 ```rust
 let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
+- It is usually preferable to "spell out" branches when possible instead of doing repeated continue/return/whatever jumps:
+```
+/// option A
+if A {
+    Ok(..)
+} 
+// option B
+else if B {
+    Ok(..)
+}
+// fallback
+else {
+    Error(..)
+}
 
 ### Factoring
 
