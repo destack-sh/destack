@@ -14,8 +14,13 @@ doctest = false
 [dependencies]
 # language
 destack_artifact = { workspace = true }
+destack_ast = { workspace = true }
+destack_core = { workspace = true }
 destack_compiler = { path = "../compiler", default-features = false }
+destack_css = { workspace = true }
+destack_html = { workspace = true }
 destack_linter = { workspace = true }
+destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
@@ -26,6 +31,9 @@ parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml_ng = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+toml = { workspace = true }
 
 [features]
 default = ["full"]

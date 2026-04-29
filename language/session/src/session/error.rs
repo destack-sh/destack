@@ -47,10 +47,7 @@ pub enum SessionError {
         current: i32,
     },
     /// Repository work failed inside the session.
-    Repository {
-        /// The failure detail.
-        detail: String,
-    },
+    Repository(RepositoryError),
     /// Internal session failure.
     Internal {
         /// The failure detail.
@@ -87,8 +84,8 @@ impl std::fmt::Display for SessionError {
                     path.display()
                 )
             }
-            SessionError::Repository { detail } => {
-                write!(formatter, "session repository error: {detail}")
+            SessionError::Repository(error) => {
+                write!(formatter, "session repository error: {error}")
             }
             SessionError::Internal { detail } => {
                 write!(formatter, "session internal error: {detail}")
@@ -97,12 +94,17 @@ impl std::fmt::Display for SessionError {
     }
 }
 
-impl std::error::Error for SessionError {}
+impl std::error::Error for SessionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SessionError::Repository(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 impl From<RepositoryError> for SessionError {
     fn from(error: RepositoryError) -> Self {
-        SessionError::Repository {
-            detail: error.to_string(),
-        }
+        SessionError::Repository(error)
     }
 }

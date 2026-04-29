@@ -1,13 +1,10 @@
 mod error;
-mod events;
-mod root;
+mod event;
+mod file;
 mod session;
-mod state;
-mod types;
 
 pub use error::*;
-pub use events::*;
-pub use root::*;
+pub use event::*;
+pub(crate) use file::{FileChange, file_update_image_from_file};
+pub use file::{FileChangeKind, FileMutation, FileUpdate, FileUpdateImage};
 pub use session::*;
-pub use state::canonical_path_or_original;
-pub use types::*;
