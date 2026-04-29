@@ -1,10 +1,10 @@
 # Namespace Declarations
 
-Tests for namespace and module declaration formatting.
+Namespace fixtures cover namespace, module, and global declaration bodies.
 
-## Basic Namespaces
+## Namespace Forms
 
-### simple namespace
+### namespace declaration
 
 Namespaces format like other declaration blocks.
 

@@ -1,6 +1,6 @@
 # Advanced Type Formatting
 
-Tests for complex type expressions and type operators.
+Advanced type fixtures cover function types, template literal types, ownership types, tuples, mapped types, and conditional types.
 
 ## Function Types
 
@@ -221,7 +221,7 @@ type Result<T> = T extends string // test-line
 
 ## Type Template Literals
 
-### typescript template literal type keeps assignment readable
+### template literal type breaks after assignment
 
 Template literal types stay inline with `=` at wider line widths.
 
@@ -239,7 +239,7 @@ type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringCo
     : ""}`;
 ```
 
-### typescript template literal type breaks after assignment at narrower widths
+### template literal type breaks after assignment at narrower widths
 
 Template literal types break after `=` when the configured line width is narrower.
 
@@ -258,9 +258,9 @@ type templateLiteralType =
         : ""}`;
 ```
 
-### typescript template literal type with nested conditionals
+### template literal type with nested conditionals
 
-Nested template literal types break with readable indentation.
+Nested template literal types break with stable indentation.
 
 ```ts:main.ts line-width=80
 type CamelToSnakeCase<TCamelCaseString extends string> =
@@ -464,7 +464,7 @@ type Combined = A | (B & C)
 type Combined = A | (B & C);
 ```
 
-## Mapped Types (TypeScript)
+## Mapped Types
 
 ### mapped type keeps bracket spacing
 
@@ -573,7 +573,7 @@ type PickByValueType<T, U> = {
 };
 ```
 
-## Conditional Types (TypeScript)
+## Nested Conditional Types
 
 ### conditional type with nested parentheses
 
@@ -647,7 +647,7 @@ type X11<T> = T extends (infer U extends number) & { a: infer U extends number }
   : never;
 ```
 
-## Type Parameter Constraints And Defaults
+## Type Parameter Constraints and Defaults
 
 ### long type parameter constraints and defaults break cleanly
 

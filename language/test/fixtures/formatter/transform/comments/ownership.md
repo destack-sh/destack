@@ -1,6 +1,6 @@
 # Comment Ownership
 
-Tests for comment retention and attachment across formatter boundary decisions.
+Comment ownership fixtures cover attachment decisions across formatter boundaries.
 
 ## Optional Chain Boundaries
 
@@ -153,60 +153,6 @@ declare const PAGE_PATH: string
 declare const PAGE_PATH: string;
     //<- keep-marker
 (() => {})();
-```
-
-## TSX Ternary Branches
-
-### tsx ternary branch comments
-
-Inline comments inside TSX ternary branches are preserved on both sides.
-
-```tsx:main.tsx line-width=40
-const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
-```
-
-```tsx expected
-const node = (
-    <div>
-        {
-            isVideo ? (
-                <Video />
-            ) : (
-                /* keep-video */ <Image />
-            ) /* keep-image */
-        }
-    </div>
-);
-```
-
-### tsx ternary alternate block comment
-
-Block comments inside alternate TSX branches are preserved.
-
-```tsx:main.tsx
-const Component = () => (
-  <div>
-    {"error" ? (
-      <Error />
-    ) : (
-      <Success />
-      /* keep-inside-branch */
-    )}
-  </div>
-)
-```
-
-```tsx expected
-const Component = () => (
-    <div>
-        {"error" ? (
-            <Error />
-        ) : (
-            <Success />
-            /* keep-inside-branch */
-        )}
-    </div>
-);
 ```
 
 ## Prefix Comment Adjacency

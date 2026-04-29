@@ -1,8 +1,8 @@
 # Yield Expressions
 
-Tests for generator `yield` expression formatting.
+Yield fixtures cover generator yield values, delegation, comments, and member chains.
 
-## Basic Yield
+## Yield Forms
 
 ### yield value
 

@@ -1,8 +1,8 @@
 # Import Specifier Sorting
 
-Tests for sorting import specifiers within `{ }`.
+Import specifier fixtures cover sorting inside import and export braces.
 
-## basic sorting
+## Specifier Sorting
 
 ### alphabetical order
 

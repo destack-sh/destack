@@ -1,10 +1,10 @@
 # Variable Declarations
 
-Tests for variable declaration formatting.
+Variable fixtures cover declaration keywords, binding patterns, ambient declarations, and let-else fallbacks.
 
 ## const
 
-### basic const
+### const assignment
 
 Extra whitespace around the assignment should be normalized.
 
@@ -78,7 +78,7 @@ const [a, b] = tuple
 const [a, b] = tuple;
 ```
 
-### const with array rest destructuring (TypeScript)
+### const with array rest destructuring
 
 Array rest patterns keep tight brackets.
 
@@ -131,7 +131,7 @@ const [a, , b = 3] = values;
 
 ## let
 
-### basic let
+### let assignment
 
 Mutable variable declarations use `let`.
 
@@ -280,7 +280,7 @@ let Some(value) = maybe else {
 
 ## var
 
-### basic var
+### var assignment
 
 Legacy `var` declarations are preserved but follow the same spacing rules.
 
@@ -292,7 +292,7 @@ var   x   =   1
 var x = 1;
 ```
 
-## TypeScript Declarations
+## Ambient Declarations
 
 ### declare const
 
@@ -361,11 +361,11 @@ class A {
 }
 ```
 
-## Pattern Matrix
+## Tagged Patterns
 
 ### tagged object destructuring
 
-Tagged object patterns keep aliases, defaults, and rest fields readable.
+Tagged object patterns keep aliases, defaults, and rest fields structured.
 
 ```ds
 const Point { x, y: renamed = 0, ...rest } = point

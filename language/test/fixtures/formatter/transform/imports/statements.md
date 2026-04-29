@@ -1,8 +1,8 @@
 # Import Statement Sorting
 
-Tests for sorting import statements by group and alphabetically.
+Import sorting fixtures cover import groups, side effects, scoped packages, and relative paths.
 
-## group ordering
+## Group Ordering
 
 ### builtin imports first
 

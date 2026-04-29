@@ -1,6 +1,6 @@
 # Array Literals
 
-Tests for array literal formatting.
+Array fixtures cover array spacing, comments, spread elements, line breaking, and nested values.
 
 ## Spacing
 
@@ -230,9 +230,9 @@ Outer array breaks while inner arrays stay compact.
 ];
 ```
 
-### matrix style array
+### nested rows
 
-Matrix-like arrays format with one row per line.
+Nested arrays format with one row per line.
 
 ```ds line-width=30
 [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
@@ -506,7 +506,8 @@ const [a, b, c] = [1, 2, 3];
 
 ### array map chain
 
-Method chains on array literals work. Arrow params get parens.
+Method chains on array literals stay attached.
+Arrow params get parens.
 
 ```ds
 [1, 2, 3].map(x => x * 2)

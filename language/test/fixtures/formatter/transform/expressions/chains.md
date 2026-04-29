@@ -1,6 +1,6 @@
 # Member and Call Chains
 
-Tests for chained member access and call formatting.
+Chain fixtures cover member access, calls, optional chains, instantiation, and chain comments.
 
 ## Head Group
 
@@ -156,7 +156,7 @@ const value = maybe!.nested!.value;
 
 ### static members after non-null assertions stay tight
 
-Non-null assertions inside static-member chains keep the following supported member path intact.
+Non-null assertions inside static-member chains keep the following member path intact.
 
 ```ts:main.ts
 compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames

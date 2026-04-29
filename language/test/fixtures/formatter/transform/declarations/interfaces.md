@@ -1,10 +1,10 @@
 # Interface Declarations
 
-Tests for interface declaration formatting.
+Interface fixtures cover interface heads, heritage clauses, and member signatures.
 
-## Basic Interfaces
+## Interface Forms
 
-### simple interface
+### interface declaration
 
 Extra whitespace in interface declarations should be normalized.
 
@@ -32,7 +32,8 @@ interface Foo extends Bar, Baz {}
 
 ### interface with property
 
-Interfaces with members expand to multiple lines. Properties use trailing semicolons.
+Interfaces with members expand to multiple lines.
+Properties use trailing semicolons.
 
 ```ds
 interface Foo { x: number }

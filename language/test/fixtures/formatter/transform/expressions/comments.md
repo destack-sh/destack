@@ -1,6 +1,6 @@
 # Comment Formatting
 
-Tests for comments in various positions within expressions.
+Expression comment fixtures cover inline comments, ignore directives, and ignored ranges.
 
 ## Inline Comments
 
@@ -30,7 +30,7 @@ Comments inside arrays cause expansion to multiline format.
 
 ### comment in binary expression
 
-Comments in binary expressions are preserved with proper spacing.
+Comments in binary expressions keep normalized spacing.
 
 ```ds line-width=100
 const x = /* pre-A */ A /* A comment */ && B /* B comment */
@@ -360,9 +360,9 @@ foo ( 1 , 2 );
 foo ( 1 , 2 );
 ```
 
-### oxfmt ignore preserves statement formatting
+### formatter-specific ignore preserves statement formatting
 
-Oxfmt ignore comments keep the next statement verbatim.
+Formatter-specific ignore comments keep the next statement verbatim.
 
 ```ts:main.ts
 // oxfmt-ignore

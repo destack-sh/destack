@@ -1,6 +1,6 @@
 # Newtype Declarations
 
-Tests for newtype and nominal interface formatting.
+Newtype fixtures cover nominal aliases and marker interfaces.
 
 ## Newtype Aliases
 

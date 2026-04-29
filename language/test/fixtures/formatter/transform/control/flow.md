@@ -1,12 +1,12 @@
 # Control Flow Statements
 
-Tests for control flow statement formatting.
+Control-flow fixtures cover branch statements, loops, flow exits, and value-tail blocks.
 
 ## If Statements
 
-### simple if
+### compact if
 
-Condensed if statements are expanded with proper spacing and indentation.
+Condensed if statements expand with normalized spacing and indentation.
 
 ```ds
 if(x){foo()}
@@ -142,7 +142,7 @@ const result = if (x > 0) { "positive" } else { "negative" };
 
 ### if tail expression preserves branch values
 
-If expressions in tail position keep their branch tail expressions value-producing.
+If expressions in tail position keep branch tails as values.
 
 ```ds
 function absolute(value: number): number {
@@ -226,7 +226,7 @@ function compute(value: number): number {
 
 ### terminal block semicolons
 
-Terminal semicolons keep block tail expressions statement-valued.
+Terminal semicolons keep block tails as statements.
 
 ```ds
 function run(): void {
@@ -260,7 +260,7 @@ if (a) {
 
 ## While Loops
 
-### simple while
+### compact while
 
 While loops get space around the condition.
 
@@ -276,7 +276,7 @@ while (condition) {
 
 ### while with complex condition
 
-Complex conditions are preserved with proper spacing.
+Complex conditions keep normalized spacing.
 
 ```ds
 while (i < 10 && running) { i++ }
@@ -318,7 +318,7 @@ loop {
 
 ### loop with break value
 
-Break values stay statement-valued inside loop bodies.
+Break values stay statement-like inside loop bodies.
 
 ```ds
 function first(items: Array<number>): number { loop { break items[0] } }
@@ -350,7 +350,7 @@ for (let i = 0; i < 10; i++) {
 }
 ```
 
-### for of loop
+### bare for of loop
 
 For-of loops space the `of` keyword and expand their bodies.
 
@@ -380,7 +380,7 @@ async function run() {
 }
 ```
 
-### for in loop
+### bare for in loop
 
 For-in loops space the `in` keyword and expand their bodies.
 
@@ -424,7 +424,7 @@ for (let i = 0; i < 4; i++) {
 }
 ```
 
-### for of loop
+### const for of loop
 
 For-of loops iterate over iterables.
 
@@ -438,7 +438,7 @@ for (const item of items) {
 }
 ```
 
-### for in loop
+### const for in loop
 
 For-in loops iterate over object keys.
 
@@ -555,32 +555,6 @@ for (const item of items) {
         skip(item)
     }
 }
-```
-
-## Using
-
-### using statement
-
-Using declarations keep spacing around `=`.
-
-```ds
-using resource = open(path)
-```
-
-```ds expected
-using resource = open(path);
-```
-
-### await using statement
-
-Async using declarations include the `await` keyword.
-
-```ds
-await using resource = openAsync(path)
-```
-
-```ds expected
-await using resource = openAsync(path);
 ```
 
 ## Break and Continue
@@ -707,74 +681,4 @@ throw "error"
 
 ```ds expected
 throw "error";
-```
-
-## Try-Catch-Finally
-
-### simple try catch
-
-Try-catch blocks handle exceptions.
-
-```ds
-try{risky()}catch(e){handle(e)}
-```
-
-Each block gets proper spacing and indentation.
-
-```ds expected
-try {
-    risky();
-} catch (e) {
-    handle(e);
-}
-```
-
-### try catch finally
-
-Finally blocks run regardless of whether an exception occurred.
-
-```ds
-try { risky() } catch (e) { handle(e) } finally { cleanup() }
-```
-
-```ds expected
-try {
-    risky();
-} catch (e) {
-    handle(e);
-} finally {
-    cleanup();
-}
-```
-
-### try finally without catch
-
-Finally can be used without a catch block.
-
-```ds
-try { risky() } finally { cleanup() }
-```
-
-```ds expected
-try {
-    risky();
-} finally {
-    cleanup();
-}
-```
-
-### catch with type
-
-Catch parameters can have type annotations.
-
-```ds
-try { risky() } catch (e: Error) { handle(e) }
-```
-
-```ds expected
-try {
-    risky();
-} catch (e: Error) {
-    handle(e);
-}
 ```

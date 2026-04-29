@@ -1,10 +1,10 @@
-# Match Expressions
+# Match Patterns
 
-Tests for match expression formatting.
+Match pattern fixtures cover Destack match arms, branch bodies, guards, patterns, and trivia.
 
-## Basic Match
+## Match Layout
 
-### simple match
+### compact match
 
 Condensed match expressions are expanded with each arm on its own line.
 
@@ -225,7 +225,8 @@ match (arr) {
 
 ### array first and last
 
-The `..` pattern matches elements in the middle. Multi-element tuple results do not need a trailing comma.
+The `..` pattern matches elements in the middle.
+Multi-element tuple results do not need a trailing comma.
 
 ```ds
 match (arr) { [first, ..., last] => (first, last); _ => null }
@@ -319,7 +320,7 @@ match (s) {
 
 ## Guards
 
-### simple guard
+### guard condition
 
 Guard conditions keep their required parentheses.
 
@@ -366,7 +367,7 @@ match (x) {
 }
 ```
 
-## Union Patterns
+## Numeric Union Patterns
 
 ### numeric unions
 
@@ -405,7 +406,7 @@ match (event) {
 }
 ```
 
-## Trivia Stress
+## Trivia Boundaries
 
 ### match comments around selector and arms
 
@@ -457,9 +458,9 @@ match (value) {
 }
 ```
 
-### tagged object pattern matrix
+### tagged object patterns
 
-Tagged object patterns keep aliases, defaults, rest fields, and guards readable.
+Tagged object patterns keep aliases, defaults, rest fields, and guards structured.
 
 ```ds
 match (shape) { Shape.Point { x, y: renamed = 0, ...rest } if (renamed > 0) => x + renamed; Shape.Line { start: Point { x, y }, end } => x + y; _ => 0 }
@@ -476,7 +477,7 @@ match (shape) {
 }
 ```
 
-### tagged tuple pattern matrix
+### tagged tuple patterns
 
 Tagged tuple patterns keep defaults, rests, and nested object patterns.
 
@@ -492,7 +493,7 @@ match (result) {
 }
 ```
 
-### array pattern matrix
+### array pattern variants
 
 Array patterns keep leading, middle, and trailing rest forms distinct.
 

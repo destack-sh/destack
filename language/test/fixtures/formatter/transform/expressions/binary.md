@@ -1,6 +1,6 @@
 # Binary Expressions
 
-Tests for binary operator spacing, precedence, and line breaking.
+Binary fixtures cover operator spacing, precedence, flattening, and line breaking.
 
 ## Logical Chains
 

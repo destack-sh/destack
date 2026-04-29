@@ -1,6 +1,6 @@
 # Callback Arguments
 
-Tests for callback-last argument formatting (Prettier-style).
+Callback fixtures cover callback-last argument layout.
 
 ## Callback Hugging
 

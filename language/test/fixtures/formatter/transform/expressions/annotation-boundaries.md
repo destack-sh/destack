@@ -1,8 +1,8 @@
 # Expression Annotation Boundaries
 
-Tests for assertion and decorator attachment stability in expression contexts.
+Expression annotation fixtures cover assertions, decorators, and boundary comments.
 
-## TypeScript Assertions And Satisfies
+## Assertions and Satisfies
 
 ### as assertion with trailing line comment
 
@@ -57,7 +57,7 @@ const config = { retries: 3 } satisfies Record< // sat-tail
 >;
 ```
 
-## TypeScript Assertions And Satisfies Comments
+## TypeScript Assertions and Satisfies Comments
 
 ### as const with inline comment after const
 
@@ -115,7 +115,7 @@ Trailing block comments on assertion chains stay attached before the following m
 
 ### multiline postfix comment before const
 
-Multiline block comments before `const` stay attached to the assertion seam.
+Multiline block comments before `const` stay attached to the assertion boundary.
 
 ```ts:main.ts indent-width=2 line-width=80 quote-style=double
 {
@@ -133,9 +133,9 @@ comment
 }
 ```
 
-### assertion and satisfies seam comments
+### assertion and satisfies boundary comments
 
-Block comments between `as` and `satisfies` targets stay attached to the same operator seam.
+Block comments between `as` and `satisfies` targets stay attached to the same operator boundary.
 
 ```ts:main.ts indent-width=2 line-width=80 quote-style=double
 {

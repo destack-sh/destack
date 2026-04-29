@@ -1,8 +1,8 @@
 # Import Expressions
 
-Tests for dynamic import expression formatting.
+Import expression fixtures cover dynamic import calls and source comments.
 
-## Basic Import Call
+## Import Calls
 
 ### import call expression
 

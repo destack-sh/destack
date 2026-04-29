@@ -1,10 +1,10 @@
 # Enum Declarations
 
-Tests for enum declaration formatting.
+Enum fixtures cover enum heads, members, comments, and generic parameters.
 
-## Basic Enums
+## Enum Forms
 
-### simple enum
+### enum declaration
 
 Enums expand to multiple lines with trailing commas.
 

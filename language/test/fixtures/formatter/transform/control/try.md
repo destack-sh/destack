@@ -1,8 +1,8 @@
 # Try Statements
 
-Tests for try expressions with catch and finally clauses.
+Try expressions preserve branch values while finally clauses remain effect-only.
 
-## Basic Try
+## Try Blocks
 
 ### try expression statement
 
@@ -16,7 +16,7 @@ try operation()
 try operation();
 ```
 
-### try block with catch
+### try with catch
 
 Catch blocks align with the try block.
 
@@ -26,13 +26,29 @@ try { foo() } catch (e) { handle(e) }
 
 ```ds expected
 try {
-    foo();
+    foo()
 } catch (e) {
-    handle(e);
+    handle(e)
 }
 ```
 
-### try block with catch match
+### try with typed catch
+
+Catch parameters can have type annotations.
+
+```ds
+try { risky() } catch (error: Error) { handle(error) }
+```
+
+```ds expected
+try {
+    risky()
+} catch (error: Error) {
+    handle(error)
+}
+```
+
+### try with catch match
 
 Catch match clauses preserve match formatting.
 
@@ -42,16 +58,16 @@ try { foo() } catch match (e) { Error(err) => err; _ => null }
 
 ```ds expected
 try {
-    foo();
+    foo()
 } catch match (e) {
     Error(err) => err
     _ => null
 }
 ```
 
-### catch match pattern matrix
+### catch match patterns
 
-Catch match clauses keep complex patterns and guards readable.
+Catch match clauses keep patterns and guards structured.
 
 ```ds
 try { read() } catch match (error) { Network.Timeout { duration } if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => report(first, rest); _ => throw error }
@@ -59,7 +75,7 @@ try { read() } catch match (error) { Network.Timeout { duration } if (duration >
 
 ```ds expected
 try {
-    read();
+    read()
 } catch match (error) {
     Network.Timeout { duration } if (duration > 1000) => retry(duration)
     Validation.Errors([first, ...rest]) => report(first, rest)
@@ -112,7 +128,7 @@ try {
 
 ```ds expected
 try {
-    read();
+    read()
 } catch match (
     // thrown value
     error
@@ -134,9 +150,9 @@ try { read() } catch (Result.Err(error, meta = defaultMeta)) { recover(error, me
 
 ```ds expected
 try {
-    read();
+    read()
 } catch (Result.Err(error, meta = defaultMeta)) {
-    recover(error, meta);
+    recover(error, meta)
 }
 ```
 
@@ -150,13 +166,29 @@ try { read() } catch ({ code, message }: Error) { report(code, message) }
 
 ```ds expected
 try {
-    read();
+    read()
 } catch ({ code, message }: Error) {
-    report(code, message);
+    report(code, message)
 }
 ```
 
-### try block with finally
+### try with finally
+
+Finally can be used without a catch block.
+
+```ds
+try { foo() } finally { cleanup() }
+```
+
+```ds expected
+try {
+    foo()
+} finally {
+    cleanup();
+}
+```
+
+### try with catch and finally
 
 Finally blocks follow catch blocks.
 
@@ -166,9 +198,9 @@ try { foo() } catch (e) { handle(e) } finally { cleanup() }
 
 ```ds expected
 try {
-    foo();
+    foo()
 } catch (e) {
-    handle(e);
+    handle(e)
 } finally {
     cleanup();
 }
@@ -192,9 +224,9 @@ function read(): number {
 }
 ```
 
-### try void function statement tail
+### try in void function tail
 
-Void function bodies keep try and catch terminal expressions statement-valued.
+Try and catch branches keep expression tails in void functions.
 
 ```ds
 function read(): void { try { value() } catch (error) { fallback(error) } }
@@ -203,16 +235,16 @@ function read(): void { try { value() } catch (error) { fallback(error) } }
 ```ds expected
 function read(): void {
     try {
-        value();
+        value()
     } catch (error) {
-        fallback(error);
+        fallback(error)
     }
 }
 ```
 
 ### try function tail with finally
 
-Finally blocks stay statement-valued when try and catch branches provide the result.
+Finally blocks stay effect-only when try and catch branches provide the result.
 
 ```ds
 function read(): number { try { value() } catch (error) { fallback(error) } finally { cleanup() } }

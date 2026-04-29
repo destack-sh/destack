@@ -1,6 +1,6 @@
 # Import Statements
 
-Tests for import statement formatting.
+Import statement fixtures cover import syntax forms, attributes, comments, and long module specifiers.
 
 ## Named Imports
 
@@ -130,7 +130,7 @@ import   *   as   mod   from   "module"
 import * as mod from "module";
 ```
 
-## TypeScript Legacy Imports
+## Import Equals Declarations
 
 ### import equals require
 

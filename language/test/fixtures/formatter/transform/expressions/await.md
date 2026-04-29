@@ -1,8 +1,8 @@
 # Await Expressions
 
-Tests for await expression formatting.
+Await fixtures cover awaited calls, member chains, comments, and statement contexts.
 
-## Basic Await
+## Await Forms
 
 ### await call
 

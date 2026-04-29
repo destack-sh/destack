@@ -1,8 +1,8 @@
 # Function Calls
 
-Tests for function call expression formatting.
+Call fixtures cover argument lists, comments, generics, and call layout choices.
 
-## Basic Calls
+## Call Forms
 
 ### function calls have no internal spacing
 
@@ -479,7 +479,8 @@ foo<number, string, boolean>(x, y, z);
 
 ### method call with type arguments
 
-Method calls can also have type arguments. Arrow function params get parentheses.
+Method calls can also have type arguments.
+Arrow function params get parentheses.
 
 ```ds
 array.map<string>(x => x.toString())

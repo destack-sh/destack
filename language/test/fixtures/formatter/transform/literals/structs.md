@@ -1,10 +1,10 @@
 # Struct Literals
 
-Tests for Destack struct literal formatting.
+Struct literal fixtures cover fields, spreads, comments, nested structs, and constructor-like forms.
 
-## Basic Structs
+## Struct Literals
 
-### simple struct literal
+### struct literal
 
 Struct literals use the type name followed by braces with field assignments.
 

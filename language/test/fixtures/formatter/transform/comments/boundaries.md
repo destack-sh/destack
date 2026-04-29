@@ -1,8 +1,8 @@
 # Comment Boundaries
 
-Tests for comment ownership across common formatter boundaries.
+Comment boundary fixtures cover comments placed between neighboring syntax nodes.
 
-## Calls And Members
+## Calls and Members
 
 ### optional call with line boundary comment
 
@@ -368,6 +368,7 @@ const mod = import(
 );
 ```
 
+## Other Boundaries
 
 ### try catch boundary comments
 

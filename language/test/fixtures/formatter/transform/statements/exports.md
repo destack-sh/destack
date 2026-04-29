@@ -1,6 +1,6 @@
 # Export Statements
 
-Tests for export statement formatting.
+Export fixtures cover named exports, default exports, re-exports, and export comments.
 
 ## Named Exports
 

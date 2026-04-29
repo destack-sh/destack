@@ -1,10 +1,10 @@
 # Extension Declarations
 
-Tests for Destack extension declaration formatting.
+Extension fixtures cover Destack extension declarations and member bodies.
 
-## Basic Extensions
+## Extension Forms
 
-### simple extension
+### extension declaration
 
 Extensions use `of` to specify the type being extended.
 
