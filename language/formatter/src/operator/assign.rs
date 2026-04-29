@@ -3,7 +3,8 @@ use super::r#type::{
     expression_has_generic_arguments, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::annotation::{
-    format_comment, prefix_annotations, write_comment_slice, write_inline_prefix_annotations,
+    FormatTrailingComments, format_comment, prefix_annotations, write_comment_slice,
+    write_inline_prefix_annotations,
 };
 use crate::chain::{
     MemberChain, assignment_like_parent, is_assignment_chain_tail_lambda,
@@ -20,7 +21,7 @@ use destack_ast::{
     ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
-    Buffer, Format, FormatNode as FirFormatNode, FormatNodes, FormatResult,
+    Buffer, Format, FormatError, FormatNode as FirFormatNode, FormatNodes, FormatResult,
     Formatter as FirFormatter, VecBuffer,
 };
 use destack_fir::prelude::{
@@ -549,12 +550,17 @@ fn assign_pattern_field_contains_expression(
 fn buffer_assignment_expression_layout_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<AssignPattern>,
+    operator_span: Span,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+    let left_comments =
+        assignment_left_trailing_comments(f.context(), f.context().span(left).end, operator_span);
+
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
 
     // left side
     write!(formatter, [left])?;
+    write_assignment_left_trailing_comments(formatter, &left_comments)?;
 
     let nodes = buffer.into_vec();
 
@@ -567,9 +573,24 @@ fn buffer_assignment_expression_layout_left<'ast>(
 /// Buffer one declarator left-hand side for layout selection.
 fn buffer_declarator_layout_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    declarator_id: LocalNodeId<Declarator>,
     pattern_id: LocalNodeId<Pattern>,
     type_id: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+    let left_comments = if let Some(operator_span) = f.context().tree.get_main_span(declarator_id) {
+        let left_end = type_id
+            .map(|type_id| f.context().span(type_id).end)
+            .unwrap_or_else(|| f.context().span(pattern_id).end);
+
+        assignment_left_trailing_comments(f.context(), left_end, operator_span)
+    } else if f.context().tree.get(declarator_id).value.is_some() {
+        return Err(FormatError::SyntaxError {
+            message: "declarator assignment requires an operator span",
+        });
+    } else {
+        Vec::new()
+    };
+
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
 
@@ -582,12 +603,38 @@ fn buffer_declarator_layout_left<'ast>(
         write_type_expression_with_inline_prefix_annotations(formatter, type_id)?;
     }
 
+    write_assignment_left_trailing_comments(formatter, &left_comments)?;
+
     let nodes = buffer.into_vec();
 
     let may_break = nodes.may_directly_break();
 
     // declarator layout is driven by the rhs
     Ok((nodes, false, may_break))
+}
+
+/// Return comments that syntactically trail the left side before the assignment operator.
+fn assignment_left_trailing_comments(
+    context: &DestackFormatContext<'_>,
+    left_end: u32,
+    operator_span: Span,
+) -> Vec<Comment> {
+    let comments = context
+        .comments()
+        .comments_in_range(left_end, operator_span.start);
+    if comments.iter().any(|comment| comment.preceded_by_newline()) {
+        return Vec::new();
+    }
+
+    comments.to_vec()
+}
+
+/// Write comments that syntactically trail the left side before the assignment operator.
+fn write_assignment_left_trailing_comments<'ast>(
+    f: &mut FirFormatter<'_, DestackFormatContext<'ast>>,
+    comments: &[Comment],
+) -> FormatResult<()> {
+    write!(f, [FormatTrailingComments::Comments(comments)])
 }
 
 /// Return whether one declarator pattern subtree contains one default assignment.
@@ -1089,10 +1136,18 @@ impl AssignmentLike {
         match self {
             AssignmentLike::Declarator(declarator_id) => {
                 let declarator = f.context().tree.get(declarator_id);
-                buffer_declarator_layout_left(f, declarator.pattern, declarator.ty)
+                buffer_declarator_layout_left(f, declarator_id, declarator.pattern, declarator.ty)
             }
-            AssignmentLike::Expression { left, .. } => {
-                buffer_assignment_expression_layout_left(f, left)
+            AssignmentLike::Expression { node_id, left, .. } => {
+                let operator_span =
+                    f.context()
+                        .tree
+                        .get_main_span(node_id)
+                        .ok_or(FormatError::SyntaxError {
+                            message: "assignment expression requires an operator span",
+                        })?;
+
+                buffer_assignment_expression_layout_left(f, left, operator_span)
             }
         }
     }
