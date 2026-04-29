@@ -50,7 +50,11 @@ impl Resolver {
                 for extended_config_path in extended_config_paths {
                     let extended =
                         self.read_destack_with_context(&extended_config_path, ctx, cache_policy)?;
-                    config.extend_from(&extended);
+                    config
+                        .extend_from(&extended)
+                        .map_err(|_| ResolveError::DestackInvalid {
+                            path: config.path.clone(),
+                        })?;
                 }
                 Ok(())
             })?;
@@ -80,7 +84,7 @@ impl Resolver {
         let (repository, revision) = self.source_world(ctx);
         if destack_config_path.starts_with(repository.workspace_root())
             && let Some(config) = repository
-                .destack_declaration_for_file_path(revision, &destack_config_path)
+                .destack_declaration_for_path(revision, &destack_config_path)
                 .map_err(|error| ResolveError::RepositoryError {
                     path: destack_config_path.to_path_buf(),
                     message: error.to_string(),

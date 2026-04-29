@@ -1,6 +1,6 @@
 use std::path::{Component, Path};
 
-use destack_workspace::ModuleSpecifier;
+use destack_source::ModuleSpecifier;
 
 /// One parsed specifier path for a resolve query.
 #[derive(Debug, Clone)]

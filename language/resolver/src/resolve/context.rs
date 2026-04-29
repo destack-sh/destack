@@ -331,7 +331,7 @@ mod tests {
     /// Append trace should drain the request local buffers.
     #[test]
     fn test_append_trace_drains_dependencies() {
-        let mut context = ResolveContext::with_trace(Revision::INITIAL);
+        let mut context = ResolveContext::with_trace(Revision::NULL);
         let mut trace = ResolveTrace::default();
 
         context.track_found_dependency(Path::new("/tmp/found"));
@@ -348,7 +348,7 @@ mod tests {
     /// Package scope entries should round trip through the query cache.
     #[test]
     fn test_remember_package_scope_roundtrips() {
-        let mut context = ResolveContext::new(Revision::INITIAL);
+        let mut context = ResolveContext::new(Revision::NULL);
 
         context.remember_package_scope(Path::new("/tmp"), Some(PackageId::new(1)));
 

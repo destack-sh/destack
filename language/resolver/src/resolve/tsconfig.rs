@@ -89,7 +89,7 @@ impl Resolver {
         let (repository, revision) = self.source_world(ctx);
         let mut tsconfig = if tsconfig_path.starts_with(repository.workspace_root())
             && let Some(tsconfig) = repository
-                .tsconfig_declaration(
+                .tsconfig_declaration_for_file(
                     revision,
                     repository.file_id_for_workspace_path(&tsconfig_path),
                 )
@@ -369,14 +369,14 @@ impl Resolver {
         let (repository, revision) = self.source_world(ctx);
         if path.starts_with(repository.workspace_root()) {
             let tsconfig = match repository
-                .applicable_tsconfig_file_id_for_path(revision, path)
+                .tsconfig_file_id_for_path(revision, path)
                 .map_err(|error| ResolveError::RepositoryError {
                     path: path.to_path_buf(),
                     message: error.to_string(),
                 })? {
                 Some(file_id) => {
                     let declaration = repository
-                        .tsconfig_declaration(revision, file_id)
+                        .tsconfig_declaration_for_file(revision, file_id)
                         .map_err(|error| ResolveError::RepositoryError {
                             path: path.to_path_buf(),
                             message: error.to_string(),

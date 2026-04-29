@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{AmbientSnapshot, Repository, Revision, TsConfigDeclaration};
+use destack_workspace::{HostEnvironment, Repository, Revision, TsConfigDeclaration};
 
 use crate::{
     CachePolicy, Resolution, ResolveContext, ResolveError, ResolveOptions, ResolveOrigin,
@@ -124,7 +124,7 @@ fn test_repository(fs: Arc<dyn FileSystem>) -> Arc<Repository> {
         test_repository_root(),
         Arc::new(DiskCacheStore::new()),
         fs,
-        AmbientSnapshot::capture_process(),
+        HostEnvironment::capture_process(),
     ))
 }
 
@@ -135,10 +135,10 @@ fn test_repository_root() -> PathBuf {
 
 /// Build one request local test support context.
 pub(crate) fn test_resolve_context() -> ResolveContext {
-    ResolveContext::new(Revision::INITIAL)
+    ResolveContext::new(Revision::NULL)
 }
 
 /// Build one tracing test support context.
 pub(crate) fn test_resolve_trace_context() -> ResolveContext {
-    ResolveContext::with_trace(Revision::INITIAL)
+    ResolveContext::with_trace(Revision::NULL)
 }
