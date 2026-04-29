@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, keyword_from_identifier};
 
 use destack_ast::{
     Expression, Keyword, LiteralType, LocalNodeId, NodeType, ScalarLiteral, TokenType,
@@ -164,11 +164,17 @@ impl Parser {
             return false;
         }
 
-        if self.next_keyword() == Some(Keyword::This) {
+        let next_token = self.next_token();
+        if next_token.token.is_on_new_line {
+            return false;
+        }
+
+        let next_keyword = keyword_from_identifier(self.get_token_str(next_token));
+        if next_keyword == Some(Keyword::This) {
             return true;
         }
 
-        self.next_token_type() == TokenType::Identifier
+        next_token.token.ty == TokenType::Identifier
     }
 
     /// Eat a parenthesized expression and return the inner expression.
