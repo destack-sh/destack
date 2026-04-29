@@ -42,6 +42,11 @@ impl StableHasher {
     pub fn finish_u128(&self) -> u128 {
         hash_to_u128(self.inner.finalize())
     }
+
+    /// Finish the hash stream as a full BLAKE3 digest.
+    pub fn finish_bytes(&self) -> [u8; 32] {
+        *self.inner.finalize().as_bytes()
+    }
 }
 
 impl Hasher for StableHasher {
@@ -122,6 +127,14 @@ pub fn stable_hash_value_128(value: &impl Hash) -> u128 {
     value.hash(&mut hasher);
 
     hasher.finish_u128()
+}
+
+/// Hash one structural value into one deterministic full BLAKE3 digest.
+pub fn stable_hash_value_256(value: &impl Hash) -> [u8; 32] {
+    let mut hasher = StableHasher::new();
+    value.hash(&mut hasher);
+
+    hasher.finish_bytes()
 }
 
 /// Hash one key/value pair into one non-zero deterministic 128-bit value.
