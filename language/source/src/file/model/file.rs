@@ -1,37 +1,21 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use destack_core::StableHasher;
+use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
-use super::id;
 use crate::{FileType, Span, Uri};
 
 const FILE_LOGICAL_ID_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
 const FILE_ORIGIN_ID_DOMAIN: &[u8] = b"destack.source.file.origin.v1";
+const FILE_CONTENT_ID_DOMAIN: &[u8] = b"destack.source.file.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct FileId(pub u128);
-
-impl Serialize for FileId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        id::serialize_u128(self.0, serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for FileId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        id::deserialize_u128(deserializer).map(Self)
-    }
-}
 
 impl std::fmt::Debug for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -105,6 +89,50 @@ pub enum FileContent {
     Text { content: String },
     /// Binary content.
     Binary { content: Vec<u8> },
+}
+
+/// The exact identity of one source content payload.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct FileContentId(pub u128);
+
+impl std::fmt::Debug for FileContentId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "c{:032x}", self.0)
+    }
+}
+
+impl std::fmt::Display for FileContentId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "c{:032x}", self.0)
+    }
+}
+
+impl FileContentId {
+    /// Build one content id from one raw stable value.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Build one content id from one exact source content payload.
+    pub fn for_content(content: &FileContent) -> Self {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(FILE_CONTENT_ID_DOMAIN);
+
+        match content {
+            FileContent::Text { content } => {
+                hasher.update(&[0]);
+                hasher.update_len_prefixed(content.as_bytes());
+            }
+            FileContent::Binary { content } => {
+                hasher.update(&[1]);
+                hasher.update_len_prefixed(content);
+            }
+        }
+
+        Self::new(hasher.finish_u128())
+    }
 }
 
 /// One canonical content payload and its derived data.
