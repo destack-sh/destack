@@ -11,6 +11,9 @@ use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, infix_or_postfix_annotations,
 };
 use crate::declaration::dependency::format_dependency_statement_expression;
+use crate::declaration::sequence::{
+    expression_is_in_statement_position, expression_is_value_block_tail,
+};
 use crate::declaration::{
     format_let_else_statement_expression, format_let_statement_expression,
     format_using_statement_expression, statement_wrapper_needs_semicolon,
@@ -20,6 +23,7 @@ use destack_ast::{Comment, Expression, IfKind, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
+use destack_source::LanguageType;
 
 /// Return whether one statement expression owns its own trailing annotations.
 pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expression) -> bool {
@@ -47,6 +51,19 @@ pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
         f,
         [infix_or_postfix_annotations(f.context(), expression_id)]
     )
+}
+
+/// Return whether one value-capable control expression should expand explicit branch blocks.
+fn value_branch_expression_should_expand<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    if expression_is_value_block_tail(f.context(), node_id) {
+        return true;
+    }
+
+    LanguageType::from(f.context().file.ty).is_destack()
+        && expression_is_in_statement_position(f.context(), node_id)
 }
 
 /// Format statement-like expression variants.
@@ -164,10 +181,14 @@ pub(crate) fn format_statement_expression<'ast>(
         Expression::If {
             kind: IfKind::If, ..
         } => {
-            write!(
-                f,
-                [group(&format_with(|f| format_if_else_chain(f, node_id)))]
-            )?;
+            let expand_branches = value_branch_expression_should_expand(f, node_id);
+            let if_chain = format_with(|f| format_if_else_chain(f, node_id, expand_branches));
+            if expand_branches {
+                write!(f, [group(&if_chain).should_expand(true)])?;
+                return Ok(true);
+            }
+
+            write!(f, [group(&if_chain)])?;
         }
 
         // while
@@ -213,6 +234,7 @@ pub(crate) fn format_statement_expression<'ast>(
             catch_expression,
             finally_expression,
         } => {
+            let expand_try_branches = value_branch_expression_should_expand(f, node_id);
             format_try_expression(
                 f,
                 *try_expression,
@@ -220,6 +242,7 @@ pub(crate) fn format_statement_expression<'ast>(
                 *catch_ty,
                 *catch_expression,
                 *finally_expression,
+                expand_try_branches,
             )?;
         }
 

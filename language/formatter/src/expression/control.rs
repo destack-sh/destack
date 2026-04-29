@@ -13,7 +13,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::declaration::sequence::block_statement_sequence;
 use crate::declaration::signature::expression_body_requires_head_space;
-use crate::declaration::statement::format_block;
+use crate::declaration::statement::{format_block, format_block_wide};
 use crate::declaration::{
     empty_block_with_infix_annotations, statement_wrapper_needs_semicolon,
     write_statement_terminator, write_statement_terminator_after_anchor,
@@ -211,11 +211,17 @@ pub(crate) fn format_statement_body_block<'ast>(
 fn format_statement_body_block_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
+    force_expanded_body: bool,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
     if !is_statement_wrapper_block(f.context(), block_id) {
         write!(f, [space()])?;
-        return format_block(f, block_id);
+
+        if !force_expanded_body {
+            return format_block(f, block_id);
+        }
+
+        return format_block_wide(f, block_id);
     }
 
     if block.is_empty() {
@@ -245,6 +251,7 @@ fn format_statement_body_block_after_head<'ast>(
 
         if expression_has_block_prefix_annotation(f.context(), expression_id)
             || has_leading_comments
+            || force_expanded_body
         {
             return write!(f, [hard_line_break(), group(&block_indent(&body))]);
         }
@@ -431,6 +438,7 @@ fn expression_is_if_consequent_with_alternate(
 fn format_statement_body_expression_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
+    force_expanded_body: bool,
 ) -> FormatResult<()> {
     let has_leading_comments = {
         let comments = f.context().comments();
@@ -454,7 +462,10 @@ fn format_statement_body_expression_after_head<'ast>(
         return Ok(());
     }
 
-    if expression_has_block_prefix_annotation(f.context(), expression_id) || has_leading_comments {
+    if expression_has_block_prefix_annotation(f.context(), expression_id)
+        || has_leading_comments
+        || force_expanded_body
+    {
         write!(f, [hard_line_break(), group(&block_indent(&body))])?;
         return Ok(());
     }
@@ -726,6 +737,7 @@ fn write_if_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     condition: &IfCondition,
     then_expression_id: LocalNodeId<Expression>,
+    expand_branch_bodies: bool,
 ) -> FormatResult<()> {
     let empty_statement_body = match f.context().tree.get(then_expression_id) {
         Expression::Block(block_id) if is_empty_statement_block(f.context(), *block_id) => {
@@ -761,7 +773,9 @@ fn write_if_clause<'ast>(
 
         Ok(())
     });
-    let body = format_with(|f| write_control_branch_after_head(f, then_expression_id));
+    let body = format_with(|f| {
+        write_control_branch_after_head_expanding_body(f, then_expression_id, expand_branch_bodies)
+    });
 
     write!(
         f,
@@ -781,6 +795,15 @@ pub(crate) fn write_control_branch_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     branch_expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    write_control_branch_after_head_expanding_body(f, branch_expression_id, false)
+}
+
+/// Write one control branch after its head.
+fn write_control_branch_after_head_expanding_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    branch_expression_id: LocalNodeId<Expression>,
+    force_expanded_body: bool,
+) -> FormatResult<()> {
     // transparent statement wrappers
     if let Some(empty_block_id) = transparent_empty_control_body(f.context(), branch_expression_id)
     {
@@ -788,11 +811,11 @@ pub(crate) fn write_control_branch_after_head<'ast>(
         return Ok(());
     }
 
-    // transparent statement wrappers
+    // single-expression statement wrappers
     if let Some(inner_expression_id) =
         transparent_control_body_expression(f.context(), branch_expression_id)
     {
-        format_statement_body_expression_after_head(f, inner_expression_id)?;
+        format_statement_body_expression_after_head(f, inner_expression_id, false)?;
         return Ok(());
     }
 
@@ -800,7 +823,7 @@ pub(crate) fn write_control_branch_after_head<'ast>(
     match branch_expression {
         Expression::Block(block_id) => {
             write!(f, [prefix_annotations(f.context(), branch_expression_id)])?;
-            format_statement_body_block_after_head(f, *block_id)?;
+            format_statement_body_block_after_head(f, *block_id, force_expanded_body)?;
             write!(
                 f,
                 [infix_or_postfix_annotations(
@@ -810,7 +833,11 @@ pub(crate) fn write_control_branch_after_head<'ast>(
             )?;
         }
         _ => {
-            format_statement_body_expression_after_head(f, branch_expression_id)?;
+            format_statement_body_expression_after_head(
+                f,
+                branch_expression_id,
+                force_expanded_body,
+            )?;
             write!(f, [postfix_annotations(f.context(), branch_expression_id)])?;
         }
     }
@@ -915,6 +942,7 @@ fn format_if_else_alternate<'ast>(
     if_expression_id: LocalNodeId<Expression>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
+    expand_branch_bodies: bool,
 ) -> FormatResult<Option<LocalNodeId<Expression>>> {
     let else_has_effective_prefix_annotation =
         write_if_else_separator(f, if_expression_id, then_expression_id, else_expression_id)?;
@@ -954,7 +982,11 @@ fn format_if_else_alternate<'ast>(
                 transparent_control_body_expression(f.context(), else_expression_id)
             {
                 let body = format_with(|f| {
-                    format_statement_body_expression_after_head(f, inner_expression_id)
+                    format_statement_body_expression_after_head(
+                        f,
+                        inner_expression_id,
+                        expand_branch_bodies,
+                    )
                 });
                 write!(f, [group(&body)])?;
             }
@@ -964,8 +996,13 @@ fn format_if_else_alternate<'ast>(
         _ => {
             write!(f, [Keyword::Else])?;
 
-            let body =
-                format_with(|f| format_statement_body_expression_after_head(f, else_expression_id));
+            let body = format_with(|f| {
+                format_statement_body_expression_after_head(
+                    f,
+                    else_expression_id,
+                    expand_branch_bodies,
+                )
+            });
             write!(f, [group(&body)])?;
             Ok(None)
         }
@@ -976,6 +1013,7 @@ fn format_if_else_alternate<'ast>(
 pub(crate) fn format_if_else_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
+    expand_branch_bodies: bool,
 ) -> FormatResult<()> {
     // walk the chain
     let mut next_if_id = node_id;
@@ -989,7 +1027,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
             } => {
-                write_if_clause(f, condition, *then_expression_id)?;
+                write_if_clause(f, condition, *then_expression_id, expand_branch_bodies)?;
 
                 // next node
                 if let Some(else_expression) = else_expression_id {
@@ -998,6 +1036,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                         next_if_id,
                         *then_expression_id,
                         *else_expression,
+                        expand_branch_bodies,
                     )? {
                         Some(next_else_if_id) => {
                             next_if_id = next_else_if_id;
@@ -1475,17 +1514,11 @@ pub(crate) fn format_try_expression<'ast>(
     catch_ty: Option<LocalNodeId<TypeExpression>>,
     catch_expression: Option<LocalNodeId<Expression>>,
     finally_expression: Option<LocalNodeId<Expression>>,
+    force_expanded_branches: bool,
 ) -> FormatResult<()> {
     // try block
     write!(f, [Keyword::Try])?;
-    if let Expression::Block(block_id) = f.context().tree.get(try_expression) {
-        if statement_body_requires_head_space(f.context(), *block_id) {
-            write!(f, [space()])?;
-        }
-    } else {
-        write!(f, [space()])?;
-    }
-    write!(f, [try_expression])?;
+    write_try_branch_after_keyword(f, try_expression, force_expanded_branches)?;
 
     // catch block
     if let Some(catch_expression) = catch_expression {
@@ -1494,30 +1527,38 @@ pub(crate) fn format_try_expression<'ast>(
             write!(f, [space()])?;
             write_catch_parameter(f, catch_pattern, catch_ty)?;
         }
-        if let Expression::Block(block_id) = f.context().tree.get(catch_expression) {
-            if statement_body_requires_head_space(f.context(), *block_id) {
-                write!(f, [space()])?;
-            }
-        } else {
-            write!(f, [space()])?;
-        }
-        write!(f, [catch_expression])?;
+        write_try_branch_after_keyword(f, catch_expression, force_expanded_branches)?;
     }
 
     // finally block
     if let Some(finally_expression) = finally_expression {
         write!(f, [space(), Keyword::Finally])?;
-        if let Expression::Block(block_id) = f.context().tree.get(finally_expression) {
-            if statement_body_requires_head_space(f.context(), *block_id) {
-                write!(f, [space()])?;
-            }
-        } else {
-            write!(f, [space()])?;
-        }
-        write!(f, [finally_expression])?;
+        write_try_branch_after_keyword(f, finally_expression, force_expanded_branches)?;
     }
 
     Ok(())
+}
+
+/// Write one try, catch, or finally branch after its keyword.
+fn write_try_branch_after_keyword<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    branch_expression_id: LocalNodeId<Expression>,
+    force_expanded_body: bool,
+) -> FormatResult<()> {
+    if let Expression::Block(block_id) = f.context().tree.get(branch_expression_id) {
+        if force_expanded_body {
+            write!(f, [space()])?;
+            return format_block_wide(f, *block_id);
+        }
+
+        if statement_body_requires_head_space(f.context(), *block_id) {
+            write!(f, [space()])?;
+        }
+    } else {
+        write!(f, [space()])?;
+    }
+
+    write!(f, [branch_expression_id])
 }
 
 /// Format one match case with the selected style.

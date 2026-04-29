@@ -345,6 +345,22 @@ pub fn format_block<'ast>(
     Ok(())
 }
 
+/// Format one block with expanded contents.
+pub(crate) fn format_block_wide<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Block>,
+) -> FormatResult<()> {
+    let block_span_end = f.context().span(node_id).end;
+
+    write!(f, [prefix_annotations(f.context(), node_id)])?;
+    format_block_body_wide(f, node_id)?;
+    f.context_mut()
+        .comments_mut()
+        .skip_comments_before(block_span_end);
+    write!(f, [postfix_annotations(f.context(), node_id)])?;
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,

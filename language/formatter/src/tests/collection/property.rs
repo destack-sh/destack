@@ -118,7 +118,7 @@ extension<T> of Set<T> {
         r#"
 extension<T> of Set<T> {
   static new<T>(): Set<T> {
-    undefined!;
+    undefined!
   }
 }
 "#
