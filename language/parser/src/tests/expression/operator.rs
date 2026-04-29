@@ -1,7 +1,45 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node};
+use crate::{assert_expression_path, assert_name, assert_node, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
+
+/// Assert one assign pattern is an expression path.
+fn assert_assign_pattern_path(
+    parser: &crate::Parser,
+    pattern_id: LocalNodeId<AssignPattern>,
+    expected: &str,
+) {
+    assert_expression_path!(parser, parser.tree.get(pattern_id), expected);
+}
+
+/// Assert one assign pattern is a defaulted expression path.
+fn assert_defaulted_assign_pattern(
+    parser: &crate::Parser,
+    pattern_id: LocalNodeId<AssignPattern>,
+    expected_pattern: &str,
+    expected_value: &str,
+) {
+    assert_node!(parser.tree, pattern_id, AssignPattern::Assign { pattern, value } => {
+        assert_assign_pattern_path(parser, *pattern, expected_pattern);
+        assert_expression_path!(parser, parser.tree.get(*value), expected_value);
+    });
+}
+
+/// Assert that one expression rejects with a single leaf span.
+fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_leaf: &str) {
+    let mut test = TestParser::new_with_options(input, language);
+    let mut parser = test.prepare();
+
+    let error = parser
+        .eat_expression(parser.options)
+        .expect_err("expected expression to fail");
+    let (span, node_type, token_type) = error.leaf_content();
+    let leaf = parser.get_span_str(span);
+
+    assert_eq!(node_type, None);
+    assert_eq!(token_type, None);
+    assert_eq!(leaf, expected_leaf);
+}
 
 /// Addition is left associative.
 #[test]
@@ -387,30 +425,53 @@ fn test_parse_precedence_is_before_logical_and() {
 /// Runtime `instanceof` guards bind before logical and.
 #[test]
 fn test_parse_precedence_instanceof_before_logical_and() {
-    let mut test =
-        TestParser::new_with_options("value instanceof Box && ready", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("value instanceof Box && ready", language);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    // value instanceof Box && ready
-    assert_node!(
-        parser.tree,
-        expr_id,
-        Expression::Binary { left, operator, right, .. } => {
-            assert_eq!(*operator, BinaryOperator::And);
+        // value instanceof Box && ready
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::And);
 
-            // value instanceof Box
-            assert_node!(parser.tree, *left, Expression::InstanceOf { value, target } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "value");
-                assert_expression_path!(parser, parser.tree.get(*target), "Box");
+                // value instanceof Box
+                assert_node!(parser.tree, *left, Expression::InstanceOf { value, target } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "value");
+                    assert_expression_path!(parser, parser.tree.get(*target), "Box");
+                });
+
+                // ready
+                assert_expression_path!(parser, parser.tree.get(*right), "ready");
+            }
+        );
+
+        test.assert_no_errors(&parser);
+    }
+}
+
+/// Parse multiline `instanceof` guards in expression position.
+#[test]
+fn test_parse_newline_before_instanceof_in_expression_position() {
+    for language in [LanguageType::TypeScript, LanguageType::Destack] {
+        let mut test = TestParser::new_with_options("call(value\ninstanceof Box)", language);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::InstanceOf { value, target } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "value");
+                    assert_expression_path!(parser, parser.tree.get(*target), "Box");
+                });
             });
+        });
 
-            // ready
-            assert_expression_path!(parser, parser.tree.get(*right), "ready");
-        }
-    );
-
-    test.assert_no_errors(&parser);
+        test.assert_no_errors(&parser);
+    }
 }
 
 /// Unary prefix has higher precedence than multiplication.
@@ -539,14 +600,237 @@ fn test_parse_assign_operator_span() {
 /// Reject compound assignment on one destructuring target.
 #[test]
 fn test_reject_compound_assignment_on_destructuring_target() {
-    let mut test = TestParser::new("({ x } += value)");
+    assert_expression_rejects_at("({ x } += value)", LanguageType::Destack, "{ x }");
+}
+
+/// Parse object destructuring assignment defaults as assignment patterns.
+#[test]
+fn test_parse_object_destructuring_assignment_defaults() {
+    let mut test =
+        TestParser::new("({ x = fallback, y: z = other, [key]: target, ...rest } = value)");
     let mut parser = test.prepare();
 
-    let result = parser.eat_expression(parser.options);
+    let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert!(
-        result.is_err(),
-        "expected compound destructuring assignment to fail"
+    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_expression_path!(parser, parser.tree.get(*right), "value");
+
+            assert_node!(parser.tree, *left, AssignPattern::Object { fields } => {
+                assert_eq!(fields.len(), 4);
+
+                assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                    assert_name!(parser, *name, "x");
+                    assert!(*is_shorthand);
+                    assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "x", "fallback");
+                });
+
+                assert_node!(parser.tree, fields[1], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                    assert_name!(parser, *name, "y");
+                    assert!(!*is_shorthand);
+                    assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "z", "other");
+                });
+
+                assert_node!(parser.tree, fields[2], AssignPatternField::Computed { key, pattern } => {
+                    assert_expression_path!(parser, parser.tree.get(*key), "key");
+                    assert_assign_pattern_path(&parser, *pattern, "target");
+                });
+
+                assert_node!(parser.tree, fields[3], AssignPatternField::Spread { pattern } => {
+                    assert_assign_pattern_path(&parser, pattern.expect("expected rest target"), "rest");
+                });
+            });
+        });
+    });
+}
+
+/// Parse array destructuring assignment defaults as assignment patterns.
+#[test]
+fn test_parse_array_destructuring_assignment_defaults() {
+    let mut test = TestParser::new("[first, , second = fallback, ...rest] = value");
+    let mut parser = test.prepare();
+
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_expression_path!(parser, parser.tree.get(*right), "value");
+
+        assert_node!(parser.tree, *left, AssignPattern::Array { fields } => {
+            assert_eq!(fields.len(), 4);
+
+            assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {
+                assert_assign_pattern_path(&parser, *pattern, "first");
+            });
+
+            assert_node!(parser.tree, fields[1], AssignPatternField::Elision);
+
+            assert_node!(parser.tree, fields[2], AssignPatternField::Positional { pattern } => {
+                assert_defaulted_assign_pattern(&parser, *pattern, "second", "fallback");
+            });
+
+            assert_node!(parser.tree, fields[3], AssignPatternField::Spread { pattern } => {
+                assert_assign_pattern_path(&parser, pattern.expect("expected rest target"), "rest");
+            });
+        });
+    });
+}
+
+/// Parse nested destructuring assignment defaults as assignment patterns.
+#[test]
+fn test_parse_nested_destructuring_assignment_defaults() {
+    let mut test = TestParser::new("({ a: { b = c } = d, e: [f = g] } = h)");
+    let mut parser = test.prepare();
+
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_expression_path!(parser, parser.tree.get(*right), "h");
+
+            assert_node!(parser.tree, *left, AssignPattern::Object { fields } => {
+                assert_eq!(fields.len(), 2);
+
+                assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                    assert_name!(parser, *name, "a");
+                    assert!(!*is_shorthand);
+
+                    assert_node!(parser.tree, pattern.expect("expected nested default"), AssignPattern::Assign { pattern, value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "d");
+
+                        assert_node!(parser.tree, *pattern, AssignPattern::Object { fields } => {
+                            assert_eq!(fields.len(), 1);
+
+                            assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                                assert_name!(parser, *name, "b");
+                                assert!(*is_shorthand);
+                                assert_defaulted_assign_pattern(&parser, pattern.expect("expected default"), "b", "c");
+                            });
+                        });
+                    });
+                });
+
+                assert_node!(parser.tree, fields[1], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                    assert_name!(parser, *name, "e");
+                    assert!(!*is_shorthand);
+
+                    assert_node!(parser.tree, pattern.expect("expected nested array"), AssignPattern::Array { fields } => {
+                        assert_eq!(fields.len(), 1);
+
+                        assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {
+                            assert_defaulted_assign_pattern(&parser, *pattern, "f", "g");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse member and index destructuring assignment targets.
+#[test]
+fn test_parse_destructuring_assignment_member_targets() {
+    let mut test = TestParser::new("({ value: object.property, [key]: target[index] } = source)");
+    let mut parser = test.prepare();
+
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
+            assert_eq!(*operator, AssignOperator::Assign);
+            assert_expression_path!(parser, parser.tree.get(*right), "source");
+
+            assert_node!(parser.tree, *left, AssignPattern::Object { fields } => {
+                assert_eq!(fields.len(), 2);
+
+                assert_node!(parser.tree, fields[0], AssignPatternField::Named { name, is_shorthand, pattern } => {
+                    assert_name!(parser, *name, "value");
+                    assert!(!*is_shorthand);
+                    assert_node!(parser.tree, pattern.expect("expected member target"), AssignPattern::Expression { value } => {
+                        assert_node!(parser.tree, *value, Expression::Member { left, name: Some(name), .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "object");
+                            assert_string!(parser, *name, "property");
+                        });
+                    });
+                });
+
+                assert_node!(parser.tree, fields[1], AssignPatternField::Computed { key, pattern } => {
+                    assert_expression_path!(parser, parser.tree.get(*key), "key");
+
+                    assert_node!(parser.tree, *pattern, AssignPattern::Expression { value } => {
+                        assert_node!(parser.tree, *value, Expression::Index { left, index: Some(index), .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "target");
+                            assert_expression_path!(parser, parser.tree.get(*index), "index");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Reject binary expressions as assignment targets.
+#[test]
+fn test_reject_binary_assignment_target() {
+    assert_expression_rejects_at("a + b = c", LanguageType::TypeScript, "a + b");
+}
+
+/// Reject expression targets inside destructuring assignment patterns.
+#[test]
+fn test_reject_destructuring_expression_assignment_targets() {
+    let cases = [
+        ("[a + b] = source", "a + b"),
+        ("({ value: a + b } = source)", "a + b"),
+        ("({ [key]: a + b } = source)", "a + b"),
+    ];
+
+    for (input, expected_leaf) in cases {
+        assert_expression_rejects_at(input, LanguageType::TypeScript, expected_leaf);
+    }
+}
+
+/// Reject parenthesized object and array expressions as assignment targets.
+#[test]
+fn test_reject_parenthesized_destructuring_assignment_target() {
+    let cases = [("({ a }) = source", "({ a })"), ("([a]) = source", "([a])")];
+
+    for (input, expected_leaf) in cases {
+        assert_expression_rejects_at(input, LanguageType::TypeScript, expected_leaf);
+    }
+}
+
+/// Reject optional chains as assignment targets.
+#[test]
+fn test_reject_optional_chain_assignment_target() {
+    let cases = [
+        ("object?.property = value", "object?.property"),
+        ("object?.[key] = value", "object?.[key]"),
+    ];
+
+    for (input, expected_leaf) in cases {
+        assert_expression_rejects_at(input, LanguageType::TypeScript, expected_leaf);
+    }
+}
+
+/// Reject parenthesized assignment expressions as assignment targets.
+#[test]
+fn test_reject_parenthesized_assignment_target() {
+    assert_expression_rejects_at(
+        "(left = fallback) = value",
+        LanguageType::Destack,
+        "left = fallback",
+    );
+}
+
+/// Reject compound operators as destructuring defaults.
+#[test]
+fn test_reject_compound_destructuring_default() {
+    assert_expression_rejects_at(
+        "[value += fallback] = source",
+        LanguageType::Destack,
+        "value += fallback",
     );
 }
 

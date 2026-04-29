@@ -9,7 +9,7 @@ use destack_ast::{
     Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, TokenType,
     TypeExpression, UnaryOperator,
 };
-use destack_source::Span;
+use destack_source::{Span, StringId};
 
 const VALUE_TERNARY_PRECEDENCE: u16 = 900;
 
@@ -46,6 +46,15 @@ enum InfixRightKind {
     TypeConditional,
     /// Reject one type-only operator that cannot lower in value space.
     InvalidValueTypeOperator,
+}
+
+/// Whether assignment target lowering may produce defaulted targets.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AssignPatternDefaultMode {
+    /// Reject assignment expressions in the target position.
+    Reject,
+    /// Convert assignment expressions into defaulted assignment targets.
+    Allow,
 }
 
 impl InfixRightKind {
@@ -271,7 +280,7 @@ impl Parser {
         is_postfix_or_assign || starts_lambda_head
     }
 
-    /// Return true when assignment lhs form is invalid in ts/js grammar.
+    /// Return true when assignment lhs form is invalid before target lowering.
     #[inline]
     fn assignment_target_has_invalid_form(
         &self,
@@ -282,13 +291,18 @@ impl Parser {
         let is_parenthesized = is_parenthesized || inner_expression_id != expression_id;
 
         match self.tree.get(inner_expression_id) {
+            // parenthesized object and array expressions cannot be assignment patterns
+            Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. } => {
+                is_parenthesized
+            }
+
             // `satisfies` lhs is valid in parse output only when parenthesized
             Expression::Satisfies { .. } => !is_parenthesized,
 
             // `as` cast lhs is valid only when parenthesized
             Expression::As { .. } => !is_parenthesized,
 
-            // all other lhs forms are handled by assignment-target validation later
+            // all other lhs forms are handled by assignment target validation later
             _ => false,
         }
     }
@@ -298,10 +312,22 @@ impl Parser {
         &mut self,
         expression_id: LocalNodeId<Expression>,
     ) -> ParseResult<LocalNodeId<AssignPattern>> {
+        self.expression_to_assign_pattern_with_defaults(
+            expression_id,
+            AssignPatternDefaultMode::Reject,
+        )
+    }
+
+    /// Convert one assignment target expression into one assign pattern.
+    fn expression_to_assign_pattern_with_defaults(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        default_mode: AssignPatternDefaultMode,
+    ) -> ParseResult<LocalNodeId<AssignPattern>> {
         let inner_expression_id = self.without_parentheses_expression(expression_id);
         let inner_expression = self.tree.get(inner_expression_id).clone();
 
-        // object and array destructuring own recursive assign pattern lowering
+        // object and array destructuring own recursive assign target lowering
         let assign_pattern = match inner_expression {
             Expression::ObjectExpression {
                 ty: None,
@@ -315,14 +341,87 @@ impl Parser {
                 let fields = self.array_elements_to_assign_pattern_fields(elements.as_slice())?;
                 AssignPattern::Array { fields }
             }
+            Expression::Assign {
+                left,
+                operator,
+                right,
+            } => {
+                if default_mode == AssignPatternDefaultMode::Reject {
+                    return Err(ParseError::unexpected(
+                        self.tree.get_span(inner_expression_id),
+                    ));
+                }
 
-            // everything else remains a direct expression target
-            _ => AssignPattern::Expression {
-                value: inner_expression_id,
-            },
+                if operator != AssignOperator::Assign {
+                    return Err(ParseError::unexpected(
+                        self.tree.get_span(inner_expression_id),
+                    ));
+                }
+
+                AssignPattern::Assign {
+                    pattern: left,
+                    value: right,
+                }
+            }
+            _ => self.expression_to_simple_assign_pattern(inner_expression_id)?,
         };
 
         Ok(self.insert_node(assign_pattern, self.tree.get_span(expression_id)))
+    }
+
+    /// Return whether one expression is a simple assignment target.
+    fn expression_is_simple_assignment_target(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let expression_id = self.without_parentheses_expression(expression_id);
+
+        match self.tree.get(expression_id) {
+            Expression::Identifier { .. } => true,
+            Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. } => !self.expression_contains_optional_chain(expression_id),
+            Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
+                self.expression_is_simple_assignment_target(*expression)
+            }
+            Expression::Must { left, .. } => self.expression_is_simple_assignment_target(*left),
+            _ => false,
+        }
+    }
+
+    /// Return whether one expression target contains optional chaining.
+    fn expression_contains_optional_chain(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        let expression_id = self.without_parentheses_expression(expression_id);
+
+        match self.tree.get(expression_id) {
+            Expression::Maybe { .. } => true,
+            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+                self.expression_contains_optional_chain(*left)
+            }
+            Expression::Index { left, .. } => self.expression_contains_optional_chain(*left),
+            Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
+                self.expression_contains_optional_chain(*expression)
+            }
+            Expression::Must { left, .. } => self.expression_contains_optional_chain(*left),
+            _ => false,
+        }
+    }
+
+    /// Convert one expression into a direct assignment target.
+    fn expression_to_simple_assign_pattern(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> ParseResult<AssignPattern> {
+        let inner_expression_id = self.without_parentheses_expression(expression_id);
+        if !self.expression_is_simple_assignment_target(inner_expression_id) {
+            return Err(ParseError::unexpected(
+                self.tree.get_span(inner_expression_id),
+            ));
+        }
+
+        Ok(AssignPattern::Expression {
+            value: inner_expression_id,
+        })
     }
 
     /// Convert one array literal element list into assign pattern fields.
@@ -341,11 +440,17 @@ impl Parser {
                     AssignPatternField::Elision
                 }
                 Argument::Positional { value } => {
-                    let pattern = self.expression_to_assign_pattern(value)?;
+                    let pattern = self.expression_to_assign_pattern_with_defaults(
+                        value,
+                        AssignPatternDefaultMode::Allow,
+                    )?;
                     AssignPatternField::Positional { pattern }
                 }
                 Argument::Spread { value, .. } => {
-                    let pattern = self.expression_to_assign_pattern(value)?;
+                    let pattern = self.expression_to_assign_pattern_with_defaults(
+                        value,
+                        AssignPatternDefaultMode::Reject,
+                    )?;
                     AssignPatternField::Spread {
                         pattern: Some(pattern),
                     }
@@ -377,7 +482,10 @@ impl Parser {
                     value,
                     is_shorthand,
                 } => {
-                    let pattern = self.expression_to_assign_pattern(value)?;
+                    let pattern = self.expression_to_assign_pattern_with_defaults(
+                        value,
+                        AssignPatternDefaultMode::Allow,
+                    )?;
 
                     // bare shorthand keeps the nested pattern slot empty
                     if is_shorthand && self.assign_pattern_is_simple_name(pattern, name) {
@@ -409,7 +517,10 @@ impl Parser {
                     value,
                     is_shorthand: _,
                 } => {
-                    let pattern = self.expression_to_assign_pattern(value)?;
+                    let pattern = self.expression_to_assign_pattern_with_defaults(
+                        value,
+                        AssignPatternDefaultMode::Allow,
+                    )?;
                     AssignPatternField::Computed { key, pattern }
                 }
                 Property::Field {
@@ -422,7 +533,10 @@ impl Parser {
                     return Err(ParseError::unexpected(self.tree.get_span(*property_id)));
                 }
                 Property::Spread { value } => {
-                    let pattern = self.expression_to_assign_pattern(value)?;
+                    let pattern = self.expression_to_assign_pattern_with_defaults(
+                        value,
+                        AssignPatternDefaultMode::Reject,
+                    )?;
                     AssignPatternField::Spread {
                         pattern: Some(pattern),
                     }
@@ -669,7 +783,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-        name: destack_source::StringId,
+        name: StringId,
         name_span: Span,
     ) -> LocalNodeId<Expression> {
         let member_id = self.insert_node(
@@ -689,7 +803,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-        name: destack_source::StringId,
+        name: StringId,
         name_span: Span,
     ) -> LocalNodeId<Expression> {
         let member_id = self.insert_node(
@@ -1782,6 +1896,7 @@ impl Parser {
                 // `value is T`
                 InfixRightKind::ValuePredicate => {
                     let right_type_id = self.eat_infix_right_type_or_missing(right_context)?;
+                    self.set_node_leading_span(right_type_id, operator_span.end);
 
                     Expression::Is {
                         value: left_expression_id,
@@ -1834,7 +1949,7 @@ impl Parser {
 
             // set main span to the operator
             let operator_main_span = if let Some(as_const_operator_end) = as_const_operator_end {
-                destack_source::Span::new(
+                Span::new(
                     operator_span.file,
                     operator_span.start,
                     as_const_operator_end,

@@ -1,10 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Ambientness, AssignOperator, Asynchrony, BlockContext, ConstructorTypeDeclaration, Expression,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, FunctionTypeDeclaration,
-    Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter, Property, StringId, TokenType,
-    TypeExpression, TypeMember, Visibility,
+    Ambientness, AssignOperator, AssignPattern, Asynchrony, BlockContext,
+    ConstructorTypeDeclaration, Expression, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, FunctionTypeDeclaration, Key, Keyword, LocalNodeId, Member, Name, NodeType,
+    Parameter, Property, StringId, TokenType, TypeExpression, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -394,6 +394,33 @@ impl Parser {
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
         )
+    }
+
+    /// Insert the assignment expression used to preserve one property value with a default.
+    fn insert_property_default_expression(
+        &mut self,
+        value: LocalNodeId<Expression>,
+        default: LocalNodeId<Expression>,
+        assign_operator_span: Option<Span>,
+    ) -> LocalNodeId<Expression> {
+        let value_span = self.tree.get_span(value);
+        let default_span = self.tree.get_span(default);
+        let assign_span = Span::new(value_span.file, value_span.start, default_span.end);
+        let left = self.insert_node(AssignPattern::Expression { value }, value_span);
+        let assign_id = self.insert_node(
+            Expression::Assign {
+                left,
+                operator: AssignOperator::Assign,
+                right: default,
+            },
+            assign_span,
+        );
+
+        if let Some(assign_operator_span) = assign_operator_span {
+            self.tree.set_main_span(assign_id, assign_operator_span);
+        }
+
+        assign_id
     }
 
     /// Return the ambientness implied by one modifier set.
@@ -942,28 +969,32 @@ impl Parser {
                 (None, None)
             };
 
+            // cover initialized shorthand fields as assignment expressions
+            let is_defaulted_shorthand = value.is_none()
+                && default.is_some()
+                && modifiers.is_none()
+                && matches!(key, Some(Key::Name(Name::Identifier(_))));
+
             // preserve both the declared type and the default
             let value = match (value, default) {
-                (Some(value), Some(default)) => {
-                    let value_span = self.tree.get_span(value);
-                    let default_span = self.tree.get_span(default);
-                    let assign_span =
-                        Span::new(value_span.file, value_span.start, default_span.end);
-                    let left = self.expression_to_assign_pattern(value)?;
-                    let assign_id = self.insert_node(
-                        Expression::Assign {
-                            left,
-                            operator: AssignOperator::Assign,
-                            right: default,
-                        },
-                        assign_span,
-                    );
-
-                    if let Some(assign_operator_span) = assign_operator_span {
-                        self.tree.set_main_span(assign_id, assign_operator_span);
-                    }
-
-                    Some(assign_id)
+                (Some(value), Some(default)) => Some(self.insert_property_default_expression(
+                    value,
+                    default,
+                    assign_operator_span,
+                )),
+                (None, Some(default)) if is_defaulted_shorthand => {
+                    let Some(Key::Name(Name::Identifier(name))) = key else {
+                        unreachable!("defaulted shorthand requires an identifier key");
+                    };
+                    let Some(key_span) = key_span else {
+                        unreachable!("defaulted shorthand requires an identifier span");
+                    };
+                    let value = self.insert_node(Expression::Identifier { name }, key_span);
+                    Some(self.insert_property_default_expression(
+                        value,
+                        default,
+                        assign_operator_span,
+                    ))
                 }
                 (Some(value), None) => Some(value),
                 (None, Some(default)) => Some(default),
@@ -971,12 +1002,13 @@ impl Parser {
             };
 
             // shorthand field value
-            let is_shorthand = value.is_none()
+            let is_bare_shorthand = value.is_none()
                 && default.is_none()
                 && modifiers.is_none()
                 && matches!(key, Some(Key::Name(Name::Identifier(_))));
+            let is_shorthand = is_bare_shorthand || is_defaulted_shorthand;
 
-            let value = if is_shorthand {
+            let value = if is_bare_shorthand {
                 match key {
                     Some(Key::Name(Name::Identifier(name))) => {
                         let value = self.insert_node(
@@ -1792,10 +1824,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Ambientness, Argument, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
-        Declaration, Expression, FunctionDeclaration, FunctionKind, FunctionMode, GenericArgument,
-        GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name, Parameter, Property,
-        ScalarLiteral, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject, Visibility,
+        Ambientness, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration,
+        CommentKind, Declaration, Expression, FunctionDeclaration, FunctionKind, FunctionMode,
+        GenericArgument, GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name,
+        Parameter, Property, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
+        TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -2338,10 +2371,14 @@ foo(): string;"#,
         let mut test = TestParser::new("x = 42");
         let mut parser = test.prepare();
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value: default, is_shorthand } => {
+        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
             assert_string!(parser, *name, "x");
-            assert!(!*is_shorthand);
-            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+            assert!(*is_shorthand);
+            assert_node!(parser.tree, *value, Expression::Assign { left, operator, right } => {
+                assert_eq!(*operator, AssignOperator::Assign);
+                assert_expression_path!(parser, parser.tree.get(*left), "x");
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+            });
         });
     }
 

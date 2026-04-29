@@ -3,6 +3,22 @@ use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
+/// Assert that one instantiation assignment target is rejected.
+fn assert_instantiation_assignment_rejects_at(input: &str, expected_leaf: &str) {
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    let error = parser
+        .eat_expression(parser.options)
+        .expect_err("expected instantiation assignment target to fail");
+    let (span, node_type, token_type) = error.leaf_content();
+    let leaf = parser.get_span_str(span);
+
+    assert_eq!(node_type, None);
+    assert_eq!(token_type, None);
+    assert_eq!(leaf, expected_leaf);
+}
+
 #[test]
 fn test_parse_instantiation_expression_with_index() {
     let mut test = TestParser::new_with_options("f[\"g\"]<number>", LanguageType::TypeScript);
@@ -134,59 +150,16 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
     });
 }
 
-/// Instantiation expressions can appear as assignment targets in parse output.
+/// Reject instantiation expressions as assignment targets.
 #[test]
-fn test_parse_instantiation_expression_assignment() {
-    let mut test = TestParser::new_with_options("f<T> = g", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::Assign { left, right, .. } => {
-        assert_node!(parser.tree, *left, AssignPattern::Expression { value } => {
-            assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
-                assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
-                            assert!(generic_arguments.is_empty());
-                            assert_path!(parser, *path, "T");
-                        });
-                });
-                assert_node!(parser.tree, *left, Expression::Identifier { name } => {
-                    assert_string!(parser, *name, "f");
-                });
-            });
-        });
-        assert_expression_path!(parser, parser.tree.get(*right), "g");
-    });
+fn test_reject_instantiation_expression_assignment() {
+    assert_instantiation_assignment_rejects_at("f<T> = g", "f<T>");
 }
 
-/// Instantiation expressions with members remain assignable targets in parse output.
+/// Reject member instantiation expressions as assignment targets.
 #[test]
-fn test_parse_instantiation_expression_member_assignment() {
-    let mut test = TestParser::new_with_options("cls.myFunc<T> = g", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::Assign { left, right, .. } => {
-        assert_node!(parser.tree, *left, AssignPattern::Expression { value } => {
-            assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
-                assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
-                            assert!(generic_arguments.is_empty());
-                            assert_path!(parser, *path, "T");
-                        });
-                });
-                assert_node!(parser.tree, *left, Expression::Member { left, name } => {
-                    assert_string!(parser, *name, "myFunc");
-                    assert_node!(parser.tree, *left, Expression::Identifier { name } => {
-                        assert_string!(parser, *name, "cls");
-                    });
-                });
-            });
-        });
-        assert_expression_path!(parser, parser.tree.get(*right), "g");
-    });
+fn test_reject_instantiation_expression_member_assignment() {
+    assert_instantiation_assignment_rejects_at("cls.myFunc<T> = g", "cls.myFunc<T>");
 }
 
 /// Parse parenthesized instantiation receivers before member access.
