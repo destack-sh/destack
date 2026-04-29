@@ -1024,8 +1024,9 @@ pub(crate) fn format_if_else_chain<'ast>(
 }
 
 /// Format a match selector according to the selected case style.
-fn format_selector_with_style(
-    f: &mut DestackFormatter<'_, '_>,
+fn format_selector_with_style<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    case_id: LocalNodeId<MatchCase>,
     selector: &MatchSelector,
     is_switch_style: bool,
 ) -> FormatResult<()> {
@@ -1034,14 +1035,28 @@ fn format_selector_with_style(
             MatchSelector::Pattern { pattern, guard } => {
                 write!(f, [*pattern])?;
                 if let Some(guard) = guard {
+                    let guard_clause_span = f
+                        .context()
+                        .tree
+                        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+                        .ok_or(FormatError::SyntaxError {
+                            message: "match guard requires a clause span",
+                        })?;
+                    let guard_prefix_comments = f
+                        .context()
+                        .comments()
+                        .comments_in_range(f.context().span(*pattern).end, guard_clause_span.start)
+                        .to_vec();
+
                     write!(
                         f,
                         [
+                            FormatTrailingComments::Comments(&guard_prefix_comments),
                             space(),
                             Keyword::If,
                             space(),
                             token("("),
-                            *guard,
+                            format_with(|f| write_grouped_control_head(f, guard)),
                             token(")")
                         ]
                     )?;
@@ -1519,7 +1534,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
     // selector, separator, and body
     match case {
         MatchCase::Expression { selector, body } => {
-            format_selector_with_style(f, selector, is_switch_style)?;
+            format_selector_with_style(f, case_id, selector, is_switch_style)?;
 
             let format_switch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 format_statement_body_expression(f, *body)
@@ -1534,7 +1549,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
             }
         }
         MatchCase::Block { selector, body } => {
-            format_selector_with_style(f, selector, is_switch_style)?;
+            format_selector_with_style(f, case_id, selector, is_switch_style)?;
             if !is_switch_style {
                 write!(f, [space(), token("=>"), space(), *body])?;
             } else {
@@ -1607,7 +1622,14 @@ pub(crate) fn format_match<'ast>(
         write!(f, [keyword, space()])?;
     }
 
-    write!(f, [token("("), value, token(")")])?;
+    write!(
+        f,
+        [
+            token("("),
+            format_with(|f| write_grouped_control_head(f, value)),
+            token(")")
+        ]
+    )?;
 
     // empty match body
     if cases.is_empty() {

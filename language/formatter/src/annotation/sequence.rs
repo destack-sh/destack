@@ -79,6 +79,22 @@ where
         .collect()
 }
 
+/// Return prefix comments for one node that start before one offset.
+fn prefix_comments_before_offset<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+    end_offset: u32,
+) -> Vec<Comment>
+where
+    T: Node + Clone + 'ast,
+    Tree: TreeImpl<T>,
+{
+    prefix_comment_nodes_outside_decorators(context, node_id)
+        .into_iter()
+        .filter(|comment| comment.span.start < end_offset)
+        .collect()
+}
+
 /// Format one prepared annotation sequence.
 pub(crate) fn write_annotation_sequence<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -155,6 +171,22 @@ where
     prefix_sequence(context, comments, annotation_ids)
 }
 
+/// Format prefix annotations for one node before one prefix comment cutoff.
+pub(crate) fn prefix_annotations_before_offset<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+    end_offset: u32,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: Node + Clone + 'ast,
+    Tree: TreeImpl<T>,
+{
+    let comments = prefix_comments_before_offset(context, node_id, end_offset);
+    let annotation_ids = prefix_annotation_ids(context, node_id);
+
+    prefix_sequence(context, comments, annotation_ids)
+}
+
 /// Format prefix annotations for one node without leading comments.
 pub(crate) fn prefix_annotations_without_comments<'ast, T>(
     context: &DestackFormatContext<'ast>,
@@ -181,6 +213,29 @@ where
     let annotation_ids = prefix_annotation_ids(context, node_id);
 
     prefix_sequence(context, comments, annotation_ids)
+}
+
+/// Format statement prefix annotations for one node.
+pub(crate) fn statement_prefix_annotations<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+    start_offset: Option<u32>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: Node + Clone + 'ast,
+    Tree: TreeImpl<T>,
+{
+    let comments = if let Some(start_offset) = start_offset {
+        prefix_comments_after_offset(context, node_id, start_offset)
+    } else {
+        prefix_comment_nodes_outside_decorators(context, node_id)
+    };
+    let annotation_ids = prefix_annotation_ids(context, node_id);
+    let items = collect_prefix_sequence_items(context, comments, annotation_ids);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        write_statement_prefix_sequence_items(f, &items)
+    })
 }
 
 /// Format one prefix sequence for one node.
@@ -388,22 +443,51 @@ fn write_prefix_sequence_items<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     items: &[PrefixSequenceItem],
 ) -> FormatResult<()> {
+    write_prefix_sequence_items_with_policy(f, items, false)
+}
+
+/// Write one statement prefix item sequence.
+fn write_statement_prefix_sequence_items<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[PrefixSequenceItem],
+) -> FormatResult<()> {
+    write_prefix_sequence_items_with_policy(f, items, true)
+}
+
+/// Write one prefix item sequence with the requested decorator spacing.
+fn write_prefix_sequence_items_with_policy<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    items: &[PrefixSequenceItem],
+    should_break_after_decorator: bool,
+) -> FormatResult<()> {
     for item in items.iter().copied() {
         write_prefix_sequence_item(f, item)?;
 
-        let item_span = prefix_sequence_item_span(f.context(), item);
-        let lines_after = f.context().source_text().lines_after(item_span.end);
-
-        if lines_after > 1 {
-            write!(f, [empty_line()])?;
-        } else if lines_after == 1 {
+        if should_break_after_decorator && matches!(item, PrefixSequenceItem::Decorator(_)) {
             write!(f, [hard_line_break()])?;
         } else {
-            write!(f, [space()])?;
+            write_prefix_sequence_source_separator(f, item)?;
         }
     }
 
     Ok(())
+}
+
+/// Write the separator that follows one source prefix item.
+fn write_prefix_sequence_source_separator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    item: PrefixSequenceItem,
+) -> FormatResult<()> {
+    let item_span = prefix_sequence_item_span(f.context(), item);
+    let lines_after = f.context().source_text().lines_after(item_span.end);
+
+    if lines_after > 1 {
+        write!(f, [empty_line()])
+    } else if lines_after == 1 {
+        write!(f, [hard_line_break()])
+    } else {
+        write!(f, [space()])
+    }
 }
 
 /// Write one vertical decorator prefix sequence.

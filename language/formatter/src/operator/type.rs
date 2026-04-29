@@ -301,8 +301,8 @@ fn is_callee_or_object_context(
     }
 }
 
-/// Format one `as` or `satisfies` assertion expression.
-fn format_as_or_satisfies_expression<'ast>(
+/// Format one expression with a type-space right-hand side.
+fn format_type_target_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
@@ -328,7 +328,7 @@ fn format_as_or_satisfies_expression<'ast>(
             &comments[..]
         };
 
-        // const assertions
+        // const targets
         if !comments.is_empty() && matches!(type_expression, TypeExpression::Const) {
             let trailing_comments = &comments[block_comments.len()..];
 
@@ -387,7 +387,7 @@ pub(crate) fn format_as_expression<'ast>(
     expression: LocalNodeId<Expression>,
     type_annotation: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    format_as_or_satisfies_expression(f, node_id, expression, type_annotation, "as")
+    format_type_target_expression(f, node_id, expression, type_annotation, "as")
 }
 
 /// Format one `satisfies` assertion expression.
@@ -397,5 +397,15 @@ pub(crate) fn format_satisfies_expression<'ast>(
     expression: LocalNodeId<Expression>,
     type_annotation: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    format_as_or_satisfies_expression(f, node_id, expression, type_annotation, "satisfies")
+    format_type_target_expression(f, node_id, expression, type_annotation, "satisfies")
+}
+
+/// Format one runtime type guard expression.
+pub(crate) fn format_is_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: LocalNodeId<Expression>,
+    type_annotation: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    format_type_target_expression(f, node_id, expression, type_annotation, "is")
 }

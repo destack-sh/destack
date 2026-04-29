@@ -30,7 +30,7 @@ use destack_ast::{
     TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
     WhereClause,
 };
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{best_fitting, format_args, write};
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
@@ -1318,6 +1318,70 @@ pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
 }
 
+/// Write comments between a type predicate subject and its `is` operator.
+fn write_type_predicate_subject_trivia<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    let subject_span = f
+        .context()
+        .tree
+        .get_main_span(node_id)
+        .ok_or(FormatError::SyntaxError {
+            message: "type predicate target requires subject span",
+        })?;
+    let operator_span = f
+        .context()
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
+        .ok_or(FormatError::SyntaxError {
+            message: "type predicate target requires operator span",
+        })?;
+
+    let comments = f
+        .context()
+        .comments()
+        .comments_in_range(subject_span.end, operator_span.start)
+        .to_vec();
+
+    write!(f, [FormatTrailingComments::Comments(&comments)])
+}
+
+/// Return whether one prefix type operand needs grouping.
+fn prefix_type_operand_needs_grouping(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<TypeExpression>,
+    target_type: LocalNodeId<TypeExpression>,
+) -> bool {
+    let target_span = context.span(target_type);
+    let target_start = context.node_token_start(target_type);
+    let prefix_span = context.span(node_id);
+    let comments = context.comments();
+
+    comments.has_comment_before(target_start)
+        || comments.has_comment_in_range(target_span.end, prefix_span.end)
+}
+
+/// Write one prefix type operand with grouped boundary comments.
+fn write_prefix_type_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<TypeExpression>,
+    target_type: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    if prefix_type_operand_needs_grouping(f.context(), node_id, target_type) {
+        write!(
+            f,
+            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("("), soft_block_indent(&target_type), token(")")])
+            }))]
+        )?;
+    } else {
+        write!(f, [target_type])?;
+    }
+
+    Ok(())
+}
+
 /// Write one type expression without positional leading comments.
 fn write_type_expression_without_leading_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -2552,7 +2616,7 @@ pub(crate) fn write_type_expression_body<'ast>(
                 }
             }
 
-            write!(f, [target_type])?;
+            write_prefix_type_operand(f, node_id, *target_type)?;
         }
         TypeExpression::ReferenceOf {
             mutability,
@@ -2573,7 +2637,7 @@ pub(crate) fn write_type_expression_body<'ast>(
                 }
             }
 
-            write!(f, [target_type])?;
+            write_prefix_type_operand(f, node_id, *target_type)?;
         }
         TypeExpression::PointerOf {
             mutability,
@@ -2585,7 +2649,7 @@ pub(crate) fn write_type_expression_body<'ast>(
                 write!(f, [Keyword::Readonly, space()])?;
             }
 
-            write!(f, [target_type])?;
+            write_prefix_type_operand(f, node_id, *target_type)?;
         }
         TypeExpression::Union { elements } => {
             write_union_type(f, node_id, elements, is_in_explicit_parentheses)?;
@@ -2714,6 +2778,7 @@ pub(crate) fn write_type_expression_body<'ast>(
             }
 
             if let Some(target) = target {
+                write_type_predicate_subject_trivia(f, node_id)?;
                 write!(f, [space(), Keyword::Is, space(), target])?;
             }
         }
