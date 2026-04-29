@@ -1090,6 +1090,20 @@ impl Parser {
             .is_some()
     }
 
+    /// Return whether the current identifier is followed by a value postfix token.
+    #[inline]
+    fn current_identifier_is_followed_by_value_postfix(&mut self) -> bool {
+        matches!(
+            self.next_token_type(),
+            TokenType::Dot
+                | TokenType::OpenBracket
+                | TokenType::OpenParenthesis
+                | TokenType::LessThan
+                | TokenType::ShiftLeft
+                | TokenType::Maybe
+        )
+    }
+
     /// Return true when the current identifier should be parsed as a contextual type literal.
     #[inline]
     fn should_try_contextual_type_literal(&mut self) -> bool {
@@ -1099,6 +1113,10 @@ impl Parser {
 
         // contextual type literals in value positions are only enabled in the extended grammar
         if !self.language.is_destack() {
+            return false;
+        }
+
+        if self.current_identifier_is_followed_by_value_postfix() {
             return false;
         }
 
@@ -1979,6 +1997,21 @@ impl Parser {
         Ok(self.insert_node(expression, self.get_span_from(start)))
     }
 
+    /// Eat one value-space `*` prefix expression.
+    fn eat_value_pointer_expression(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.bump(); // eat *
+        let mutability = self.eat_reference_mutability_maybe()?;
+        let right = self.eat_expression_with_context_unchecked(self.options.not_in_position())?;
+
+        Ok(self.insert_node(
+            Expression::PointerOf { mutability, right },
+            self.get_span_from(start),
+        ))
+    }
+
     /// Eat one type-space bracket primary expression.
     fn eat_type_bracket_primary_expression(
         &mut self,
@@ -2088,6 +2121,9 @@ impl Parser {
                 .map(ParsedExpression::plain),
             TokenType::ElementwiseAnd if self.language.is_destack() => self
                 .eat_value_reference_or_value_of_expression(start, token_type)
+                .map(ParsedExpression::plain),
+            TokenType::Multiply if self.language.is_destack() => self
+                .eat_value_pointer_expression(start)
                 .map(ParsedExpression::plain),
 
             // collections and blocks

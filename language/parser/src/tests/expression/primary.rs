@@ -98,6 +98,21 @@ fn test_parse_identifier_expression_as_identifier() {
     assert_value_expression_path!(parser, parser.tree.get(expression_id), "value");
 }
 
+/// Parse contextual type literal names as values before member access.
+#[test]
+fn test_parse_contextual_type_literal_name_member_expression() {
+    let mut test = TestParser::new("object.property");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "object");
+        assert_string!(parser, name.expect("expected member name"), "property");
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse a type unary reference as a qualified reference.
 #[test]
 fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
