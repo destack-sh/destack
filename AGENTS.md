@@ -8,23 +8,20 @@
 ### Comments
 
 - Inline comments should be short and begin with a lowercase letter.
- - (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
- - Place comments above a related code block (usually 2-10 lines).
- - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
- - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
- - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
- - Com≤ments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
-
+- (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
+- Place comments above a related code block (usually 2-10 lines).
+- Most comments are <1 sentence and should not include a period at the end (again, lowercase).
+- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
+- Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
+- Com≤ments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
 - Documentation comments for functions/types/etc. should be proper sentences with punctuation.
 - Files should NOT have a top-level documentation comments. They always get stale.
 - Go multiline if there is more than one sentence. Only one sentence should begin per line.
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
-
 - *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
 - Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
-
 - When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
 ```text
 // do this
@@ -40,29 +37,26 @@ else {
   ...
 }
 ```
-
 - For ===-like separators for large comment blocks, you may use upper case sentences:
 ```text
 // ================================================================================
 // Binary operator precedence
 // ================================================================================
 ```
-- Though try to minimize the number of these, they're quite noisy.
-
-Comments MAY start with keywords:
-- `NOTE`: call out something important
-- `TODO`: something to address eventually
-- `FUGU`: temporary, f-ed up, should be addressed before going upstream
-
-Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
-- `#Performance`: could be faster or more efficient
-- `#Robustness`: might be flaky in some cases
-- `#Broken`: doesn't work in likely cases
-- `#Cleanup`: could be simpler or better structured
-- `#Incomplete`: obvious feature is missing
-- `#Suspicious`: something that looks wrong or weird
-- `#Security`: may allow more access than intended
-- `#Architecture`: larger design issue to reconsider
+- Though try to minimize the number of these, they're quite noisy. 
+- Comments MAY start with keywords:
+    - `NOTE`: call out something important
+    - `TODO`: something to address eventually
+    - `FUGU`: temporary, f-ed up, should be addressed before going upstream
+- Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
+    - `#Performance`: could be faster or more efficient
+    - `#Robustness`: might be flaky in some cases
+    - `#Broken`: doesn't work in likely cases
+    - `#Cleanup`: could be simpler or better structured
+    - `#Incomplete`: obvious feature is missing
+    - `#Suspicious`: something that looks wrong or weird
+    - `#Security`: may allow more access than intended
+    - `#Architecture`: larger design issue to reconsider
 
 ### Naming
 
@@ -111,8 +105,8 @@ else {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible. 
-- Where relevant prior art exists, we should follow that, especially in terms of terminology, configuration, interfaces, and even behavior where sensible.
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible, using the fewest possible resources (bytes, instructions, cycles, whatever). 
+- Where relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the long term modle have to support changes _like_ this?", the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - One of the few things worse than superflous duplication is forced abstraction.
