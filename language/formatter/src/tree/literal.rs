@@ -566,6 +566,28 @@ fn tree_literal_has_multiline_whitespace_separator(
     })
 }
 
+/// Return the single template child that stays attached to its enclosing tags.
+fn tree_literal_single_template_child(
+    context: &DestackFormatContext<'_>,
+    elements: &[LocalNodeId<Argument>],
+) -> Option<LocalNodeId<Argument>> {
+    let [argument_id] = elements else {
+        return None;
+    };
+    let value_id = tree_child_value_id(context.tree, *argument_id)?;
+    let value_id = transparent_inner_expression(context, value_id);
+    let value = context.tree.get(value_id);
+
+    if matches!(
+        value,
+        Expression::TemplateExpression { .. } | Expression::TaggedTemplateExpression { .. }
+    ) {
+        Some(*argument_id)
+    } else {
+        None
+    }
+}
+
 /// Format mixed tree children with fill separators.
 fn format_tree_children_fill<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1077,6 +1099,19 @@ fn format_tree_body<'ast>(
     };
 
     if elements.is_empty() {
+        write!(f, [block_infix_annotations(f.context(), expression_id)])?;
+        return write_tree_closing_tag(f, expression_id, left);
+    }
+
+    if let Some(template_child) = tree_literal_single_template_child(f.context(), elements) {
+        write!(
+            f,
+            [format_with(|f| write_tree_expression_argument(
+                f,
+                template_child,
+                None
+            ))]
+        )?;
         write!(f, [block_infix_annotations(f.context(), expression_id)])?;
         return write_tree_closing_tag(f, expression_id, left);
     }
