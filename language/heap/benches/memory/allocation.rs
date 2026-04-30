@@ -298,7 +298,6 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan = fixture.allocator.resolve_plan(plan);
                         let start = Instant::now();
 
                         for _ in 0..MATRIX_ALLOCATIONS {
@@ -330,7 +329,6 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan = fixture.allocator.resolve_plan(plan);
                         let start = Instant::now();
 
                         for _ in 0..MATRIX_ALLOCATIONS {
