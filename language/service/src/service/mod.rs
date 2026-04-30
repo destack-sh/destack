@@ -1,14 +1,16 @@
+mod diagnostic;
 mod error;
-mod lifecycle;
+mod file;
+mod message;
+mod open;
 mod query;
 mod service;
-mod types;
+mod session;
 mod update;
 
-pub use destack_session::{FileChangeKind, FileMutation, FileSnapshot, FileUpdate};
+pub use destack_session::{FileChangeKind, FileMutation};
+pub use diagnostic::DiagnosticSnapshot;
 pub use error::LanguageServiceError;
+pub use file::{FileImage, FileUpdate};
+pub use message::{LanguageServiceMessage, LanguageServiceMessageKind, LanguageServiceResult};
 pub use service::LanguageService;
-pub use types::{
-    DocumentDiagnosticSnapshot, LanguageServiceMessage, LanguageServiceMessageKind,
-    LanguageServiceResult, ReloadReason, WorkspaceDiagnosticSnapshot,
-};

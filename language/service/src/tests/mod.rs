@@ -1,5 +1,4 @@
 mod harness;
-mod lifecycle;
 mod query;
+mod session;
 mod update;
-mod watch;
