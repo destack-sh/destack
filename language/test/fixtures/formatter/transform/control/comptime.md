@@ -16,6 +16,20 @@ const value = comptime 1 + 2 + 3
 const value = comptime 1 + 2 + 3;
 ```
 
+### comptime operand values
+
+Comptime values follow their inner expression shape in operand positions.
+
+```ds
+render(comptime buildView())
+const value = (comptime createBuilder()).build()
+```
+
+```ds expected
+render(comptime buildView());
+const value = (comptime createBuilder()).build();
+```
+
 ### comptime block expression
 
 Comptime blocks format like other blocks.
@@ -95,6 +109,30 @@ function choose(): number {
         two
     }
 }
+```
+
+### comptime if operand values
+
+Comptime if conditions follow if-expression branch layout policy.
+
+```ds line-width=80
+const value = if (comptime Flag) { buildPrimaryValue(context.locale, context.timeZone) } else { buildFallbackValue(context.locale, context.timeZone) }
+const result = (if (comptime Flag) { createReadyBuilder(context) } else { createPendingBuilder(context) }).build().finalize()
+```
+
+```ds expected
+const value = if (comptime Flag) {
+    buildPrimaryValue(context.locale, context.timeZone)
+} else {
+    buildFallbackValue(context.locale, context.timeZone)
+};
+const result = (if (comptime Flag) {
+    createReadyBuilder(context)
+} else {
+    createPendingBuilder(context)
+})
+    .build()
+    .finalize();
 ```
 
 ### comptime if statement condition

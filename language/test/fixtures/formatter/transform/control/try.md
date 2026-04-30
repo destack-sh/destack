@@ -65,6 +65,33 @@ try {
 }
 ```
 
+### try catch match with if-let tail
+
+Try branches, catch-match arms, and nested if-let branches all preserve value-tail shape.
+
+```ds
+function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout { duration } if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => throw error } }
+```
+
+```ds expected
+function read(): number {
+    try {
+        if (let Some(value) = maybe) {
+            value
+        } else {
+            fallback()
+        }
+    } catch match (error) {
+        Network.Timeout { duration } if (duration > 1000) => retry(duration)
+        Validation.Errors([first, ...rest]) => {
+            report(first, rest);
+            fallback()
+        }
+        _ => throw error
+    }
+}
+```
+
 ### catch match patterns
 
 Catch match clauses keep patterns and guards structured.
@@ -300,4 +327,146 @@ function read(): number {
         fallback(error)
     }
 }
+```
+
+### try initializer value
+
+Try initializer values with catch clauses expand branch blocks.
+
+```ds
+const payload = try { readPayload(source) } catch (error) { recoverPayload(error) }
+```
+
+```ds expected
+const payload = try {
+    readPayload(source)
+} catch (error) {
+    recoverPayload(error)
+};
+```
+
+### try object property value
+
+Try object property values with catch clauses expand branch blocks.
+
+```ds
+const envelope = { payload: try { readPayload(source) } catch (error) { recoverPayload(error) } }
+```
+
+```ds expected
+const envelope = {
+    payload: try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+};
+```
+
+### try argument value
+
+Try argument values with catch clauses expand branch blocks.
+
+```ds
+render(try { readPayload(source) } catch (error) { recoverPayload(error) })
+```
+
+```ds expected
+render(
+    try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+);
+```
+
+### try await operand value
+
+Try await operands with catch clauses expand branch blocks.
+
+```ds
+const awaited = await (try { load(source) } catch (error) { recover(error) })
+```
+
+```ds expected
+const awaited = await (try {
+    load(source)
+} catch (error) {
+    recover(error)
+});
+```
+
+### long try initializer value
+
+Long try initializer values expand branch bodies.
+
+```ds line-width=80
+const payload = try { const raw = readCachedPayload(cacheKey, options); parsePayload(raw, schema, options) } catch (error) { const diagnostic = diagnostics.describe(error, context.locale); recoverPayload(diagnostic, fallbackPayload, options) }
+```
+
+```ds expected
+const payload = try {
+    const raw = readCachedPayload(cacheKey, options);
+    parsePayload(raw, schema, options)
+} catch (error) {
+    const diagnostic = diagnostics.describe(error, context.locale);
+    recoverPayload(diagnostic, fallbackPayload, options)
+};
+```
+
+### long try await operand value
+
+Long try await operands expand branch bodies.
+
+```ds line-width=80
+const awaited = await (try { loadAsync(source) } catch (error) { recoverAsync(error) })
+```
+
+```ds expected
+const awaited = await (try {
+    loadAsync(source)
+} catch (error) {
+    recoverAsync(error)
+});
+```
+
+### multiline try initializer value
+
+Manually broken try initializer values keep the expanded branch shape.
+
+```ds
+const payload = try {
+    readPayload(source)
+} catch (error) {
+    recoverPayload(error)
+}
+```
+
+```ds expected
+const payload = try {
+    readPayload(source)
+} catch (error) {
+    recoverPayload(error)
+};
+```
+
+### multiline try argument value
+
+Manually broken try argument values keep the expanded branch shape.
+
+```ds
+render(try {
+    readPayload(source)
+} catch (error) { recoverPayload(error) })
+```
+
+```ds expected
+render(
+    try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+);
 ```
