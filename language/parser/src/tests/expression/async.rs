@@ -7,12 +7,12 @@ use destack_source::LanguageType;
 #[test]
 fn test_parse_async_generic_arrow_assignment_with_extends_default() {
     // source: pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
@@ -49,7 +49,7 @@ fn test_parse_async_generic_arrow_assignment_with_extends_default() {
 #[test]
 fn test_parse_async_generic_false_positive() {
     let mut test =
-        TestParser::new_with_options("async < 1;\nasync<T>() == 0;", LanguageType::TypeScript);
+        TestParser::new_with_language("async < 1;\nasync<T>() == 0;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -81,7 +81,7 @@ fn test_parse_async_generic_false_positive() {
 /// Parse async generic arrow ASI.
 #[test]
 fn test_parse_async_generic_arrow_asi() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "var a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n",
         LanguageType::TypeScript,
     );

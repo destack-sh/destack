@@ -12,7 +12,7 @@ fn test_parse_if_extends_type_reference() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
@@ -52,7 +52,7 @@ fn test_parse_if_instanceof_type_reference() {
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
@@ -90,7 +90,7 @@ if (value is string) {
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { condition, then_expression, .. } => {
         let condition_id = match condition {
@@ -124,12 +124,12 @@ if (value is string) {
 /// Parse runtime type guard comments into expression and target boundaries.
 #[test]
 fn test_parse_if_is_type_guard_comment_boundaries() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "if (value /* checked value */ is /* expected type */ string) { value }",
         LanguageType::Destack,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_eq!(parser.tree.comments().len(), 2);
@@ -171,7 +171,7 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
 fn test_parse_export_expression_with_items_block() {
     let mut test = TestParser::new("export { bar, baz } from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // export { bar, baz } from foo
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: Some(target), items, .. } => {
@@ -198,7 +198,7 @@ fn test_parse_export_expression_with_items_block() {
 fn test_parse_export_expression_items_without_target() {
     let mut test = TestParser::new("export { bar, baz }");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: None, items, .. } => {
         assert_eq!(*kind, DependencyKind::Value);
@@ -223,7 +223,7 @@ fn test_parse_export_expression_items_without_target() {
 fn test_parse_export_expression_type_items_with_target() {
     let mut test = TestParser::new("export type { Foo, Bar } from \"module\"");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: Some(target), items, .. } => {
         assert_eq!(*kind, DependencyKind::Type);
@@ -247,7 +247,7 @@ fn test_parse_export_expression_type_items_with_target() {
 fn test_parse_export_expression_type_items_without_target() {
     let mut test = TestParser::new("export type { Foo }");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: None, items, .. } => {
         assert_eq!(*kind, DependencyKind::Type);
@@ -265,7 +265,7 @@ fn test_parse_export_expression_type_items_without_target() {
 fn test_parse_export_expression_namespace_alias() {
     let mut test = TestParser::new("export * as baz from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // export * as baz from foo
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target: Some(target), items, .. } => {
@@ -285,7 +285,7 @@ fn test_parse_export_expression_namespace_alias() {
 fn test_parse_export_expression_module_export() {
     let mut test = TestParser::new("export = foo");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Export { kind, target, items, .. } => {
         assert_eq!(*kind, DependencyKind::Value);
         assert!(target.is_none());
@@ -303,7 +303,7 @@ fn test_parse_export_expression_module_export() {
 fn test_parse_export_expression_type_declaration() {
     let mut test = TestParser::new("export type NonNullValue = Something");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, .. }) => {
             assert_string!(parser, name.string(), "NonNullValue");
@@ -315,7 +315,7 @@ fn test_parse_export_expression_type_declaration() {
 /// Parse export default abstract class with decorator prefixes.
 #[test]
 fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "@before\nexport default @after abstract class Foo { }",
         LanguageType::TypeScript,
     );
@@ -351,7 +351,7 @@ type = type * 2
     let mut parser = test.prepare();
 
     // let type = 1
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value: Some(value), .. } => {
@@ -363,7 +363,7 @@ type = type * 2
     });
 
     // type = type * 2
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
         assert_eq!(*operator, AssignOperator::Assign);
@@ -381,10 +381,10 @@ type = type * 2
 #[test]
 fn test_parse_namespace_as_identifier_in_index_assignment() {
     let mut test =
-        TestParser::new_with_options("namespace[this.dest] = values", LanguageType::TypeScript);
+        TestParser::new_with_language("namespace[this.dest] = values", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
         assert_eq!(*operator, AssignOperator::Assign);
 
@@ -406,10 +406,10 @@ fn test_parse_namespace_as_identifier_in_index_assignment() {
 #[test]
 fn test_parse_override_as_identifier_call() {
     for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_options("override(value)", language);
+        let mut test = TestParser::new_with_language("override(value)", language);
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "override");
             assert_eq!(arguments.len(), 1);
@@ -425,7 +425,7 @@ fn test_parse_abstract_as_identifier_call() {
     let mut test = TestParser::new("abstract(value)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "abstract");
         assert_eq!(arguments.len(), 1);
@@ -437,10 +437,10 @@ fn test_parse_abstract_as_identifier_call() {
 
 #[test]
 fn test_parse_type_as_identifier_call() {
-    let mut test = TestParser::new_with_options("type(123)", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("type(123)", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "type");
         assert_eq!(arguments.len(), 1);
@@ -453,7 +453,7 @@ fn test_parse_type_as_identifier_call() {
 /// Parse `abstract\nclass B {}` as `abstract; class B {}`.
 #[test]
 fn test_parse_abstract_newline_as_identifier_then_class() {
-    let mut test = TestParser::new_with_options("abstract\nclass B {}", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("abstract\nclass B {}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -470,7 +470,7 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
 /// Reject `declare enum\nE\n{}` and preserve the expression sequence.
 #[test]
 fn test_reject_declare_enum_newline_and_preserve_expression_sequence() {
-    let mut test = TestParser::new_with_options("declare enum\nE\n{}", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("declare enum\nE\n{}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -486,7 +486,7 @@ fn test_reject_declare_enum_newline_and_preserve_expression_sequence() {
 /// Parse `type\nFoo = string;` as `type; Foo = string`.
 #[test]
 fn test_parse_type_newline_as_identifier_then_assignment() {
-    let mut test = TestParser::new_with_options("type\nFoo = string;", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("type\nFoo = string;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -503,7 +503,7 @@ fn test_parse_type_newline_as_identifier_then_assignment() {
 /// Parse `type` as a callback parameter and statement identifier.
 #[test]
 fn test_parse_callback_parameter_named_type() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "avplay.setListener({
     onsubtitlechange: (duration, subtitles, type, attributes) => {
         duration // $ExpectType string
@@ -515,7 +515,7 @@ fn test_parse_callback_parameter_named_type() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -566,16 +566,16 @@ fn test_parse_callback_parameter_named_type() {
 fn test_reject_export_type_without_binding_or_declaration() {
     let mut test = TestParser::new("export type");
     let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.options);
+    let result = parser.eat_expression(parser.flags);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_reject_export_path_expression() {
     for language in [LanguageType::JavaScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_options("export foo", language);
+        let mut test = TestParser::new_with_language("export foo", language);
         let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
         assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
     }
@@ -585,7 +585,7 @@ fn test_reject_export_path_expression() {
 fn test_reject_export_default_enum() {
     let mut test = TestParser::new("export default enum A { X, Y, Z }");
     let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.options);
+    let result = parser.eat_expression(parser.flags);
     assert!(result.is_err());
 }
 
@@ -594,7 +594,7 @@ fn test_reject_export_default_enum() {
 fn test_parse_export_import_equals() {
     let mut test = TestParser::new("export import atob = globalThis.atob");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, kind, target, .. }) => {
@@ -618,7 +618,7 @@ fn test_parse_export_import_equals() {
 fn test_parse_export_import_type_equals_require() {
     let mut test = TestParser::new(r#"export import type React = require("react")"#);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, kind, target, .. }) => {
@@ -639,7 +639,7 @@ fn test_parse_export_import_type_equals_require() {
 
 #[test]
 fn test_parse_export_import_type_equals_require_with_newlines() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"
 export
 import
@@ -649,7 +649,7 @@ React = require("react")
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, kind, target, .. }) => {
@@ -673,7 +673,7 @@ React = require("react")
 fn test_parse_import_expression_with_items_block() {
     let mut test = TestParser::new("import { bar, baz } from \"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // import { bar, baz } from foo
     assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
@@ -702,7 +702,7 @@ fn test_parse_import_expression_with_items_block() {
 fn test_parse_import_expression_namespace_alias_with_arguments() {
     let mut test = TestParser::new("import * as baz from \"foo\" with { bar: true }");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // import * as baz from foo with { bar: true }
     assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, attributes, arguments: None, .. } => {
@@ -730,7 +730,7 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
 fn test_parse_import_expression_items_without_target_error() {
     let mut test = TestParser::new("import { foo }");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.options).is_err());
+    assert!(parser.eat_expression(parser.flags).is_err());
 }
 
 /// Parse `import("foo")`.
@@ -738,7 +738,7 @@ fn test_parse_import_expression_items_without_target_error() {
 fn test_parse_import_call_expression() {
     let mut test = TestParser::new("import(\"foo\")");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
         assert_eq!(*source, ImportSource::ImportCall);
@@ -758,7 +758,7 @@ fn test_parse_import_call_with_source_comment() {
 )"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -779,7 +779,7 @@ fn test_parse_import_call_with_source_comment() {
 fn test_parse_import_call_with_assertions() {
     let mut test = TestParser::new("import(\"foo\", { assert: { type: \"json\" } })");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: Some(arguments), .. } => {
         assert_eq!(*source, ImportSource::ImportCall);
@@ -795,7 +795,7 @@ fn test_parse_import_call_with_assertions() {
 fn test_parse_import_call_with_expression_target() {
     let mut test = TestParser::new(r#"import(join("file://", process.argv[2]))"#);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
         assert_eq!(*source, ImportSource::ImportCall);
@@ -812,7 +812,7 @@ fn test_parse_import_call_with_expression_target() {
 fn test_parse_import_call_with_missing_target() {
     let mut test = TestParser::new("import()");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
 
@@ -829,7 +829,7 @@ fn test_parse_import_call_with_missing_target() {
 fn test_parse_import_call_with_missing_close_parenthesis() {
     let mut test = TestParser::new("import(\"foo\"");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 

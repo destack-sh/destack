@@ -123,11 +123,11 @@ impl Parser {
             self.eat_token(TokenType::Assign)?;
 
             // aliased type value
-            let mut value_options = self.options.not_in_position().in_type();
-            if self.options.is_in_type_conditional_right() {
-                value_options = value_options.in_type_conditional_right();
+            let mut value_flags = self.flags.not_in_position().in_type();
+            if self.flags.is_in_type_conditional_right() {
+                value_flags = value_flags.in_type_conditional_right();
             }
-            let value_id = self.with_options(value_options, |parser| {
+            let value_id = self.with_flags(value_flags, |parser| {
                 parser.eat_type_alias_right_hand_side()
             })?;
             // declaration node
@@ -160,11 +160,11 @@ impl Parser {
         }
 
         // otherwise parse one regular type expression body
-        let mut right_options = self.options.not_in_position().in_type();
-        if self.options.is_in_type_conditional_right() {
-            right_options = right_options.in_type_conditional_right();
+        let mut right_flags = self.flags.not_in_position().in_type();
+        if self.flags.is_in_type_conditional_right() {
+            right_flags = right_flags.in_type_conditional_right();
         }
-        let right = self.with_options(right_options, |parser| parser.eat_type_expression())?;
+        let right = self.with_flags(right_flags, |parser| parser.eat_type_expression())?;
         let expression_id = if mutability == Some(Mutability::Immutable) {
             let expression_id = self.insert_node(
                 TypeExpression::Readonly { target_type: right },
@@ -189,13 +189,11 @@ impl Parser {
     /// T extends U ? X : Y
     /// ```
     pub(crate) fn eat_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        if self.options.is_in_type() {
+        if self.flags.is_in_type() {
             return self.eat_type_expression_inner_with_stack_guard();
         }
 
-        self.with_options(self.options.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
+        self.with_flags(self.flags.in_type(), |parser| parser.eat_type_expression())
     }
 
     /// Eat one type alias value.

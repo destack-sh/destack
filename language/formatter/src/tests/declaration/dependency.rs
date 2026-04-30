@@ -10,7 +10,7 @@ fn test_format_import() {
     assert_format!(
         r#"import "foo""#,
         r#"import "foo""#,
-        |p| p.eat_expression(Default::default()),
+        |p| p.parse_expression(),
         DestackFormatOptions::default()
     );
 }
@@ -21,7 +21,7 @@ fn test_format_import_with_items_from() {
     assert_format!(
         r#"import {foo,bar,baz} from "foo""#,
         r#"import { foo, bar, baz } from "foo""#,
-        |p| p.eat_expression(Default::default()),
+        |p| p.parse_expression(),
         DestackFormatOptions::default_with_line_width(60)
     );
 }
@@ -32,7 +32,7 @@ fn test_format_import_type_equals_require() {
     assert_format!(
         r#"import type React = require("react")"#,
         r#"import type React = require("react");"#,
-        |p| p.eat_expression(Default::default()),
+        |p| p.parse_expression(),
         DestackFormatOptions::default()
     );
 }
@@ -43,7 +43,7 @@ fn test_format_export_with_attributes() {
     assert_format!(
         r#"export { foo } from "bar" with { mode: "strict" }"#,
         r#"export { foo } from "bar" with { mode: "strict" }"#,
-        |p| p.eat_expression(Default::default()),
+        |p| p.parse_expression(),
         DestackFormatOptions::default()
     );
 }
@@ -55,7 +55,7 @@ fn test_format_import_default_and_namespace_roundtrip() {
         r#"import a, * as b from "a""#,
         r#"import a, * as b from "a""#,
         FileType::JavaScript,
-        |p| p.eat_expression(Default::default()),
+        |p| p.parse_expression(),
     );
 }
 

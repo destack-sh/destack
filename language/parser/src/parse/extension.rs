@@ -76,7 +76,7 @@ impl Parser {
         // target type
         let target_start = self.span_start();
         let target_type = self.eat_type_expression_node_or_recover_missing(
-            self.options
+            self.flags
                 .nested()
                 .in_super_type()
                 .in_before_block()

@@ -6,7 +6,7 @@ use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{DiagnosticSeverity, File, FileType, LanguageType};
 use destack_workspace::FormatterOptions;
 
@@ -103,12 +103,12 @@ fn format_parser_file_source(
         source.to_owned(),
     );
     let parser_file = Arc::new(parser_file);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         parser_file.clone(),
         language_type,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();

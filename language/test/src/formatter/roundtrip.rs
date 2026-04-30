@@ -4,7 +4,7 @@ use crate::core::{Case, CaseResult, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
 use destack_workspace::FormatterOptions;
 
@@ -50,12 +50,12 @@ pub(super) fn run(test: &Case) -> CaseResult {
 
     // parse
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();

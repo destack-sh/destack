@@ -101,8 +101,8 @@ impl Parser {
                 .for_node_type(NodeType::Declaration)?;
 
             // parse interface members in type context
-            let member_options = self.options.nested().in_variant().in_type();
-            let members = self.with_options(member_options, |parser| parser.eat_type_members())?;
+            let member_flags = self.flags.nested().in_variant().in_type();
+            let members = self.with_flags(member_flags, |parser| parser.eat_type_members())?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
             // interface
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn test_parse_interface_extends_with_generic_arguments() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
 "#,
@@ -250,7 +250,7 @@ interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
     /// Parse interface call signatures with generic parameters before tree syntax.
     #[test]
     fn test_parse_interface_generic_call_signature_before_tree() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 interface Foo<G> {
     <T>(bar: G): T;
@@ -289,7 +289,7 @@ interface Foo<G> {
     /// Parse interface call signature overloads separated by a blank line.
     #[test]
     fn test_parse_interface_call_signature_overloads_with_blank_line_separator() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 interface Example {
   (a: number): typeof a
@@ -358,7 +358,7 @@ Baz {
 
     #[test]
     fn test_parse_interface_extends_comma_separated_with_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 interface Foo extends Bar,
 Baz {
@@ -478,7 +478,8 @@ interface Foo {
 
     #[test]
     fn test_parse_interface_with_empty_generic_parameters() {
-        let mut test = TestParser::new_with_options("interface Box<> {}", LanguageType::TypeScript);
+        let mut test =
+            TestParser::new_with_language("interface Box<> {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let start = parser.span_start();
@@ -757,7 +758,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
 
     #[test]
     fn test_parse_interface_method_overloads_named_where() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"interface Query {
 where(where: string, parameters?: ObjectLiteral): this
 where(where: Brackets, parameters?: ObjectLiteral): this
@@ -847,7 +848,7 @@ interface Add<T, R = Self> {
     /// 'is' can be used as a property name in TypeScript declaration files.
     #[test]
     fn test_parse_interface_with_is_property_name() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"interface Webidl {
     is: WebidlIs
 }"#,
@@ -874,7 +875,7 @@ interface Add<T, R = Self> {
     /// 'is' as property name works in multi-member interfaces.
     #[test]
     fn test_parse_interface_with_is_and_other_members() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"export interface Webidl {
     errors: WebidlErrors
     util: WebidlUtil
@@ -886,7 +887,7 @@ interface Add<T, R = Self> {
         );
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Interface(InterfaceDeclaration { name, export, members, .. }) => {
                 assert_string!(parser, name.unwrap().string(), "Webidl");
@@ -928,7 +929,7 @@ interface Add<T, R = Self> {
 
     #[test]
     fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "interface Shape // interface-head\n{\n  area: number\n}",
             destack_source::LanguageType::TypeScript,
         );

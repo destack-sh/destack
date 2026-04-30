@@ -10,7 +10,7 @@ use crate::{Parser, TestParser, assert_comment, assert_expression_path, assert_n
 
 /// Parse one whole source string and return the resulting root expressions.
 fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let mut test = TestParser::new_with_options(source, language);
+    let mut test = TestParser::new_with_language(source, language);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     (parser, expressions)
@@ -18,7 +18,7 @@ fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeI
 
 /// Parse one block expression source and attach comments after the direct entrypoint.
 fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNodeId<Block>) {
-    let mut test = TestParser::new_with_options(source, language);
+    let mut test = TestParser::new_with_language(source, language);
     let mut parser = test.prepare();
     let block_id = parser
         .eat_block(BlockContext::Expression)
@@ -33,9 +33,9 @@ fn parse_property_source(
     language: LanguageType,
     is_in_variant: bool,
 ) -> (Parser, LocalNodeId<Property>) {
-    let mut test = TestParser::new_with_options(source, language);
+    let mut test = TestParser::new_with_language(source, language);
     let mut parser = test.prepare();
-    parser.options.set_in_variant(is_in_variant);
+    parser.flags.set_in_variant(is_in_variant);
     let property_id = parser
         .eat_property()
         .expect("expected property in test source");
@@ -140,7 +140,8 @@ const mode = runCli();
 
 #[test]
 fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
-    let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -157,7 +158,8 @@ fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
 
 #[test]
 fn test_attach_comments_on_direct_entrypoint_emits_output() {
-    let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -174,7 +176,8 @@ fn test_attach_comments_on_direct_entrypoint_emits_output() {
 
 #[test]
 fn test_attach_comments_is_idempotent() {
-    let mut test = TestParser::new_with_options("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -192,7 +195,7 @@ fn test_attach_comments_is_idempotent() {
 
 #[test]
 fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
-    let mut test = TestParser::new_with_options("a // note\nb", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("a // note\nb", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     // speculative lookahead across the comment

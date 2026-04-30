@@ -92,7 +92,7 @@ impl Parser {
         token_type == TokenType::OpenParenthesis
             || token_type == TokenType::Identifier
             || token_type == TokenType::Literal
-            || token_type == TokenType::OpenBrace && !self.options.is_in_before_block()
+            || token_type == TokenType::OpenBrace && !self.flags.is_in_before_block()
             || UnaryOperator::from_prefix_token(token_type).is_some()
             || TypeUnaryOperator::from_prefix_token(token_str, token_type).is_some()
     }
@@ -127,7 +127,7 @@ impl Parser {
         }
 
         // bail if not inside static or type context
-        if !self.options.is_in_type() && !self.options.is_in_static() {
+        if !self.flags.is_in_type() && !self.flags.is_in_static() {
             return Err(ParseError::unexpected(next.span));
         }
 

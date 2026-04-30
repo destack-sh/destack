@@ -15,8 +15,8 @@ impl Parser {
         }
 
         // positional arguments
-        let argument_options = self.options.nested().not_in_position();
-        let arguments = self.with_options(argument_options, |parser| {
+        let argument_flags = self.flags.nested().not_in_position();
+        let arguments = self.with_flags(argument_flags, |parser| {
             parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
         })?;
 
@@ -44,10 +44,9 @@ impl Parser {
         self.eat_keyword(Keyword::Import)?;
 
         // `import(...)`
-        let argument_options = self.options.nested().not_in_position();
-        let arguments = self.with_options(argument_options, |parser| {
-            parser.eat_type_import_arguments()
-        })?;
+        let argument_flags = self.flags.nested().not_in_position();
+        let arguments =
+            self.with_flags(argument_flags, |parser| parser.eat_type_import_arguments())?;
 
         // target: first positional argument or one recovered placeholder
         let mut arguments = arguments;

@@ -15,7 +15,7 @@ function isStringy(value: any): asserts value is string {
     );
     let mut parser = test.prepare();
 
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // function isStringy(value: any): asserts value is string { .. }
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -53,13 +53,13 @@ function isStringy(value: any): asserts value is string {
 
 #[test]
 fn test_reject_type_predicate_in_plain_type_before_block_context() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "module is DynamicModule { value: true }",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let error = parser
-        .with_options(parser.options.in_type().in_before_block(), |parser| {
+        .with_flags(parser.flags.in_type().in_before_block(), |parser| {
             parser.eat_type_expression()
         })
         .unwrap_err();
@@ -74,7 +74,7 @@ fn test_reject_type_predicate_in_plain_type_before_block_context() {
 /// Reject TypeScript `asserts` predicate subjects after a line break.
 #[test]
 fn test_reject_asserts_type_predicate_subject_on_new_line() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r"
 function assertFoo(value: unknown): asserts
 value is Foo {
@@ -96,12 +96,12 @@ value is Foo {
 /// Parse a predicate return type whose subject is also a contextual type literal.
 #[test]
 fn test_parse_return_type_predicate_with_object_subject() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"function isAnyArrayBuffer(object: unknown): object is ArrayBufferLike;"#,
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -146,12 +146,12 @@ fn test_parse_return_type_predicate_with_object_subject() {
 /// Parse a predicate return type with a parenthesized union target.
 #[test]
 fn test_parse_arrow_return_type_predicate_with_parenthesized_union_target() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "(item): item is (IChatRequestViewModel | IChatResponseViewModel) => isRequestVM(item)",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -171,12 +171,12 @@ fn test_parse_arrow_return_type_predicate_with_parenthesized_union_target() {
 /// Parse a predicate return type with a parenthesized intersection target.
 #[test]
 fn test_parse_arrow_return_type_predicate_with_parenthesized_intersection_target() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "(p: unknown): p is (TentativeBoundary & { inner: CharacterPrediction }) => p instanceof TentativeBoundary",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -196,12 +196,12 @@ fn test_parse_arrow_return_type_predicate_with_parenthesized_intersection_target
 /// Parse arrow predicate return types whose subject is a contextual keyword name.
 #[test]
 fn test_parse_arrow_return_type_predicate_with_keyword_subject_override() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "const isSystemOverride = (override: ConfigOverrideRule): override is SystemConfigOverrideRule => { return '__systemRef' in override && typeof override.__systemRef === 'string'; }",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // const isSystemOverride = (...) : override is SystemConfigOverrideRule => { ... }
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {

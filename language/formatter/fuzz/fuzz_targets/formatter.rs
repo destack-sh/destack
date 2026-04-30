@@ -6,7 +6,7 @@ use std::sync::Arc;
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
 
@@ -28,12 +28,12 @@ fuzz_target!(|data: &[u8]| {
     ));
 
     // parse the input
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file.clone(),
         LanguageType::Destack,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();

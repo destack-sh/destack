@@ -5,7 +5,7 @@ use destack_ast::{Keyword, TokenType};
 impl Parser {
     /// Peek a tree literal with value-expression position rules.
     fn peek_tree_literal_in_value_position(&mut self) -> bool {
-        self.with_options(self.options.not_in_position(), |parser| {
+        self.with_flags(self.flags.not_in_position(), |parser| {
             parser.peek_tree_literal().is_ok()
         })
     }
@@ -27,13 +27,13 @@ impl Parser {
 
         // require disambiguators only when explicitly requested by settings
         let require_disambiguator =
-            self.options.is_disallow_ambiguous_tree_literal() && !self.options.is_in_type();
+            self.flags.is_disallow_ambiguous_tree_literal() && !self.flags.is_in_type();
         self.peek_generic_arrow_after_type_parameters(require_disambiguator)
     }
 
     /// Return true if `<` starts a tree literal without committing tokens.
     pub(crate) fn can_start_tree_literal(&mut self) -> bool {
-        if !self.language.supports_jsx() || self.options.is_in_type() {
+        if !self.language.supports_jsx() || self.flags.is_in_type() {
             return false;
         }
         if !self.peek_is(TokenType::LessThan) {
@@ -44,7 +44,7 @@ impl Parser {
         }
 
         let mark = self.cursor_checkpoint();
-        let require_disambiguator = self.options.is_disallow_ambiguous_tree_literal();
+        let require_disambiguator = self.flags.is_disallow_ambiguous_tree_literal();
         let is_disambiguated_generic =
             self.peek_generic_arrow_after_type_parameters(require_disambiguator);
         self.rewind(mark);
@@ -69,11 +69,11 @@ impl Parser {
 
         // probe current token with in_type disabled
         self.lookahead(|parser| {
-            let ambient_context = parser.options.with_type(false);
-            let expression_context = parser.options.not_in_position();
-            parser.with_options(
+            let ambient_context = parser.flags.with_type(false);
+            let expression_context = parser.flags.not_in_position();
+            parser.with_flags(
                 parser
-                    .options
+                    .flags
                     .with_ambient_context(ambient_context)
                     .with_expression_context(expression_context),
                 |parser| parser.can_start_tree_literal(),

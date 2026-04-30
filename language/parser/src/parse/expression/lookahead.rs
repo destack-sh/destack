@@ -28,8 +28,8 @@ impl Parser {
         // inspect the current opening parenthesis
         // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
         let has_parenthesized_tree_literal = self.language.supports_jsx()
-            && !self.options.is_in_type()
-            && !self.options.is_in_arrow_return_type()
+            && !self.flags.is_in_type()
+            && !self.flags.is_in_arrow_return_type()
             && self.parenthesized_group_starts_with_tree_literal();
         if has_parenthesized_tree_literal {
             return Ok(ParenthesizedGroupShape::default());
@@ -37,8 +37,8 @@ impl Parser {
 
         // base grouped expressions branch on the token after `)`
         let can_use_follow_token = !self.language.is_destack()
-            && !self.options.is_in_type()
-            && !self.options.is_in_arrow_return_type();
+            && !self.flags.is_in_type()
+            && !self.flags.is_in_arrow_return_type();
         if can_use_follow_token {
             self.stats.record_parenthesized_follow_token_call();
 
@@ -72,7 +72,7 @@ impl Parser {
         self.stats.record_delimiter_analysis_lookup();
 
         // tree literal lexing can mutate lexer state during lookahead
-        let needs_snapshot = self.allow_tree_literals() && !self.options.is_in_type();
+        let needs_snapshot = self.allow_tree_literals() && !self.flags.is_in_type();
         if needs_snapshot {
             self.stats.record_delimiter_analysis_snapshot_lookup();
         }
@@ -124,10 +124,10 @@ impl Parser {
             _ => None,
         };
         let has_colon_follow = follow_token_type == Some(TokenType::Colon);
-        let needs_parameter_shape_for_arrow_return = self.options.is_in_arrow_return_type();
-        let needs_parameter_shape_for_typed_colon = self.options.is_in_type() && has_colon_follow;
+        let needs_parameter_shape_for_arrow_return = self.flags.is_in_arrow_return_type();
+        let needs_parameter_shape_for_typed_colon = self.flags.is_in_type() && has_colon_follow;
         let needs_parameter_shape_for_ternary_colon =
-            self.options.is_in_ternary_condition() && has_colon_follow;
+            self.flags.is_in_ternary_condition() && has_colon_follow;
 
         // plain group parsing only needs the token after `)` unless an
         // enclosing context also needs the inner parameter shape

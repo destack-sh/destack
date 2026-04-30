@@ -6,7 +6,7 @@ use destack_ast::*;
 fn test_parse_tuple_type_with_spread() {
     let mut test = TestParser::new("type T = [...Parts, string]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [...Parts, string]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -35,7 +35,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
     let mut test =
         TestParser::new(r#"type T = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]"#);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -77,7 +77,7 @@ fn test_parse_labeled_tuple_type_with_spread_payload() {
 fn test_parse_optional_tuple_element() {
     let mut test = TestParser::new("type T = [EventTarget?]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget?]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -102,7 +102,7 @@ fn test_parse_optional_tuple_element() {
 fn test_parse_optional_tuple_element_trailing_comma() {
     let mut test = TestParser::new("type T = [EventTarget?,]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget?,]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -125,7 +125,7 @@ fn test_parse_optional_tuple_element_trailing_comma() {
 fn test_parse_optional_labeled_tuple_element() {
     let mut test = TestParser::new("type T = [start?: number]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [start?: number]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -149,7 +149,7 @@ fn test_parse_optional_labeled_tuple_element() {
 fn test_parse_optional_readonly_tuple_element() {
     let mut test = TestParser::new("type T = [readonly EventTarget?]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [readonly EventTarget?]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -173,7 +173,7 @@ fn test_parse_optional_readonly_tuple_element() {
 fn test_parse_tuple_type() {
     let mut test = TestParser::new("type T = [string, number]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [string, number]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -199,7 +199,7 @@ fn test_parse_tuple_type() {
 fn test_parse_labeled_tuple_type() {
     let mut test = TestParser::new("type T = [start: number, end: number]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [start: number, end: number]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -228,7 +228,7 @@ fn test_parse_labeled_tuple_type_complex() {
     let mut test =
         TestParser::new("type T = [importCode: string, nameMap: Record<string, string>]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [importCode: string, nameMap: Record<string, string>]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -250,7 +250,7 @@ fn test_parse_labeled_tuple_type_complex() {
 fn test_parse_tuple_type_missing_close_bracket() {
     let mut test = TestParser::new("type T = [string");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
 

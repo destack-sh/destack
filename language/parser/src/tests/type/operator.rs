@@ -8,7 +8,7 @@ fn test_parse_type_predicate_asserts_target_with_boundary_comment() {
     let source = "type T = asserts value is // predicate-target\nstring";
     let mut test = TestParser::new(source);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -30,7 +30,7 @@ fn test_parse_type_predicate_asserts_target_with_boundary_comment() {
 fn test_parse_type_infer_span() {
     let mut test = TestParser::new("type T = infer Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -53,7 +53,7 @@ fn test_parse_type_infer_span() {
 fn test_parse_type_unary_prefix_operator_span() {
     let mut test = TestParser::new("type T = keyof Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -76,12 +76,12 @@ fn test_parse_type_unary_prefix_operator_span() {
 
 #[test]
 fn test_parse_readonly_type_operator_precedence() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type T = readonly string[] | undefined",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -104,9 +104,9 @@ fn test_parse_readonly_type_operator_precedence() {
 
 #[test]
 fn test_parse_type_unary_postfix_operator_span() {
-    let mut test = TestParser::new_with_options("Value as const", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("Value as const", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     let unary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -125,7 +125,7 @@ fn test_parse_type_unary_postfix_operator_span() {
 fn test_parse_type_unary_postfix_as_comptime_operator_span() {
     let mut test = TestParser::new("type T = Value as comptime");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -141,9 +141,9 @@ fn test_parse_type_unary_postfix_as_comptime_operator_span() {
 
 #[test]
 fn test_parse_type_binary_operator_span() {
-    let mut test = TestParser::new_with_options("Value as Other", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("Value as Other", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     let binary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -165,7 +165,7 @@ fn test_parse_type_binary_operator_span() {
 fn test_parse_type_binary_extends_operator_span() {
     let mut test = TestParser::new("type T = Left extends Right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -195,9 +195,9 @@ fn test_parse_type_binary_extends_operator_span() {
 #[test]
 fn test_parse_type_binary_satisfies_operator_span() {
     let mut test =
-        TestParser::new_with_options("Value satisfies Constraint", LanguageType::TypeScript);
+        TestParser::new_with_language("Value satisfies Constraint", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     let binary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -219,14 +219,14 @@ fn test_parse_type_binary_satisfies_operator_span() {
 fn test_parse_type_binary_implements_operator_span() {
     let mut test = TestParser::new("type T = Value implements Trait");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.options).is_err());
+    assert!(parser.eat_expression(parser.flags).is_err());
 }
 
 #[test]
 fn test_parse_type_binary_in_operator_span() {
     let mut test = TestParser::new("type T = Key in Record");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.options).is_err());
+    assert!(parser.eat_expression(parser.flags).is_err());
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn test_parse_type_expression_stops_before_instanceof() {
     let mut test = TestParser::new("Value instanceof Other");
     let mut parser = test.prepare();
     let type_id = parser
-        .with_options(parser.options.in_type(), |parser| {
+        .with_flags(parser.flags.in_type(), |parser| {
             parser.eat_type_expression()
         })
         .unwrap();

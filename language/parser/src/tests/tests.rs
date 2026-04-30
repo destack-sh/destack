@@ -16,13 +16,13 @@ pub(crate) struct TestParser {
 }
 
 impl TestParser {
-    /// Create a new TestParser with default options.
+    /// Create a new TestParser with the default language.
     pub(crate) fn new(input: &str) -> Self {
-        Self::new_with_options(input, LanguageType::default())
+        Self::new_with_language(input, LanguageType::default())
     }
 
-    /// Create a new TestParser with custom options.
-    pub(crate) fn new_with_options(input: &str, language: LanguageType) -> Self {
+    /// Create a new TestParser with a custom language.
+    pub(crate) fn new_with_language(input: &str, language: LanguageType) -> Self {
         let file_id = FileId::new(0);
         let file = File::from_text(
             file_id,

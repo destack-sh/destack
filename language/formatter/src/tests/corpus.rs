@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::format_file_source;
-use destack_parser::{Parser, ParserSettings, source_colorizer};
+use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
     print_diagnostics, print_diff,
@@ -136,12 +136,12 @@ fn print_builtin_parse_diagnostics(path: &Path, source: &str) {
         }
     };
     let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     parser.parse();

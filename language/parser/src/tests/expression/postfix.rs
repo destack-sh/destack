@@ -7,7 +7,7 @@ use destack_source::LanguageType;
 #[test]
 fn test_parse_optional_chain_after_comment_newlines() {
     let input = "promise\n  .then(noop)\n  // comment\n  // comment\n  ?.catch(noop)";
-    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -34,9 +34,9 @@ fn test_parse_optional_chain_after_comment_newlines() {
 #[test]
 fn test_parse_optional_call_after_question_dot_line_comment_newline() {
     let input = "call?.// comment\n()";
-    let mut test = TestParser::new_with_options(input, LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, position, .. } => {
         assert_eq!(*position, PostfixPosition::Indirect);
@@ -53,9 +53,9 @@ fn test_parse_optional_call_after_question_dot_line_comment_newline() {
 #[test]
 fn test_parse_optional_chain_member_after_question_dot_newline() {
     let input = "items?.\nmap(noop)";
-    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -79,9 +79,9 @@ fn test_parse_optional_chain_member_after_question_dot_newline() {
 #[test]
 fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
     let input = "permissions?.\nconcat(first).\nconcat(second)";
-    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -113,12 +113,12 @@ fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
 /// Parse an arrow function parameter named `accessor`.
 #[test]
 fn test_parse_arrow_parameter_accessor_name() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "(accessor: ServicesAccessor) => accessor.get()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.parameters.len(), 1);
@@ -133,12 +133,12 @@ fn test_parse_arrow_parameter_accessor_name() {
 /// Parse newline-separated parenthesized assertion starters as a continued call.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "(foo.bar as Baz)\n(foo.bar as any)",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // (foo.bar as Baz) (foo.bar as any)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {

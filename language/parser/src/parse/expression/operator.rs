@@ -198,34 +198,34 @@ impl Parser {
         // regular binary operator
         // (only a subset of binary operators are allowed in generic argument and tree contexts)
         if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
-            && (!self.options.is_in_type()
-                || self.options.is_in_static()
+            && (!self.flags.is_in_type()
+                || self.flags.is_in_static()
                 || matches!(
                     binary_operator,
                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                 ))
-            && (!self.options.is_in_static()
+            && (!self.flags.is_in_static()
                 || !NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS.contains(&binary_operator))
-            && (!self.options.is_in_tree_literal()
+            && (!self.flags.is_in_tree_literal()
                 || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
-            && (!self.options.is_in_for_each()
+            && (!self.flags.is_in_for_each()
                 || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
         {
             return Ok((ParseInfixOperator::Binary(binary_operator), 1));
         }
 
         // type predicate and runtime `is` guard
-        if !self.options.is_in_super_type()
+        if !self.flags.is_in_super_type()
             && identifier_keyword == Some(Keyword::Is)
-            && (self.options.is_in_type() || self.language.is_destack())
+            && (self.flags.is_in_type() || self.language.is_destack())
             && !has_newline
         {
             return Ok((ParseInfixOperator::Is, 1));
         }
 
         // assertion operators in value expressions
-        if !self.options.is_in_super_type()
-            && !self.options.is_in_type()
+        if !self.flags.is_in_super_type()
+            && !self.flags.is_in_type()
             && let Some(keyword) = identifier_keyword
             && matches!(keyword, Keyword::As | Keyword::Satisfies)
             && !has_newline
@@ -255,8 +255,8 @@ impl Parser {
         }
 
         // runtime `instanceof` guard
-        if !self.options.is_in_super_type()
-            && !self.options.is_in_type()
+        if !self.flags.is_in_super_type()
+            && !self.flags.is_in_type()
             && let Some(keyword) = identifier_keyword
         {
             // `x instanceof C`
@@ -267,11 +267,11 @@ impl Parser {
 
         // regular type binary operator
         // forbidden in super type clauses, and semicolon statement forms avoid newline glue here
-        if !self.options.is_in_super_type()
+        if !self.flags.is_in_super_type()
             && let Some(type_binary_operator) =
                 TypeBinaryOperator::from_token(token_str, token.token.ty)
-            && (!self.options.is_in_for_each() || type_binary_operator != TypeBinaryOperator::In)
-            && (self.options.is_in_type()
+            && (!self.flags.is_in_for_each() || type_binary_operator != TypeBinaryOperator::In)
+            && (self.flags.is_in_type()
                 || (self.language.is_destack()
                     && matches!(
                         type_binary_operator,
@@ -284,9 +284,9 @@ impl Parser {
 
         // regular assign operator
         // (not allowed in static, type, and tree contexts)
-        if !self.options.is_in_static()
-            && !self.options.is_in_type()
-            && !self.options.is_in_tree_literal()
+        if !self.flags.is_in_static()
+            && !self.flags.is_in_type()
+            && !self.flags.is_in_tree_literal()
             && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
         {
             return Ok((ParseInfixOperator::Assign(assign_operator), 1));
@@ -299,7 +299,7 @@ impl Parser {
     #[inline]
     pub fn peek_unary_prefix_operator_maybe(&mut self) -> Option<UnaryOperator> {
         let token = *self.peek().ok()?;
-        if token.token.ty == TokenType::Identifier && !self.options.is_in_type() {
+        if token.token.ty == TokenType::Identifier && !self.flags.is_in_type() {
             let token_str = self.get_span_str(token.span);
             if let Ok(keyword) = Keyword::from_str(token_str)
                 && let Some(operator) = UnaryOperator::from_prefix_keyword(keyword)

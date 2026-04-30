@@ -6,10 +6,10 @@ use destack_source::LanguageType;
 /// Comma in parentheses preserves the explicit sequence grouping.
 #[test]
 fn test_parse_sequence_expression() {
-    let options = LanguageType::JavaScript;
-    let mut test = TestParser::new_with_options("(a, b, c)", options);
+    let language = LanguageType::JavaScript;
+    let mut test = TestParser::new_with_language("(a, b, c)", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // (a, b, c)
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
@@ -31,10 +31,10 @@ fn test_parse_sequence_expression() {
 /// Comma operator parses as a sequence expression.
 #[test]
 fn test_parse_sequence_expression_without_parens() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options("a, b", options);
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language("a, b", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a, b
     assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
         assert_eq!(expressions.len(), 2);
@@ -50,13 +50,13 @@ fn test_parse_sequence_expression_without_parens() {
 /// Sequence expressions should parse inside lambda block bodies.
 #[test]
 fn test_parse_sequence_expression_in_lambda_block_body() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options(
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language(
         "() => { (lastIndex = history.state?.index), (lastY = scrollY), (lastX = scrollX); }",
-        options,
+        language,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // () => { ... }
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -88,13 +88,13 @@ fn test_parse_sequence_expression_in_lambda_block_body() {
 /// Parse sequence expression statements inside object literal method bodies in JavaScript.
 #[test]
 fn test_parse_object_method_body_sequence_expression_statement() {
-    let options = LanguageType::JavaScript;
-    let mut test = TestParser::new_with_options(
+    let language = LanguageType::JavaScript;
+    let mut test = TestParser::new_with_language(
         "objectType({ definition (t) { t.callA(), t.callB(), t.callC() } })",
-        options,
+        language,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // objectType({ definition(t) { ... } })
     assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
@@ -119,10 +119,10 @@ fn test_parse_object_method_body_sequence_expression_statement() {
 
 #[test]
 fn test_parse_sequence_expression_with_ternary_tail() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options("a && (b = 1, c = 2), d ? e : f", options);
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language("a && (b = 1, c = 2), d ? e : f", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // a && (b = 1, c = 2), d ? e : f
     assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
@@ -138,13 +138,13 @@ fn test_parse_sequence_expression_with_ternary_tail() {
 
 #[test]
 fn test_parse_sequence_expression_with_nested_ternary() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options(
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language(
         "l === -1 && (s = !1, l = t + 1), a === 46 ? r === -1 ? r = t : n !== 1 && (n = 1) : r !== -1 && (n = -1)",
-        options,
+        language,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // l === -1 && (s = !1, l = t + 1), a === 46 ? r === -1 ? r = t : n !== 1 && (n = 1) : r !== -1 && (n = -1)
     assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
@@ -161,7 +161,7 @@ fn test_parse_sequence_expression_with_nested_ternary() {
 /// Parse async arrow statements that continue into same line comma expressions.
 #[test]
 fn test_parse_async_arrow_statement_comma_continuation() {
-    let mut test = TestParser::new_with_options("async () => {}, x;", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("async () => {}, x;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -181,7 +181,7 @@ fn test_parse_async_arrow_statement_comma_continuation() {
 /// Parse plain arrow statements that continue into same line comma expressions.
 #[test]
 fn test_parse_arrow_statement_comma_continuation() {
-    let mut test = TestParser::new_with_options("() => 1, 2", LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language("() => 1, 2", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -201,10 +201,10 @@ fn test_parse_arrow_statement_comma_continuation() {
 /// Sequence expression with unary void.
 #[test]
 fn test_parse_sequence_expression_with_unary_void() {
-    let options = LanguageType::JavaScript;
-    let mut test = TestParser::new_with_options("(a, void 0, 1)", options);
+    let language = LanguageType::JavaScript;
+    let mut test = TestParser::new_with_language("(a, void 0, 1)", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // (a, void 0, 1)
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {

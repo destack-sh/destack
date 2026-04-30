@@ -361,8 +361,8 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Declarator>> {
         let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
         let start = self.span_start();
-        let pattern_options = self
-            .options
+        let pattern_flags = self
+            .flags
             .not_in_position()
             .in_before_type()
             .not_in_before_block();
@@ -410,28 +410,28 @@ impl Parser {
                     );
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
-                } else if self.options == pattern_options {
+                } else if self.flags == pattern_flags {
                     self.eat_pattern()?
                 } else {
-                    let old_options = self.swap_options(pattern_options);
+                    let old_flags = self.swap_flags(pattern_flags);
                     let pattern_result = self.eat_pattern();
-                    self.restore_options(old_options);
+                    self.restore_flags(old_flags);
                     pattern_result?
                 }
-            } else if self.options == pattern_options {
+            } else if self.flags == pattern_flags {
                 self.eat_pattern()?
             } else {
-                let old_options = self.swap_options(pattern_options);
+                let old_flags = self.swap_flags(pattern_flags);
                 let pattern_result = self.eat_pattern();
-                self.restore_options(old_options);
+                self.restore_flags(old_flags);
                 pattern_result?
             }
-        } else if self.options == pattern_options {
+        } else if self.flags == pattern_flags {
             self.eat_pattern()?
         } else {
-            let old_options = self.swap_options(pattern_options);
+            let old_flags = self.swap_flags(pattern_flags);
             let pattern_result = self.eat_pattern();
-            self.restore_options(old_options);
+            self.restore_flags(old_flags);
             pattern_result?
         };
 
@@ -444,9 +444,9 @@ impl Parser {
         let (ty, ty_span) = if self.peek_colon_is() {
             let type_start = self.span_start();
             self.bump(); // eat colon
-            let type_options = self.options.not_in_position().in_type();
-            let ty = self
-                .eat_type_expression_node_or_recover_missing(type_options, NodeType::Declarator)?;
+            let type_flags = self.flags.not_in_position().in_type();
+            let ty =
+                self.eat_type_expression_node_or_recover_missing(type_flags, NodeType::Declarator)?;
             (Some(ty), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
@@ -459,9 +459,9 @@ impl Parser {
                 self.bump(); // eat assign
                 let operator_span = self.get_span_from(&operator_start);
 
-                let value_options = self.options.not_in_position().not_in_sequence_expression();
+                let value_flags = self.flags.not_in_position().not_in_sequence_expression();
                 let value =
-                    self.eat_expression_or_recover_missing(value_options, NodeType::Declarator)?;
+                    self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?;
 
                 (Some(value), Some(operator_span))
             } else if require_value {
@@ -597,7 +597,7 @@ const x: int32 = 1
 
     #[test]
     fn test_parse_let_type_annotation_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 const constants:
     & typeof Foo
@@ -628,7 +628,7 @@ const constants:
     fn test_parse_let_recovers_missing_type_annotation_value() {
         let mut test = TestParser::new("const value: ");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // const value:
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -649,7 +649,7 @@ const constants:
     fn test_parse_let_recovers_missing_type_before_initializer() {
         let mut test = TestParser::new("const value: = 1");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // const value: = 1
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -672,7 +672,7 @@ const constants:
     fn test_parse_let_recovers_missing_initializer_value() {
         let mut test = TestParser::new("const value = ");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // const value =
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -718,12 +718,12 @@ using x = open()
 
     #[test]
     fn test_parse_let_generic_arrow_initializer() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "const foo: Tmp = <T,>(str: T): T => { return str; }",
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // const foo: Tmp = <T,>(str: T): T => { return str; }
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability, .. } => {
@@ -762,7 +762,7 @@ using x = open()
 
     #[test]
     fn test_parse_let_readonly_identifier_with_type_annotation() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "const readonly: <A>(value: A) => Readonly<A> = identity",
             LanguageType::TypeScript,
         );
@@ -791,7 +791,7 @@ using x = open()
 
     #[test]
     fn test_parse_let_array_pattern_readonly_identifier() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "const [readonly, setReadonly] = useState(false)",
             LanguageType::TypeScript,
         );
@@ -939,7 +939,7 @@ const (x, y) = foo()
 
     #[test]
     fn test_parse_let_definite_assignment_pattern() {
-        let mut test = TestParser::new_with_options("let {}! = {}", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("let {}! = {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let start = parser.span_start();
         let let_id = parser
@@ -1026,7 +1026,7 @@ const registry: Map<
         );
         let mut parser = test.prepare();
 
-        let let_id = parser.eat_expression(parser.options).unwrap();
+        let let_id = parser.eat_expression(parser.flags).unwrap();
 
         // const registry: Map<..., ...> = new Map()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -1109,7 +1109,7 @@ const registry: Map<
 
     #[test]
     fn test_parse_var_declarators_with_leading_comma_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"var args = new Array(arguments.length - 1)
   , callbacks = this._callbacks['$' + event]"#,
             LanguageType::JavaScript,
@@ -1143,7 +1143,7 @@ const registry: Map<
 
     #[test]
     fn test_parse_const_declarators_with_newline_after_keyword() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"const
   first = 1,
   second = 2"#,
@@ -1179,7 +1179,7 @@ const registry: Map<
 
     #[test]
     fn test_parse_const_declarator_boundary_with_line_terminator_trivia() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"const result = CreateRecord(IntegerKey, value) /*
 */ return result as never"#,
             LanguageType::TypeScript,
@@ -1278,7 +1278,7 @@ const registry: Map<
     #[test]
     fn test_reject_indexed_declarator_target_in_untyped_source() {
         // var a[0] = 0
-        let mut test = TestParser::new_with_options("var a[0]=0;", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("var a[0]=0;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let start = parser.span_start();
         let error = parser
@@ -1290,7 +1290,7 @@ const registry: Map<
 
     #[test]
     fn test_parse_let_lambda_initializer_before_next_line_expression() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "let f1 = (/* ... */) => {}\n(function (/* ... */) {})(/* ... */)\n",
             LanguageType::JavaScript,
         );

@@ -5,12 +5,12 @@ use destack_source::LanguageType;
 
 #[test]
 fn test_parse_generic_arrow_with_extends_before_tree() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "<P extends object>(x: P) => <Foo />",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -42,12 +42,12 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
 
 #[test]
 fn test_parse_parenthesized_tree_callback_body() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "items.map((item) => (<option>{item}</option>))",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -84,20 +84,20 @@ fn test_parse_parenthesized_tree_callback_body() {
 
 #[test]
 fn test_reject_generic_arrow_without_tree_disambiguator() {
-    let mut test = TestParser::new_with_options("<R>(x: R) => x", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new_with_language("<R>(x: R) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
-    let result = parser.eat_expression(parser.options);
+    let result = parser.eat_expression(parser.flags);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
-    let mut test = TestParser::new_with_options("<T,>(x: T): T => x", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new_with_language("<T,>(x: T): T => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
 
     // <T,>(x: T): T => x
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -125,14 +125,14 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
 
 #[test]
 fn test_parse_ternary_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"Math.random() > 0.5
     ? (): void => foo()
     : (): void => bar()"#,
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
         assert_eq!(*kind, IfKind::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
@@ -162,14 +162,14 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"Math.random() > 0.5
     ? ((): void => foo())
     : ((): void => bar())"#,
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
         assert_eq!(*kind, IfKind::Ternary);
         assert_node!(condition, IfCondition::Expression { condition } => {
@@ -203,12 +203,12 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_tree_attribute_typed_arrow_value() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::TreeExpression { arguments, .. } => {
         let arguments = arguments.as_ref().expect("expected arguments");
         let class_name_argument = arguments.iter().copied().find(|argument_id| {
@@ -233,12 +233,12 @@ fn test_parse_tree_attribute_typed_arrow_value() {
 
 #[test]
 fn test_parse_ternary_tree_attribute_typed_arrow() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
         assert_eq!(*kind, IfKind::Ternary);
         assert_node!(parser.tree, *then_expression, Expression::TreeExpression { arguments, .. } => {
@@ -267,12 +267,12 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
 
 #[test]
 fn test_parse_tree_attribute_direct_nested_tree_value() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "<Foo prop=<Bar><Baz /></Bar> />;",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
         let arguments = arguments.as_ref().expect("expected tree arguments");
@@ -304,9 +304,9 @@ fn test_parse_tree_attribute_direct_nested_tree_value() {
 
 #[test]
 fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
-    let mut test = TestParser::new_with_options("<a></a // line\n>;", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new_with_language("<a></a // line\n>;", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left, .. } => {
         let left = left.expect("expected tag path");
@@ -316,12 +316,12 @@ fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
 
 #[test]
 fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tree() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {

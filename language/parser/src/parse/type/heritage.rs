@@ -119,13 +119,13 @@ impl Parser {
             return Ok(None);
         }
 
-        let options = self
-            .options
+        let flags = self
+            .flags
             .not_in_position()
             .in_super_type()
             .not_in_new_receiver()
             .not_in_type();
-        let extends = self.with_options(options, |parser| {
+        let extends = self.with_flags(flags, |parser| {
             parser.eat_interface_heritage_list(&[
                 Keyword::Implements,
                 Keyword::With,
@@ -166,13 +166,13 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        let options = self
-            .options
+        let flags = self
+            .flags
             .not_in_position()
             .in_super_type()
             .not_in_new_receiver()
             .in_type();
-        let types = self.with_options(options, |parser| parser.eat_super_type_list(terminators))?;
+        let types = self.with_flags(flags, |parser| parser.eat_super_type_list(terminators))?;
 
         Ok(Some(types))
     }
@@ -183,13 +183,13 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        let options = self
-            .options
+        let flags = self
+            .flags
             .not_in_position()
             .in_super_type()
             .not_in_new_receiver()
             .not_in_type();
-        let types = self.with_options(options, |parser| {
+        let types = self.with_flags(flags, |parser| {
             parser.eat_super_expression_list(terminators)
         })?;
 
@@ -241,7 +241,7 @@ impl Parser {
             terminators,
             |parser| {
                 let ty = parser.eat_type_expression_node_or_recover_missing(
-                    parser.options.in_before_block().in_type(),
+                    parser.flags.in_before_block().in_type(),
                     NodeType::Declaration,
                 )?;
 
@@ -319,13 +319,13 @@ impl Parser {
 
     /// Eat one heritage expression head.
     fn eat_heritage_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let options = self
-            .options
+        let flags = self
+            .flags
             .in_before_block()
             .in_left_precedence(u16::MAX)
             .not_in_sequence_expression();
 
-        self.eat_expression(options)
+        self.eat_expression(flags)
     }
 
     /// Convert one parsed heritage expression into its target and type arguments.

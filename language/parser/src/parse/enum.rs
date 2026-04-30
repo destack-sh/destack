@@ -1,6 +1,6 @@
 use super::PendingDecorators;
 use crate::parse::expression::common::DeclarationHeader;
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
@@ -13,9 +13,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 impl Parser {
     /// Return parser contexts for enum members.
     #[inline]
-    fn enum_member_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.nested().with_variant(true);
-        let expression_context = self.options.nested();
+    fn enum_member_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.nested().with_variant(true);
+        let expression_context = self.flags.nested();
         (ambient_context, expression_context)
     }
 
@@ -170,8 +170,8 @@ impl Parser {
             else {
                 let (member_ambient_context, member_expression_context) =
                     self.enum_member_contexts();
-                let member_result = self.with_options(
-                    self.options
+                let member_result = self.with_flags(
+                    self.flags
                         .with_ambient_context(member_ambient_context)
                         .with_expression_context(member_expression_context),
                     |parser| parser.try_eat_member(),
@@ -223,7 +223,7 @@ impl Parser {
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression_or_recover_missing(
-                self.options.not_in_position().not_in_sequence_expression(),
+                self.flags.not_in_position().not_in_sequence_expression(),
                 NodeType::EnumField,
             )?;
             Some(value)
