@@ -240,7 +240,7 @@ impl Resolver {
         }
 
         let package = repository
-            .package_for_path(revision, path)
+            .nearest_package(revision, path)
             .map_err(|error| ResolveError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
