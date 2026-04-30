@@ -4,18 +4,18 @@ use crate::annotation::{
 };
 use crate::chain::member_property_start;
 use crate::operator::{assign_pattern_target_expression, write_postfix_base_expression};
+use crate::template::{
+    TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
+};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral,
     TypeExpression,
 };
 use destack_core::StringId;
-use destack_fir::format::{
-    Buffer, Format, FormatError, FormatNode, FormatNodes, FormatResult, FormatTag,
-    RemoveSoftLinesBuffer,
-};
+use destack_fir::format::{Buffer, FormatError, FormatNodes, FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::{
-    align, dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
+    dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
     soft_line_break, token,
 };
 use destack_fir::{format_args, write};
@@ -53,45 +53,6 @@ fn format_type_template_interpolation_body<'ast>(
     }
 
     Ok(())
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-struct TemplateInterpolationIndentation(u32);
-
-impl TemplateInterpolationIndentation {
-    /// Return the indent level part of one template interpolation indentation.
-    fn level(self, indent_width: u8) -> u32 {
-        self.0 / u32::from(indent_width)
-    }
-
-    /// Return the aligned-space remainder of one template interpolation indentation.
-    fn align(self, indent_width: u8) -> u8 {
-        let remainder = self.0 % u32::from(indent_width);
-        remainder.try_into().unwrap_or(u8::MAX)
-    }
-
-    /// Compute the indentation after the last newline in one string segment.
-    fn after_last_newline(text: &str, indent_width: u8, previous_indentation: Self) -> Self {
-        let Some((_, after_newline)) = text.rsplit_once('\n') else {
-            return previous_indentation;
-        };
-
-        let mut size = 0_u32;
-        for byte in after_newline.bytes() {
-            match byte {
-                b'\t' => {
-                    let indent_width = u32::from(indent_width);
-                    size = size + indent_width - (size % indent_width);
-                }
-                b' ' => {
-                    size += 1;
-                }
-                _ => break,
-            }
-        }
-
-        Self(size)
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -433,21 +394,22 @@ pub(crate) fn format_type_template_literal<'ast>(
 
     write!(f, [token("`")])?;
 
-    let mut string_segments = strings.iter();
     let mut indentation = TemplateInterpolationIndentation::default();
 
-    if let Some(first_segment) = string_segments.next() {
+    if let Some(first_segment) = strings.first() {
         write!(f, [*first_segment])?;
     }
 
-    for (span_expression_id, segment) in spans.iter().zip(string_segments) {
-        let segment_text = f.context().strings.get(*segment);
+    for (index, span_expression_id) in spans.iter().enumerate() {
+        let previous_segment = strings[index];
+        let previous_segment_text = f.context().strings.get(previous_segment);
         indentation = TemplateInterpolationIndentation::after_last_newline(
-            segment_text,
+            previous_segment_text,
             f.options().indent_width,
             indentation,
         );
-        let after_newline = segment_text.ends_with('\n');
+        let after_newline = previous_segment_text.ends_with('\n');
+        let next_segment = strings[index + 1];
 
         let format_span =
             format_with(|f| format_type_template_interpolation_body(f, *span_expression_id));
@@ -498,49 +460,12 @@ pub(crate) fn format_type_template_literal<'ast>(
                     line_suffix_boundary(),
                     token("}")
                 ]),
-                *segment
+                next_segment
             ]
         )?;
     }
 
     write!(f, [token("`")])
-}
-
-/// Write one template interpolation with source-derived indentation.
-fn write_template_interpolation_with_indentation<'ast>(
-    content: &impl Format<DestackFormatContext<'ast>>,
-    indentation: TemplateInterpolationIndentation,
-    f: &mut DestackFormatter<'ast, '_>,
-) -> FormatResult<()> {
-    let level = indentation.level(f.options().indent_width);
-    let spaces = indentation.align(f.options().indent_width);
-
-    if level == 0 && spaces == 0 {
-        write!(f, [content])?;
-        return Ok(());
-    }
-
-    let format_indented = format_with(|f| {
-        for _ in 0..level {
-            f.write_node(FormatNode::Tag(FormatTag::StartIndent));
-        }
-
-        write!(f, [content])?;
-
-        for _ in 0..level {
-            f.write_node(FormatNode::Tag(FormatTag::EndIndent));
-        }
-
-        Ok(())
-    });
-
-    if spaces == 0 {
-        write!(f, [dedent_to_root(&format_indented)])?;
-    } else {
-        write!(f, [dedent_to_root(&align(spaces, &format_indented))])?;
-    }
-
-    Ok(())
 }
 
 /// Format an index expression without considering chaining.
