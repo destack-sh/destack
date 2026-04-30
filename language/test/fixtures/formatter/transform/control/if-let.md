@@ -181,6 +181,35 @@ render(if (let Some(value) = maybe) { value.current } else { defaultValue })
 render(if (let Some(value) = maybe) { value.current } else { defaultValue });
 ```
 
+### if let collection values
+
+If-let values keep required grouping in collection and spread positions.
+
+```ds
+const values = [if (let Some(value) = maybe) { value } else { fallback }, ...(if (let Some(items) = maybeItems) { items } else { [] })]
+const envelope = { value: if (let Some(value) = maybe) { value } else { fallback } }
+```
+
+```ds expected
+const values = [
+    if (let Some(value) = maybe) { value } else { fallback },
+    ...(if (let Some(items) = maybeItems) { items } else { [] }),
+];
+const envelope = { value: if (let Some(value) = maybe) { value } else { fallback } };
+```
+
+### if let template value
+
+Compact if-let values stay inline inside template interpolations.
+
+```ds
+const label = `value: ${if (let Some(value) = maybe) { value } else { fallback }}`
+```
+
+```ds expected
+const label = `value: ${if (let Some(value) = maybe) { value } else { fallback }}`;
+```
+
 ### if let lambda body value
 
 If-let lambda body values stay compact when they fit.
