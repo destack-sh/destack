@@ -15,32 +15,32 @@ use crate::repository::{
 };
 use crate::{Workspace, WorkspaceKind, resolve_cache_root};
 
-/// One repository with lineage, sources, artifacts, and shared inputs.
+/// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
 pub struct Repository {
     /// The workspace root directory.
     pub(crate) root: PathBuf,
 
-    /// The named movable refs.
+    /// Movable refs pointing at revision identities.
     pub(crate) refs: DashMap<Ref, Revision>,
-    /// The published source revision graph.
+    /// Immutable source states keyed by revision identity.
     pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
-    /// Active anonymous revision pin counts.
+    /// Active anonymous revision retain counts.
     pub(crate) revision_pins: DashMap<Revision, usize>,
-    /// Derived cache data by immutable revision.
+    /// Derived indexes keyed by revision identity.
     pub(crate) revision_caches: DashMap<Revision, Arc<RevisionCache>>,
-    /// The exact artifact version published for each revision local artifact key.
+    /// Exact artifact versions bound to revision-local artifact keys.
     pub(crate) artifact_versions: DashMap<(Revision, ArtifactKey), ArtifactVersion>,
 
     /// Shared persistent cache backend.
     pub(crate) cache: Arc<dyn CacheStore>,
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
-    /// Shared immutable source contents.
+    /// Shared immutable file contents.
     pub(crate) files: FileStore,
     /// Parsed file data by exact file content.
     pub(crate) file_cache: FileCache,
-    /// Shared immutable derived artifacts.
+    /// Shared derived artifacts.
     pub(crate) artifacts: Arc<ArtifactStore>,
 }
 
@@ -118,17 +118,17 @@ impl Repository {
         &self.root
     }
 
-    /// Return one cached workspace index for one revision.
+    /// Return workspace metadata for one revision.
     pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
-        let revision_state = self.revision(revision)?;
+        let _revision_state = self.revision(revision)?;
         let revision_cache = self.revision_cache(revision);
 
+        if let Some(workspace) = revision_cache.workspace.get() {
+            return Ok(Arc::clone(workspace));
+        }
+
         let workspace_declaration = self.destack_declaration_for_workspace(revision)?;
-        let packages = self.package_index_for_files(revision, revision_state.files.as_ref())?;
-        let package_roots = self.sorted_package_roots(&packages);
-        let modules =
-            self.module_index_for_files(revision, revision_state.files.as_ref(), &packages)?;
-        let errors = self.workspace_errors_for_files(revision, revision_state.files.as_ref())?;
+        let packages = self.package_index(revision)?;
         let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo
         } else {
@@ -141,10 +141,6 @@ impl Repository {
                 .map(|declaration| declaration.file_id),
             root: self.root.clone(),
             kind,
-            packages,
-            modules,
-            package_roots,
-            errors,
         });
 
         let workspace = revision_cache.workspace.get_or_init(|| workspace);
@@ -192,7 +188,7 @@ impl Repository {
             })
     }
 
-    /// Return one published revision.
+    /// Return one immutable revision state.
     pub(crate) fn revision(
         &self,
         revision: Revision,

@@ -2,13 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_source::{FileId, PackageId};
-use im::OrdMap;
 
-use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{
-    DestackDeclaration, Package, PackageDeclaration, PackageOptions, WorkspaceError,
-    WorkspaceOptions,
-};
+use crate::repository::{Repository, RepositoryError, Revision};
+use crate::{DestackDeclaration, Package, PackageDeclaration, PackageOptions, WorkspaceOptions};
 
 impl Repository {
     /// Return one parsed package declaration by file id.
@@ -71,75 +67,12 @@ impl Repository {
         Ok(destack_declaration)
     }
 
-    /// Return workspace construction errors from one file map.
-    pub(crate) fn workspace_errors_for_files(
-        &self,
-        revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
-    ) -> Result<Vec<WorkspaceError>, RepositoryError> {
-        let mut errors = Vec::new();
-
-        // parse all known workspace declarations
-        for (file_id, entry) in files {
-            let Some(path) = self.path_for_source(&entry.source) else {
-                continue;
-            };
-            let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-                continue;
-            };
-
-            let path = path.display().to_string();
-
-            match file_name {
-                "package.json" => {
-                    let _ = self.package_declaration_for_file(revision, *file_id)?;
-                    if let Some(parse) = self.file_cache.package_declarations.get(&entry.content_id)
-                        && let Err(message) = parse.value().as_ref()
-                    {
-                        errors.push(WorkspaceError::new(*file_id, path, message.clone()));
-                    }
-                }
-                "destack.json" => {
-                    let _ = self.destack_declaration_for_file(revision, *file_id)?;
-                    if let Some(parse) = self.file_cache.destack_declarations.get(&entry.content_id)
-                        && let Err(message) = parse.value().as_ref()
-                    {
-                        errors.push(WorkspaceError::new(*file_id, path, message.clone()));
-                    }
-                }
-                "tsconfig.json" => {
-                    let _ = self.tsconfig_declaration_for_file(revision, *file_id)?;
-                    if let Some(parse) =
-                        self.file_cache.tsconfig_declarations.get(&entry.content_id)
-                        && let Err(message) = parse.value().as_ref()
-                    {
-                        errors.push(WorkspaceError::new(*file_id, path, message.clone()));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        errors.sort_by(|left, right| {
-            left.path
-                .cmp(&right.path)
-                .then_with(|| left.file_id.cmp(&right.file_id))
-        });
-        errors.dedup_by(|left, right| {
-            left.file_id == right.file_id
-                && left.path == right.path
-                && left.message == right.message
-        });
-
-        Ok(errors)
-    }
-
     /// Return the parsed root workspace declaration for one revision.
-    pub(crate) fn destack_declaration_for_workspace(
+    pub fn destack_declaration_for_workspace(
         &self,
         revision: Revision,
     ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
-        let file_id = self.file_id_for_workspace_path(&self.root.join("destack.json"));
+        let file_id = self.file_id(&self.root.join("destack.json"));
         self.destack_declaration_for_file(revision, file_id)
     }
 
@@ -149,7 +82,7 @@ impl Repository {
         revision: Revision,
         path: &Path,
     ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
-        let file_id = self.file_id_for_workspace_path(path);
+        let file_id = self.file_id(path);
 
         self.destack_declaration_for_file(revision, file_id)
     }
@@ -166,9 +99,9 @@ impl Repository {
 
     /// Return the package root paths for one revision.
     pub fn package_roots(&self, revision: Revision) -> Result<Vec<PathBuf>, RepositoryError> {
-        let workspace = self.workspace(revision)?;
-        let mut package_roots = workspace
-            .package_roots()
+        let mut package_roots = self
+            .package_index(revision)?
+            .roots()
             .iter()
             .map(|(path, _)| path.clone())
             .collect::<Vec<_>>();
@@ -197,7 +130,7 @@ impl Repository {
             return Ok(None);
         };
 
-        let file_id = self.file_id_for_workspace_path(&package_path.join("package.json"));
+        let file_id = self.file_id(&package_path.join("package.json"));
         self.package_declaration_for_file(revision, file_id)
     }
 
@@ -215,18 +148,17 @@ impl Repository {
             return Ok(None);
         };
 
-        let file_id = self.file_id_for_workspace_path(&package_path.join("destack.json"));
+        let file_id = self.file_id(&package_path.join("destack.json"));
         self.destack_declaration_for_file(revision, file_id)
     }
 
     /// Return the effective package options for one package when present.
-    pub(crate) fn package_options(
+    pub fn package_options(
         &self,
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Option<PackageOptions>, RepositoryError> {
-        let workspace = self.workspace(revision)?;
-        let Some(package) = workspace.package(package_id) else {
+        let Some(package) = self.package(revision, package_id)? else {
             return Ok(None);
         };
 

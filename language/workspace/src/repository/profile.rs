@@ -186,24 +186,26 @@ impl Repository {
             return Ok(Arc::clone(profiles));
         }
 
-        let workspace = self.workspace(revision)?;
         let mut profiles = OrdMap::new();
 
         // package profiles
-        for package_id in workspace.package_ids() {
+        for package_id in self.package_ids(revision)? {
             let profile = self.package_profile(revision, package_id)?;
             profiles.insert(profile.id(), profile);
         }
 
         // module profiles
-        for (&module_id, _) in workspace.modules().iter() {
+        for module_id in self.module_ids(revision)? {
             let profile = self.module_profile(revision, module_id)?;
             profiles.insert(profile.id(), profile);
         }
 
         // target profiles
-        for (&module_id, module) in workspace.modules().iter() {
-            let Some(package) = workspace.package(module.package_id) else {
+        for module_id in self.module_ids(revision)? {
+            let Some(module) = self.module(revision, module_id)? else {
+                continue;
+            };
+            let Some(package) = self.package(revision, module.package_id)? else {
                 return Err(RepositoryError::MissingPackage {
                     package: module.package_id,
                 });

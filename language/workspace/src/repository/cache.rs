@@ -7,16 +7,23 @@ use destack_source::{FileContentId, ProfileId};
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
-use crate::{DestackDeclaration, PackageDeclaration, Profile, TsConfigDeclaration, Workspace};
+use crate::{
+    DestackDeclaration, ModuleIndex, PackageDeclaration, PackageIndex, Profile,
+    TsConfigDeclaration, Workspace,
+};
 
-/// Derived cache data for one immutable revision.
+/// Lazily derived data for one revision identity.
 #[derive(Debug, Default)]
 pub(crate) struct RevisionCache {
-    /// The workspace index.
+    /// Workspace metadata.
     pub(crate) workspace: OnceLock<Arc<Workspace>>,
-    /// The profile index.
+    /// Package lookup data.
+    pub(crate) packages: OnceLock<Arc<PackageIndex>>,
+    /// Module lookup data.
+    pub(crate) modules: OnceLock<Arc<ModuleIndex>>,
+    /// Profile lookup data.
     pub(crate) profiles: OnceLock<Arc<OrdMap<ProfileId, Arc<Profile>>>>,
-    /// The workspace directory set.
+    /// Workspace directory paths.
     pub(crate) directory_paths: OnceLock<Arc<FxHashSet<PathBuf>>>,
 }
 

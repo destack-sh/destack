@@ -1,10 +1,8 @@
-mod config;
 mod module;
 mod package;
 mod profile;
 mod workspace;
 
-pub use config::*;
 pub use module::*;
 pub use package::*;
 pub use profile::*;

@@ -134,7 +134,7 @@ impl RevisionPin {
         self.repository.file(self.revision, file_id)
     }
 
-    /// Return the workspace index.
+    /// Return workspace metadata.
     pub fn workspace(&self) -> Result<Arc<Workspace>, RepositoryError> {
         self.repository.workspace(self.revision)
     }
@@ -274,7 +274,7 @@ mod tests {
                 [Edit::set_text("src/example.ts", "export const value = 2")],
             )
             .expect("second revision should publish");
-        let file_id = repository.file_id_for_workspace_path(&root.join("src/example.ts"));
+        let file_id = repository.file_id(&root.join("src/example.ts"));
 
         // current ref state
         let file = repository

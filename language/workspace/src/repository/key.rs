@@ -148,6 +148,11 @@ pub(crate) fn profile_key_for_target(
 
     let flags = profile_flags_for_compiler_options(&compiler_options);
     let (_, _, _, test) = ProfileEnvironment::mode_from_key(&env, environment, debug);
+    let globals = target
+        .globals
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect();
 
     ProfileKey::new(
         emit,
@@ -157,6 +162,7 @@ pub(crate) fn profile_key_for_target(
         target.target_vendor.clone(),
         target.target_abi.clone(),
         libs,
+        globals,
         debug,
         test,
         compiler_options.skip_lib_check,
