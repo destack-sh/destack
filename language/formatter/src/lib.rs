@@ -12,6 +12,7 @@ pub mod expression;
 pub mod file;
 mod jsdoc;
 pub mod operator;
+mod template;
 pub mod tree;
 
 pub use context::*;

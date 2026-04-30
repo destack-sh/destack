@@ -1,5 +1,8 @@
 use std::borrow::Cow;
 
+use crate::template::{
+    TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
+};
 use crate::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
@@ -225,12 +228,23 @@ fn format_interpolated_template_literal<'ast>(
 
     write!(f, [token("`")])?;
 
-    let mut string_segments = strings.iter();
-    if let Some(first_segment) = string_segments.next() {
+    let mut indentation = TemplateInterpolationIndentation::default();
+
+    if let Some(first_segment) = strings.first() {
         write!(f, [*first_segment])?;
     }
 
-    for (argument, segment) in arguments.iter().zip(string_segments) {
+    for (index, argument) in arguments.iter().enumerate() {
+        let previous_segment = strings[index];
+        let previous_segment_text = f.context().strings.get(previous_segment);
+        indentation = TemplateInterpolationIndentation::after_last_newline(
+            previous_segment_text,
+            f.options().indent_width,
+            indentation,
+        );
+        let after_newline = previous_segment_text.ends_with('\n');
+        let next_segment = strings[index + 1];
+
         let format_argument = format_with(|f| write!(f, [*argument]));
         let interned_argument = f.intern(&format_argument)?;
         let layout = template_argument_layout(f.context(), *argument, &interned_argument);
@@ -268,16 +282,26 @@ fn format_interpolated_template_literal<'ast>(
 
             Ok(())
         });
+        let format_indented = format_with(|f| {
+            if after_newline {
+                write!(f, [dedent_to_root(&format_inner)])?;
+            } else {
+                write_template_interpolation_with_indentation(&format_inner, indentation, f)?;
+            }
+
+            Ok(())
+        });
+
         write!(
             f,
             [
                 group(&format_args![
                     token("${"),
-                    format_inner,
+                    format_indented,
                     line_suffix_boundary(),
                     token("}")
                 ]),
-                *segment,
+                next_segment,
             ]
         )?;
     }
