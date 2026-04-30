@@ -3,7 +3,7 @@ use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use destack_heap::AllocationLayout;
+use destack_heap::AllocationPlan;
 use destack_mir::ReferenceMap;
 
 use crate::common::{
@@ -17,9 +17,9 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_allocation");
     let reference_map = ReferenceMap::None;
     let payload = [0xAB; SMALL_BYTES];
-    let layout = AllocationLayout::new(SMALL_BYTES, &reference_map);
+    let plan = AllocationPlan::new(SMALL_BYTES, &reference_map);
     let large_payload = vec![0xAB; LARGE_BYTES];
-    let large_layout = AllocationLayout::new(LARGE_BYTES, &reference_map);
+    let large_plan = AllocationPlan::new(LARGE_BYTES, &reference_map);
 
     group.throughput(Throughput::Elements(SMALL_ALLOCATIONS as u64));
 
@@ -33,7 +33,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = heap
-                        .allocate_zeroed(layout)
+                        .allocate_zeroed(plan)
                         .expect("local heap allocation should succeed");
                     black_box(reference);
                 }
@@ -56,7 +56,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = heap
-                        .allocate_bytes(layout, &payload)
+                        .allocate_bytes(plan, &payload)
                         .expect("local heap allocation should succeed");
                     black_box(reference);
                 }
@@ -80,7 +80,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_zeroed(&mut fixture.allocator, layout)
+                        .allocate_zeroed(&mut fixture.allocator, plan)
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
@@ -104,7 +104,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..SMALL_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_bytes(&mut fixture.allocator, layout, &payload)
+                        .allocate_bytes(&mut fixture.allocator, plan, &payload)
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
                 }
@@ -129,7 +129,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = heap
-                        .allocate_zeroed(large_layout)
+                        .allocate_zeroed(large_plan)
                         .expect("local large allocation should succeed");
                     black_box(reference);
                 }
@@ -152,7 +152,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = heap
-                        .allocate_bytes(large_layout, &large_payload)
+                        .allocate_bytes(large_plan, &large_payload)
                         .expect("local large allocation should succeed");
                     black_box(reference);
                 }
@@ -176,7 +176,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_zeroed(&mut fixture.allocator, large_layout)
+                        .allocate_zeroed(&mut fixture.allocator, large_plan)
                         .expect("shared large allocation should succeed");
                     black_box(reference);
                 }
@@ -200,7 +200,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 for _ in 0..LARGE_ALLOCATIONS {
                     let reference = fixture
                         .heap
-                        .allocate_bytes(&mut fixture.allocator, large_layout, &large_payload)
+                        .allocate_bytes(&mut fixture.allocator, large_plan, &large_payload)
                         .expect("shared large allocation should succeed");
                     black_box(reference);
                 }
@@ -228,8 +228,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let layout = AllocationLayout::new(*byte_len, &reference_map);
-                let plan = layout.plan();
+                let plan = AllocationPlan::new(*byte_len, &reference_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
@@ -240,7 +239,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                         for _ in 0..MATRIX_ALLOCATIONS {
                             let reference = heap
-                                .allocate_plan_zeroed(plan)
+                                .allocate_zeroed(plan)
                                 .expect("local zeroed allocation should succeed");
                             black_box(reference);
                         }
@@ -258,8 +257,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let layout = AllocationLayout::new(*byte_len, &reference_map);
-                let plan = layout.plan();
+                let plan = AllocationPlan::new(*byte_len, &reference_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -271,7 +269,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                         for _ in 0..MATRIX_ALLOCATIONS {
                             let reference = heap
-                                .allocate_plan_bytes(plan, &payload)
+                                .allocate_bytes(plan, &payload)
                                 .expect("local byte allocation should succeed");
                             black_box(reference);
                         }
@@ -289,14 +287,13 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let layout = AllocationLayout::new(*byte_len, &reference_map);
+                let plan = AllocationPlan::new(*byte_len, &reference_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan = layout.plan();
                         let plan =
                             plan.with_small_span_class(fixture.allocator.small_span_class(plan));
                         let start = Instant::now();
@@ -304,7 +301,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         for _ in 0..MATRIX_ALLOCATIONS {
                             let reference = fixture
                                 .heap
-                                .allocate_plan_zeroed_for_worker(None, &mut fixture.allocator, plan)
+                                .allocate_zeroed(&mut fixture.allocator, plan)
                                 .expect("shared zeroed allocation should succeed");
                             black_box(reference);
                         }
@@ -322,7 +319,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let layout = AllocationLayout::new(*byte_len, &reference_map);
+                let plan = AllocationPlan::new(*byte_len, &reference_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -330,7 +327,6 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan = layout.plan();
                         let plan =
                             plan.with_small_span_class(fixture.allocator.small_span_class(plan));
                         let start = Instant::now();
@@ -338,12 +334,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         for _ in 0..MATRIX_ALLOCATIONS {
                             let reference = fixture
                                 .heap
-                                .allocate_plan_bytes_for_worker(
-                                    None,
-                                    &mut fixture.allocator,
-                                    plan,
-                                    &payload,
-                                )
+                                .allocate_bytes(&mut fixture.allocator, plan, &payload)
                                 .expect("shared byte allocation should succeed");
                             black_box(reference);
                         }
@@ -365,7 +356,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_shared_parallel_allocation");
     let reference_map = ReferenceMap::None;
-    let layout = AllocationLayout::new(SMALL_BYTES, &reference_map);
+    let plan = AllocationPlan::new(SMALL_BYTES, &reference_map);
     group.throughput(Throughput::Elements(
         (PARALLEL_ALLOCATIONS_PER_WORKER * PARALLEL_WORKERS[0]) as u64,
     ));
@@ -399,7 +390,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
 
                                     for _ in 0..PARALLEL_ALLOCATIONS_PER_WORKER {
                                         let reference = shared
-                                            .allocate_zeroed(&mut allocator, layout)
+                                            .allocate_zeroed(&mut allocator, plan)
                                             .expect("shared parallel allocation should succeed");
                                         black_box(reference);
                                     }
