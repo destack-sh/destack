@@ -29,6 +29,14 @@ impl SpanSlot {
         })
     }
 
+    /// Create one span slot from trusted packed indexes.
+    pub(crate) const fn from_raw(span_index: u32, slot_index: u32) -> Self {
+        Self {
+            span_index,
+            slot_index,
+        }
+    }
+
     /// Return the containing span index.
     pub const fn span_index(self) -> usize {
         self.span_index as usize

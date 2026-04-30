@@ -11,8 +11,11 @@ const DEFAULT_SIZE_CLASS_BYTES: [usize; 67] = [
     32768,
 ];
 
-/// The default small object span widths in allocator pages, excluding class zero.
-const DEFAULT_SIZE_CLASS_SPAN_PAGES: [usize; 67] = [
+/// The page width used by the canonical size-class table.
+const SIZE_CLASS_TABLE_PAGE_BYTES: usize = 8 * 1024;
+
+/// The default small object span page counts, excluding class zero.
+const DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS: [usize; 67] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 3, 1, 3, 2, 3, 4, 5, 6, 1, 7, 6, 5, 4, 3, 5, 7, 2, 9, 7, 5, 8, 3,
     10, 7, 4,
@@ -126,8 +129,8 @@ impl SizeClassPolicy {
 pub struct SizeClass {
     /// The slot payload size in bytes.
     pub bytes: usize,
-    /// The span width in allocator pages, or zero for the default span size.
-    pub span_pages: usize,
+    /// The span width in bytes, or zero for the default span size.
+    pub span_bytes: usize,
 }
 
 impl SizeClass {
@@ -135,22 +138,26 @@ impl SizeClass {
     pub const fn new(bytes: usize) -> Self {
         Self {
             bytes,
-            span_pages: 0,
+            span_bytes: 0,
         }
     }
 
-    /// Create one size class with an explicit span page count.
-    pub const fn with_span_pages(bytes: usize, span_pages: usize) -> Self {
-        Self { bytes, span_pages }
+    /// Create one size class with an explicit span byte width.
+    pub const fn with_span_bytes(bytes: usize, span_bytes: usize) -> Self {
+        Self { bytes, span_bytes }
     }
 
     /// Return the span byte width for this size class.
-    pub const fn span_bytes(self, page_bytes: usize, default_span_bytes: usize) -> usize {
-        if self.span_pages == 0 {
+    pub fn span_bytes(self, page_bytes: usize, default_span_bytes: usize) -> usize {
+        let span_bytes = if self.span_bytes == 0 {
             default_span_bytes
         } else {
-            self.span_pages * page_bytes
-        }
+            self.span_bytes
+        };
+        let span_bytes = span_bytes.div_ceil(page_bytes) * page_bytes;
+        let minimum_span_bytes = self.bytes.div_ceil(page_bytes) * page_bytes;
+
+        span_bytes.max(minimum_span_bytes)
     }
 }
 
@@ -178,8 +185,12 @@ impl SizeClassTable {
         Self {
             classes: DEFAULT_SIZE_CLASS_BYTES
                 .iter()
-                .zip(DEFAULT_SIZE_CLASS_SPAN_PAGES)
-                .map(|(&bytes, span_pages)| SizeClass::with_span_pages(bytes, span_pages))
+                .zip(DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS)
+                .map(|(&bytes, span_page_count)| {
+                    let span_bytes = span_page_count * SIZE_CLASS_TABLE_PAGE_BYTES;
+
+                    SizeClass::with_span_bytes(bytes, span_bytes)
+                })
                 .collect(),
         }
     }
@@ -204,6 +215,40 @@ impl SizeClassTable {
         }
 
         Some(class_index)
+    }
+
+    /// Return the smallest size class that satisfies size and alignment.
+    pub fn class_index_for_layout(&self, byte_len: usize, alignment: usize) -> Option<usize> {
+        let alignment = alignment.max(1);
+        let minimum_bytes = byte_len.max(alignment);
+        let mut class_index = self
+            .classes
+            .partition_point(|class| class.bytes < minimum_bytes);
+
+        while class_index < self.classes.len() {
+            let class = self.classes[class_index];
+            if class.bytes.is_multiple_of(alignment) {
+                return Some(class_index);
+            }
+
+            class_index += 1;
+        }
+
+        None
+    }
+
+    /// Return the smallest payload length routed to one class.
+    pub(crate) fn class_minimum_byte_len(&self, class_index: usize, alignment: usize) -> usize {
+        let alignment = alignment.max(1);
+        let mut minimum_byte_len = 1;
+
+        for lower_class in &self.classes[..class_index] {
+            if lower_class.bytes.is_multiple_of(alignment) {
+                minimum_byte_len = lower_class.bytes + 1;
+            }
+        }
+
+        minimum_byte_len
     }
 
     /// Validate one raw size-class list.

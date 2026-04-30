@@ -3,9 +3,17 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use super::frame::PageFrameAllocator;
-use super::platform::{self, PageFrame, VirtualSpace};
+use super::platform::{self, PageFrame, PageFrameAllocator, VirtualSpace};
 use crate::{HeapError, HeapResult};
+
+/// The mapping state for one materialized page.
+#[derive(Debug, Clone, Copy)]
+enum PageState {
+    /// The mapping is shared writable and the backing frame is current.
+    Exclusive(PageFrame),
+    /// The mapping is private copy-on-write against the backing frame.
+    Forked,
+}
 
 /// The mapped pages for one forkable heap space.
 #[derive(Debug)]
@@ -16,10 +24,10 @@ pub(super) struct PageMap {
     byte_len: usize,
     /// The fixed platform page-frame width.
     frame_bytes: usize,
-    /// The allocator for page frames backing materialized pages.
+    /// The platform allocator for mapped page frames.
     frames: Arc<PageFrameAllocator>,
-    /// The materialized page frames keyed by page index.
-    pages: Mutex<BTreeMap<usize, PageFrame>>,
+    /// The materialized pages keyed by page index.
+    pages: Mutex<BTreeMap<usize, PageState>>,
 }
 
 impl PageMap {
@@ -31,7 +39,7 @@ impl PageMap {
         let byte_len = page_count * frame_bytes;
 
         // reserve virtual space and its page frames
-        let frames = Arc::new(PageFrameAllocator::new(byte_len)?);
+        let frames = Arc::new(platform::create_page_frame_allocator(byte_len)?);
         let space = platform::reserve_virtual_space(byte_len)?;
 
         Ok(Self {
@@ -59,18 +67,29 @@ impl PageMap {
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
             self.fork_shared_frames(&fork)?;
 
-            return Ok(fork);
+            Ok(fork)
         }
+        // each fork receives freshly copied pages (e.g., WASM)
+        else {
+            self.fork_copied_frames(&fork)?;
 
-        // wasm has linear memory, so each fork receives freshly copied pages
-        self.fork_copied_frames(&fork)?;
-
-        Ok(fork)
+            Ok(fork)
+        }
     }
 
     /// Return the reserved virtual byte length.
     pub(super) const fn byte_len(&self) -> usize {
         self.byte_len
+    }
+
+    /// Return the native page-frame width used by this map.
+    pub(super) const fn frame_bytes(&self) -> usize {
+        self.frame_bytes
+    }
+
+    /// Return the base native address for this page map.
+    pub(super) fn base_address(&self) -> usize {
+        self.space.base() as usize
     }
 
     /// Zero one byte range inside this page map.
@@ -148,14 +167,49 @@ impl PageMap {
 
     /// Return one checked address inside this page map.
     pub(super) fn address(&self, offset: usize, byte_len: usize) -> HeapResult<*mut u8> {
-        let (first_frame, end_frame) = self.frame_range(offset, byte_len)?;
-
-        // materialize sparse pages before exposing a raw address
-        for page_index in first_frame..end_frame {
-            self.materialize_page(page_index)?;
-        }
+        self.materialize(offset, byte_len)?;
 
         Ok(unsafe { self.space.base().add(offset) })
+    }
+
+    /// Materialize one byte range inside this page map.
+    pub(super) fn materialize(&self, offset: usize, byte_len: usize) -> HeapResult<()> {
+        let (first_frame, end_frame) = self.frame_range(offset, byte_len)?;
+        let mut pages = self.pages.lock();
+        let mut page_index = first_frame;
+
+        // sparse pages are mapped as contiguous frame ranges
+        while page_index < end_frame {
+            if pages.contains_key(&page_index) {
+                page_index += 1;
+                continue;
+            }
+
+            let range_start = page_index;
+            while page_index < end_frame && !pages.contains_key(&page_index) {
+                page_index += 1;
+            }
+
+            let page_count = page_index - range_start;
+            let byte_len = page_count * self.frame_bytes;
+            let frame = platform::allocate_frame_range(&self.frames, byte_len, self.frame_bytes)?;
+
+            platform::map_frame_range_shared(
+                self.space.base(),
+                range_start,
+                self.frame_bytes,
+                byte_len,
+                &self.frames,
+                frame,
+            )?;
+
+            for page_offset in 0..page_count {
+                let page_frame = platform::frame_at(frame, page_offset, self.frame_bytes);
+                pages.insert(range_start + page_offset, PageState::Exclusive(page_frame));
+            }
+        }
+
+        Ok(())
     }
 
     /// Write caller-provided bytes directly into this page map.
@@ -174,21 +228,30 @@ impl PageMap {
     fn fork_shared_frames(&self, fork: &Self) -> HeapResult<()> {
         let mut pages = self.pages.lock();
         let mut fork_pages = fork.pages.lock();
+        let mut frames = Vec::with_capacity(pages.len());
 
         for (page_index, page) in &mut *pages {
-            // copy the parent-visible bytes into a shareable frame
-            let source = unsafe { self.space.base().add(*page_index * self.frame_bytes) };
-            let frame = self.frames.copy(source, self.frame_bytes)?;
+            let frame = match *page {
+                // exclusive pages already have current bytes in their backing frame
+                PageState::Exclusive(frame) => frame,
+                // private pages may contain dirty bytes outside their backing frame
+                PageState::Forked => {
+                    let source = unsafe { self.space.base().add(*page_index * self.frame_bytes) };
 
-            // replace the parent page first so parent metadata stays coherent
-            self.frames
-                .map(self.space.base(), *page_index, self.frame_bytes, frame)?;
-            *page = frame;
+                    platform::copy_page(&self.frames, source, self.frame_bytes)?
+                }
+            };
 
-            // map the child to the same frame with kernel copy-on-write
-            self.frames
-                .map(fork.space.base(), *page_index, self.frame_bytes, frame)?;
-            fork_pages.insert(*page_index, frame);
+            *page = PageState::Forked;
+            frames.push((*page_index, frame));
+        }
+
+        // remap parent and child as private runs backed by the same frames
+        self.map_private_frame_runs(self.space.base(), &frames)?;
+        self.map_private_frame_runs(fork.space.base(), &frames)?;
+
+        for (page_index, _) in frames {
+            fork_pages.insert(page_index, PageState::Forked);
         }
 
         Ok(())
@@ -202,35 +265,67 @@ impl PageMap {
         for page_index in pages.keys() {
             // wasm has no separate virtual memory mappings
             let source = unsafe { self.space.base().add(*page_index * self.frame_bytes) };
-            let frame = self.frames.copy(source, self.frame_bytes)?;
+            let frame = platform::copy_page(&self.frames, source, self.frame_bytes)?;
 
             // copy the frame into the child linear memory
-            self.frames
-                .map(fork.space.base(), *page_index, self.frame_bytes, frame)?;
+            platform::map_page_shared(
+                fork.space.base(),
+                *page_index,
+                self.frame_bytes,
+                &self.frames,
+                frame,
+            )?;
 
-            fork_pages.insert(*page_index, frame);
+            fork_pages.insert(*page_index, PageState::Exclusive(frame));
         }
 
         Ok(())
     }
 
-    /// Materialize one private writable page frame.
-    fn materialize_page(&self, page_index: usize) -> HeapResult<()> {
-        let mut pages = self.pages.lock();
-
-        // already materialized
-        if pages.contains_key(&page_index) {
+    /// Map contiguous page frames as private copy-on-write runs.
+    fn map_private_frame_runs(
+        &self,
+        base: *mut u8,
+        frames: &[(usize, PageFrame)],
+    ) -> HeapResult<()> {
+        let Some((first_page, first_frame)) = frames.first().copied() else {
             return Ok(());
+        };
+        let mut run_page = first_page;
+        let mut run_frame = first_frame;
+        let mut run_len = 1;
+
+        // coalesce adjacent pages backed by adjacent frames
+        for (page_index, frame) in frames.iter().copied().skip(1) {
+            let next_frame = platform::frame_at(run_frame, run_len, self.frame_bytes);
+            if page_index == run_page + run_len && frame == next_frame {
+                run_len += 1;
+
+                continue;
+            }
+
+            platform::map_frame_range_private(
+                base,
+                run_page,
+                self.frame_bytes,
+                run_len * self.frame_bytes,
+                &self.frames,
+                run_frame,
+            )?;
+
+            run_page = page_index;
+            run_frame = frame;
+            run_len = 1;
         }
 
-        // allocate one private frame and map it into this page map
-        let frame = self.frames.allocate(self.frame_bytes)?;
-        self.frames
-            .map(self.space.base(), page_index, self.frame_bytes, frame)?;
-
-        pages.insert(page_index, frame);
-
-        Ok(())
+        platform::map_frame_range_private(
+            base,
+            run_page,
+            self.frame_bytes,
+            run_len * self.frame_bytes,
+            &self.frames,
+            run_frame,
+        )
     }
 
     /// Return the half-open page-frame range touched by one byte range.

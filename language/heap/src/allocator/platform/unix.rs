@@ -41,49 +41,68 @@ impl VirtualSpace {
     }
 }
 
-/// One page-sized frame in the page store.
+/// One page-sized backing frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PageFrame {
-    /// The byte offset of this frame inside the page store.
+    /// The byte offset of this frame inside the page-frame allocator.
     pub(crate) offset: u64,
 }
 
-/// One platform page-store handle.
+/// Return one page frame inside a contiguous frame range.
+pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) -> PageFrame {
+    PageFrame {
+        offset: frame.offset + (page_offset * page_bytes) as u64,
+    }
+}
+
+/// One platform page-frame allocator.
 #[derive(Debug)]
-pub(crate) struct PageStoreHandle {
-    /// The page-store file descriptor.
+pub(crate) struct PageFrameAllocator {
+    /// The page-frame file descriptor.
     fd: RawFd,
-    /// The next unused page-store byte offset.
+    /// The next unused page-frame byte offset.
     next_offset: Mutex<u64>,
 }
 
-impl Drop for PageStoreHandle {
+impl Drop for PageFrameAllocator {
     fn drop(&mut self) {
         // cleanup cannot report errors from Drop
         let _ = unsafe { libc::close(self.fd) };
     }
 }
 
-/// Create one page store from an owned descriptor.
-pub(crate) fn create_page_store_from_fd(
+/// Create one page-frame allocator from an owned descriptor.
+pub(crate) fn create_page_frame_allocator_from_fd(
     fd: RawFd,
     _byte_len: usize,
-) -> HeapResult<PageStoreHandle> {
-    Ok(PageStoreHandle {
+) -> HeapResult<PageFrameAllocator> {
+    Ok(PageFrameAllocator {
         fd,
         next_offset: Mutex::new(0),
     })
 }
 
 /// Allocate one zeroed page frame.
-pub(crate) fn allocate_frame(handle: &PageStoreHandle, page_bytes: usize) -> HeapResult<PageFrame> {
-    let mut next_offset = handle.next_offset.lock();
+pub(crate) fn allocate_frame(
+    allocator: &PageFrameAllocator,
+    page_bytes: usize,
+) -> HeapResult<PageFrame> {
+    allocate_frame_range(allocator, page_bytes, page_bytes)
+}
+
+/// Allocate one zeroed page frame range.
+pub(crate) fn allocate_frame_range(
+    allocator: &PageFrameAllocator,
+    byte_len: usize,
+    page_bytes: usize,
+) -> HeapResult<PageFrame> {
+    let mut next_offset = allocator.next_offset.lock();
     let frame = PageFrame {
         offset: *next_offset,
     };
-    let next = frame.offset + page_bytes as u64;
+    let next = frame.offset + byte_len as u64;
 
-    extend_page_store(handle.fd, next, page_bytes)?;
+    extend_frame_file(allocator.fd, next, page_bytes)?;
 
     *next_offset = next;
 
@@ -92,12 +111,12 @@ pub(crate) fn allocate_frame(handle: &PageStoreHandle, page_bytes: usize) -> Hea
 
 /// Copy one mapped page into a fresh page frame.
 pub(crate) fn copy_page(
-    handle: &PageStoreHandle,
+    allocator: &PageFrameAllocator,
     source: *mut u8,
     page_bytes: usize,
 ) -> HeapResult<PageFrame> {
-    let frame = allocate_frame(handle, page_bytes)?;
-    let target = map_frame_anywhere(handle, frame, page_bytes)?;
+    let frame = allocate_frame(allocator, page_bytes)?;
+    let target = map_frame_anywhere(allocator, frame, page_bytes)?;
 
     unsafe {
         std::ptr::copy_nonoverlapping(source, target, page_bytes);
@@ -150,37 +169,88 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> HeapResult<VirtualSpace>
     })
 }
 
-/// Map one page-store frame into a reserved virtual page.
-pub(crate) fn map_page(
+/// Map one page frame as shared writable memory.
+pub(crate) fn map_page_shared(
     base: *mut u8,
     page_index: usize,
     page_bytes: usize,
-    handle: &PageStoreHandle,
+    allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> HeapResult<()> {
-    let address = unsafe { base.add(page_index * page_bytes) };
+    map_frame_range_shared(base, page_index, page_bytes, page_bytes, allocator, frame)
+}
+
+/// Map one page-frame range privately into reserved virtual pages.
+pub(crate) fn map_frame_range_private(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> HeapResult<()> {
+    map_frame_range(
+        base,
+        first_page,
+        page_bytes,
+        byte_len,
+        allocator,
+        frame,
+        libc::MAP_PRIVATE,
+    )
+}
+
+/// Map one page-frame range as shared writable memory.
+pub(crate) fn map_frame_range_shared(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> HeapResult<()> {
+    map_frame_range(
+        base,
+        first_page,
+        page_bytes,
+        byte_len,
+        allocator,
+        frame,
+        libc::MAP_SHARED,
+    )
+}
+
+/// Map one page-frame range into reserved virtual pages.
+fn map_frame_range(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+    flags: libc::c_int,
+) -> HeapResult<()> {
+    let address = unsafe { base.add(first_page * page_bytes) };
     let data = unsafe {
         libc::mmap(
             address.cast(),
-            page_bytes,
+            byte_len,
             libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_PRIVATE | libc::MAP_FIXED,
-            handle.fd,
+            flags | libc::MAP_FIXED,
+            allocator.fd,
             frame.offset as libc::off_t,
         )
     };
     if data == libc::MAP_FAILED {
-        return Err(HeapError::AddressSpaceFailed {
-            byte_len: page_bytes,
-        });
+        return Err(HeapError::AddressSpaceFailed { byte_len });
     }
 
     Ok(())
 }
 
-/// Map one page-store frame at any available address.
+/// Map one page frame at any available address.
 fn map_frame_anywhere(
-    handle: &PageStoreHandle,
+    allocator: &PageFrameAllocator,
     frame: PageFrame,
     page_bytes: usize,
 ) -> HeapResult<*mut u8> {
@@ -190,7 +260,7 @@ fn map_frame_anywhere(
             page_bytes,
             libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_SHARED,
-            handle.fd,
+            allocator.fd,
             frame.offset as libc::off_t,
         )
     };
@@ -213,8 +283,8 @@ fn mmap_private_anonymous_flags() -> i32 {
         }
 }
 
-/// Extend one page store to the requested byte length.
-fn extend_page_store(fd: RawFd, byte_len: u64, page_bytes: usize) -> HeapResult<()> {
+/// Extend one page-frame file to the requested byte length.
+fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> HeapResult<()> {
     if byte_len > libc::off_t::MAX as u64 {
         return Err(HeapError::AddressSpaceFailed {
             byte_len: page_bytes,

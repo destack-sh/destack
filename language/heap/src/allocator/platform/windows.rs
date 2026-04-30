@@ -59,72 +59,82 @@ impl VirtualSpace {
     }
 }
 
-/// One page-sized frame in the page store.
+/// One page-sized backing frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PageFrame {
-    /// The logical page-frame byte offset.
+    /// The section that owns this page frame.
+    pub(crate) section_index: usize,
+    /// The byte offset inside the owning section.
     pub(crate) offset: u64,
 }
 
-/// One platform page-store handle.
-#[derive(Debug)]
-pub(crate) struct PageStoreHandle {
-    /// The page-frame section handles.
-    frames: Mutex<Vec<HANDLE>>,
+/// Return one page frame inside a contiguous frame range.
+pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) -> PageFrame {
+    PageFrame {
+        section_index: frame.section_index,
+        offset: frame.offset + (page_offset * page_bytes) as u64,
+    }
 }
 
-impl Drop for PageStoreHandle {
+/// One platform page-frame allocator.
+#[derive(Debug)]
+pub(crate) struct PageFrameAllocator {
+    /// The page-frame sections.
+    sections: Mutex<Vec<HANDLE>>,
+}
+
+impl Drop for PageFrameAllocator {
     fn drop(&mut self) {
-        for frame in self.frames.get_mut() {
-            // cleanup cannot report errors from Drop
-            let _ = unsafe { CloseHandle(*frame) };
+        let sections = self.sections.get_mut();
+
+        // cleanup cannot report errors from Drop
+        for section in sections.drain(..) {
+            let _ = unsafe { CloseHandle(section) };
         }
     }
 }
 
-/// Create one page store.
-pub(crate) fn create_page_store(_byte_len: usize) -> HeapResult<PageStoreHandle> {
-    Ok(PageStoreHandle {
-        frames: Mutex::new(Vec::new()),
+/// Create one page-frame allocator.
+pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> HeapResult<PageFrameAllocator> {
+    Ok(PageFrameAllocator {
+        sections: Mutex::new(Vec::new()),
     })
 }
 
 /// Allocate one zeroed page frame.
-pub(crate) fn allocate_frame(handle: &PageStoreHandle, page_bytes: usize) -> HeapResult<PageFrame> {
-    let section = unsafe {
-        CreateFileMappingW(
-            INVALID_HANDLE_VALUE,
-            null_mut(),
-            PAGE_READWRITE,
-            0,
-            page_bytes as u32,
-            null_mut(),
-        )
-    };
-    if section == 0 {
-        return Err(HeapError::AddressSpaceFailed {
-            byte_len: page_bytes,
-        });
-    }
+pub(crate) fn allocate_frame(
+    allocator: &PageFrameAllocator,
+    page_bytes: usize,
+) -> HeapResult<PageFrame> {
+    allocate_frame_range(allocator, page_bytes, page_bytes)
+}
 
-    let mut frames = handle.frames.lock();
+/// Allocate one zeroed page-frame range.
+pub(crate) fn allocate_frame_range(
+    allocator: &PageFrameAllocator,
+    byte_len: usize,
+    _page_bytes: usize,
+) -> HeapResult<PageFrame> {
+    let mut sections = allocator.sections.lock();
+    let section = create_section(byte_len)?;
     let frame = PageFrame {
-        offset: frames.len() as u64 * page_bytes as u64,
+        section_index: sections.len(),
+        offset: 0,
     };
-    frames.push(section);
+
+    sections.push(section);
 
     Ok(frame)
 }
 
 /// Copy one mapped page into a fresh page frame.
 pub(crate) fn copy_page(
-    handle: &PageStoreHandle,
+    allocator: &PageFrameAllocator,
     source: *mut u8,
     page_bytes: usize,
 ) -> HeapResult<PageFrame> {
-    let frame = allocate_frame(handle, page_bytes)?;
-    let frame_handle = frame_handle(handle, frame, page_bytes)?;
-    let target = map_frame_anywhere(frame_handle, page_bytes)?;
+    let frame = allocate_frame(allocator, page_bytes)?;
+    let target = map_frame_anywhere(allocator, frame, page_bytes)?;
 
     unsafe {
         std::ptr::copy_nonoverlapping(source, target, page_bytes);
@@ -171,29 +181,113 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> HeapResult<VirtualSpace>
     })
 }
 
-/// Map one page-store frame into a reserved virtual page.
-pub(crate) fn map_page(
+/// Map one page frame as shared writable memory.
+pub(crate) fn map_page_shared(
     base: *mut u8,
     page_index: usize,
     page_bytes: usize,
-    handle: &PageStoreHandle,
+    allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> HeapResult<()> {
+    map_page(
+        base,
+        page_index,
+        page_bytes,
+        allocator,
+        frame,
+        PAGE_READWRITE,
+    )
+}
+
+/// Map one page-frame range privately into reserved virtual pages.
+pub(crate) fn map_frame_range_private(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> HeapResult<()> {
+    map_frame_range(
+        base,
+        first_page,
+        page_bytes,
+        byte_len,
+        allocator,
+        frame,
+        PAGE_WRITECOPY,
+    )
+}
+
+/// Map one page-frame range as shared writable memory.
+pub(crate) fn map_frame_range_shared(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+) -> HeapResult<()> {
+    map_frame_range(
+        base,
+        first_page,
+        page_bytes,
+        byte_len,
+        allocator,
+        frame,
+        PAGE_READWRITE,
+    )
+}
+
+/// Map one page-frame range into reserved virtual pages.
+fn map_frame_range(
+    base: *mut u8,
+    first_page: usize,
+    page_bytes: usize,
+    byte_len: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+    protection: u32,
+) -> HeapResult<()> {
+    let page_count = byte_len / page_bytes;
+
+    for page_offset in 0..page_count {
+        let page_index = first_page + page_offset;
+        let frame = PageFrame {
+            section_index: frame.section_index,
+            offset: frame.offset + (page_offset * page_bytes) as u64,
+        };
+
+        map_page(base, page_index, page_bytes, allocator, frame, protection)?;
+    }
+
+    Ok(())
+}
+
+/// Map one page frame into a reserved virtual page.
+fn map_page(
+    base: *mut u8,
+    page_index: usize,
+    page_bytes: usize,
+    allocator: &PageFrameAllocator,
+    frame: PageFrame,
+    protection: u32,
+) -> HeapResult<()> {
     let address = unsafe { base.add(page_index * page_bytes) };
-    let frame = frame_handle(handle, frame, page_bytes)?;
+    let section = allocator.section(frame)?;
 
     split_placeholder(address, page_bytes);
     unmap_page_view(address);
 
     let data = unsafe {
         MapViewOfFile3(
-            frame,
+            section,
             GetCurrentProcess(),
             address.cast(),
-            0,
+            frame.offset,
             page_bytes,
             MEM_REPLACE_PLACEHOLDER,
-            PAGE_WRITECOPY,
+            protection,
             null_mut(),
             0,
         )
@@ -269,31 +363,20 @@ fn unmap_page_view(address: *mut u8) {
     };
 }
 
-/// Return one frame handle by page-frame id.
-fn frame_handle(
-    handle: &PageStoreHandle,
+/// Map one frame at any available address.
+fn map_frame_anywhere(
+    allocator: &PageFrameAllocator,
     frame: PageFrame,
     page_bytes: usize,
-) -> HeapResult<HANDLE> {
-    let frame_index = (frame.offset / page_bytes as u64) as usize;
-    let frames = handle.frames.lock();
-    let Some(frame) = frames.get(frame_index) else {
-        return Err(HeapError::AddressSpaceFailed {
-            byte_len: page_bytes,
-        });
-    };
+) -> HeapResult<*mut u8> {
+    let section = allocator.section(frame)?;
 
-    Ok(*frame)
-}
-
-/// Map one frame at any available address.
-fn map_frame_anywhere(frame: HANDLE, page_bytes: usize) -> HeapResult<*mut u8> {
     let data = unsafe {
         MapViewOfFile3(
-            frame,
+            section,
             GetCurrentProcess(),
             null_mut(),
-            0,
+            frame.offset,
             page_bytes,
             0,
             PAGE_READWRITE,
@@ -308,4 +391,38 @@ fn map_frame_anywhere(frame: HANDLE, page_bytes: usize) -> HeapResult<*mut u8> {
     }
 
     Ok(data.Value.cast())
+}
+
+impl PageFrameAllocator {
+    /// Return the Windows section that owns one page frame.
+    fn section(&self, frame: PageFrame) -> HeapResult<HANDLE> {
+        let sections = self.sections.lock();
+        let Some(section) = sections.get(frame.section_index).copied() else {
+            return Err(HeapError::AddressSpaceFailed { byte_len: 0 });
+        };
+
+        Ok(section)
+    }
+}
+
+/// Create one page-file backed section.
+fn create_section(byte_len: usize) -> HeapResult<HANDLE> {
+    let max_size = byte_len as u64;
+    let max_size_high = (max_size >> 32) as u32;
+    let max_size_low = max_size as u32;
+    let section = unsafe {
+        CreateFileMappingW(
+            INVALID_HANDLE_VALUE,
+            null_mut(),
+            PAGE_READWRITE,
+            max_size_high,
+            max_size_low,
+            null_mut(),
+        )
+    };
+    if section == 0 {
+        return Err(HeapError::AddressSpaceFailed { byte_len });
+    }
+
+    Ok(section)
 }
