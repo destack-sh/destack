@@ -35,6 +35,11 @@ impl Bitmap {
         self.capacity = capacity;
     }
 
+    /// Return the logical bit capacity.
+    pub const fn capacity(&self) -> usize {
+        self.capacity
+    }
+
     /// Report whether one bit is set.
     pub fn contains(&self, offset: usize) -> bool {
         if offset >= self.capacity {
@@ -49,10 +54,23 @@ impl Bitmap {
     }
 
     /// Set one bit.
+    #[inline(always)]
     pub fn set(&mut self, offset: usize) {
         if offset >= self.capacity {
             return;
         }
+
+        let word_index = offset / BITMAP_WORD_BITS;
+        let bit_offset = offset % BITMAP_WORD_BITS;
+        let mask = 1_u64 << bit_offset;
+
+        self.words[word_index] |= mask;
+    }
+
+    /// Set one bit that the caller already knows is inside this bitmap.
+    #[inline(always)]
+    pub(crate) fn set_in_bounds(&mut self, offset: usize) {
+        debug_assert!(offset < self.capacity);
 
         let word_index = offset / BITMAP_WORD_BITS;
         let bit_offset = offset % BITMAP_WORD_BITS;
@@ -99,10 +117,23 @@ impl Bitmap {
     }
 
     /// Clear one bit.
+    #[inline(always)]
     pub fn clear(&mut self, offset: usize) {
         if offset >= self.capacity {
             return;
         }
+
+        let word_index = offset / BITMAP_WORD_BITS;
+        let bit_offset = offset % BITMAP_WORD_BITS;
+        let mask = !(1_u64 << bit_offset);
+
+        self.words[word_index] &= mask;
+    }
+
+    /// Clear one bit that the caller already knows is inside this bitmap.
+    #[inline(always)]
+    pub(crate) fn clear_in_bounds(&mut self, offset: usize) {
+        debug_assert!(offset < self.capacity);
 
         let word_index = offset / BITMAP_WORD_BITS;
         let bit_offset = offset % BITMAP_WORD_BITS;
@@ -220,6 +251,34 @@ impl Bitmap {
                 return None;
             }
 
+            word = self.words[word_index];
+        }
+    }
+
+    /// Return the last set bit at or before the given offset.
+    pub fn last_set_at_or_before(&self, start: usize) -> Option<usize> {
+        if self.capacity == 0 {
+            return None;
+        }
+
+        let start = start.min(self.capacity - 1);
+        let mut word_index = start / BITMAP_WORD_BITS;
+        let bit_offset = start % BITMAP_WORD_BITS;
+        let mut word = self.words[word_index] & low_bit_mask(bit_offset + 1);
+
+        loop {
+            if word != 0 {
+                let last_bit = BITMAP_WORD_BITS - 1 - word.leading_zeros() as usize;
+                let index = word_index * BITMAP_WORD_BITS + last_bit;
+
+                return Some(index);
+            }
+
+            if word_index == 0 {
+                return None;
+            }
+
+            word_index -= 1;
             word = self.words[word_index];
         }
     }
