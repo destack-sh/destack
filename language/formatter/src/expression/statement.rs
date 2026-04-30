@@ -66,6 +66,20 @@ fn value_branch_expression_should_expand<'ast>(
         && expression_is_in_statement_position(f.context(), node_id)
 }
 
+/// Return whether one try expression should expand explicit branch blocks.
+fn try_expression_should_expand<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    catch_expression: Option<LocalNodeId<Expression>>,
+    finally_expression: Option<LocalNodeId<Expression>>,
+) -> bool {
+    if catch_expression.is_some() || finally_expression.is_some() {
+        return true;
+    }
+
+    value_branch_expression_should_expand(f, node_id)
+}
+
 /// Format statement-like expression variants.
 pub(crate) fn format_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -234,7 +248,8 @@ pub(crate) fn format_statement_expression<'ast>(
             catch_expression,
             finally_expression,
         } => {
-            let expand_try_branches = value_branch_expression_should_expand(f, node_id);
+            let expand_try_branches =
+                try_expression_should_expand(f, node_id, *catch_expression, *finally_expression);
             format_try_expression(
                 f,
                 *try_expression,

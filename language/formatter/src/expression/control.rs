@@ -960,7 +960,12 @@ fn format_if_else_alternate<'ast>(
         {
             write!(f, [prefix_annotations(f.context(), else_expression_id)])?;
             write!(f, [Keyword::Else, space()])?;
-            format_block(f, *else_block_id)?;
+
+            if expand_branch_bodies {
+                format_block_wide(f, *else_block_id)?;
+            } else {
+                format_block(f, *else_block_id)?;
+            }
 
             if f.context().has_postfix_annotation(else_expression_id) {
                 write!(f, [postfix_annotations(f.context(), else_expression_id)])?;
