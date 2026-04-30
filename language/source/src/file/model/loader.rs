@@ -27,9 +27,9 @@ pub enum Loader {
     Base64,
 }
 
-impl Loader {
-    /// Return the default loader for a file type.
-    pub fn from_file_type(file_type: FileType) -> Self {
+impl From<FileType> for Loader {
+    /// Convert one file type into its default loader.
+    fn from(file_type: FileType) -> Self {
         match file_type {
             FileType::Destack | FileType::DestackDeclaration => Self::Destack,
             FileType::TypeScript
@@ -63,7 +63,9 @@ impl Loader {
             | FileType::Unknown => Self::Binary,
         }
     }
+}
 
+impl Loader {
     /// Return whether this loader produces code modules.
     pub fn is_code(self) -> bool {
         matches!(self, Self::Destack | Self::TypeScript | Self::JavaScript)
@@ -121,7 +123,7 @@ impl Loader {
 
     /// Return the module key salt when this loader differs from the file default.
     pub fn key_for_file_type(self, file_type: FileType) -> Option<&'static str> {
-        let default = Self::from_file_type(file_type);
+        let default = Self::from(file_type);
         if self == default {
             return None;
         }

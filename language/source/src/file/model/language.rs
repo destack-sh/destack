@@ -22,6 +22,27 @@ pub enum LanguageType {
     TypeScriptXml,
 }
 
+impl TryFrom<FileType> for LanguageType {
+    /// The non-code file type that could not be converted.
+    type Error = FileType;
+
+    /// Try to convert one file type into its source language.
+    fn try_from(file_type: FileType) -> Result<Self, Self::Error> {
+        match file_type {
+            FileType::Destack | FileType::DestackText | FileType::DestackBinary => {
+                Ok(Self::Destack)
+            }
+            FileType::DestackDeclaration => Ok(Self::DestackDeclaration),
+            FileType::JavaScript => Ok(Self::JavaScript),
+            FileType::JavaScriptXml => Ok(Self::JavaScriptXml),
+            FileType::TypeScript => Ok(Self::TypeScript),
+            FileType::TypeScriptDeclaration => Ok(Self::TypeScriptDeclaration),
+            FileType::TypeScriptXml => Ok(Self::TypeScriptXml),
+            _ => Err(file_type),
+        }
+    }
+}
+
 impl LanguageType {
     /// Whether this is a declaration file.
     #[inline]
@@ -88,23 +109,5 @@ impl LanguageType {
                 | Self::TypeScriptDeclaration
                 | Self::TypeScriptXml
         )
-    }
-}
-
-impl From<FileType> for LanguageType {
-    fn from(file_type: FileType) -> Self {
-        match file_type {
-            FileType::Destack | FileType::DestackText | FileType::DestackBinary => {
-                LanguageType::Destack
-            }
-            FileType::DestackDeclaration => LanguageType::DestackDeclaration,
-            FileType::JavaScript => LanguageType::JavaScript,
-            FileType::JavaScriptXml => LanguageType::JavaScriptXml,
-            FileType::TypeScript => LanguageType::TypeScript,
-            FileType::TypeScriptDeclaration => LanguageType::TypeScriptDeclaration,
-            FileType::TypeScriptXml => LanguageType::TypeScriptXml,
-            // default to Destack for other file types (?)
-            _ => LanguageType::Destack,
-        }
     }
 }
