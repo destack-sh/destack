@@ -54,9 +54,10 @@ pub fn run_with_fixes(
         };
         let linter_options = module_linter_options(repository.as_ref(), revision, &module);
         let runner = LintRunner::from_options(&linter_options).with_fixes(true);
-        let Ok(profile) = repository.default_profile_for_module(revision, *module_id) else {
+        let Ok(profile) = repository.module_profile(revision, *module_id) else {
             continue;
         };
+        let profile = profile.as_ref().clone();
         let ast_diagnostics = runner.lint_module(
             repository.clone(),
             revision,

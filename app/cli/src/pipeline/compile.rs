@@ -69,7 +69,6 @@ pub fn prepare_compile(request: CompileRequest<'_>) -> Result<CompileSetup, i32>
         request.diagnostics,
         request.mode,
         request.event_handler,
-        None,
     );
     let modules = context.enqueue(&sources)?;
 

@@ -9,7 +9,7 @@ use crate::common::{
     print_report, report_from_payload,
 };
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_or_report,
+    CommandOptionsBuilder, emit_daemon_text_output, run_root_command_or_report,
 };
 
 /// Arguments for the format command.
@@ -57,7 +57,7 @@ pub fn run(args: &FmtArgs) -> i32 {
     });
 
     // execute the daemon command
-    let result = match run_workspace_command_or_report(
+    let result = match run_root_command_or_report(
         "fmt",
         &args.report,
         &args.program,

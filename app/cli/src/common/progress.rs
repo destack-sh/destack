@@ -1,18 +1,19 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::CompilerStats;
-use destack_session::{ProvideId, SessionEvent, SessionEventHandler};
-use destack_workspace::{Ref, Repository};
+use destack_session::{SessionEvent, SessionEventHandler, SessionRunId};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::console;
 
 const HEADER_TICK_RATE: Duration = Duration::from_millis(100);
+
+/// Key for one active session task.
+type ActiveTaskKey = (SessionRunId, ArtifactKey);
 
 /// Progress display mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -38,12 +39,6 @@ struct ActiveTask {
     started_at: Instant,
 }
 
-#[derive(Clone, Debug)]
-struct StatsSource {
-    stats: Arc<CompilerStats>,
-    repository: Option<Arc<Repository>>,
-}
-
 /// Progress state shared between the handler and the display.
 #[derive(Debug, Default)]
 pub struct ProgressState {
@@ -51,12 +46,8 @@ pub struct ProgressState {
     pub tasks_completed: AtomicUsize,
     /// Number of tasks failed.
     pub tasks_failed: AtomicUsize,
-    /// Currently active tasks by task_id.
-    active_tasks: Mutex<HashMap<ProvideId, ActiveTask>>,
-    /// Optional stats source for incremental progress.
-    stats_source: Mutex<Option<StatsSource>>,
-    /// Packages that have been printed (to avoid duplicates).
-    printed_packages: Mutex<HashSet<String>>,
+    /// Currently active tasks by run and artifact key.
+    active_tasks: Mutex<HashMap<ActiveTaskKey, ActiveTask>>,
 }
 
 /// Progress reporter that handles compiler events and updates the display.
@@ -133,13 +124,6 @@ impl ProgressReporter {
         }
     }
 
-    /// Attach compiler stats for incremental progress reporting.
-    pub fn set_stats_source(&self, stats: Arc<CompilerStats>, repository: Option<Arc<Repository>>) {
-        if let Ok(mut source) = self.state.stats_source.lock() {
-            *source = Some(StatsSource { stats, repository });
-        }
-    }
-
     /// Provide a line writer that prints above the status line.
     pub fn line_writer(&self) -> Arc<dyn Fn(&str) + Send + Sync> {
         let status = self.status.clone();
@@ -168,18 +152,20 @@ impl ProgressReporter {
         let stop_ticker = self.stop_ticker.clone();
 
         Arc::new(move |event: SessionEvent| match &event {
-            SessionEvent::RunStarted => {
+            SessionEvent::RunStarted { .. } => {
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            SessionEvent::ArtifactStarted {
-                provide_id,
+            SessionEvent::TaskStarted {
+                run_id,
                 artifact_key,
             } => {
                 let module_path = module_path_for_artifact(*artifact_key, &state);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
+                    let task_key = (*run_id, *artifact_key);
+
                     active.insert(
-                        *provide_id,
+                        task_key,
                         ActiveTask {
                             artifact_key: *artifact_key,
                             module_path,
@@ -190,49 +176,29 @@ impl ProgressReporter {
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            SessionEvent::ArtifactCompleted { provide_id, .. } => {
+            SessionEvent::TaskFinished {
+                run_id,
+                artifact_key,
+            } => {
                 state.tasks_completed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(provide_id);
+                    active.remove(&(*run_id, *artifact_key));
                 }
 
                 update_status(&status, &state, &label, detailed, started_at);
             }
-            SessionEvent::ArtifactFailed { provide_id, .. } => {
+            SessionEvent::TaskFailed {
+                run_id,
+                artifact_key,
+            } => {
                 state.tasks_failed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(provide_id);
+                    active.remove(&(*run_id, *artifact_key));
                 }
 
                 update_status(&status, &state, &label, detailed, started_at);
-            }
-            SessionEvent::ArtifactYielded { provide_id, .. } => {
-                if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(provide_id);
-                }
-
-                update_status(&status, &state, &label, detailed, started_at);
-            }
-            SessionEvent::ArtifactSlow {
-                artifact_key,
-                elapsed,
-                ..
-            } => {
-                // print slow artifact warning as permanent line
-                let path = module_path_for_artifact(*artifact_key, &state);
-                let name = path_to_display(&path);
-                let elapsed_str = console::format_duration(*elapsed);
-                let warn_label = console::yellow("slow");
-                status.suspend(|| {
-                    eprintln!(
-                        "    {warn_label} {} {} ({})",
-                        console::dim(artifact_key.name()),
-                        console::dim(&name),
-                        console::dim(&elapsed_str)
-                    );
-                });
             }
             SessionEvent::RunFinished { .. } => {
                 status.disable_steady_tick();
@@ -270,36 +236,20 @@ fn update_status(
     started_at: Instant,
 ) {
     let elapsed = started_at.elapsed();
-    let progress_stats = read_progress_stats(state);
-
-    // in detailed mode, print newly completed packages
-    if detailed && let Some(ref stats) = progress_stats {
-        print_new_packages(status, state, stats, label);
-    }
+    let _ = detailed;
 
     // get active module for display
     let active_module = get_active_module(state);
 
     // build status message
     let mut parts = Vec::new();
-    if let Some(stats) = progress_stats {
-        if stats.modules > 0 {
-            parts.push(format!("{} modules", format_number(stats.modules)));
-        }
-        if stats.lines > 0 {
-            let lines = format_compact(stats.lines);
-            let lines_per_second = if elapsed.as_secs_f64() > 0.2 {
-                let throughput = stats.lines as f64 / elapsed.as_secs_f64();
-                Some(format_compact(throughput.round() as usize))
-            } else {
-                None
-            };
-            if let Some(lps) = lines_per_second {
-                parts.push(format!("{lines} lines ({lps}/s)"));
-            } else {
-                parts.push(format!("{lines} lines"));
-            }
-        }
+    let completed = state.tasks_completed.load(Ordering::Relaxed);
+    let failed = state.tasks_failed.load(Ordering::Relaxed);
+    if completed > 0 {
+        parts.push(format!("{} done", format_number(completed)));
+    }
+    if failed > 0 {
+        parts.push(format!("{} failed", format_number(failed)));
     }
 
     // add elapsed time
@@ -357,124 +307,6 @@ fn module_to_short_name(path: &str) -> String {
     }
 }
 
-/// Print newly completed packages as permanent lines.
-fn print_new_packages(
-    status: &ProgressBar,
-    state: &ProgressState,
-    stats: &ProgressStats,
-    label: &str,
-) {
-    let mut printed = match state.printed_packages.lock() {
-        Ok(p) => p,
-        Err(_) => return,
-    };
-
-    for pkg in &stats.packages {
-        // skip if already printed or no duration (not started)
-        if printed.contains(&pkg.name) || pkg.duration.as_nanos() == 0 {
-            continue;
-        }
-
-        // print package line
-        let duration_str = console::format_duration(pkg.duration);
-        let lines_str = format_compact(pkg.lines);
-        let throughput = if pkg.duration.as_secs_f64() > 0.001 {
-            let lps = pkg.lines as f64 / pkg.duration.as_secs_f64();
-            format!(" ({}/s)", format_compact(lps.round() as usize))
-        } else {
-            String::new()
-        };
-
-        let modules_word = if pkg.modules == 1 {
-            "module"
-        } else {
-            "modules"
-        };
-        status.suspend(|| {
-            eprintln!(
-                "    {} {} {} · {} {} · {} lines{}",
-                console::cyan(label),
-                pkg.name,
-                console::dim(&duration_str),
-                pkg.modules,
-                modules_word,
-                lines_str,
-                throughput
-            );
-        });
-
-        printed.insert(pkg.name.clone());
-    }
-}
-
-#[derive(Debug, Clone)]
-struct PackageInfo {
-    name: String,
-    modules: usize,
-    lines: usize,
-    duration: Duration,
-}
-
-#[derive(Debug, Clone)]
-struct ProgressStats {
-    packages: Vec<PackageInfo>,
-    modules: usize,
-    lines: usize,
-}
-
-fn read_progress_stats(state: &ProgressState) -> Option<ProgressStats> {
-    let source = state.stats_source.lock().ok()?.clone()?;
-    let module_count = source
-        .repository
-        .as_ref()
-        .and_then(current_repository_module_count)
-        .unwrap_or(0);
-    let snapshot = source
-        .stats
-        .snapshot_with_repository(module_count, source.repository.as_deref());
-
-    let mut packages = Vec::new();
-    let mut total_modules = 0;
-    let mut total_lines = 0;
-
-    for package in &snapshot.packages {
-        // skip internal packages
-        if let Some(name) = package.name.as_deref()
-            && name.starts_with('<')
-        {
-            continue;
-        }
-        if package.lines == 0 {
-            continue;
-        }
-
-        let name = package.name.clone().unwrap_or_default();
-        packages.push(PackageInfo {
-            name,
-            modules: package.modules,
-            lines: package.lines,
-            duration: package.duration,
-        });
-        total_modules += package.modules;
-        total_lines += package.lines;
-    }
-
-    Some(ProgressStats {
-        packages,
-        modules: total_modules,
-        lines: total_lines,
-    })
-}
-
-/// Return the visible module count for one repository.
-fn current_repository_module_count(repository: &Arc<Repository>) -> Option<usize> {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
-    let revision = repository.current(&reference).ok()?;
-    let modules = repository.workspace_module_ids(revision).ok()?;
-
-    Some(modules.len())
-}
-
 /// Format a number with thousands separators.
 fn format_number(n: usize) -> String {
     let s = n.to_string();
@@ -488,71 +320,11 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-/// Format a number in compact form (e.g., 1.2k, 3.5M).
-fn format_compact(n: usize) -> String {
-    if n >= 1_000_000 {
-        let m = n as f64 / 1_000_000.0;
-        if m >= 10.0 {
-            format!("{m:.0}M")
-        } else {
-            format!("{m:.1}M")
-        }
-    } else if n >= 1_000 {
-        let k = n as f64 / 1_000.0;
-        if k >= 10.0 {
-            format!("{k:.0}k")
-        } else {
-            format!("{k:.1}k")
-        }
-    } else {
-        n.to_string()
-    }
-}
-
 /// Resolve the best display path for one artifact key.
 fn module_path_for_artifact(artifact_key: ArtifactKey, state: &ProgressState) -> String {
-    let Some(module_id) = artifact_key.module_id() else {
-        return artifact_key.name().to_string();
-    };
+    let _ = state;
 
-    let Ok(source) = state.stats_source.lock() else {
-        return artifact_key.name().to_string();
-    };
-    let Some(source) = source.clone() else {
-        return artifact_key.name().to_string();
-    };
-    let Some(repository) = source.repository.as_ref() else {
-        return artifact_key.name().to_string();
-    };
-    let reference = Ref::for_workspace_root(repository.workspace_root());
-    let Ok(revision) = repository.current(&reference) else {
-        return artifact_key.name().to_string();
-    };
-    let Ok(Some(module)) = repository.module(revision, module_id) else {
-        return artifact_key.name().to_string();
-    };
-
-    module
-        .path
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| artifact_key.name().to_string())
-}
-
-/// Convert a path to a display name, shortening if needed.
-fn path_to_display(path: &str) -> String {
-    let parts: Vec<_> = path.split('/').collect();
-
-    const PATH_HEAD_COMPONENTS: usize = 2;
-    const PATH_TAIL_COMPONENTS: usize = 4;
-
-    if parts.len() <= PATH_HEAD_COMPONENTS + PATH_TAIL_COMPONENTS {
-        path.to_string()
-    } else {
-        let head = parts[..PATH_HEAD_COMPONENTS].join("/");
-        let tail = parts[parts.len() - PATH_TAIL_COMPONENTS..].join("/");
-        format!("{head}/.../{tail}")
-    }
+    artifact_key.name().to_string()
 }
 
 fn style_label(label: &str) -> String {

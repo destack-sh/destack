@@ -1,18 +1,12 @@
-use std::collections::HashMap;
-use std::time::Duration;
-
 use clap::{Args, ValueEnum};
-use destack_compiler::StatsSnapshot;
 use destack_daemon::protocol::{BinaryPayload, CommandMessagePayload};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::common::compile::print_no_input_help;
-use crate::common::format::{DiagnosticOutputJson, LineWriter};
+use crate::common::format::DiagnosticOutputJson;
 use crate::console;
-
-pub use destack_daemon::protocol::{CommandCacheStats, CommandStats, CommandTimingTagStats};
 
 /// Schema version for command reports.
 pub const REPORT_SCHEMA_VERSION: u32 = 4;
@@ -45,14 +39,6 @@ pub struct ReportArgs {
     /// Emit JSON output (shorthand for --output-format json).
     #[arg(long)]
     pub json: bool,
-
-    /// Maximum timing tags to display in text output.
-    #[arg(long = "timings-top", default_value_t = 15)]
-    pub timings_top: usize,
-
-    /// Minimum timing tag duration in milliseconds.
-    #[arg(long = "timings-min-ms", default_value_t = 1)]
-    pub timings_min_ms: u64,
 }
 
 impl ReportArgs {
@@ -83,17 +69,6 @@ pub enum CommandStatus {
     Success,
     /// Command failed.
     Failure,
-}
-
-/// Options for reporting timing tags.
-#[derive(Debug, Clone, Copy)]
-pub struct TimingOutputOptions {
-    /// Whether timing output is enabled.
-    pub enabled: bool,
-    /// Maximum number of entries to display.
-    pub top: usize,
-    /// Minimum duration in milliseconds to display.
-    pub min_ms: u64,
 }
 
 /// Structured error payload for command failures.
@@ -144,9 +119,6 @@ pub struct CommandReport {
     /// Structured error payload when diagnostics are not available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<CommandError>,
-    /// Compiler stats snapshot for tooling.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stats: Option<CommandStats>,
     /// Command-specific payload.
     #[cfg_attr(feature = "schema", schemars(schema_with = "schema_any"))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -165,7 +137,6 @@ impl CommandReport {
             summary: None,
             diagnostics: None,
             error: None,
-            stats: None,
             data: None,
         }
     }
@@ -181,7 +152,6 @@ impl CommandReport {
             summary: None,
             diagnostics: None,
             error: None,
-            stats: None,
             data: None,
         }
     }
@@ -381,448 +351,6 @@ pub fn report_no_input(command: &str, report_args: &ReportArgs) -> i32 {
 
     print_no_input_help(command);
     1
-}
-
-/// Summary info for stats output.
-#[derive(Debug)]
-pub struct StatsSummary<'a> {
-    /// Action verb to display, e.g. "Checked", "Built", "Linted".
-    pub verb: &'a str,
-    /// Number of modules processed.
-    pub modules: usize,
-    /// Number of profiles used.
-    pub profiles: usize,
-    /// Number of targets built.
-    pub targets: usize,
-    /// Number of errors found.
-    pub errors: usize,
-    /// Number of warnings found.
-    pub warnings: usize,
-}
-
-/// Print a stats summary line after diagnostics.
-pub fn print_stats_summary(
-    summary: &StatsSummary<'_>,
-    stats: &StatsSnapshot,
-    timing_options: TimingOutputOptions,
-    line_writer: Option<&LineWriter>,
-) {
-    // compute elapsed seconds for throughput calculations
-    let elapsed_secs = stats.elapsed.as_secs_f64();
-
-    // counts: "N modules[, M profiles][, K targets]"
-    let mut parts = Vec::new();
-    parts.push(pluralize(summary.modules, "module"));
-    if summary.profiles > 1 {
-        parts.push(pluralize(summary.profiles, "profile"));
-    }
-    if summary.targets > 0 {
-        parts.push(pluralize(summary.targets, "target"));
-    }
-    let counts = parts.join(", ");
-
-    // build main message and colorize based on status
-    let elapsed_str = console::format_duration(stats.elapsed);
-    let (icon, main_part) = if summary.errors > 0 {
-        let status = format!(" with {}", pluralize(summary.errors, "error"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        // bold and bright red
-        (
-            console::failure_icon(),
-            console::style_for_stream(&main, &["1", "91"], console::Stream::Stderr),
-        )
-    } else if summary.warnings > 0 {
-        let status = format!(" with {}", pluralize(summary.warnings, "warning"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        // bold and bright yellow
-        (
-            console::success_icon(),
-            console::style_for_stream(&main, &["1", "93"], console::Stream::Stderr),
-        )
-    } else {
-        let main = format!("{} {counts} in {elapsed_str}", summary.verb);
-        // bold and green
-        (
-            console::success_icon(),
-            console::style_for_stream(&main, &["1", "32"], console::Stream::Stderr),
-        )
-    };
-
-    // line count with throughput, bold only after the dot
-    let lines_suffix = if stats.modules.lines_processed > 0 && elapsed_secs > 0.001 {
-        let throughput = stats.modules.lines_processed as f64 / elapsed_secs;
-        console::bold(&format!(
-            " · {} lines · {} lines/s",
-            format_number(stats.modules.lines_processed as u64),
-            format_compact(throughput as u64)
-        ))
-    } else if stats.modules.lines_processed > 0 {
-        console::bold(&format!(
-            " · {} lines",
-            format_number(stats.modules.lines_processed as u64)
-        ))
-    } else {
-        String::new()
-    };
-
-    write_line(line_writer, &format!("{icon} {main_part}{lines_suffix}"));
-
-    // cache summary when activity is present
-    let cache_totals = stats.cache_totals();
-    let cache_activity = cache_totals.hits_memory
-        + cache_totals.misses
-        + cache_totals.writes_memory
-        + cache_totals.errors;
-    if cache_activity > 0 {
-        let hits = cache_totals.hits_memory;
-        let writes = cache_totals.writes_memory;
-        let hit_rate = stats.cache_hit_rate() * 100.0;
-        let cache_line = format!(
-            "cache: {} hits · {} misses · {} writes · {} errors · {:.0}% hit rate",
-            format_number(hits as u64),
-            format_number(cache_totals.misses as u64),
-            format_number(writes as u64),
-            format_number(cache_totals.errors as u64),
-            hit_rate,
-        );
-        write_line(line_writer, &console::dim(&cache_line));
-    }
-
-    // show mir optimization metrics if any optimizations were performed
-    if stats.mir.functions_optimized > 0 && stats.mir.instructions_before > 0 {
-        let instr_before = stats.mir.instructions_before;
-        let instr_after = stats.mir.instructions_after;
-        let blocks_before = stats.mir.blocks_before;
-        let blocks_after = stats.mir.blocks_after;
-
-        // calculate percentages, negative means reduction
-        let instr_delta = if instr_before > 0 {
-            ((instr_after as f64 - instr_before as f64) / instr_before as f64 * 100.0) as i32
-        } else {
-            0
-        };
-        let blocks_delta = if blocks_before > 0 {
-            ((blocks_after as f64 - blocks_before as f64) / blocks_before as f64 * 100.0) as i32
-        } else {
-            0
-        };
-
-        // format delta with sign and color
-        let format_delta = |delta: i32| -> String {
-            if delta < 0 {
-                console::green(&format!("{delta}%"))
-            } else if delta > 0 {
-                console::yellow(&format!("+{delta}%"))
-            } else {
-                console::dim("0%")
-            }
-        };
-
-        let arrow = console::SYMBOL_ARROW;
-        let mir_line = format!(
-            "    {} optimized {} functions: {} {arrow} {} instructions ({}), {} {arrow} {} blocks ({})",
-            console::dim(console::SYMBOL_ARROW),
-            stats.mir.functions_optimized,
-            format_number(instr_before as u64),
-            format_number(instr_after as u64),
-            format_delta(instr_delta),
-            format_number(blocks_before as u64),
-            format_number(blocks_after as u64),
-            format_delta(blocks_delta),
-        );
-        write_line(line_writer, &mir_line);
-    }
-
-    // show per package breakdown if multiple packages, excluding internal ones
-    // aggregate by package name to avoid duplicates
-    let mut package_map: HashMap<String, (usize, usize, Duration)> = HashMap::new();
-    for pkg in &stats.packages {
-        let name = pkg.name.as_deref().unwrap_or("");
-        // skip internal packages
-        if name.starts_with('<') || pkg.lines == 0 {
-            continue;
-        }
-        let entry = package_map
-            .entry(name.to_string())
-            .or_insert((0, 0, Duration::ZERO));
-        entry.0 += pkg.modules;
-        entry.1 += pkg.lines;
-        entry.2 += pkg.duration;
-    }
-
-    if !package_map.is_empty() {
-        // sort: builtin packages last, then by name
-        let mut packages: Vec<_> = package_map.into_iter().collect();
-        packages.sort_by(|(a_name, _), (b_name, _)| {
-            let a_is_builtin = a_name.contains("builtin");
-            let b_is_builtin = b_name.contains("builtin");
-
-            match (a_is_builtin, b_is_builtin) {
-                (false, true) => std::cmp::Ordering::Less,
-                (true, false) => std::cmp::Ordering::Greater,
-                _ => a_name.cmp(b_name),
-            }
-        });
-
-        for (name, (modules, lines, duration)) in packages {
-            let duration_str = if duration.as_nanos() > 0 {
-                console::cyan(&console::format_duration(duration))
-            } else {
-                String::new()
-            };
-            let modules_str = pluralize(modules, "module");
-            let lines_str = format!("{} lines", format_number(lines as u64));
-            let throughput_str = if duration.as_nanos() > 0 {
-                let duration_secs = duration.as_secs_f64();
-                if lines > 0 && duration_secs > 0.001 {
-                    let throughput = lines as f64 / duration_secs;
-                    format!(" · {} lines/s", format_compact(throughput as u64))
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-            write_line(
-                line_writer,
-                &format!(
-                    "    {}  {} · {} · {}{}",
-                    console::cyan(&name),
-                    duration_str,
-                    modules_str,
-                    lines_str,
-                    throughput_str
-                ),
-            );
-        }
-    }
-
-    // show timing tag summary when requested
-    if timing_options.enabled {
-        let timing_entries = timing_entries_from_snapshot(stats, timing_options);
-        write_timing_summary(line_writer, &timing_entries, timing_options);
-    }
-}
-
-/// Print a stats summary line for daemon command payloads.
-pub fn print_command_stats_summary(
-    summary: &StatsSummary<'_>,
-    stats: &CommandStats,
-    timing_options: TimingOutputOptions,
-    line_writer: Option<&LineWriter>,
-) {
-    // compute elapsed seconds for throughput calculations
-    let elapsed = std::time::Duration::from_millis(stats.elapsed_ms);
-    let elapsed_secs = elapsed.as_secs_f64();
-
-    // counts: "N modules[, M profiles][, K targets]"
-    let mut parts = Vec::new();
-    parts.push(pluralize(summary.modules, "module"));
-    if summary.profiles > 1 {
-        parts.push(pluralize(summary.profiles, "profile"));
-    }
-    if summary.targets > 0 {
-        parts.push(pluralize(summary.targets, "target"));
-    }
-    let counts = parts.join(", ");
-
-    // build main message and colorize based on status
-    let elapsed_str = console::format_duration(elapsed);
-    let (icon, main_part) = if summary.errors > 0 {
-        let status = format!(" with {}", pluralize(summary.errors, "error"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        (
-            console::failure_icon(),
-            console::style_for_stream(&main, &["1", "91"], console::Stream::Stderr),
-        )
-    } else if summary.warnings > 0 {
-        let status = format!(" with {}", pluralize(summary.warnings, "warning"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        (
-            console::success_icon(),
-            console::style_for_stream(&main, &["1", "93"], console::Stream::Stderr),
-        )
-    } else {
-        let main = format!("{} {counts} in {elapsed_str}", summary.verb);
-        (
-            console::success_icon(),
-            console::style_for_stream(&main, &["1", "32"], console::Stream::Stderr),
-        )
-    };
-
-    // line count with throughput, bold only after the dot
-    let lines_suffix = if stats.lines_processed > 0 && elapsed_secs > 0.001 {
-        let throughput = stats.lines_processed as f64 / elapsed_secs;
-        console::bold(&format!(
-            " · {} lines · {} lines/s",
-            format_number(stats.lines_processed),
-            format_compact(throughput as u64)
-        ))
-    } else if stats.lines_processed > 0 {
-        console::bold(&format!(
-            " · {} lines",
-            format_number(stats.lines_processed)
-        ))
-    } else {
-        String::new()
-    };
-
-    write_line(line_writer, &format!("{icon} {main_part}{lines_suffix}"));
-
-    // cache summary when activity is present
-    if let Some(cache) = stats.cache.as_ref() {
-        let hits = cache.hits_memory;
-        let writes = cache.writes_memory;
-        let hit_rate = cache.hit_rate * 100.0;
-        let cache_line = format!(
-            "cache: {} hits · {} misses · {} writes · {} errors · {:.0}% hit rate",
-            format_number(hits),
-            format_number(cache.misses),
-            format_number(writes),
-            format_number(cache.errors),
-            hit_rate,
-        );
-        write_line(line_writer, &console::dim(&cache_line));
-    }
-
-    // show timing tag summary when requested
-    if timing_options.enabled {
-        let timing_entries = timing_entries_from_command_stats(stats, timing_options);
-        write_timing_summary(line_writer, &timing_entries, timing_options);
-    }
-}
-
-#[derive(Debug, Clone)]
-struct TimingEntry {
-    name: String,
-    duration: Duration,
-    sample_count: u64,
-}
-
-fn timing_entries_from_snapshot(
-    stats: &StatsSnapshot,
-    timing_options: TimingOutputOptions,
-) -> Vec<TimingEntry> {
-    let min_ms = timing_options.min_ms as u128;
-    let mut entries: Vec<TimingEntry> = stats
-        .timings
-        .iter()
-        .filter(|entry| entry.duration.as_millis() >= min_ms)
-        .map(|entry| TimingEntry {
-            name: entry.name.clone(),
-            duration: entry.duration,
-            sample_count: entry.sample_count as u64,
-        })
-        .collect();
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
-    if timing_options.top > 0 && entries.len() > timing_options.top {
-        entries.truncate(timing_options.top);
-    }
-    entries
-}
-
-fn timing_entries_from_command_stats(
-    stats: &CommandStats,
-    timing_options: TimingOutputOptions,
-) -> Vec<TimingEntry> {
-    let Some(timings) = stats.timings.as_ref() else {
-        return Vec::new();
-    };
-    let min_ms = timing_options.min_ms;
-    let mut entries: Vec<TimingEntry> = timings
-        .iter()
-        .filter(|entry| entry.duration_ms >= min_ms)
-        .map(|entry| TimingEntry {
-            name: entry.name.clone(),
-            duration: Duration::from_millis(entry.duration_ms),
-            sample_count: entry.sample_count,
-        })
-        .collect();
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
-    if timing_options.top > 0 && entries.len() > timing_options.top {
-        entries.truncate(timing_options.top);
-    }
-    entries
-}
-
-fn write_timing_summary(
-    line_writer: Option<&LineWriter>,
-    timing_entries: &[TimingEntry],
-    timing_options: TimingOutputOptions,
-) {
-    if timing_entries.is_empty() {
-        return;
-    }
-
-    let top_label = if timing_options.top == 0 {
-        "all".to_string()
-    } else {
-        timing_options.top.to_string()
-    };
-    let header = format!(
-        "timing tags: top {} (min {}ms)",
-        top_label, timing_options.min_ms
-    );
-    write_line(line_writer, &console::dim(&header));
-
-    for entry in timing_entries {
-        let name = console::dim(&entry.name);
-        let duration = console::cyan(&console::format_duration(entry.duration));
-        let count = console::dim(&format!("{}x", entry.sample_count));
-        write_line(line_writer, &format!("    {name} {duration} · {count}"));
-    }
-}
-
-/// Write a line using the optional writer.
-fn write_line(line_writer: Option<&LineWriter>, line: &str) {
-    // use the line writer when provided
-    if let Some(writer) = line_writer {
-        writer(line);
-    } else {
-        eprintln!("{line}");
-    }
-}
-
-/// Format a number with grouping separators.
-fn format_number(n: u64) -> String {
-    let mut digits = n.to_string();
-    let mut output = String::new();
-    while digits.len() > 3 {
-        let tail = digits.split_off(digits.len() - 3);
-        if output.is_empty() {
-            output = tail;
-        } else {
-            output = format!("{tail},{output}");
-        }
-    }
-    if output.is_empty() {
-        digits
-    } else {
-        format!("{digits},{output}")
-    }
-}
-
-/// Format a number in a compact human friendly form.
-fn format_compact(n: u64) -> String {
-    let n = n as f64;
-    if n >= 1_000_000_000.0 {
-        format!("{:.1}b", n / 1_000_000_000.0)
-    } else if n >= 1_000_000.0 {
-        format!("{:.1}m", n / 1_000_000.0)
-    } else if n >= 1_000.0 {
-        format!("{:.1}k", n / 1_000.0)
-    } else {
-        format!("{n:.0}")
-    }
-}
-
-/// Pluralize a word based on the provided count.
-fn pluralize(n: usize, word: &str) -> String {
-    if n == 1 {
-        format!("{n} {word}")
-    } else {
-        format!("{n} {word}s")
-    }
 }
 
 #[cfg(feature = "schema")]

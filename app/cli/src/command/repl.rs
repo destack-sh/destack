@@ -8,7 +8,7 @@ use crate::common::{
 };
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, finish_daemon_message_command,
-    run_workspace_command_with_repository_or_report, target_overrides_from_args,
+    run_root_command_with_repository_or_report, target_overrides_from_args,
 };
 use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::workspace::default_target_for_repository;
@@ -61,7 +61,7 @@ pub fn run(args: &ReplArgs) -> i32 {
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_with_repository_or_report(
+    let result = match run_root_command_with_repository_or_report(
         "repl",
         &args.report,
         repository,

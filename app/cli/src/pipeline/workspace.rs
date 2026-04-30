@@ -65,10 +65,29 @@ pub fn find_destack_config(
     revision: Revision,
     cwd: &Path,
 ) -> Option<PathBuf> {
-    repository
-        .nearest_destack_file_path(revision, cwd)
+    let mut directory = if repository
+        .file_metadata(revision, cwd)
         .ok()
         .flatten()
+        .is_some_and(|metadata| metadata.is_directory)
+    {
+        cwd.to_path_buf()
+    } else {
+        cwd.parent()?.to_path_buf()
+    };
+
+    loop {
+        let candidate = directory.join("destack.json");
+        match repository.destack_declaration_for_path(revision, &candidate) {
+            Ok(Some(_)) => return Some(candidate),
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+
+        if !directory.pop() {
+            return None;
+        }
+    }
 }
 
 /// Load one `destack.json` declaration from one revision.
@@ -78,7 +97,7 @@ pub fn load_destack_declaration(
     path: &Path,
 ) -> CliResult<DestackDeclaration> {
     repository
-        .destack_declaration_for_file_path(revision, path)
+        .destack_declaration_for_path(revision, path)
         .map_err(|error| CliError::message(format!("failed to load {}: {error}", path.display())))?
         .map(|declaration| declaration.as_ref().clone())
         .ok_or_else(|| CliError::message(format!("failed to load {}", path.display())))
@@ -100,7 +119,7 @@ pub fn resolve_destack_config_path(
         };
 
         let metadata = repository
-            .metadata_for_path(revision, &path)
+            .file_metadata(revision, &path)
             .map_err(|error| {
                 CliError::message(format!(
                     "failed to read config path {}: {error}",
@@ -204,7 +223,7 @@ pub fn load_workspace_declarations(
     // collect unique config paths
     let mut configs = BTreeMap::new();
     let package_paths = repository
-        .workspace_package_paths(revision)
+        .package_roots(revision)
         .map_err(|error| CliError::message(format!("failed to derive package paths: {error}")))?;
 
     // collect config paths for each package path

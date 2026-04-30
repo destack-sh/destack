@@ -10,8 +10,8 @@ use crate::console;
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DaemonCommandResult, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, finish_run_command,
-    run_workspace_command_with_repository_or_report, target_overrides_from_args,
+    emit_daemon_text_output, finish_run_command, run_root_command_with_repository_or_report,
+    target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
@@ -189,12 +189,7 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
         Err(code) => return code,
     };
 
-    finish_run_command(
-        request.command_name,
-        &request.report,
-        &result,
-        request.program.timings,
-    )
+    finish_run_command(request.command_name, &request.report, &result)
 }
 
 /// Compile and run a source file in watch mode.
@@ -354,7 +349,7 @@ fn compile_and_run_daemon(
     };
 
     // execute the daemon command
-    let result = match daemon.run_workspace_command(root, common, payload) {
+    let result = match daemon.run_root_command(root, common, payload) {
         Ok(result) => result,
         Err(error) => {
             let message = watch_error(&error.to_string());
@@ -367,11 +362,6 @@ fn compile_and_run_daemon(
     };
 
     // emit watch diagnostics
-    let stats = result
-        .response
-        .stats
-        .as_ref()
-        .map(|stats| command_stats_from_protocol(stats, request.program.timings));
     let format_options = FormatOptions::default();
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
@@ -387,7 +377,6 @@ fn compile_and_run_daemon(
             module_count: result.response.module_count,
             line_writer: None,
         },
-        stats,
         compile_reason,
         updated,
         rescan,
@@ -536,7 +525,7 @@ fn execute_run_command(
     request: &RunRequest,
     prepared: &PreparedRunCommand,
 ) -> Result<DaemonCommandResult, i32> {
-    run_workspace_command_with_repository_or_report(
+    run_root_command_with_repository_or_report(
         request.command_name,
         &request.report,
         prepared.repository.clone(),

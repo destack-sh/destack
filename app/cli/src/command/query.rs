@@ -666,7 +666,7 @@ fn finish_output(output: Result<String, String>) -> i32 {
     0
 }
 
-/// Execute workspace queries.
+/// Execute root queries.
 pub fn run(args: &QueryArgs) -> i32 {
     // resolve the command name
     let method_name = args.method.as_deref();
@@ -910,7 +910,7 @@ mod tests {
                 }),
             },
             QueryRequestEnvelope {
-                expected_revision: Some(destack_workspace::Revision::new(9)),
+                expected_revision: Some(destack_workspace::Revision::from_test_value(9)),
                 request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
                     renames: Vec::new(),
                 }),

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::CompilerOptions;
 use destack_daemon::{Daemon, WatchPolicy};
 use destack_source::{FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher};
 use destack_workspace::Repository;
@@ -16,13 +15,7 @@ use super::tests::TestProgram;
 
 /// Build a daemon configured for deterministic test execution.
 fn daemon_with_single_worker(repository: Arc<Repository>) -> Daemon {
-    // keep non compiler tests deterministic and deadlock free
-    let compiler_options = CompilerOptions {
-        workers: 1,
-        ..CompilerOptions::default()
-    };
-
-    Daemon::with_options(repository, compiler_options, None, None)
+    Daemon::new(repository, 1, None)
 }
 
 /// State captured by watch loop callbacks.

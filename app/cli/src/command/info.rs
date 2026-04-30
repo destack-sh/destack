@@ -1,6 +1,6 @@
 use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_from_payload};
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{
     CommandInfoOptions, CommandInfoPayload, CommandInfoTarget, CommandPayload,
@@ -32,7 +32,7 @@ pub fn run(args: &InfoArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Info(CommandInfoOptions { all: args.all });
 
-    run_workspace_payload_command_or_report::<CommandInfoPayload, _, _>(
+    run_root_payload_command_or_report::<CommandInfoPayload, _, _>(
         "info",
         &args.report,
         &args.program,

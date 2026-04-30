@@ -8,7 +8,7 @@ use destack_artifact::MemoryCacheStore;
 use destack_session::open_repository_from_fs;
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
-    AmbientSnapshot, ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity,
+    ArrowParentheses, FormatterOptions, HostEnvironment, ImportSortOrder, LintPreset, LintSeverity,
     LinterOptions, OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
 };
 
@@ -449,10 +449,6 @@ pub struct ProgramArgs {
     #[arg(long = "no-prelude", global = true)]
     pub no_prelude: bool,
 
-    /// Don't follow imports automatically.
-    #[arg(long = "no-follow-imports", global = true)]
-    pub no_follow_imports: bool,
-
     /// Libraries to load (e.g., es2020, dom, node). Overrides automatic detection.
     #[arg(long = "lib", value_delimiter = ',', global = true)]
     pub lib: Vec<String>,
@@ -464,10 +460,6 @@ pub struct ProgramArgs {
     /// Enable dev mode for supported commands.
     #[arg(long = "dev", global = true)]
     pub dev: bool,
-
-    /// Emit detailed timing information where supported.
-    #[arg(long = "timings", global = true)]
-    pub timings: bool,
 
     /// Emit profiling information where supported.
     #[arg(long = "profile", global = true)]
@@ -520,7 +512,7 @@ impl ProgramArgs {
         let mut repository = open_repository_from_fs(
             workspace_root,
             fs.clone(),
-            AmbientSnapshot::capture_process(),
+            HostEnvironment::capture_process(),
         )
         .expect("failed to import repository from file system");
 

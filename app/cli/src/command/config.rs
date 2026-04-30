@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_from_payload};
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{CommandConfigOptions, CommandConfigPayload, CommandPayload};
 
@@ -39,7 +39,7 @@ pub fn run(args: &ConfigArgs) -> i32 {
         full: args.full,
     });
 
-    run_workspace_payload_command_or_report::<CommandConfigPayload, _, _>(
+    run_root_payload_command_or_report::<CommandConfigPayload, _, _>(
         "config",
         &args.report,
         &args.program,

@@ -171,7 +171,7 @@ fn load_file(repository: &Repository, path: &PathBuf) -> CliResult<Arc<File>> {
         .map_err(|e| CliError::message(format!("\"{path_str}\": {e}")))?;
 
     // create file
-    let file_id = repository.file_id_for_workspace_path(path);
+    let file_id = repository.file_id(path);
     let name = path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())

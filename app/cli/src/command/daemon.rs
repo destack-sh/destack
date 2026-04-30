@@ -6,13 +6,11 @@ use destack_daemon::protocol::DaemonRequest;
 use destack_daemon::{
     DaemonConnectOptions, DaemonInstance, DaemonServer, DaemonServerOptions, connect_ipc_daemon,
 };
-use destack_source::DiagnosticOptions;
 
 use crate::common::diagnostic::DiagnosticArgs;
 use crate::common::program::ProgramArgs;
 use crate::console;
 use crate::pipeline::daemon::DaemonLaunchContext;
-use crate::pipeline::watch::build_daemon_options;
 
 /// Arguments for the daemon command.
 #[derive(Args, Debug)]
@@ -68,12 +66,8 @@ pub fn run(args: &DaemonArgs) -> i32 {
 
 /// Run the daemon server in the foreground.
 fn run_serve(args: &DaemonServeArgs) -> i32 {
-    // resolve diagnostic settings
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
-    // build a repository and compiler options
+    // build a repository
     let repository = args.program.setup();
-    let compiler_options = build_daemon_options(&args.program, diagnostic_options);
 
     // resolve daemon instance metadata
     let mut instance = DaemonInstance::from_repository(&repository);
@@ -85,7 +79,7 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
 
     // build server options from the repository
     let mut server_options = DaemonServerOptions::from_repository(&repository);
-    server_options.compiler_options = compiler_options;
+    server_options.worker_limit = args.program.workers as usize;
     let server = DaemonServer::with_options(repository, instance, server_options);
 
     // serve until shutdown

@@ -39,15 +39,13 @@ pub fn resolve_target_for_module(
         .map_err(|error| CliError::message(format!("failed to read module snapshot: {error}")))?
         .ok_or_else(|| CliError::message(format!("missing module snapshot for {module_id:?}")))?;
     let package_id = module.package_id;
-    let target_id = repository.intern_target_id(package_id, target_name);
-    let is_explicit_target = repository
-        .has_explicit_target(revision, package_id, target_id)
-        .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
+    let target_id = TargetId::new(package_id, target_name);
 
     // resolve target truth
     let target = repository
         .target(revision, target_id)
         .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
+    let is_explicit_target = target.is_some();
 
     // reject overrides for named targets
     if is_explicit_target && target_args.has_adhoc_options() {

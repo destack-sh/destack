@@ -6,7 +6,6 @@ use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, 
 use serde::Serialize;
 
 use crate::common::format::DiagnosticOutputJson;
-use crate::common::report::CommandStats;
 
 /// Schema identifier for watch reports.
 const WATCH_REPORT_SCHEMA: &str = "destack.watch.v1";
@@ -42,9 +41,6 @@ pub struct WatchCompileJson {
     pub diagnostics: Option<DiagnosticOutputJson>,
     /// Exit code derived from diagnostics.
     pub exit_code: i32,
-    /// Compiler statistics snapshot.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stats: Option<CommandStats>,
 }
 
 /// JSON payload for a file watch event.
@@ -393,7 +389,6 @@ mod tests {
                     batch_id: Some(7),
                     diagnostics: Some(output),
                     exit_code: format_result.exit_code(),
-                    stats: None,
                 },
             },
         };

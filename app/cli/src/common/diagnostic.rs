@@ -42,7 +42,7 @@ pub fn print_diagnostics(
     diagnostics: &DiagnosticCollection,
 ) {
     let module_count = repository
-        .workspace_module_ids(revision)
+        .module_ids(revision)
         .map(|modules| modules.len())
         .unwrap_or(0);
     let options = PrintOptions::new()

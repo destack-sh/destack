@@ -28,11 +28,9 @@ pub use output::{ArtifactArg, EmitArg, PlatformArg, RuntimeArg, TargetArgs};
 pub use program::{FileSystemOverride, ProgramArgs, ensure_no_watch_or_dev};
 pub use progress::{ProgressMode, ProgressReporter, is_tty};
 pub use report::{
-    CommandError, CommandReport, CommandStats, CommandTimingTagStats, ReportArgs, ReportFormat,
-    StatsSummary, TimingOutputOptions, parse_command_payload, parse_required_command_payload,
-    print_command_stats_summary, print_json_payload_report, print_report, print_stats_summary,
-    report_error, report_error_with, report_from_message_payload, report_from_payload,
-    report_no_input,
+    CommandError, CommandReport, ReportArgs, ReportFormat, parse_command_payload,
+    parse_required_command_payload, print_json_payload_report, print_report, report_error,
+    report_error_with, report_from_message_payload, report_from_payload, report_no_input,
 };
 pub use runtime::RuntimeArgs;
 pub use tracing::TracingArgs;

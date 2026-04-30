@@ -1,5 +1,6 @@
+use destack_artifact::ArtifactKey;
 use destack_runtime::runtime::bindings::BindingPolicy;
-use destack_source::{ModuleId, TargetId};
+use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{
     ExecutionMode, Isolate, IsolateId, IsolateOptions, TrustPolicy as VmTrustPolicy, Value,
 };
@@ -51,19 +52,30 @@ pub fn create_isolate(
     options: IsolateOptions,
 ) -> CliResult<Isolate> {
     // resolve lowered mir for the target
-    let profile_id = repository
-        .default_profile_id_for_module(revision, module_id)
+    let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
+    let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
+    let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);
+    let optimized_version = repository
+        .artifact_version(revision, &optimized_key)
         .map_err(|error| CliError::message(error.to_string()))?;
-    let (tree, strings) =
-        if let Some(mir) = repository.mir_optimized(revision, module_id, profile_id, *target_id) {
-            (mir.tree.clone(), mir.strings.clone().into_immutable())
-        } else if let Some(mir) = repository.mir_base(revision, module_id, profile_id, *target_id) {
-            (mir.tree.clone(), mir.strings.clone().into_immutable())
-        } else {
-            return Err(CliError::message(format!(
-                "missing MIR for target {target_id:?} (run requires lowering)"
-            )));
-        };
+    let lowered_version = repository
+        .artifact_version(revision, &lowered_key)
+        .map_err(|error| CliError::message(error.to_string()))?;
+
+    let artifact_store = repository.artifact_store();
+    let (tree, strings) = if let Some(version) = optimized_version
+        && let Some(mir) = artifact_store.mir_optimized(&version)
+    {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else if let Some(version) = lowered_version
+        && let Some(mir) = artifact_store.mir_lowered(&version)
+    {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else {
+        return Err(CliError::message(format!(
+            "missing MIR for target {target_id:?} (run requires lowering)"
+        )));
+    };
 
     // construct the isolate from mir state
     Isolate::build_with_options(IsolateId::new(1), tree, strings, options)
@@ -93,62 +105,54 @@ pub fn entry_display_name(source: &InputSource) -> String {
 
 /// Convert a VM return value into an exit status.
 pub fn exit_status_from_value(value: Value) -> i32 {
-    // treat void as successful exit
-    if value.is_void() {
-        return 0;
+    match value {
+        Value::Void => 0,
+        Value::Bool(value) => {
+            if value {
+                0
+            } else {
+                1
+            }
+        }
+        Value::Int { value, .. } => value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        _ => 0,
     }
-
-    // map booleans to success or failure
-    if let Some(result) = value.as_bool() {
-        return if result { 0 } else { 1 };
-    }
-
-    // clamp integers into an exit code range
-    if let Some(result) = value.as_int() {
-        return result.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
-    }
-
-    // default to success for non numeric values
-    0
 }
 
 /// Format a VM value for eval output.
 pub fn format_value_for_eval(value: &Value) -> String {
-    // format void values
-    if value.is_void() {
-        return "void".to_string();
+    match value {
+        Value::Void => "void".to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Int { value, .. } => value.to_string(),
+        Value::UInt { value, .. } => value.to_string(),
+        Value::Float32 { bits } => f32::from_bits(*bits).to_string(),
+        Value::Float64 { bits } => f64::from_bits(*bits).to_string(),
+        Value::Char(value) => value.to_string(),
+        Value::HeapReference(_)
+        | Value::SharedHeapReference(_)
+        | Value::RawPointer(_)
+        | Value::SharedRawPointer(_) => format!("{value:?}"),
     }
+}
 
-    // format boolean values
-    if let Some(result) = value.as_bool() {
-        return result.to_string();
-    }
+/// Return the profile id selected for one module target.
+fn target_profile_id(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    target_id: TargetId,
+) -> CliResult<ProfileId> {
+    let profile = repository
+        .module_target_profile(revision, module_id, target_id)
+        .map_err(|error| CliError::message(error.to_string()))?;
+    let profile = if let Some(profile) = profile {
+        profile
+    } else {
+        repository
+            .module_profile(revision, module_id)
+            .map_err(|error| CliError::message(error.to_string()))?
+    };
 
-    // format signed integers
-    if let Some(result) = value.as_int_with_width() {
-        return result.0.to_string();
-    }
-
-    // format unsigned integers
-    if let Some(result) = value.as_uint_with_width() {
-        return result.0.to_string();
-    }
-
-    // format float64 values
-    if let Some(result) = value.as_float64() {
-        return result.to_string();
-    }
-
-    // format float32 values
-    if let Some(result) = value.as_float32() {
-        return result.to_string();
-    }
-
-    // format char values
-    if let Some(result) = value.as_char() {
-        return result.to_string();
-    }
-
-    // fallback to debug output
-    format!("{value:?}")
+    Ok(profile.id())
 }

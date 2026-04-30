@@ -8,7 +8,7 @@ use crate::common::{
 };
 use crate::console;
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_or_report,
+    CommandOptionsBuilder, emit_daemon_text_output, run_root_command_or_report,
 };
 use destack_daemon::protocol::{CommandCleanOptions, CommandCleanPayload, CommandPayload};
 
@@ -73,7 +73,7 @@ fn run_clean_via_daemon(args: &CleanArgs) -> i32 {
     let payload = CommandPayload::Clean(clean);
 
     // execute the daemon command
-    let result = match run_workspace_command_or_report(
+    let result = match run_root_command_or_report(
         "clean",
         &args.report,
         &args.program,
