@@ -153,6 +153,98 @@ const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } els
 const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback };
 ```
 
+### if let default value
+
+If-let default values stay compact when they fit.
+
+```ds
+function configure(options = if (let Some(entry) = maybe) { entry.options } else { defaultOptions }) { apply(options) }
+```
+
+```ds expected
+function configure(
+    options = if (let Some(entry) = maybe) { entry.options } else { defaultOptions },
+) {
+    apply(options)
+}
+```
+
+### if let argument value
+
+If-let call argument values stay compact when they fit.
+
+```ds
+render(if (let Some(value) = maybe) { value.current } else { defaultValue })
+```
+
+```ds expected
+render(if (let Some(value) = maybe) { value.current } else { defaultValue });
+```
+
+### if let lambda body value
+
+If-let lambda body values stay compact when they fit.
+
+```ds
+const choose = (entry) => if (let Some(value) = entry) { value.current } else { defaultValue }
+```
+
+```ds expected
+const choose = (entry) => if (let Some(value) = entry) { value.current } else { defaultValue };
+```
+
+### long if let initializer value
+
+Long if-let initializer values expand all branch blocks.
+
+```ds line-width=80
+const value = if (let Some(entry) = source.lookup(user.id)) { buildEntryView(entry, context.locale, context.timeZone) } else { buildFallbackView(context.locale, context.timeZone) }
+```
+
+```ds expected
+const value = if (let Some(entry) = source.lookup(user.id)) {
+    buildEntryView(entry, context.locale, context.timeZone)
+} else {
+    buildFallbackView(context.locale, context.timeZone)
+};
+```
+
+### long if let chain receiver value
+
+Long if-let chain receiver values expand all branch blocks.
+
+```ds line-width=80
+const result = (if (let Some(entry) = maybe) { createReadyBuilder(entry, context) } else { createPendingBuilder(context) }).build().finalize()
+```
+
+```ds expected
+const result = (if (let Some(entry) = maybe) {
+    createReadyBuilder(entry, context)
+} else {
+    createPendingBuilder(context)
+})
+    .build()
+    .finalize();
+```
+
+### multiline if let initializer value
+
+Manually broken if-let values keep all branch blocks expanded.
+
+```ds
+const value = if (let Some(entry) = maybe) {
+    entry.value
+} else { fallback }
+```
+
+```ds expected
+const value = if (let Some(entry) = maybe) {
+    entry.value
+} else {
+    fallback
+};
+```
+
 ### if let function tail expression
 
 If let expressions in function tail position preserve branch values.

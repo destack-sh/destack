@@ -91,6 +91,31 @@ if (ready) {
 }
 ```
 
+### statement decorator inside nested control flow
+
+Statement decorators stay above their statement inside nested value branches.
+
+```ds
+function run(): void { if (ready) { @trace work() } else { try { @fallback recover() } catch (error) { @report handle(error) } } }
+```
+
+```ds expected
+function run(): void {
+    if (ready) {
+        @trace
+        work()
+    } else {
+        try {
+            @fallback
+            recover()
+        } catch (error) {
+            @report
+            handle(error)
+        }
+    }
+}
+```
+
 ### stacked statement decorators
 
 Stacked statement decorators each stay on their own line.

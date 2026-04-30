@@ -116,6 +116,171 @@ const x = match (status) {
 };
 ```
 
+### match initializer value
+
+Match initializer values use the expanded arm-list shape.
+
+```ds
+const notification = match (event) { Created => createdView; Deleted => deletedView; _ => fallbackView }
+```
+
+```ds expected
+const notification = match (event) {
+    Created => createdView
+    Deleted => deletedView
+    _ => fallbackView
+};
+```
+
+### match assignment value
+
+Match assignment values use the expanded arm-list shape.
+
+```ds
+function update(state: State): Result { output.value = match (state) { Ready(value) => Result.Ok(value); Failed(error) => Result.Err(error) }; return output.value }
+```
+
+```ds expected
+function update(state: State): Result {
+    output.value = match (state) {
+        Ready(value) => Result.Ok(value)
+        Failed(error) => Result.Err(error)
+    };
+    return output.value;
+}
+```
+
+### match argument value
+
+Match argument values use the expanded arm-list shape.
+
+```ds
+renderDashboard(match (user.role) { Admin => permissions.admin; Guest => permissions.guest; _ => permissions.default })
+```
+
+```ds expected
+renderDashboard(
+    match (user.role) {
+        Admin => permissions.admin
+        Guest => permissions.guest
+        _ => permissions.default
+    },
+);
+```
+
+### match collection values
+
+Match collection values preserve required grouping.
+
+```ds
+const values = [match (mode) { Fast => fastValue; Slow => slowValue }, ...(match (mode) { Fast => fastItems; _ => fallbackItems })]
+```
+
+```ds expected
+const values = [
+    match (mode) {
+        Fast => fastValue
+        Slow => slowValue
+    },
+    ...(match (mode) {
+        Fast => fastItems
+        _ => fallbackItems
+    }),
+];
+```
+
+### match logical operand value
+
+Match logical operands preserve required grouping.
+
+```ds
+const enabled = flag && (match (mode) { Fast => fastEnabled; Slow => slowEnabled; _ => fallbackEnabled })
+```
+
+```ds expected
+const enabled =
+    flag &&
+    (match (mode) {
+        Fast => fastEnabled
+        Slow => slowEnabled
+        _ => fallbackEnabled
+    });
+```
+
+### match type assertion value
+
+Match type assertion operands use the expanded arm-list shape.
+
+```ds
+const typed = (match (kind) { Primary => createPrimary(context); Secondary => createSecondary(context) }) as CreatedValue
+```
+
+```ds expected
+const typed = match (kind) {
+    Primary => createPrimary(context)
+    Secondary => createSecondary(context)
+} as CreatedValue;
+```
+
+### match chain receiver value
+
+Match chain receiver values preserve required grouping.
+
+```ds
+const result = (match (kind) { Primary => createPrimaryBuilder(context); Secondary => createSecondaryBuilder(context) }).build().finalize()
+```
+
+```ds expected
+const result = (match (kind) {
+    Primary => createPrimaryBuilder(context)
+    Secondary => createSecondaryBuilder(context)
+})
+    .build()
+    .finalize();
+```
+
+### long match initializer value
+
+Long match initializer values expand arm bodies.
+
+```ds line-width=80
+const notification = match (event) { User.Created(user) => { const profile = loadProfile(user.id, context.region); renderCreatedNotification(profile, context.locale, context.timeZone) }; User.Deleted(user) => { const profile = loadProfile(user.id, context.region); renderDeletedNotification(profile, context.locale, context.timeZone) }; _ => renderDefaultNotification(event, context.locale) }
+```
+
+```ds expected
+const notification = match (event) {
+    User.Created(user) => {
+        const profile = loadProfile(user.id, context.region);
+        renderCreatedNotification(profile, context.locale, context.timeZone)
+    }
+    User.Deleted(user) => {
+        const profile = loadProfile(user.id, context.region);
+        renderDeletedNotification(profile, context.locale, context.timeZone)
+    }
+    _ => renderDefaultNotification(event, context.locale)
+};
+```
+
+### multiline match rvalue arms
+
+Manually broken match values keep their expanded arm list.
+
+```ds
+render(match (kind) {
+    Primary => primaryView
+    Secondary => secondaryView
+})
+```
+
+```ds expected
+render(
+    match (kind) {
+        Primary => primaryView
+        Secondary => secondaryView
+    },
+);
+```
+
 ### match function tail expression
 
 Match expressions in function tail position preserve arm values.

@@ -136,6 +136,48 @@ function fail() {
 
 ## Control Flow
 
+### control rvalue argument comments
+
+Comments before, inside, and after control expressions in argument position keep their attachment.
+
+```ds
+render(
+    // state
+    if (ready) {
+        // ready value
+        buildReady(context)
+    } else {
+        // pending value
+        buildPending(context)
+    }, // state tail
+    match (kind) {
+        // primary
+        Primary => buildPrimary(context)
+        // fallback
+        _ => buildFallback(context)
+    }
+)
+```
+
+```ds expected
+render(
+    // state
+    if (ready) {
+        // ready value
+        buildReady(context)
+    } else {
+        // pending value
+        buildPending(context)
+    }, // state tail
+    match (kind) {
+        // primary
+        Primary => buildPrimary(context)
+        // fallback
+        _ => buildFallback(context)
+    },
+);
+```
+
 ### break trailing comment
 
 Trailing comments on `break` stay attached to the break statement.

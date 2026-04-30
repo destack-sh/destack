@@ -152,6 +152,24 @@ const refs = (&readonly /* borrow */ value, *readonly /* pointer */ value)
 const refs = (&readonly (/* borrow */ value), *readonly (/* pointer */ value));
 ```
 
+### reference operators as receivers
+
+Ownership operator values keep receiver parentheses.
+
+```ds
+const borrowed = (&value).read()
+const readonly = (&readonly value).read()
+const owned = (^value).read()
+const pointer = (*value).read()
+```
+
+```ds expected
+const borrowed = (&value).read();
+const readonly = (&readonly value).read();
+const owned = (^value).read();
+const pointer = (*value).read();
+```
+
 ### reference operators in return tail
 
 Ownership operators stay semicolonless when returned as function tail values.

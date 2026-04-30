@@ -140,6 +140,171 @@ const result = if (x > 0) { "positive" } else { "negative" }
 const result = if (x > 0) { "positive" } else { "negative" };
 ```
 
+### if initializer value
+
+If expressions used as initializer values can stay compact.
+
+```ds
+const label = if (ready) { readyLabel } else { pendingLabel }
+```
+
+```ds expected
+const label = if (ready) { readyLabel } else { pendingLabel };
+```
+
+### if return and argument values
+
+If values stay compact in return and call argument positions when they fit.
+
+```ds
+function render(): View { return if (ready) { activeView } else { inactiveView } }
+renderDashboard(if (ready) { activeView } else { inactiveView })
+```
+
+```ds expected
+function render(): View {
+    return if (ready) { activeView } else { inactiveView };
+}
+renderDashboard(if (ready) { activeView } else { inactiveView });
+```
+
+### if collection values
+
+If values keep required grouping in collection and spread positions.
+
+```ds
+const values = [if (ready) { readyValue } else { pendingValue }, ...(if (ready) { readyItems } else { pendingItems })]
+const envelope = { status: if (ready) { "ready" } else { "pending" }, ...(if (ready) { readyFields } else { pendingFields }) }
+```
+
+```ds expected
+const values = [
+    if (ready) { readyValue } else { pendingValue },
+    ...(if (ready) { readyItems } else { pendingItems }),
+];
+const envelope = {
+    status: if (ready) { "ready" } else { "pending" },
+    ...(if (ready) { readyFields } else { pendingFields }),
+};
+```
+
+### if chain receiver value
+
+If values keep required grouping as chain receivers.
+
+```ds
+const result = (if (ready) { readyBuilder } else { pendingBuilder }).build()
+```
+
+```ds expected
+const result = (if (ready) { readyBuilder } else { pendingBuilder }).build();
+```
+
+### if binary operand value
+
+If values keep required grouping as binary operands.
+
+```ds
+const total = (if (ready) { readyScore } else { pendingScore }) + bonus
+```
+
+```ds expected
+const total = (if (ready) { readyScore } else { pendingScore }) + bonus;
+```
+
+### long if initializer value
+
+Long if initializer values expand all branch blocks.
+
+```ds line-width=80
+const label = if(score > highWaterMark){const normalized=score-highWaterMark;formatLongLabel("high",normalized,metadata.currentUser.displayName)}else if(score < lowWaterMark){const normalized=lowWaterMark-score;formatLongLabel("low",normalized,metadata.currentUser.displayName)}else{"ok"}
+```
+
+```ds expected
+const label = if (score > highWaterMark) {
+    const normalized = score - highWaterMark;
+    formatLongLabel("high", normalized, metadata.currentUser.displayName)
+} else if (score < lowWaterMark) {
+    const normalized = lowWaterMark - score;
+    formatLongLabel("low", normalized, metadata.currentUser.displayName)
+} else {
+    "ok"
+};
+```
+
+### long if argument value
+
+Long if argument values expand all branch blocks.
+
+```ds line-width=80
+renderDashboard(user.id, if (user.active) { buildActiveSummary(user, context.locale, context.timeZone) } else { buildInactiveSummary(user, context.locale, context.timeZone) })
+```
+
+```ds expected
+renderDashboard(
+    user.id,
+    if (user.active) {
+        buildActiveSummary(user, context.locale, context.timeZone)
+    } else {
+        buildInactiveSummary(user, context.locale, context.timeZone)
+    },
+);
+```
+
+### long if chain receiver value
+
+Long if chain receiver values expand all branch blocks.
+
+```ds line-width=80
+const result = (if (ready) { createReadyBuilder(context, source) } else { createPendingBuilder(context, source) }).build().finalize()
+```
+
+```ds expected
+const result = (if (ready) {
+    createReadyBuilder(context, source)
+} else {
+    createPendingBuilder(context, source)
+})
+    .build()
+    .finalize();
+```
+
+### multiline if initializer value
+
+Manually broken if initializer values keep all branch blocks expanded.
+
+```ds
+const label = if (ready) {
+    readyLabel
+} else { pendingLabel }
+```
+
+```ds expected
+const label = if (ready) {
+    readyLabel
+} else {
+    pendingLabel
+};
+```
+
+### multiline if chain receiver value
+
+Manually broken if chain receiver values keep all branch blocks expanded.
+
+```ds
+const result = (if (ready) {
+    readyBuilder
+} else { pendingBuilder }).build()
+```
+
+```ds expected
+const result = (if (ready) {
+    readyBuilder
+} else {
+    pendingBuilder
+}).build();
+```
+
 ### if tail expression preserves branch values
 
 If expressions in tail position keep branch tails as values.
