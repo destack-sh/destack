@@ -3,7 +3,7 @@ use crate::common::{
     ensure_no_watch_or_dev, list_payload, print_list_with, report_from_payload,
 };
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{
     CommandPayload, CommandTaskAction, CommandTaskEntry, CommandTaskOptions, CommandTaskPayload,
@@ -62,7 +62,7 @@ pub fn run(args: &TaskArgs) -> i32 {
         groups: args.groups.clone(),
     });
 
-    run_workspace_payload_command_or_report::<CommandTaskPayload, _, _>(
+    run_root_payload_command_or_report::<CommandTaskPayload, _, _>(
         "task",
         &args.report,
         &args.program,

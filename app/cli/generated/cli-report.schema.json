@@ -52,17 +52,6 @@
         }
       ]
     },
-    "stats": {
-      "description": "Compiler stats snapshot for tooling.",
-      "anyOf": [
-        {
-          "$ref": "#/$defs/CommandStats"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "data": {
       "description": "Command-specific payload."
     }
@@ -252,109 +241,6 @@
         "code",
         "kind",
         "message"
-      ]
-    },
-    "CommandStats": {
-      "description": "Summary statistics for command execution.",
-      "type": "object",
-      "properties": {
-        "elapsed_ms": {
-          "description": "Elapsed time in milliseconds.",
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0
-        },
-        "tasks_completed": {
-          "description": "Number of tasks completed by the compiler.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "tasks_failed": {
-          "description": "Number of tasks failed by the compiler.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "modules_processed": {
-          "description": "Number of modules processed.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "lines_processed": {
-          "description": "Number of lines processed.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "slow_tasks": {
-          "description": "Number of slow tasks detected.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "cache": {
-          "description": "Cache statistics for the command.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CommandCacheStats"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "elapsed_ms",
-        "tasks_completed",
-        "tasks_failed",
-        "modules_processed",
-        "lines_processed",
-        "slow_tasks"
-      ]
-    },
-    "CommandCacheStats": {
-      "description": "Cache statistics for command output.",
-      "type": "object",
-      "properties": {
-        "hits_memory": {
-          "description": "Cache hits from memory.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "misses": {
-          "description": "Cache misses.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "writes_memory": {
-          "description": "Cache writes to memory.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "errors": {
-          "description": "Cache errors.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "hit_rate": {
-          "description": "Cache hit rate across all cache kinds.",
-          "type": "number",
-          "format": "float"
-        }
-      },
-      "required": [
-        "hits_memory",
-        "misses",
-        "writes_memory",
-        "errors",
-        "hit_rate"
       ]
     }
   }

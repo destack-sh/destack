@@ -1,14 +1,14 @@
 use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
     DiagnosticArgs, InputArgs, InputSource, ProgramArgs, ProgressMode, ProgressReporter,
-    ReportArgs, TimingOutputOptions, WatchCompileReason, is_tty, report_error,
+    ReportArgs, WatchCompileReason, is_tty, report_error,
 };
 use crate::console;
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DaemonCommandResult, DiagnosticCommandSummary,
-    command_inputs_from_sources, command_stats_from_protocol, emit_daemon_text_output,
-    finish_diagnostic_command, run_workspace_command_once,
+    command_inputs_from_sources, emit_daemon_text_output, finish_diagnostic_command,
+    run_root_command_once,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
@@ -179,7 +179,7 @@ fn run_check_via_daemon(
     };
 
     // execute the daemon command
-    let result = match run_workspace_command_once(
+    let result = match run_root_command_once(
         &args.program,
         Some(diagnostic_options),
         common,
@@ -196,7 +196,6 @@ fn run_check_via_daemon(
         &result,
         &context.json_format_options(),
         &context.format_options,
-        context.timing_options(args),
         context.line_writer().as_ref(),
         context.summary(args, &result),
         None,
@@ -306,7 +305,7 @@ where
                 };
 
             // run the daemon check command
-            let result = match daemon.run_workspace_command(root, common, payload) {
+            let result = match daemon.run_root_command(root, common, payload) {
                 Ok(result) => result,
                 Err(message) => {
                     let message = watch_error(&message.to_string());
@@ -327,11 +326,6 @@ where
             );
 
             // report diagnostics for the updated state
-            let stats = result
-                .response
-                .stats
-                .as_ref()
-                .map(|stats| command_stats_from_protocol(stats, args.program.timings));
             emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
@@ -342,7 +336,6 @@ where
                     module_count: result.response.module_count,
                     line_writer: line_writer.as_ref(),
                 },
-                stats,
                 reason,
                 updated,
                 requires_rescan,
@@ -398,15 +391,6 @@ impl CheckExecutionContext {
             max_warnings: self.format_options.max_warnings,
             statistics: self.format_options.statistics,
             suppress_diagnostics: false,
-        }
-    }
-
-    /// Build timing output options for the command.
-    fn timing_options(&self, args: &CheckArgs) -> TimingOutputOptions {
-        TimingOutputOptions {
-            enabled: args.program.timings,
-            top: args.report.timings_top,
-            min_ms: args.report.timings_min_ms,
         }
     }
 

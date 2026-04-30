@@ -67,8 +67,9 @@ pub fn load_tasks(
     destack_config_path: &Path,
 ) -> CliResult<Vec<TaskSpec>> {
     // read the config file from repository truth
+    let file_id = repository.file_id(destack_config_path);
     let file = repository
-        .file_for_path(revision, destack_config_path)
+        .file(revision, file_id)
         .map_err(|error| {
             CliError::message(format!(
                 "failed to load {}: {error}",
@@ -221,21 +222,19 @@ fn resolve_package_script(
     cwd: &Path,
 ) -> CliResult<Option<ScriptCommand>> {
     // find the semantic package for the current path
-    let package = repository
-        .package_for_path(revision, cwd)
-        .map_err(|error| {
-            CliError::message(format!(
-                "failed to resolve package for {}: {error}",
-                cwd.display()
-            ))
-        })?;
+    let package = repository.nearest_package(revision, cwd).map_err(|error| {
+        CliError::message(format!(
+            "failed to resolve package for {}: {error}",
+            cwd.display()
+        ))
+    })?;
     let Some(package) = package else {
         return Ok(None);
     };
 
     // load the tracked package declaration from the active revision
     let declaration = repository
-        .package_declaration(revision, package.as_ref())
+        .package_declaration_for_package(revision, package.as_ref())
         .map_err(|error| {
             CliError::message(format!(
                 "failed to load package.json for {}: {error}",
@@ -289,7 +288,7 @@ fn task_base_dir(
             cwd.join(config)
         };
 
-        if let Ok(Some(metadata)) = repository.metadata_for_path(revision, &config_path) {
+        if let Ok(Some(metadata)) = repository.file_metadata(revision, &config_path) {
             if metadata.is_directory {
                 return config_path;
             }

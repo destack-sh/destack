@@ -3,7 +3,7 @@ use crate::common::{
     list_payload, print_list_with, report_from_payload,
 };
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{CommandCacheOptions, CommandCachePayload, CommandPayload};
 
@@ -29,7 +29,7 @@ pub fn run(args: &CacheArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Cache(CommandCacheOptions);
 
-    run_workspace_payload_command_or_report::<CommandCachePayload, _, _>(
+    run_root_payload_command_or_report::<CommandCachePayload, _, _>(
         "cache",
         &args.report,
         &args.program,

@@ -1,7 +1,7 @@
 use crate::command::fmt::{FmtArgs, run};
 use crate::common::program::QuoteStyleArg;
 use crate::common::{DiagnosticArgs, ReportArgs};
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_command_once};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_command_once};
 
 use destack_daemon::protocol::{CommandFormatOptions, CommandFormatPayload, CommandPayload};
 use destack_source::FileSystem;
@@ -74,7 +74,7 @@ fn test_fmt_formats_destack_file() {
 /// Formats typescript files during default directory scans.
 #[test]
 fn test_fmt_default_scan_includes_typescript() {
-    // set up a typescript file in the workspace root
+    // set up a typescript file in the root
     let program = TestProgram::new("fmt_scan_ts");
     let path = program.write_text("main.ts", "const answer=42");
 
@@ -292,7 +292,7 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     });
 
     // run the daemon command directly so we can inspect payload data
-    let result = run_workspace_command_once(&program.program_args(), None, common, payload, None)
+    let result = run_root_command_once(&program.program_args(), None, common, payload, None)
         .expect("format command should return a response");
 
     // parse and decode the format payload

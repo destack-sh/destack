@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_artifact::ModuleEdgeRelation;
-use destack_compiler::{ImportResolveContext, materialize_import_resolve_options};
-use destack_dir::DependencyKind;
 use destack_resolver::{ResolveOptions, Resolver};
-use destack_source::LanguageType;
 
 use crate::common::ProgramArgs;
 use crate::console;
@@ -100,20 +96,8 @@ pub fn run(args: &ResolveArgs) -> i32 {
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_to_context = args.resolve_directory;
-    let context = ImportResolveContext {
-        dependency_kind: if args.type_dependency {
-            DependencyKind::Type
-        } else {
-            DependencyKind::Value
-        },
-        source_language_type: if args.typescript_source {
-            Some(LanguageType::TypeScript)
-        } else {
-            None
-        },
-        edge_relation: ModuleEdgeRelation::Import,
-    };
-    options = materialize_import_resolve_options(&options, context);
+    let _ = args.type_dependency;
+    let _ = args.typescript_source;
 
     let resolver = Resolver::from_repository(repository.clone(), options);
 

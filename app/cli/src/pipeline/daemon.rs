@@ -4,15 +4,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use destack_compiler::CompilerOptions;
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
-    CommandRequest, CommandResponse, CommandRunPayload, CommandStats, CommandTargetOverrides,
+    CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
     CommonCommandOptions, ConfigOverride, DaemonMessageKind as ProtocolMessageKind,
     DaemonMessageRecord, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse,
-    DiagnosticBatch, FileSnapshot, OpenWorkspaceRequest, OutputStream, ProtocolClient,
-    QueryRequestPayload, WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent,
-    WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
+    DiagnosticBatch, FileUpdateImage, OpenRootRequest, OutputStream, ProtocolClient,
+    QueryRequestPayload, RootHandleId, RootOpenOptions, WatchBatch as ProtocolWatchBatch,
+    WatchBatchRequest, WatchEvent, WatchStatus,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -35,9 +34,8 @@ use crate::common::program::{
 };
 use crate::common::{
     CommandError, CommandReport, DiagnosticFormat, FormatOptions, InputSource, LineWriter,
-    ProgramArgs, ReportArgs, StatsSummary, TargetArgs, TimingOutputOptions,
-    collect_diagnostics_json, format_diagnostics_with_writer, parse_command_payload,
-    parse_required_command_payload, print_command_stats_summary, print_report, report_error,
+    ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json, format_diagnostics_with_writer,
+    parse_command_payload, parse_required_command_payload, print_report, report_error,
     report_from_message_payload, report_from_payload,
 };
 use crate::console;
@@ -51,19 +49,19 @@ use crate::pipeline::watch::{
 pub struct ProtocolDaemonClient {
     /// Protocol client for daemon requests.
     client: Arc<ProtocolClient>,
-    /// Workspace handles keyed by root path.
-    handles: Vec<WorkspaceHandle>,
+    /// Root handles keyed by root path.
+    handles: Vec<RootHandle>,
     /// Connection state for the daemon.
     connection: Option<DaemonConnection>,
 }
 
-/// Workspace handle metadata for CLI usage.
+/// Root handle metadata for CLI usage.
 #[derive(Debug, Clone)]
-struct WorkspaceHandle {
+struct RootHandle {
     /// Workspace root for the handle.
     root: PathBuf,
     /// Daemon handle identifier.
-    handle: WorkspaceHandleId,
+    handle: RootHandleId,
 }
 
 /// Settings used to build a daemon launch config.
@@ -135,13 +133,13 @@ impl DaemonConnector {
     /// Create a connector from program settings.
     fn new(
         repository: Arc<Repository>,
-        compiler_options: CompilerOptions,
+        worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
         program: &ProgramArgs,
     ) -> Self {
         // build connect options
         let options = DaemonConnectOptions {
-            compiler: compiler_options,
+            worker_limit,
             session_event_handler,
             ..DaemonConnectOptions::default()
         };
@@ -200,7 +198,7 @@ pub struct DaemonCommandResult {
     pub response: CommandResponse,
     /// Flattened diagnostics from the response.
     pub diagnostics: DiagnosticCollection,
-    /// Files reconstructed from response snapshots.
+    /// Files reconstructed from response images.
     pub files: BTreeMap<FileId, Arc<File>>,
 }
 
@@ -534,7 +532,7 @@ impl ProtocolDaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(
         repository: Arc<Repository>,
-        compiler_options: CompilerOptions,
+        worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
         roots: Vec<PathBuf>,
         program: &ProgramArgs,
@@ -542,36 +540,36 @@ impl ProtocolDaemonClient {
         // connect to the daemon
         let connector = DaemonConnector::new(
             repository.clone(),
-            compiler_options,
+            worker_limit,
             session_event_handler,
             program,
         );
         let connection = connector.connect()?;
         let client = connection.client.clone();
 
-        // open each workspace root
+        // open each root
         let mut handles = Vec::new();
         for root in roots {
-            let request = OpenWorkspaceRequest {
+            let request = OpenRootRequest {
                 root: root.clone(),
-                options: WorkspaceOpenOptions::default(),
+                options: RootOpenOptions::default(),
             };
-            let response = match client.send_request(DaemonRequest::OpenWorkspace(request)) {
+            let response = match client.send_request(DaemonRequest::OpenRoot(request)) {
                 Ok(response) => response,
                 Err(error) => {
-                    return Err(CliError::message(format!("open workspace failed: {error}")));
+                    return Err(CliError::message(format!("open root failed: {error}")));
                 }
             };
             let handle = match response {
-                DaemonResponse::WorkspaceOpened(response) => response.handle,
+                DaemonResponse::RootOpened(response) => response.handle,
                 DaemonResponse::Error(error) => {
-                    return Err(CliError::message(format!("open workspace failed: {error}")));
+                    return Err(CliError::message(format!("open root failed: {error}")));
                 }
                 other => {
                     return Err(CliError::message(format!("unexpected response: {other:?}")));
                 }
             };
-            handles.push(WorkspaceHandle { root, handle });
+            handles.push(RootHandle { root, handle });
         }
 
         Ok(Self {
@@ -581,17 +579,17 @@ impl ProtocolDaemonClient {
         })
     }
 
-    /// Run a workspace command for a root.
-    pub fn run_workspace_command(
+    /// Run a root command for a root.
+    pub fn run_root_command(
         &self,
         root: &Path,
         common: CommonCommandOptions,
         payload: CommandPayload,
     ) -> CliResult<DaemonCommandResult> {
-        // resolve the workspace handle
-        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
-            CliError::message(format!("workspace root not opened: {}", root.display()))
-        })?;
+        // resolve the root handle
+        let handle = self
+            .root_handle(root)
+            .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
         // send the request to the daemon
         let request = CommandRequest {
@@ -618,16 +616,16 @@ impl ProtocolDaemonClient {
         Ok(command_result_from_response(response))
     }
 
-    /// Run a workspace query for a root.
+    /// Run a root query for a root.
     pub fn run_query(
         &self,
         root: &Path,
         request: QueryRequestEnvelope,
     ) -> CliResult<QueryResponseEnvelope> {
-        // resolve the workspace handle
-        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
-            CliError::message(format!("workspace root not opened: {}", root.display()))
-        })?;
+        // resolve the root handle
+        let handle = self
+            .root_handle(root)
+            .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
         // encode the semantic query request envelope
         let request = QueryRequestPayload::from_envelope(request)
@@ -636,7 +634,7 @@ impl ProtocolDaemonClient {
         // send the request to the daemon
         let response = self
             .client
-            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+            .send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
                 handle: handle.handle,
                 request,
             }))
@@ -655,7 +653,7 @@ impl ProtocolDaemonClient {
 
         // unwrap the query response
         let response = match response {
-            DaemonQueryResponse::WorkspaceQuery(response) => response,
+            DaemonQueryResponse::RootQuery(response) => response,
             other => {
                 return Err(CliError::message(format!(
                     "unexpected query response: {other:?}"
@@ -671,10 +669,10 @@ impl ProtocolDaemonClient {
 
     /// Resolve the current semantic revision for a root.
     pub fn run_current_revision(&self, root: &Path) -> CliResult<Revision> {
-        // resolve the workspace handle
-        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
-            CliError::message(format!("workspace root not opened: {}", root.display()))
-        })?;
+        // resolve the root handle
+        let handle = self
+            .root_handle(root)
+            .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
         // send the revision request to the daemon
         let response = self
@@ -708,16 +706,16 @@ impl ProtocolDaemonClient {
         }
     }
 
-    /// Run a batch of workspace queries for a root.
+    /// Run a batch of root queries for a root.
     pub fn run_query_batch(
         &self,
         root: &Path,
         requests: Vec<QueryRequestEnvelope>,
     ) -> CliResult<Vec<QueryResponseEnvelope>> {
-        // resolve the workspace handle
-        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
-            CliError::message(format!("workspace root not opened: {}", root.display()))
-        })?;
+        // resolve the root handle
+        let handle = self
+            .root_handle(root)
+            .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
         // encode semantic query request envelopes
         let requests: Vec<QueryRequestPayload> = requests
@@ -729,7 +727,7 @@ impl ProtocolDaemonClient {
         // send the request to the daemon
         let response = self
             .client
-            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
+            .send_request(DaemonRequest::Query(DaemonQuery::RootQueryBatch {
                 handle: handle.handle,
                 requests,
             }))
@@ -748,7 +746,7 @@ impl ProtocolDaemonClient {
 
         // unwrap the query response
         let response = match response {
-            DaemonQueryResponse::WorkspaceQueryBatch(response) => response,
+            DaemonQueryResponse::RootQueryBatch(response) => response,
             other => {
                 return Err(CliError::message(format!(
                     "unexpected query response: {other:?}"
@@ -769,8 +767,8 @@ impl ProtocolDaemonClient {
         let _ = self.connection.take();
     }
 
-    /// Resolve the workspace handle for a root, if known.
-    fn workspace_handle_for_root(&self, root: &Path) -> Option<&WorkspaceHandle> {
+    /// Resolve the root handle for a root, if known.
+    fn root_handle(&self, root: &Path) -> Option<&RootHandle> {
         self.handles.iter().find(|handle| handle.root == root)
     }
 
@@ -810,7 +808,7 @@ impl ProtocolDaemonClient {
     /// Apply a protocol watch batch for a handle.
     fn apply_batch_for_handle(
         &self,
-        handle: &WorkspaceHandle,
+        handle: &RootHandle,
         batch: ProtocolWatchBatch,
     ) -> CliResult<WatchBatchSummary> {
         let response = self
@@ -940,17 +938,8 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
     })
 }
 
-/// Clone a daemon command stats payload while optionally dropping timing entries.
-pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) -> CommandStats {
-    let mut stats = stats.clone();
-    if !include_timings {
-        stats.timings = None;
-    }
-    stats
-}
-
 /// Run a daemon command with a one-shot client.
-pub fn run_workspace_command_once(
+pub fn run_root_command_once(
     program: &ProgramArgs,
     diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
@@ -962,7 +951,7 @@ pub fn run_workspace_command_once(
 
     let diagnostic = diagnostic.unwrap_or_default();
 
-    run_workspace_command_with_repository(
+    run_root_command_with_repository(
         repository,
         program,
         diagnostic,
@@ -973,7 +962,7 @@ pub fn run_workspace_command_once(
 }
 
 /// Run a daemon command using an existing repository.
-pub fn run_workspace_command_with_repository(
+pub fn run_root_command_with_repository(
     repository: Arc<Repository>,
     program: &ProgramArgs,
     diagnostic: DiagnosticOptions,
@@ -981,10 +970,10 @@ pub fn run_workspace_command_with_repository(
     payload: CommandPayload,
     event_handler: Option<SessionEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
-    // resolve workspace roots for the daemon repository
+    // resolve roots for the daemon repository
     let roots = watch_roots(program, &repository);
     let Some(root) = roots.first().cloned() else {
-        return Err(CliError::message("workspace roots are empty"));
+        return Err(CliError::message("roots are empty"));
     };
 
     // build compiler options for the daemon
@@ -998,13 +987,13 @@ pub fn run_workspace_command_with_repository(
     )?;
 
     // execute the command and shutdown
-    let result = daemon.run_workspace_command(&root, common, payload)?;
+    let result = daemon.run_root_command(&root, common, payload)?;
     daemon.shutdown();
     Ok(result)
 }
 
-/// Execute a workspace command or emit a CLI error report.
-pub fn run_workspace_command_or_report(
+/// Execute a root command or emit a CLI error report.
+pub fn run_root_command_or_report(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
@@ -1012,12 +1001,12 @@ pub fn run_workspace_command_or_report(
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_workspace_command_once(program, diagnostic, common, payload, None)
+    run_root_command_once(program, diagnostic, common, payload, None)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
-/// Execute a workspace command and decode a required payload or emit a CLI error report.
-pub fn run_workspace_command_with_required_payload_or_report<T: DeserializeOwned>(
+/// Execute a root command and decode a required payload or emit a CLI error report.
+pub fn run_root_command_with_required_payload_or_report<T: DeserializeOwned>(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
@@ -1026,14 +1015,8 @@ pub fn run_workspace_command_with_required_payload_or_report<T: DeserializeOwned
     payload: CommandPayload,
     payload_label: &str,
 ) -> Result<(DaemonCommandResult, T, Value), i32> {
-    let result = run_workspace_command_or_report(
-        command,
-        report_args,
-        program,
-        diagnostic,
-        common,
-        payload,
-    )?;
+    let result =
+        run_root_command_or_report(command, report_args, program, diagnostic, common, payload)?;
     let (payload, value) = parse_required_command_payload::<T>(
         command,
         report_args,
@@ -1044,8 +1027,8 @@ pub fn run_workspace_command_with_required_payload_or_report<T: DeserializeOwned
     Ok((result, payload, value))
 }
 
-/// Execute a workspace command with a prepared repository or emit a CLI error report.
-pub fn run_workspace_command_with_repository_or_report(
+/// Execute a root command with a prepared repository or emit a CLI error report.
+pub fn run_root_command_with_repository_or_report(
     command: &str,
     report_args: &ReportArgs,
     repository: Arc<Repository>,
@@ -1054,14 +1037,14 @@ pub fn run_workspace_command_with_repository_or_report(
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_workspace_command_with_repository(repository, program, diagnostic, common, payload, None)
+    run_root_command_with_repository(repository, program, diagnostic, common, payload, None)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
 /// Shared summary metadata for diagnostic commands.
 #[derive(Debug, Clone, Copy)]
 pub struct DiagnosticCommandSummary<'a> {
-    /// Verb used for the final stats summary.
+    /// Verb used for the final summary.
     pub verb: &'a str,
     /// Number of modules processed.
     pub modules: usize,
@@ -1071,8 +1054,44 @@ pub struct DiagnosticCommandSummary<'a> {
     pub targets: usize,
 }
 
+/// Print a compact diagnostic command summary.
+fn print_diagnostic_command_summary(
+    summary: &DiagnosticCommandSummary<'_>,
+    errors: usize,
+    warnings: usize,
+    line_writer: Option<&LineWriter>,
+) {
+    let mut parts = vec![
+        format!("{} {}", summary.verb, pluralize(summary.modules, "module")),
+        pluralize(summary.profiles, "profile"),
+    ];
+
+    if summary.targets > 0 {
+        parts.push(pluralize(summary.targets, "target"));
+    }
+
+    parts.push(pluralize(errors, "error"));
+    parts.push(pluralize(warnings, "warning"));
+
+    let line = parts.join(", ");
+    if let Some(line_writer) = line_writer {
+        line_writer(&line);
+    } else {
+        eprintln!("{line}");
+    }
+}
+
+/// Pluralize a word for a display count.
+fn pluralize(count: usize, word: &str) -> String {
+    if count == 1 {
+        return format!("{count} {word}");
+    }
+
+    format!("{count} {word}s")
+}
+
 /// Run a daemon command that returns a required typed payload.
-pub fn run_workspace_payload_command_or_report<T, JsonFn, TextFn>(
+pub fn run_root_payload_command_or_report<T, JsonFn, TextFn>(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
@@ -1089,19 +1108,18 @@ where
     TextFn: FnOnce(i32, T),
 {
     // execute the command and decode the payload
-    let (result, payload, payload_value) =
-        match run_workspace_command_with_required_payload_or_report::<T>(
-            command,
-            report_args,
-            program,
-            diagnostic,
-            common,
-            payload,
-            payload_label,
-        ) {
-            Ok(result) => result,
-            Err(code) => return code,
-        };
+    let (result, payload, payload_value) = match run_root_command_with_required_payload_or_report::<T>(
+        command,
+        report_args,
+        program,
+        diagnostic,
+        common,
+        payload,
+        payload_label,
+    ) {
+        Ok(result) => result,
+        Err(code) => return code,
+    };
 
     // emit daemon output before command specific rendering
     emit_daemon_text_output(
@@ -1131,7 +1149,6 @@ pub fn finish_diagnostic_command(
     result: &DaemonCommandResult,
     json_format_options: &FormatOptions,
     text_format_options: &FormatOptions,
-    timing_options: TimingOutputOptions,
     line_writer: Option<&LineWriter>,
     summary: Option<DiagnosticCommandSummary<'_>>,
     data: Option<Value>,
@@ -1153,9 +1170,6 @@ pub fn finish_diagnostic_command(
             json_format_options,
         );
         let mut report = report_from_payload(command, format_result.exit_code(), data, None, None);
-        if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats, timing_options.enabled));
-        }
         report.diagnostics = Some(output);
         print_report(&report, report_args.format());
         return format_result.exit_code();
@@ -1170,21 +1184,16 @@ pub fn finish_diagnostic_command(
         line_writer,
     );
 
-    // emit stats after text diagnostics
+    // emit a compact command summary after text diagnostics
     if matches!(text_format_options.format, DiagnosticFormat::Text)
         && let Some(summary) = summary
-        && let Some(stats) = result.response.stats.as_ref()
     {
-        let summary = StatsSummary {
-            verb: summary.verb,
-            modules: summary.modules,
-            profiles: summary.profiles,
-            targets: summary.targets,
-            errors: format_result.error_count,
-            warnings: format_result.warning_count,
-        };
-        let stats = command_stats_from_protocol(stats, timing_options.enabled);
-        print_command_stats_summary(&summary, &stats, timing_options, line_writer);
+        print_diagnostic_command_summary(
+            &summary,
+            format_result.error_count,
+            format_result.warning_count,
+            line_writer,
+        );
     }
 
     // keep warning threshold failures loud in text mode
@@ -1205,7 +1214,6 @@ pub fn finish_run_command(
     command: &str,
     report_args: &ReportArgs,
     result: &DaemonCommandResult,
-    include_timings: bool,
 ) -> i32 {
     // render diagnostics before payload output
     if report_args.is_json() {
@@ -1221,9 +1229,6 @@ pub fn finish_run_command(
 
         if format_result.exit_code() != 0 {
             let mut report = CommandReport::failure(command, format_result.exit_code());
-            if let Some(stats) = result.response.stats.as_ref() {
-                report.stats = Some(command_stats_from_protocol(stats, include_timings));
-            }
             report.diagnostics = Some(output);
             print_report(&report, report_args.format());
             return format_result.exit_code();
@@ -1272,10 +1277,7 @@ pub fn finish_run_command(
             Some((CommandRunPayload::Value { .. }, value)) => (None, None, Some(value)),
             None => (None, None, None),
         };
-        let mut report = report_from_payload(command, exit_code, data, summary, error);
-        if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats, include_timings));
-        }
+        let report = report_from_payload(command, exit_code, data, summary, error);
         print_report(&report, report_args.format());
     } else if exit_code != 0 {
         console::warn(&format!("process exited with code {exit_code}"));
@@ -1394,8 +1396,8 @@ fn command_result_from_response(response: CommandResponse) -> DaemonCommandResul
     // collect diagnostics from protocol batches
     let diagnostics = diagnostics_from_batches(&response.diagnostics);
 
-    // rebuild file registry from snapshots
-    let files = files_from_snapshots(&response.files);
+    // rebuild file registry from images
+    let files = files_from_update_images(&response.files);
 
     DaemonCommandResult {
         response,
@@ -1416,23 +1418,23 @@ fn diagnostics_from_batches(batches: &[DiagnosticBatch]) -> DiagnosticCollection
     collection
 }
 
-/// Convert file snapshots into a file registry.
-fn files_from_snapshots(snapshots: &[FileSnapshot]) -> BTreeMap<FileId, Arc<File>> {
-    // rebuild explicit files from snapshot metadata
+/// Convert file images into a file registry.
+fn files_from_update_images(images: &[FileUpdateImage]) -> BTreeMap<FileId, Arc<File>> {
+    // rebuild explicit files from image metadata
     let mut files = BTreeMap::new();
-    for snapshot in snapshots {
-        let Some(content) = snapshot.content.as_ref() else {
+    for image in images {
+        let Some(content) = image.content.as_ref() else {
             continue;
         };
         let file = File::from_text(
-            snapshot.id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
+            image.id,
+            image.name.clone(),
+            image.uri.clone(),
+            image.path.clone(),
+            image.file_type,
             content.clone(),
         );
-        files.insert(snapshot.id, Arc::new(file));
+        files.insert(image.id, Arc::new(file));
     }
     files
 }

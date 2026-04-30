@@ -3,7 +3,6 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::CompilerOptions;
 use destack_daemon::{
     Daemon, DaemonMessage, DaemonMessageKind, WatchBatch, WatchCoordinator, WatchPolicy,
 };
@@ -19,8 +18,8 @@ use crate::common::format::{
 };
 use crate::common::program::ProgramArgs;
 use crate::common::{
-    CommandStats, ReportArgs, WatchCompileJson, WatchCompileReason, WatchReporter,
-    collect_diagnostics_json, report_error,
+    ReportArgs, WatchCompileJson, WatchCompileReason, WatchReporter, collect_diagnostics_json,
+    report_error,
 };
 use crate::console;
 use crate::error::CliResult;
@@ -120,23 +119,6 @@ impl WatchLoopAction {
             exit_code,
             stop: true,
         }
-    }
-}
-
-/// Build compiler options for daemon updates.
-pub fn build_daemon_options(
-    program: &ProgramArgs,
-    diagnostic_options: DiagnosticOptions,
-) -> CompilerOptions {
-    // build compiler options aligned with the CLI run
-    CompilerOptions {
-        diagnostic: diagnostic_options,
-        workers: program.workers,
-        load_libraries: !program.no_libs,
-        inject_prelude: !program.no_prelude,
-        follow_imports: !program.no_follow_imports,
-        timings: program.timings,
-        ..Default::default()
     }
 }
 
@@ -263,7 +245,6 @@ impl fmt::Debug for WatchCompileContext<'_> {
 pub fn emit_watch_compile_report(
     reporter: &mut Option<WatchReporter>,
     context: WatchCompileContext<'_>,
-    stats: Option<CommandStats>,
     reason: WatchCompileReason,
     updated: bool,
     rescan: bool,
@@ -289,7 +270,6 @@ pub fn emit_watch_compile_report(
             batch_id,
             diagnostics: diagnostics_payload,
             exit_code: format_result.exit_code(),
-            stats,
         });
         return format_result.exit_code();
     }
@@ -408,7 +388,7 @@ pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
     repository: Arc<Repository>,
     program: &ProgramArgs,
     report: &ReportArgs,
-    diagnostic_options: DiagnosticOptions,
+    _diagnostic_options: DiagnosticOptions,
     event_handler: Option<SessionEventHandler>,
     watch_loop_options: WatchLoopOptions,
     state: &mut State,
@@ -441,10 +421,9 @@ where
     } = build_watch_context(command_name, program, report, &repository);
 
     // configure the daemon client for incremental updates
-    let daemon_options = build_daemon_options(program, diagnostic_options);
     let daemon = match ProtocolDaemonClient::new(
         repository.clone(),
-        daemon_options,
+        program.workers as usize,
         event_handler,
         roots.clone(),
         program,

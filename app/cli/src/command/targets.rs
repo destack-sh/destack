@@ -3,7 +3,7 @@ use crate::common::{
     list_payload, print_list_with, report_from_payload,
 };
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{CommandPayload, CommandTargetsOptions, CommandTargetsPayload};
 
@@ -33,7 +33,7 @@ pub fn run(args: &TargetsArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Targets(CommandTargetsOptions { all: args.all });
 
-    run_workspace_payload_command_or_report::<CommandTargetsPayload, _, _>(
+    run_root_payload_command_or_report::<CommandTargetsPayload, _, _>(
         "targets",
         &args.report,
         &args.program,

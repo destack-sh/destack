@@ -4,11 +4,13 @@ use std::io::Read;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_compiler::{Compiler, CompilerOptions, StatsSnapshot};
+use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_session::{Session, SessionEventHandler, SessionObservationHandler};
-use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId};
-use destack_workspace::{Repository, Revision};
+use destack_session::{Session, SessionEventHandler};
+use destack_source::{
+    DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, ProfileId, TargetId,
+};
+use destack_workspace::{Ref, Repository, Revision};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -83,13 +85,7 @@ impl fmt::Debug for CompilerContext {
 impl CompilerContext {
     /// Create a new compilation context for type checking.
     pub fn for_check(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(
-            program_args,
-            diagnostic_args,
-            CompilerMode::Check,
-            None,
-            None,
-        )
+        Self::new(program_args, diagnostic_args, CompilerMode::Check, None)
     }
 
     /// Create a new compilation context for building a target.
@@ -102,7 +98,6 @@ impl CompilerContext {
             program_args,
             diagnostic_args,
             CompilerMode::Build { target },
-            None,
             None,
         )
     }
@@ -118,7 +113,6 @@ impl CompilerContext {
             diagnostic_args,
             CompilerMode::Lower { target },
             None,
-            None,
         )
     }
 
@@ -129,13 +123,7 @@ impl CompilerContext {
         mode: CompilerMode,
         event_handler: SessionEventHandler,
     ) -> Self {
-        Self::new(
-            program_args,
-            diagnostic_args,
-            mode,
-            Some(event_handler),
-            None,
-        )
+        Self::new(program_args, diagnostic_args, mode, Some(event_handler))
     }
 
     /// Create a new compilation context with the given mode.
@@ -144,23 +132,11 @@ impl CompilerContext {
         diagnostic_args: &DiagnosticArgs,
         mode: CompilerMode,
         event_handler: Option<SessionEventHandler>,
-        observation_handler: Option<SessionObservationHandler>,
     ) -> Self {
         let diagnostic_options: DiagnosticOptions = diagnostic_args.clone().into();
         let repository = program_args.setup();
 
-        let compiler = Arc::new(Compiler::new(
-            repository.clone(),
-            CompilerOptions {
-                diagnostic: diagnostic_options.clone(),
-                workers: program_args.workers,
-                load_libraries: !program_args.no_libs,
-                inject_prelude: !program_args.no_prelude,
-                follow_imports: !program_args.no_follow_imports,
-                timings: program_args.timings,
-                ..Default::default()
-            },
-        ));
+        let compiler = Arc::new(Compiler::new(repository.clone()));
         let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
         let revision = repository
             .current(&reference)
@@ -169,11 +145,12 @@ impl CompilerContext {
             repository.workspace_root().to_path_buf(),
             program_args.effective_cwd(),
             repository.clone(),
+            Ref::new(format!("cli:{}", repository.workspace_root().display())),
             revision,
             compiler.clone(),
             Arc::new(Linter::new(repository.clone())),
+            program_args.workers as usize,
             event_handler,
-            observation_handler,
         )
         .expect("cli session should initialize");
 
@@ -216,7 +193,7 @@ impl CompilerContext {
         match source {
             InputSource::File(path) => self
                 .session
-                .admit_module_for_path(path)
+                .load_module_from_fs(self.session.head(), path)
                 .map_err(|e| CliError::message(format!("{e:?}"))),
             InputSource::Inline { code, name } => {
                 self.materialize_inline_module("inline", name, code)
@@ -245,26 +222,8 @@ impl CompilerContext {
 
         match &self.mode {
             CompilerMode::Check => {
-                let profile = self
-                    .repository
-                    .default_profile_id_for_module(revision, module)
-                    .map_err(|error| CliError::message(error.to_string()))?;
-                root_artifact_keys.push(ArtifactKey::dir_analyzed(module, profile));
-
-                // diagnostics
-                let diagnostic_target = self
-                    .repository
-                    .diagnostic_target_for_module(revision, module)
-                    .map_err(|error| CliError::message(error.to_string()))?;
-                let diagnostic_profile = self
-                    .repository
-                    .profile_id_for_target_or_default(revision, module, &diagnostic_target)
-                    .map_err(|error| CliError::message(error.to_string()))?;
-                root_artifact_keys.push(ArtifactKey::mir_optimized(
-                    module,
-                    diagnostic_profile,
-                    diagnostic_target,
-                ));
+                let profile = self.module_profile_id(revision, module)?;
+                root_artifact_keys.push(ArtifactKey::dir_checked(module, profile));
             }
             CompilerMode::Lower { target } => {
                 let module_ref = self
@@ -277,12 +236,9 @@ impl CompilerContext {
                         CliError::message(format!("missing module snapshot for {module:?}"))
                     })?;
                 let package_id = module_ref.package_id;
-                let target_id = self.repository.intern_target_id(package_id, target);
-                let profile = self
-                    .repository
-                    .profile_id_for_target_or_default(revision, module, &target_id)
-                    .map_err(|error| CliError::message(error.to_string()))?;
-                root_artifact_keys.push(ArtifactKey::mir_base(module, profile, target_id));
+                let target_id = TargetId::new(package_id, target);
+                let profile = self.target_profile_id(revision, module, target_id)?;
+                root_artifact_keys.push(ArtifactKey::mir_lowered(module, profile, target_id));
             }
             CompilerMode::Build { target } => {
                 let module_ref = self
@@ -295,7 +251,7 @@ impl CompilerContext {
                         CliError::message(format!("missing module snapshot for {module:?}"))
                     })?;
                 let package_id = module_ref.package_id;
-                let target_id = self.repository.intern_target_id(package_id, target);
+                let target_id = TargetId::new(package_id, target);
                 root_artifact_keys.push(ArtifactKey::module_output(module, target_id));
             }
         }
@@ -333,23 +289,17 @@ impl CompilerContext {
     pub fn compile(self) -> CliResult<CompileResult> {
         // provide all requested roots
         let artifact_keys = self.root_artifact_keys.borrow().clone();
-        self.session
-            .provide(&artifact_keys)
-            .map_err(|error| CliError::message(error.to_string()))?;
         let revision = self.current_revision()?;
+        self.session
+            .provide(revision, &artifact_keys)
+            .map_err(|error| CliError::message(error.to_string()))?;
         let diagnostics = self.collect_module_diagnostics(revision)?;
-        let stats = self
-            .session
-            .compiler()
-            .stats
-            .snapshot_with_repository(self.module_count_for_stats(), Some(&self.repository));
 
         Ok(CompileResult {
             repository: self.repository,
             revision,
             diagnostic_options: self.diagnostic_options,
             diagnostics,
-            stats,
         })
     }
 
@@ -357,40 +307,32 @@ impl CompilerContext {
     /// Useful when you need to access program/modules after compilation.
     pub fn run_compile(&self) -> CliResult<()> {
         let artifact_keys = self.root_artifact_keys.borrow().clone();
+        let revision = self.current_revision()?;
         self.session
-            .provide(&artifact_keys)
+            .provide(revision, &artifact_keys)
             .map_err(|error| CliError::message(error.to_string()))?;
 
         Ok(())
-    }
-
-    /// Create a compile result (for diagnostics).
-    /// Get stats snapshot (before consuming the compiler).
-    pub fn stats(&self) -> StatsSnapshot {
-        self.session
-            .compiler()
-            .stats
-            .snapshot_with_repository(self.module_count_for_stats(), Some(&self.repository))
     }
 
     /// Convert to a CompileResult, consuming self.
     pub fn into_result(self) -> CliResult<CompileResult> {
         let revision = self.current_revision()?;
         let diagnostics = self.collect_module_diagnostics(revision)?;
-        let stats = self.stats();
 
         Ok(CompileResult {
             repository: self.repository,
             revision,
             diagnostic_options: self.diagnostic_options,
             diagnostics,
-            stats,
         })
     }
 
     /// Return the current workspace revision for the compiler context.
     fn current_revision(&self) -> CliResult<Revision> {
-        Ok(self.session.revision())
+        self.session
+            .revision(self.session.head())
+            .map_err(|error| CliError::message(error.to_string()))
     }
 
     /// Materialize one inline CLI input into one command local revision.
@@ -405,7 +347,8 @@ impl CompilerContext {
         let logical_path = cli_input_logical_path(kind, name, file_type);
         let path = self.repository.workspace_root().join(&logical_path);
         self.session
-            .apply_virtual_update(
+            .apply(
+                self.session.head(),
                 path.as_path(),
                 destack_session::FileMutation::Text {
                     content: content.to_string(),
@@ -414,41 +357,52 @@ impl CompilerContext {
             .map_err(|error| CliError::message(error.to_string()))?;
         let module_id = self
             .session
-            .admit_module_for_path(path.as_path())
+            .load_module_from_fs(self.session.head(), path.as_path())
             .map_err(|error| CliError::message(format!("{error}")))?;
 
         Ok(module_id)
     }
 
-    /// Return the module count used for stats reporting.
-    fn module_count_for_stats(&self) -> usize {
-        let Ok(revision) = self.current_revision() else {
-            return 0;
-        };
-
-        self.repository
-            .workspace_module_ids(revision)
-            .map(|modules| modules.len())
-            .unwrap_or(0)
-    }
-
     /// Collect diagnostics for the queued modules in the current revision.
     fn collect_module_diagnostics(&self, revision: Revision) -> CliResult<DiagnosticCollection> {
-        let mut diagnostics = DiagnosticCollection::new();
-
-        for module_id in self.queued_modules.borrow().iter().copied() {
-            let profile_id = self
-                .repository
-                .default_profile_id_for_module(revision, module_id)
-                .map_err(|error| CliError::message(error.to_string()))?;
-            diagnostics.merge_from(
-                &self
-                    .repository
-                    .module_artifact_diagnostics(revision, module_id, profile_id),
-            );
-        }
+        let diagnostics = self
+            .repository
+            .diagnostics(revision)
+            .map_err(|error| CliError::message(error.to_string()))?;
 
         Ok(diagnostics)
+    }
+
+    /// Return the default profile id for one module.
+    fn module_profile_id(&self, revision: Revision, module_id: ModuleId) -> CliResult<ProfileId> {
+        let profile = self
+            .repository
+            .module_profile(revision, module_id)
+            .map_err(|error| CliError::message(error.to_string()))?;
+
+        Ok(profile.id())
+    }
+
+    /// Return the profile id selected for one module target.
+    fn target_profile_id(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        target_id: TargetId,
+    ) -> CliResult<ProfileId> {
+        let profile = self
+            .repository
+            .module_target_profile(revision, module_id, target_id)
+            .map_err(|error| CliError::message(error.to_string()))?;
+        let profile = if let Some(profile) = profile {
+            profile
+        } else {
+            self.repository
+                .module_profile(revision, module_id)
+                .map_err(|error| CliError::message(error.to_string()))?
+        };
+
+        Ok(profile.id())
     }
 }
 
@@ -489,8 +443,6 @@ pub struct CompileResult {
     pub diagnostic_options: DiagnosticOptions,
     /// The collected diagnostics for this compile result.
     pub diagnostics: DiagnosticCollection,
-    /// Compilation statistics.
-    pub stats: StatsSnapshot,
 }
 
 impl fmt::Debug for CompileResult {
@@ -500,7 +452,6 @@ impl fmt::Debug for CompileResult {
             .field("revision", &self.revision)
             .field("diagnostic_options", &self.diagnostic_options)
             .field("diagnostics", &self.diagnostics)
-            .field("stats", &self.stats)
             .finish()
     }
 }

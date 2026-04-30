@@ -3,13 +3,13 @@ use destack_source::DiagnosticOptions;
 
 use crate::common::{
     DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource, ProgramArgs,
-    ReportArgs, TargetArgs, TimingOutputOptions, WatchCompileReason, report_error,
+    ReportArgs, TargetArgs, WatchCompileReason, report_error,
 };
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DiagnosticCommandSummary, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, finish_diagnostic_command,
-    run_workspace_command_or_report, target_overrides_from_args,
+    emit_daemon_text_output, finish_diagnostic_command, run_root_command_or_report,
+    target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::target::target_name_from_args;
@@ -119,7 +119,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     let payload = CommandPayload::Build(CommandBuildOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_or_report(
+    let result = match run_root_command_or_report(
         "build",
         &args.report,
         &args.program,
@@ -153,19 +153,12 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
         format: DiagnosticFormat::Text,
         ..FormatOptions::default()
     };
-    let timing_options = TimingOutputOptions {
-        enabled: args.program.timings,
-        top: args.report.timings_top,
-        min_ms: args.report.timings_min_ms,
-    };
-
     finish_diagnostic_command(
         "build",
         &args.report,
         &result,
         &json_format_options,
         &text_format_options,
-        timing_options,
         None,
         Some(DiagnosticCommandSummary {
             verb: "Built",
@@ -297,7 +290,7 @@ where
             };
 
             // run the daemon build command
-            let result = match daemon.run_workspace_command(
+            let result = match daemon.run_root_command(
                 root,
                 options,
                 CommandPayload::Build(CommandBuildOptions::default()),
@@ -324,11 +317,6 @@ where
             }
 
             // report diagnostics for the updated state
-            let stats = result
-                .response
-                .stats
-                .as_ref()
-                .map(|stats| command_stats_from_protocol(stats, args.program.timings));
             emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
@@ -339,7 +327,6 @@ where
                     module_count: result.response.module_count,
                     line_writer: None,
                 },
-                stats,
                 reason,
                 updated,
                 requires_rescan,

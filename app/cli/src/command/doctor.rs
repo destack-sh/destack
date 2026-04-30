@@ -5,7 +5,7 @@ use destack_daemon::protocol::{
 
 use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_from_payload};
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 
 /// Arguments for the doctor command.
 #[derive(Args, Debug, Clone)]
@@ -33,7 +33,7 @@ pub fn run(args: &DoctorArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Doctor(CommandDoctorOptions { full: args.full });
 
-    run_workspace_payload_command_or_report::<CommandDoctorPayload, _, _>(
+    run_root_payload_command_or_report::<CommandDoctorPayload, _, _>(
         "doctor",
         &args.report,
         &args.program,

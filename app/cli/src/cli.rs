@@ -127,7 +127,7 @@ pub enum Command {
     /// Start the daemon service (for CLI integration).
     Daemon(DaemonArgs),
 
-    /// Execute workspace queries.
+    /// Execute root queries.
     Query(QueryArgs),
 
     /// Start a REPL session.

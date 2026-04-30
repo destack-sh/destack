@@ -3,7 +3,7 @@ use destack_daemon::protocol::{CommandDocOptions, CommandPayload};
 
 use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev};
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, finish_daemon_message_command, run_workspace_command_or_report,
+    CommandOptionsBuilder, finish_daemon_message_command, run_root_command_or_report,
 };
 
 /// Arguments for the doc command.
@@ -29,17 +29,12 @@ pub fn run(args: &DocArgs) -> i32 {
     let payload = CommandPayload::Doc(CommandDocOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_or_report(
-        "doc",
-        &args.report,
-        &args.program,
-        None,
-        common,
-        payload,
-    ) {
-        Ok(result) => result,
-        Err(code) => return code,
-    };
+    let result =
+        match run_root_command_or_report("doc", &args.report, &args.program, None, common, payload)
+        {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
 
     // emit command output based on the report format
     finish_daemon_message_command("doc", &args.report, &result)
