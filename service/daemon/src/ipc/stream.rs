@@ -86,9 +86,9 @@ pub(super) fn connect_stream(path: &Path) -> Result<IpcStream, DaemonIpcError> {
 #[cfg(windows)]
 fn path_to_pipe_name(path: &Path) -> String {
     // derive a pipe name from the socket path
-    let workspace_id = path
+    let root_id = path
         .file_stem()
         .and_then(|name| name.to_str())
-        .unwrap_or("workspace");
-    format!(r"\\.\pipe\destack-{workspace_id}")
+        .unwrap_or("root");
+    format!(r"\\.\pipe\destack-{root_id}")
 }

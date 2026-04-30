@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use destack_compiler::CompilerOptions;
-use destack_session::{SessionEventHandler, SessionObservationHandler};
+use destack_compiler::default_workers;
+use destack_session::SessionEventHandler;
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonLaunchConfig};
@@ -48,12 +48,10 @@ pub struct DaemonConnectOptions {
     pub client: ProtocolClientOptions,
     /// Server options used for in process connections.
     pub server: ProtocolServerOptions,
-    /// Compiler options for in process connections.
-    pub compiler: CompilerOptions,
+    /// Number of workers for each in process session.
+    pub worker_limit: usize,
     /// Optional session event handler for in process progress.
     pub session_event_handler: Option<SessionEventHandler>,
-    /// Optional session observation handler for in process instrumentation.
-    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Delay between connection attempts.
     pub retry_delay: Duration,
     /// Maximum time to wait for a daemon.
@@ -67,14 +65,10 @@ impl std::fmt::Debug for DaemonConnectOptions {
             .debug_struct("DaemonConnectOptions")
             .field("client", &self.client)
             .field("server", &self.server)
-            .field("compiler", &self.compiler)
+            .field("worker_limit", &self.worker_limit)
             .field(
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
-            )
-            .field(
-                "session_observation_handler",
-                &self.session_observation_handler.is_some(),
             )
             .field("retry_delay", &self.retry_delay)
             .field("timeout", &self.timeout)
@@ -88,9 +82,8 @@ impl Default for DaemonConnectOptions {
         Self {
             client: ProtocolClientOptions::default(),
             server: ProtocolServerOptions::default(),
-            compiler: CompilerOptions::default(),
+            worker_limit: default_workers() as usize,
             session_event_handler: None,
-            session_observation_handler: None,
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
         }
@@ -140,9 +133,8 @@ pub fn connect_in_process_daemon(
 ) -> Result<DaemonConnection, DaemonConnectError> {
     // build service options
     let service_options = DaemonServiceOptions {
-        compiler_options: options.compiler.clone(),
+        worker_limit: options.worker_limit,
         session_event_handler: options.session_event_handler.clone(),
-        session_observation_handler: options.session_observation_handler.clone(),
         protocol: options.server.clone(),
     };
 

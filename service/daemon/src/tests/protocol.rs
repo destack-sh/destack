@@ -2,17 +2,15 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::protocol::{
-    CacheStatsPayload, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, FileUpdate,
-    FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest, PROTOCOL_VERSION, PayloadBody,
-    PrepareQueryRequest, ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode,
-    ProtocolLimits, ProtocolRange, ProtocolServerActivity, ProtocolServerOptions, ProtocolVersion,
-    QueryRequestPayload, ReloadReason, ReloadWorkspaceRequest, WatchBatch, WatchBatchRequest,
-    WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
-    inline_payload_max_bytes,
+    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind,
+    FileUpdateRequest, OpenRootRequest, PROTOCOL_VERSION, PayloadBody, PrepareQueryRequest,
+    ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits, ProtocolRange,
+    ProtocolServerActivity, ProtocolServerOptions, ProtocolVersion, QueryRequestPayload,
+    ReloadReason, ReloadRootRequest, RootHandleId, RootOpenOptions, WatchBatch, WatchBatchRequest,
+    WatchEvent, WatchEventKind, WatchStatus, inline_payload_max_bytes,
 };
 use crate::tests::{
-    RequestRetryPolicy, TestDaemon, TestProtocolHarness, current_workspace_revision,
-    wait_for_condition,
+    RequestRetryPolicy, TestDaemon, TestProtocolHarness, current_root_revision, wait_for_condition,
 };
 use destack_query as query;
 use destack_query::{
@@ -48,9 +46,9 @@ fn test_protocol_apply_file_update() {
     // seed a file on disk
     let file_path = harness.test.write_text("app.ds", "export const value = 1");
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // apply a file update
     let update = FileUpdate {
@@ -74,11 +72,11 @@ fn test_protocol_apply_file_update() {
     harness.shutdown();
 }
 
-/// Serves protocol queries for secondary workspace roots.
+/// Serves protocol queries for secondary roots.
 #[test]
 fn test_protocol_query_for_secondary_workspace_root() {
-    let root_a = PathBuf::from("/workspace/a");
-    let root_b = PathBuf::from("/workspace/b");
+    let root_a = PathBuf::from("/root/a");
+    let root_b = PathBuf::from("/root/b");
     let harness = TestProtocolHarness::from_test(TestDaemon::new_with_roots(vec![
         root_a.clone(),
         root_b.clone(),
@@ -89,7 +87,7 @@ fn test_protocol_query_for_secondary_workspace_root() {
         .write_text(root_b.join("main.ds"), "export const value = 2");
 
     let _ = harness.handshake();
-    let handle = harness.open_workspace_root(root_b.clone());
+    let handle = harness.open_root_path(root_b.clone());
 
     let update = FileUpdate {
         path: file_b,
@@ -113,11 +111,11 @@ fn test_protocol_query_for_secondary_workspace_root() {
     harness.shutdown();
 }
 
-/// Keeps handle scoped diagnostics isolated across workspace roots.
+/// Keeps handle scoped diagnostics isolated across roots.
 #[test]
 fn test_protocol_query_diagnostics_stay_isolated_per_handle() {
-    let root_a = PathBuf::from("/workspace/a");
-    let root_b = PathBuf::from("/workspace/b");
+    let root_a = PathBuf::from("/root/a");
+    let root_b = PathBuf::from("/root/b");
     let harness = TestProtocolHarness::from_test(TestDaemon::new_with_roots(vec![
         root_a.clone(),
         root_b.clone(),
@@ -129,8 +127,8 @@ fn test_protocol_query_diagnostics_stay_isolated_per_handle() {
         .write_text(root_b.join("good.ds"), "export const value = 1");
 
     let _ = harness.handshake();
-    let handle_a = harness.open_workspace_root(root_a.clone());
-    let handle_b = harness.open_workspace_root(root_b.clone());
+    let handle_a = harness.open_root_path(root_a.clone());
+    let handle_b = harness.open_root_path(root_b.clone());
 
     let invalid_update = FileUpdate {
         path: file_a,
@@ -206,9 +204,9 @@ fn test_protocol_handshake_rejects_version() {
     harness.shutdown();
 }
 
-/// Streams large workspace query responses through deferred payload chunks.
+/// Streams large root query responses through deferred payload chunks.
 #[test]
-fn test_protocol_workspace_query_deferred_payload_roundtrip() {
+fn test_protocol_root_query_deferred_payload_roundtrip() {
     // configure small payload limits to force deferred query responses
     let limits = ProtocolLimits::new(4096, 4096, 8, 16);
     let server_options = ProtocolServerOptions {
@@ -231,8 +229,8 @@ fn test_protocol_workspace_query_deferred_payload_roundtrip() {
     }
     let file_path = harness.test.write_text("symbols.ds", &content);
 
-    // open the workspace and ensure query analysis readiness
-    let handle = harness.open_workspace();
+    // open the root and ensure query analysis readiness
+    let handle = harness.open_root();
     let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
         handle,
         path: file_path.clone(),
@@ -253,14 +251,14 @@ fn test_protocol_workspace_query_deferred_payload_roundtrip() {
         }),
     })
     .expect("query request encode");
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
         handle,
         request,
     }));
 
     // assert that the client reconstructed a deferred payload
     let payload = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(payload)) => payload,
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(payload)) => payload,
         other => panic!("unexpected response: {other:?}"),
     };
     let inline_limit = inline_payload_max_bytes(limits);
@@ -291,11 +289,11 @@ fn test_protocol_requires_handshake() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
-    let request = OpenWorkspaceRequest {
+    let request = OpenRootRequest {
         root: harness.test.root.clone(),
-        options: WorkspaceOpenOptions::default(),
+        options: RootOpenOptions::default(),
     };
-    let response = harness.send_request(DaemonRequest::OpenWorkspace(request));
+    let response = harness.send_request(DaemonRequest::OpenRoot(request));
     match response {
         DaemonResponse::Error(error) => {
             assert_eq!(error.code, ProtocolErrorCode::NotReady);
@@ -306,23 +304,23 @@ fn test_protocol_requires_handshake() {
     harness.shutdown();
 }
 
-/// Opens a workspace without preloading diagnostics when requested.
+/// Opens a root without preloading diagnostics when requested.
 #[test]
-fn test_protocol_open_workspace_skips_preload_when_disabled() {
+fn test_protocol_open_root_skips_preload_when_disabled() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
 
     // open without preload
-    let request = OpenWorkspaceRequest {
+    let request = OpenRootRequest {
         root: harness.test.root.clone(),
-        options: WorkspaceOpenOptions { load_index: false },
+        options: RootOpenOptions { load_index: false },
     };
-    let response = harness.send_request(DaemonRequest::OpenWorkspace(request));
+    let response = harness.send_request(DaemonRequest::OpenRoot(request));
 
     // assertion block
     match response {
-        DaemonResponse::WorkspaceOpened(response) => {
+        DaemonResponse::RootOpened(response) => {
             assert!(response.diagnostics.is_empty());
             assert!(response.messages.is_empty());
         }
@@ -332,15 +330,15 @@ fn test_protocol_open_workspace_skips_preload_when_disabled() {
     harness.shutdown();
 }
 
-/// Handles missing workspace handles gracefully.
+/// Handles missing root handles gracefully.
 #[test]
-fn test_protocol_unknown_workspace_handle() {
+fn test_protocol_unknown_root_handle() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
 
-    let response = harness.send_request(DaemonRequest::ReloadWorkspace(ReloadWorkspaceRequest {
-        handle: WorkspaceHandleId::new(999),
+    let response = harness.send_request(DaemonRequest::ReloadRoot(ReloadRootRequest {
+        handle: RootHandleId::new(999),
         reason: ReloadReason::Manual,
     }));
     match response {
@@ -353,13 +351,13 @@ fn test_protocol_unknown_workspace_handle() {
     harness.shutdown();
 }
 
-/// Rejects updates outside the workspace root.
+/// Rejects updates outside the root.
 #[test]
 fn test_protocol_rejects_update_outside_root() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     let update = FileUpdate {
         path: PathBuf::from("/other/file.ds"),
@@ -391,9 +389,9 @@ fn test_protocol_file_update_variants() {
     // seed a binary file
     let binary_path = harness.test.write_text("data.dsb", "payload");
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // apply a binary update
     let update = FileUpdate {
@@ -442,9 +440,9 @@ fn test_protocol_virtual_update_emits_diagnostics() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     let path = harness.test.root.join("virtual.ds");
 
@@ -499,9 +497,9 @@ fn test_protocol_virtual_update_query_goto_definition() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     let path = harness.test.root.join("virtual.ds");
     let content = concat!(
@@ -531,7 +529,7 @@ fn test_protocol_virtual_update_query_goto_definition() {
 
     // assert direct query behavior on the same repository state
     let file_id = harness.test.file_id_for_path(&path);
-    let revision = current_workspace_revision(harness.test.repository.as_ref());
+    let revision = current_root_revision(harness.test.repository.as_ref());
     let direct =
         query::goto_definition(harness.test.repository.as_ref(), revision, file_id, offset);
     assert!(direct.is_some(), "expected direct goto definition result");
@@ -547,13 +545,13 @@ fn test_protocol_virtual_update_query_goto_definition() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
+            DaemonRequest::Query(DaemonQuery::RootQuery { handle, request })
         },
         RequestRetryPolicy::default(),
     );
 
     let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
     let envelope = envelope.decode_envelope().expect("query response decode");
@@ -578,7 +576,7 @@ fn test_protocol_watch_batch_roundtrip() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     let batch = WatchBatch {
         events: vec![WatchEvent {
@@ -617,9 +615,9 @@ fn test_protocol_query_diagnostics() {
     // seed an invalid source file
     let file_path = harness.test.write_text("bad.ds", "function {");
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // apply an invalid update
     let update = FileUpdate {
@@ -645,28 +643,9 @@ fn test_protocol_query_diagnostics() {
     harness.shutdown();
 }
 
-/// Queries cache stats after handshake.
+/// Executes a root hover query.
 #[test]
-fn test_protocol_query_cache_stats() {
-    // build the protocol harness
-    let harness = TestProtocolHarness::new();
-    let _ = harness.handshake();
-    let handle = harness.open_workspace();
-
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::CacheStats { handle }));
-    match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::CacheStats(stats)) => {
-            assert_cache_stats(stats);
-        }
-        other => panic!("unexpected response: {other:?}"),
-    }
-
-    harness.shutdown();
-}
-
-/// Executes a workspace hover query.
-#[test]
-fn test_protocol_workspace_query_hover() {
+fn test_protocol_root_query_hover() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -680,9 +659,9 @@ fn test_protocol_workspace_query_hover() {
     );
     let file_path = harness.test.write_text("main.ds", content);
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // ensure analysis is available before running queries
     let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
@@ -709,13 +688,13 @@ fn test_protocol_workspace_query_hover() {
     .expect("query request encode");
 
     // execute the query
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
         handle,
         request,
     }));
 
     let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
     let envelope = envelope.decode_envelope().expect("query response decode");
@@ -734,13 +713,13 @@ fn test_protocol_workspace_query_hover() {
     harness.shutdown();
 }
 
-/// Requires revision preconditions for mutating workspace queries.
+/// Requires revision preconditions for mutating root queries.
 #[test]
-fn test_protocol_workspace_query_requires_revision_for_mutation() {
+fn test_protocol_root_query_requires_revision_for_mutation() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // reject mutating queries without an expected revision
     let missing_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
@@ -750,11 +729,10 @@ fn test_protocol_workspace_query_requires_revision_for_mutation() {
         }),
     })
     .expect("query request encode");
-    let missing_response =
-        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
-            handle,
-            request: missing_request,
-        }));
+    let missing_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+        handle,
+        request: missing_request,
+    }));
     match missing_response {
         DaemonResponse::Error(error) => {
             assert_eq!(error.code, ProtocolErrorCode::InvalidRequest);
@@ -770,7 +748,7 @@ fn test_protocol_workspace_query_requires_revision_for_mutation() {
         }),
     })
     .expect("query request encode");
-    let stale_response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+    let stale_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
         handle,
         request: stale_request,
     }));
@@ -799,13 +777,12 @@ fn test_protocol_workspace_query_requires_revision_for_mutation() {
         }),
     })
     .expect("query request encode");
-    let matching_response =
-        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
-            handle,
-            request: matching_request,
-        }));
+    let matching_response = harness.send_request(DaemonRequest::Query(DaemonQuery::RootQuery {
+        handle,
+        request: matching_request,
+    }));
     let envelope = match matching_response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
     let envelope = envelope.decode_envelope().expect("query response decode");
@@ -818,9 +795,9 @@ fn test_protocol_workspace_query_requires_revision_for_mutation() {
     harness.shutdown();
 }
 
-/// Executes a workspace query batch.
+/// Executes a root query batch.
 #[test]
-fn test_protocol_workspace_query_batch() {
+fn test_protocol_root_query_batch() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -834,9 +811,9 @@ fn test_protocol_workspace_query_batch() {
     );
     let file_path = harness.test.write_text("main.ds", content);
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // ensure analysis is available before running queries
     let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
@@ -874,7 +851,7 @@ fn test_protocol_workspace_query_batch() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
+            DaemonRequest::Query(DaemonQuery::RootQueryBatch {
                 handle,
                 requests: vec![hover_request, symbols_request],
             })
@@ -883,9 +860,7 @@ fn test_protocol_workspace_query_batch() {
     );
 
     let responses = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQueryBatch(responses)) => {
-            responses
-        }
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQueryBatch(responses)) => responses,
         other => panic!("unexpected response: {other:?}"),
     };
     let responses: Vec<_> = responses
@@ -920,9 +895,9 @@ fn test_protocol_workspace_query_batch() {
     harness.shutdown();
 }
 
-/// Executes a workspace find references query for member access.
+/// Executes a root find references query for member access.
 #[test]
-fn test_protocol_workspace_query_find_references_member_access() {
+fn test_protocol_root_query_find_references_member_access() {
     // build the protocol harness
     let harness = TestProtocolHarness::new();
 
@@ -940,9 +915,9 @@ fn test_protocol_workspace_query_find_references_member_access() {
     );
     let file_path = harness.test.write_text("main.ds", content);
 
-    // handshake and open the workspace
+    // handshake and open the root
     let _ = harness.handshake();
-    let handle = harness.open_workspace();
+    let handle = harness.open_root();
 
     // ensure analysis is available before running queries
     let response = harness.send_request(DaemonRequest::PrepareQuery(PrepareQueryRequest {
@@ -973,13 +948,13 @@ fn test_protocol_workspace_query_find_references_member_access() {
             })
             .expect("query request encode");
 
-            DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
+            DaemonRequest::Query(DaemonQuery::RootQuery { handle, request })
         },
         RequestRetryPolicy::default(),
     );
 
     let envelope = match response {
-        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        DaemonResponse::QueryResult(DaemonQueryResponse::RootQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
     let envelope = envelope.decode_envelope().expect("query response decode");
@@ -1045,9 +1020,4 @@ fn test_protocol_activity_idle_shutdown() {
         activity.should_shutdown()
     });
     assert!(shutdown, "expected activity idle shutdown");
-}
-
-fn assert_cache_stats(stats: CacheStatsPayload) {
-    // assert counts are well formed
-    assert!(stats.hits + stats.misses >= stats.hits);
 }

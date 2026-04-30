@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use destack_service::{
     FileMutation, FileUpdate, LanguageServiceError, LanguageServiceMessage,
-    LanguageServiceMessageKind, LanguageServiceResult, ReloadReason,
+    LanguageServiceMessageKind, LanguageServiceResult,
 };
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 
@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl Daemon {
-    /// Apply a text update and reanalyze the owning module.
+    /// Apply a text update and write it to disk.
     pub fn update_file(
         &self,
         path: &Path,
@@ -23,8 +23,8 @@ impl Daemon {
         self.apply_file_update(path, FileMutation::Text { content }, true)
     }
 
-    /// Apply a text update without writing to the filesystem.
-    pub fn update_virtual_file(
+    /// Apply a text update without writing to disk.
+    pub fn update_memory_file(
         &self,
         path: &Path,
         content: String,
@@ -49,10 +49,10 @@ impl Daemon {
             self.write_update_to_disk(path, &update)?;
         }
 
-        // apply the update through workspace service
-        let workspace_result = self.workspace_service.apply_virtual_update(path, update)?;
+        // apply the update through language service
+        let service_result = self.language_service.apply_file(path, update)?;
 
-        Ok(daemon_update_result_from_workspace(workspace_result))
+        Ok(daemon_update_result_from_service(service_result))
     }
 
     /// Apply a watch event through the daemon.
@@ -79,54 +79,51 @@ impl Daemon {
         let mut result = DaemonWatchBatchResult::default();
 
         // apply watch statuses first
-        let mut status_reload_reason = None;
+        let mut should_reload = false;
         for status in &batch.status {
             let status_result = self.handle_watch_status(status);
-            if status_reload_reason.is_none() {
-                status_reload_reason = status_result.reload_reason;
-            }
+            should_reload |= status_result.should_reload;
             if let Some(message) = status_result.message {
                 result.messages.push(message);
             }
         }
 
-        // apply file events through workspace service
+        // apply file events through language service
         let has_overflow_event = batch
             .events
             .iter()
             .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
         match self
-            .workspace_service
-            .apply_watch_events(batch.events.clone(), Default::default())
+            .language_service
+            .apply_watch_events(batch.events.clone())
         {
-            Ok(workspace_result) => {
-                let daemon_result = daemon_update_result_from_workspace(workspace_result);
+            Ok(service_result) => {
+                let daemon_result = daemon_update_result_from_service(service_result);
                 result.updates.extend(daemon_result.updates);
                 result.messages.extend(daemon_result.messages);
             }
             Err(error) => {
-                result.messages.push(workspace_service_error_message(
-                    "watch_apply_failed",
-                    &error,
-                ));
+                result
+                    .messages
+                    .push(language_service_error_message("watch_apply_failed", &error));
             }
         }
 
         // handle overflow status batches without explicit overflow events
-        if batch.overflowed && !has_overflow_event && status_reload_reason.is_none() {
-            status_reload_reason = Some(ReloadReason::Overflow);
+        if batch.overflowed && !has_overflow_event {
+            should_reload = true;
         }
 
         // reload eagerly when status requests a full refresh
-        if let Some(reload_reason) = status_reload_reason {
-            match self.workspace_service.reload_all_workspaces(reload_reason) {
-                Ok(workspace_result) => {
-                    let daemon_result = daemon_update_result_from_workspace(workspace_result);
+        if should_reload {
+            match self.language_service.reload_all() {
+                Ok(service_result) => {
+                    let daemon_result = daemon_update_result_from_service(service_result);
                     result.updates.extend(daemon_result.updates);
                     result.messages.extend(daemon_result.messages);
                 }
                 Err(error) => {
-                    result.messages.push(workspace_service_error_message(
+                    result.messages.push(language_service_error_message(
                         "watch_reload_failed",
                         &error,
                     ));
@@ -137,12 +134,12 @@ impl Daemon {
         result
     }
 
-    /// Reload tracked filesystem state for the provided roots.
-    pub fn reload_workspaces(&self, roots: &[PathBuf]) -> DaemonReloadResult {
-        let result = self.workspace_service.reload_workspaces(roots);
+    /// Reload filesystem state for the provided roots.
+    pub fn reload_roots(&self, roots: &[PathBuf]) -> DaemonReloadResult {
+        let result = self.language_service.reload_roots(roots);
         match result {
             Ok(result) => {
-                let daemon_result = daemon_update_result_from_workspace(result);
+                let daemon_result = daemon_update_result_from_service(result);
                 DaemonReloadResult {
                     updates: daemon_result.updates,
                     messages: daemon_result.messages,
@@ -210,7 +207,7 @@ impl Daemon {
     fn handle_watch_status(&self, status: &FileWatchStatus) -> WatchStatusResult {
         match status {
             FileWatchStatus::Error { message } => WatchStatusResult {
-                reload_reason: None,
+                should_reload: false,
                 message: Some(DaemonMessage::new(
                     DaemonMessageKind::Warning,
                     "watch_status_error",
@@ -218,7 +215,7 @@ impl Daemon {
                 )),
             },
             FileWatchStatus::RescanRequested { reason, .. } => WatchStatusResult {
-                reload_reason: Some(reload_reason_from_watch_reason(reason)),
+                should_reload: true,
                 message: Some(DaemonMessage::new(
                     DaemonMessageKind::Info,
                     "watch_reload_requested",
@@ -226,11 +223,11 @@ impl Daemon {
                 )),
             },
             FileWatchStatus::Ready { .. } => WatchStatusResult {
-                reload_reason: None,
+                should_reload: false,
                 message: None,
             },
             FileWatchStatus::Stopped => WatchStatusResult {
-                reload_reason: None,
+                should_reload: false,
                 message: None,
             },
         }
@@ -240,36 +237,26 @@ impl Daemon {
 /// Status handling result.
 #[derive(Debug, Clone, Default)]
 struct WatchStatusResult {
-    /// Optional reload reason.
-    reload_reason: Option<ReloadReason>,
+    /// Whether the status requires a reload.
+    should_reload: bool,
     /// Optional surfaced message.
     message: Option<DaemonMessage>,
 }
 
-/// Convert a watch rescan reason to workspace service reason.
-fn reload_reason_from_watch_reason(reason: &FileWatchRescanReason) -> ReloadReason {
-    match reason {
-        FileWatchRescanReason::Startup => ReloadReason::Startup,
-        FileWatchRescanReason::Overflow => ReloadReason::Overflow,
-        FileWatchRescanReason::Manual => ReloadReason::Manual,
-        FileWatchRescanReason::Update => ReloadReason::Update,
-    }
-}
-
-/// Convert a workspace update result into daemon shape.
-fn daemon_update_result_from_workspace(result: LanguageServiceResult) -> DaemonUpdateResult {
+/// Convert a service update result into daemon shape.
+fn daemon_update_result_from_service(result: LanguageServiceResult) -> DaemonUpdateResult {
     DaemonUpdateResult {
         updates: result
             .updates
             .into_iter()
-            .map(daemon_update_from_workspace)
+            .map(daemon_update_from_service)
             .collect(),
-        messages: daemon_messages_from_workspace(result.messages),
+        messages: daemon_messages_from_service(result.messages),
     }
 }
 
-/// Convert workspace service messages to daemon messages.
-fn daemon_messages_from_workspace(messages: Vec<LanguageServiceMessage>) -> Vec<DaemonMessage> {
+/// Convert language service messages to daemon messages.
+fn daemon_messages_from_service(messages: Vec<LanguageServiceMessage>) -> Vec<DaemonMessage> {
     messages
         .into_iter()
         .map(|message| {
@@ -284,8 +271,8 @@ fn daemon_messages_from_workspace(messages: Vec<LanguageServiceMessage>) -> Vec<
         .collect()
 }
 
-/// Build a daemon message for workspace service failures.
-fn workspace_service_error_message(code: &str, error: &LanguageServiceError) -> DaemonMessage {
+/// Build a daemon message for language service failures.
+fn language_service_error_message(code: &str, error: &LanguageServiceError) -> DaemonMessage {
     DaemonMessage::new(DaemonMessageKind::Error, code, error.to_string())
 }
 
@@ -299,8 +286,8 @@ fn watch_reload_requested_message(reason: &FileWatchRescanReason) -> &'static st
     }
 }
 
-/// Convert a workspace update into daemon shape.
-fn daemon_update_from_workspace(update: FileUpdate) -> DaemonUpdate {
+/// Convert a service update into daemon shape.
+fn daemon_update_from_service(update: FileUpdate) -> DaemonUpdate {
     DaemonUpdate {
         module_id: update.module_id,
         file_id: update.file_id,

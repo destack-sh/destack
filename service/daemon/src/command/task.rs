@@ -110,7 +110,7 @@ impl CommandContext<'_> {
                 let data = serde_json::to_value(payload)
                     .map_err(|error| format!("invalid task payload: {error}"))?;
                 Ok(
-                    CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0, None)
+                    CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0)
                         .with_data(data),
                 )
             }
@@ -204,7 +204,6 @@ impl CommandContext<'_> {
                     0,
                     0,
                     0,
-                    None,
                 )
                 .with_data(data))
             }
@@ -263,7 +262,7 @@ impl CommandContext<'_> {
 /// One selected task project.
 #[derive(Debug, Clone)]
 struct TaskProject {
-    /// Stable project identifier relative to the workspace root.
+    /// Stable project identifier relative to the root.
     project: String,
     /// Optional package name alias.
     package_name: Option<String>,
@@ -420,8 +419,9 @@ fn load_destack_tasks(
     revision: Revision,
     destack_config_path: &Path,
 ) -> super::CommandResult<Vec<TaskSpec>> {
+    let file_id = repository.file_id(destack_config_path);
     let file = repository
-        .file_for_path(revision, destack_config_path)
+        .file(revision, file_id)
         .map_err(|error| format!("failed to load {}: {error}", destack_config_path.display()))?
         .ok_or_else(|| format!("failed to load {}", destack_config_path.display()))?;
     let content = file.text();
@@ -489,14 +489,14 @@ fn load_package_scripts(
     project_path: &Path,
 ) -> super::CommandResult<Vec<TaskSpec>> {
     let package = repository
-        .package_for_path(revision, project_path)
+        .nearest_package(revision, project_path)
         .map_err(|error| error.to_string())?;
     let Some(package) = package else {
         return Ok(Vec::new());
     };
 
     let declaration = repository
-        .package_declaration(revision, package.as_ref())
+        .package_declaration_for_package(revision, package.as_ref())
         .map_err(|error| error.to_string())?;
     let Some(declaration) = declaration else {
         return Ok(Vec::new());
@@ -532,20 +532,20 @@ fn load_package_name(
     project_path: &Path,
 ) -> super::CommandResult<Option<String>> {
     let package = repository
-        .package_for_path(revision, project_path)
+        .nearest_package(revision, project_path)
         .map_err(|error| error.to_string())?;
     let Some(package) = package else {
         return Ok(None);
     };
 
     let declaration = repository
-        .package_declaration(revision, package.as_ref())
+        .package_declaration_for_package(revision, package.as_ref())
         .map_err(|error| error.to_string())?;
 
     Ok(declaration.and_then(|declaration| declaration.name().map(ToOwned::to_owned)))
 }
 
-/// Build one normalized project path relative to the workspace root.
+/// Build one normalized project path relative to the root.
 fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
     let Ok(relative_path) = project_path.strip_prefix(workspace_root) else {
         return project_path.display().to_string();
@@ -796,7 +796,7 @@ fn resolve_task_project_path(
             cwd.join(override_path)
         };
         let metadata = repository
-            .metadata(revision, &resolved)
+            .file_metadata(revision, &resolved)
             .map_err(|error| error.to_string())?
             .ok_or_else(|| format!("project path not found: {}", resolved.display()))?;
 
@@ -815,7 +815,7 @@ fn resolve_task_project_path(
     };
 
     if let Some(package) = repository
-        .package_for_path(revision, &base_path)
+        .nearest_package(revision, &base_path)
         .map_err(|error| error.to_string())?
         && let Some(package_path) = package.path.as_ref()
     {
@@ -833,7 +833,7 @@ fn exact_destack_config_path(
 ) -> Option<PathBuf> {
     let candidate = project_path.join("destack.json");
     if repository
-        .metadata(revision, &candidate)
+        .file_metadata(revision, &candidate)
         .ok()
         .flatten()
         .is_some_and(|metadata| metadata.is_file)

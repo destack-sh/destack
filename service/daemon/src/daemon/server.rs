@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
-use destack_compiler::CompilerOptions;
-use destack_session::{SessionEventHandler, SessionObservationHandler};
+use destack_compiler::default_workers;
+use destack_session::SessionEventHandler;
 use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonInstanceError, DaemonMetadata};
@@ -15,14 +15,12 @@ use crate::protocol::{
 use crate::{Daemon, DaemonServiceOptions, DaemonShutdownOptions};
 
 /// Options for the daemon server.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct DaemonServerOptions {
-    /// Compiler options for daemon work.
-    pub compiler_options: CompilerOptions,
+    /// Number of workers for each opened session.
+    pub worker_limit: usize,
     /// Optional session event handler for in process progress.
     pub session_event_handler: Option<SessionEventHandler>,
-    /// Optional session observation handler for in process instrumentation.
-    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Protocol options for daemon connections.
     pub protocol: ProtocolServerOptions,
     /// Shutdown policy options.
@@ -34,14 +32,10 @@ impl std::fmt::Debug for DaemonServerOptions {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DaemonServerOptions")
-            .field("compiler_options", &self.compiler_options)
+            .field("worker_limit", &self.worker_limit)
             .field(
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
-            )
-            .field(
-                "session_observation_handler",
-                &self.session_observation_handler.is_some(),
             )
             .field("protocol", &self.protocol)
             .field("shutdown", &self.shutdown)
@@ -100,11 +94,10 @@ impl DaemonServer {
         options: DaemonServerOptions,
     ) -> Self {
         // build the daemon instance
-        let daemon = Arc::new(Daemon::with_options(
+        let daemon = Arc::new(Daemon::new(
             repository,
-            options.compiler_options.clone(),
+            options.worker_limit,
             options.session_event_handler.clone(),
-            options.session_observation_handler.clone(),
         ));
 
         // return the server state
@@ -285,10 +278,21 @@ impl From<DaemonServiceOptions> for DaemonServerOptions {
     /// Convert service options into server options.
     fn from(options: DaemonServiceOptions) -> Self {
         Self {
-            compiler_options: options.compiler_options,
+            worker_limit: options.worker_limit,
             session_event_handler: options.session_event_handler,
-            session_observation_handler: options.session_observation_handler,
             protocol: options.protocol,
+            shutdown: DaemonShutdownOptions::default(),
+        }
+    }
+}
+
+impl Default for DaemonServerOptions {
+    /// Create default daemon server options.
+    fn default() -> Self {
+        Self {
+            worker_limit: default_workers() as usize,
+            session_event_handler: None,
+            protocol: ProtocolServerOptions::default(),
             shutdown: DaemonShutdownOptions::default(),
         }
     }

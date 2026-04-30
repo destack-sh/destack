@@ -1,33 +1,32 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_compiler::{Compiler, CompilerOptions};
-use destack_service::{FileChangeKind, FileSnapshot as WorkspaceFileSnapshot, LanguageService};
-use destack_session::{SessionEventHandler, SessionObservationHandler};
+use destack_service::{FileChangeKind, FileImage as ServiceFileImage, LanguageService};
+use destack_session::SessionEventHandler;
 use destack_source::{Diagnostic, FileId, ModuleId};
-use destack_workspace::Repository;
+use destack_workspace::{Ref, Repository};
 use parking_lot::Mutex;
 
 use super::DaemonMessage;
 use crate::DaemonError;
 
-/// Persistent daemon state for toolchain services.
-/// Basically, we wrap LanguageServices in a stateful central place.
+/// Persistent process state for daemon clients.
 #[derive(Clone)]
 pub struct Daemon {
     /// The active repository for this daemon.
     pub repository: Arc<Repository>,
-    /// Default compiler options for daemon work.
-    pub compiler_options: CompilerOptions,
+    /// Number of workers for each opened session.
+    pub worker_limit: usize,
     /// Optional session event handler for in process daemon work.
     pub session_event_handler: Option<SessionEventHandler>,
-    /// Optional session observation handler for in process daemon work.
-    pub session_observation_handler: Option<SessionObservationHandler>,
-    /// Shared workspace orchestration service.
-    pub workspace_service: Arc<LanguageService>,
-    /// Per-root workspace handle lease counts.
-    workspace_leases: Arc<Mutex<HashMap<PathBuf, usize>>>,
+    /// Shared language service.
+    pub language_service: Arc<LanguageService>,
+    /// Per-root handle lease counts.
+    root_leases: Arc<Mutex<HashMap<PathBuf, usize>>>,
+    /// Monotonic ids for private command refs.
+    next_command_ref_id: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -36,78 +35,74 @@ impl std::fmt::Debug for Daemon {
         formatter
             .debug_struct("Daemon")
             .field("repository", &self.repository)
-            .field("compiler_options", &self.compiler_options)
+            .field("worker_limit", &self.worker_limit)
             .field(
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
             )
-            .field(
-                "session_observation_handler",
-                &self.session_observation_handler.is_some(),
-            )
-            .field("workspace_service", &self.workspace_service)
-            .field("workspace_leases", &self.workspace_leases)
+            .field("language_service", &self.language_service)
+            .field("root_leases", &self.root_leases)
+            .field("next_command_ref_id", &self.next_command_ref_id)
             .finish()
     }
 }
 
 impl Daemon {
-    /// Create a daemon for the given repository.
-    pub fn new(repository: Arc<Repository>) -> Self {
-        Self::with_options(repository, CompilerOptions::default(), None, None)
-    }
-
-    /// Create a daemon with explicit compiler options.
-    pub fn with_options(
+    /// Create a daemon.
+    pub fn new(
         repository: Arc<Repository>,
-        compiler_options: CompilerOptions,
+        worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
-        session_observation_handler: Option<SessionObservationHandler>,
     ) -> Self {
         let roots = vec![repository.workspace_root().to_path_buf()];
-        let workspace_service = LanguageService::with_options(
+        let language_service = LanguageService::new(
             repository.clone(),
             None,
             roots,
-            compiler_options.clone(),
+            worker_limit,
             session_event_handler.clone(),
-            session_observation_handler.clone(),
         )
-        .expect("workspace service initialization should not fail");
+        .expect("language service initialization should not fail");
 
         Self {
             repository,
-            compiler_options,
+            worker_limit,
             session_event_handler,
-            session_observation_handler,
-            workspace_service: Arc::new(workspace_service),
-            workspace_leases: Arc::new(Mutex::new(HashMap::new())),
+            language_service: Arc::new(language_service),
+            root_leases: Arc::new(Mutex::new(HashMap::new())),
+            next_command_ref_id: Arc::new(AtomicU64::new(1)),
         }
     }
 
-    /// Return the number of tracked workspace roots.
-    #[cfg(test)]
-    pub(crate) fn workspace_root_count(&self) -> usize {
-        self.workspace_service.workspace_root_count()
+    /// Allocate one private command ref for a root.
+    pub(crate) fn next_command_ref(&self, root: &Path) -> Ref {
+        let id = self.next_command_ref_id.fetch_add(1, Ordering::Relaxed);
+
+        Ref::new(format!("command:{}:{id}", root.display()))
     }
 
-    /// Acquire a workspace root lease.
-    pub(crate) fn acquire_workspace_root(&self, root: &Path) -> Result<(), DaemonError> {
-        self.workspace_service
-            .open_workspace_root(root.to_path_buf())?;
+    /// Return the number of tracked roots.
+    #[cfg(test)]
+    pub(crate) fn root_count(&self) -> usize {
+        self.language_service.root_count()
+    }
 
-        let mut leases = self.workspace_leases.lock();
+    /// Acquire a root lease.
+    pub(crate) fn acquire_root(&self, root: &Path) -> Result<(), DaemonError> {
+        self.language_service.open_root(root.to_path_buf())?;
+
+        let mut leases = self.root_leases.lock();
         let lease_count = leases.entry(root.to_path_buf()).or_default();
         *lease_count += 1;
 
         Ok(())
     }
 
-    /// Release a workspace root lease and close when the last lease is dropped.
-    pub(crate) fn release_workspace_root(&self, root: &Path) -> Result<bool, DaemonError> {
+    /// Release a root lease and close when the last lease is dropped.
+    pub(crate) fn release_root(&self, root: &Path) -> Result<bool, DaemonError> {
         let mut should_close = false;
         {
-            let mut leases = self.workspace_leases.lock();
+            let mut leases = self.root_leases.lock();
             if let Some(lease_count) = leases.get_mut(root) {
                 if *lease_count > 1 {
                     *lease_count -= 1;
@@ -121,21 +116,11 @@ impl Daemon {
         }
 
         if should_close {
-            self.workspace_service.close_workspace_root(root)?;
+            self.language_service.close_root(root)?;
             return Ok(true);
         }
 
         Ok(false)
-    }
-
-    /// Return the compiler for a workspace root.
-    pub(crate) fn compiler_for_workspace_root(
-        &self,
-        root: &Path,
-    ) -> Result<Arc<Compiler>, DaemonError> {
-        self.workspace_service
-            .compiler_for_workspace_root(root)
-            .map_err(Into::into)
     }
 }
 
@@ -146,8 +131,8 @@ pub struct DaemonUpdate {
     pub module_id: Option<ModuleId>,
     /// The file id for the updated module.
     pub file_id: FileId,
-    /// File snapshot for the updated file.
-    pub file: WorkspaceFileSnapshot,
+    /// File image for the updated file.
+    pub file: ServiceFileImage,
     /// The coarse change kind for this file.
     pub kind: FileChangeKind,
     /// Diagnostics for the updated file.

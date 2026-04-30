@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::WorkspaceHandleId;
+use super::RootHandleId;
 
 /// Daemon message severity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,8 +31,8 @@ pub struct DaemonMessageRecord {
 /// Notification for daemon messages.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DaemonMessageNotification {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Messages emitted by the daemon.
     pub messages: Vec<DaemonMessageRecord>,
 }

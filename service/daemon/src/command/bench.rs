@@ -23,6 +23,6 @@ impl CommandContext<'_> {
         };
         let data = serde_json::to_value(payload)
             .map_err(|error| format!("invalid bench payload: {error}"))?;
-        Ok(CommandOutcome::new(DiagnosticCollection::default(), 1, 0, 0, 0, None).with_data(data))
+        Ok(CommandOutcome::new(DiagnosticCollection::default(), 1, 0, 0, 0).with_data(data))
     }
 }

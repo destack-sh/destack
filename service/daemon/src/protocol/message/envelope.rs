@@ -2,12 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
-    CacheRequest, CacheResponse, CloseWorkspaceRequest, CommandRequest, CommandResponse,
-    DaemonNotification, DaemonQuery, DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse,
-    OpenWorkspaceRequest, OutputRequest, OutputResponse, PrepareQueryRequest, PrepareQueryResponse,
-    ReloadWorkspaceRequest, ReplRequest, ReplResponse, RuntimeRequest, RuntimeResponse,
-    WatchBatchRequest, WatchBatchResponse, WorkspaceClosedResponse, WorkspaceOpenedResponse,
-    WorkspaceReloadResponse,
+    CloseRootRequest, CommandRequest, CommandResponse, DaemonNotification, DaemonQuery,
+    DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenRootRequest,
+    PrepareQueryRequest, PrepareQueryResponse, ReloadRootRequest, RootClosedResponse,
+    RootOpenedResponse, RootReloadResponse, WatchBatchRequest, WatchBatchResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -34,13 +32,13 @@ impl RepositoryId {
     }
 }
 
-/// Unique identifier for an opened workspace.
+/// Unique identifier for an opened root.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct WorkspaceHandleId(pub u64);
+pub struct RootHandleId(pub u64);
 
-impl WorkspaceHandleId {
-    /// Wrap a raw workspace handle id.
+impl RootHandleId {
+    /// Wrap a raw root handle id.
     pub fn new(id: u64) -> Self {
         Self(id)
     }
@@ -191,30 +189,22 @@ pub enum DaemonRequest {
     Cancel { id: RequestId },
     /// Request daemon shutdown.
     Shutdown,
-    /// Open or register a workspace root.
-    OpenWorkspace(OpenWorkspaceRequest),
-    /// Close a workspace handle.
-    CloseWorkspace(CloseWorkspaceRequest),
-    /// Reload a workspace root.
-    ReloadWorkspace(ReloadWorkspaceRequest),
-    /// Apply a file update to a workspace.
+    /// Open or register a root.
+    OpenRoot(OpenRootRequest),
+    /// Close a root handle.
+    CloseRoot(CloseRootRequest),
+    /// Reload a root.
+    ReloadRoot(ReloadRootRequest),
+    /// Apply a file update to a root.
     ApplyFileUpdate(FileUpdateRequest),
-    /// Prepare query artifacts for a workspace path.
+    /// Prepare query artifacts for a root path.
     PrepareQuery(PrepareQueryRequest),
-    /// Apply a watch batch to a workspace.
+    /// Apply a watch batch to a root.
     ApplyWatchBatch(WatchBatchRequest),
     /// Perform a command pipeline action.
     Command(Box<CommandRequest>),
     /// Execute a query.
     Query(DaemonQuery),
-    /// Manage repl sessions.
-    Repl(ReplRequest),
-    /// Manage runtime sessions.
-    Runtime(RuntimeRequest),
-    /// Control cache behavior.
-    Cache(CacheRequest),
-    /// Fetch generated output content.
-    Output(OutputRequest),
 }
 
 /// Responses emitted by the daemon.
@@ -229,12 +219,12 @@ pub enum DaemonResponse {
     Canceled { id: RequestId },
     /// Response to shutdown request.
     ShutdownAck,
-    /// Workspace open response.
-    WorkspaceOpened(WorkspaceOpenedResponse),
-    /// Workspace close response.
-    WorkspaceClosed(WorkspaceClosedResponse),
-    /// Workspace reload response.
-    WorkspaceReloaded(WorkspaceReloadResponse),
+    /// Root open response.
+    RootOpened(RootOpenedResponse),
+    /// Root close response.
+    RootClosed(RootClosedResponse),
+    /// Root reload response.
+    RootReloaded(RootReloadResponse),
     /// File update response.
     FileUpdated(FileUpdateResponse),
     /// Prepare-query response.
@@ -245,14 +235,6 @@ pub enum DaemonResponse {
     CommandResult(CommandResponse),
     /// Query response.
     QueryResult(DaemonQueryResponse),
-    /// Repl response.
-    ReplResult(ReplResponse),
-    /// Runtime response.
-    RuntimeResult(RuntimeResponse),
-    /// Cache control response.
-    CacheResult(CacheResponse),
-    /// Output fetch response.
-    OutputResult(OutputResponse),
     /// Error response.
     Error(ProtocolError),
 }

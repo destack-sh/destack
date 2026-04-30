@@ -3,8 +3,10 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
-use destack_source::{DiagnosticCollection, ModuleId, TargetId};
-use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
+use destack_source::{ModuleId, ProfileId, TargetId};
+use destack_vm::{
+    ExecutionMode, Isolate, IsolateId, IsolateOptions, TrustPolicy as VmTrustPolicy, Value,
+};
 use destack_workspace::{DebugMode, Repository, Revision, RuntimeOptionsJson, Target, TrustPolicy};
 use serde::{Deserialize, Serialize};
 
@@ -78,22 +80,20 @@ impl CommandContext<'_> {
         )?;
 
         // provide the requested roots
-        let run_stats = self
-            .session
-            .provide(&artifact_keys)
+        let revision = self.revision()?;
+        self.session
+            .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let revision = self.session.revision();
-        let raw_diagnostics =
-            collect_run_target_diagnostics(&self.repository, revision, entry_module, &target)?;
+        let raw_diagnostics = self
+            .repository
+            .diagnostics(revision)
+            .map_err(|error| error.to_string())?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
-        let module_count = self.module_count(revision)?;
         let profile_count = self
-            .repository
-            .profile_id_for_target_or_default(revision, entry_module, &target.id)
-            .map_err(|error| error.to_string())
-            .map(|_| 1usize)?;
+            .target_profile_id(revision, entry_module, target.id)
+            .map(|_| 1)?;
         if exit_code != 0 {
             return Ok(CommandOutcome::new(
                 diagnostics,
@@ -101,14 +101,7 @@ impl CommandContext<'_> {
                 modules.len(),
                 profile_count,
                 1,
-                Some(
-                    self.session
-                        .compiler()
-                        .stats
-                        .snapshot_with_repository(module_count, Some(&self.repository)),
-                ),
-            )
-            .with_run_stats(run_stats));
+            ));
         }
 
         // execute the entry module
@@ -127,34 +120,17 @@ impl CommandContext<'_> {
         ) {
             Ok(result) => result,
             Err(error) => {
-                let stats = self
-                    .session
-                    .compiler()
-                    .stats
-                    .snapshot_with_repository(module_count, Some(&self.repository));
                 let payload = CommandRunPayload::RuntimeError {
                     message: error.to_string(),
                 };
                 let data = serde_json::to_value(payload)
                     .map_err(|error| format!("invalid run payload: {error}"))?;
-                return Ok(CommandOutcome::new(
-                    diagnostics,
-                    1,
-                    modules.len(),
-                    profile_count,
-                    1,
-                    Some(stats),
-                )
-                .with_run_stats(run_stats)
-                .with_data(data));
+                return Ok(
+                    CommandOutcome::new(diagnostics, 1, modules.len(), profile_count, 1)
+                        .with_data(data),
+                );
             }
         };
-
-        let stats = self
-            .session
-            .compiler()
-            .stats
-            .snapshot_with_repository(module_count, Some(&self.repository));
 
         let payload = CommandRunPayload::Value {
             value: run_result.payload,
@@ -168,25 +144,9 @@ impl CommandContext<'_> {
             modules.len(),
             profile_count,
             1,
-            Some(stats),
         )
-        .with_run_stats(run_stats)
         .with_data(data))
     }
-}
-
-/// Collect diagnostics across the current target artifact family for the run entry module.
-fn collect_run_target_diagnostics(
-    repository: &Arc<Repository>,
-    revision: Revision,
-    module_id: ModuleId,
-    target: &ResolvedTarget,
-) -> super::CommandResult<DiagnosticCollection> {
-    let profile_id = repository
-        .profile_id_for_target_or_default(revision, module_id, &target.id)
-        .map_err(|error| error.to_string())?;
-
-    Ok(repository.module_target_artifact_diagnostics(revision, module_id, profile_id, target.id))
 }
 
 /// Result of executing the entry module.
@@ -203,10 +163,8 @@ fn run_roots_for_target(
     target_id: &TargetId,
     is_optimized: bool,
 ) -> Result<Vec<ArtifactKey>, String> {
-    let profile = repository
-        .profile_id_for_target_or_default(revision, module_id, target_id)
-        .map_err(|error| error.to_string())?;
-    let mut artifact_keys = vec![ArtifactKey::mir_base(module_id, profile, *target_id)];
+    let profile = target_profile_id(repository, revision, module_id, *target_id)?;
+    let mut artifact_keys = vec![ArtifactKey::mir_lowered(module_id, profile, *target_id)];
 
     if is_optimized {
         artifact_keys.push(ArtifactKey::mir_optimized(module_id, profile, *target_id));
@@ -257,7 +215,7 @@ fn run_entry_module(
     let result = world
         .run_entrypoint(runtime_id, &entry, &[])
         .map_err(|error| format!("{error}"))?;
-    let exit_code = exit_status_from_value(result.value);
+    let exit_code = exit_status_from_value(&result.value);
 
     if matches!(run_mode, CommandRunMode::Program) && !is_exit_code_value(&result.value) {
         output.push_stderr(b"non-integer return value, defaulting to exit code 0\n".to_vec());
@@ -297,79 +255,60 @@ fn command_input_display_name(source: &CommandInput) -> String {
 
 /// Format a VM value for eval output.
 fn format_value_for_eval(value: &Value) -> String {
-    if value.is_void() {
-        return "void".to_string();
+    match value {
+        Value::Void => "void".to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Int { value, .. } => value.to_string(),
+        Value::UInt { value, .. } => value.to_string(),
+        Value::Float32 { bits } => f32::from_bits(*bits).to_string(),
+        Value::Float64 { bits } => f64::from_bits(*bits).to_string(),
+        Value::Char(value) => value.to_string(),
+        Value::HeapReference(_)
+        | Value::SharedHeapReference(_)
+        | Value::RawPointer(_)
+        | Value::SharedRawPointer(_) => format!("{value:?}"),
     }
-    if let Some(result) = value.as_bool() {
-        return result.to_string();
-    }
-    if let Some(result) = value.as_int_with_width() {
-        return result.0.to_string();
-    }
-    if let Some(result) = value.as_uint_with_width() {
-        return result.0.to_string();
-    }
-    if let Some(result) = value.as_float64() {
-        return result.to_string();
-    }
-    if let Some(result) = value.as_float32() {
-        return result.to_string();
-    }
-    if let Some(result) = value.as_char() {
-        return result.to_string();
-    }
-    format!("{value:?}")
 }
 
 /// Convert a VM return value into an exit status.
-fn exit_status_from_value(value: Value) -> i32 {
-    if value.is_void() {
-        return 0;
+fn exit_status_from_value(value: &Value) -> i32 {
+    match value {
+        Value::Void => 0,
+        Value::Bool(value) => {
+            if *value {
+                0
+            } else {
+                1
+            }
+        }
+        Value::Int { value, .. } => (*value).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        _ => 0,
     }
-    if let Some(result) = value.as_bool() {
-        return if result { 0 } else { 1 };
-    }
-    if let Some(result) = value.as_int() {
-        return result.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
-    }
-    0
 }
 
 /// Check whether a return value is a valid exit code.
 fn is_exit_code_value(value: &Value) -> bool {
-    value.is_void() || value.as_bool().is_some() || value.as_int().is_some()
+    matches!(
+        value,
+        Value::Void | Value::Bool(_) | Value::Int { .. } | Value::UInt { .. }
+    )
 }
 
 /// Convert a runtime value into payload data.
 fn value_payload(value: &Value) -> serde_json::Value {
-    if value.is_void() {
-        return serde_json::Value::Null;
+    match value {
+        Value::Void => serde_json::Value::Null,
+        Value::Bool(value) => serde_json::Value::Bool(*value),
+        Value::Int { value, .. } => serde_json::Value::Number((*value).into()),
+        Value::UInt { value, .. } => serde_json::Value::Number((*value).into()),
+        Value::Float32 { bits } => float_payload(f32::from_bits(*bits).into()),
+        Value::Float64 { bits } => float_payload(f64::from_bits(*bits)),
+        Value::Char(value) => serde_json::Value::String(value.to_string()),
+        Value::HeapReference(_)
+        | Value::SharedHeapReference(_)
+        | Value::RawPointer(_)
+        | Value::SharedRawPointer(_) => serde_json::Value::String(format!("{value:?}")),
     }
-    if let Some(result) = value.as_bool() {
-        return serde_json::Value::Bool(result);
-    }
-    if let Some(result) = value.as_int_with_width() {
-        return serde_json::Value::Number(result.0.into());
-    }
-    if let Some(result) = value.as_uint_with_width() {
-        return serde_json::Value::Number(result.0.into());
-    }
-    if let Some(result) = value.as_float64() {
-        if let Some(number) = serde_json::Number::from_f64(result) {
-            return serde_json::Value::Number(number);
-        }
-        return serde_json::Value::Null;
-    }
-    if let Some(result) = value.as_float32() {
-        if let Some(number) = serde_json::Number::from_f64(result.into()) {
-            return serde_json::Value::Number(number);
-        }
-        return serde_json::Value::Null;
-    }
-    if let Some(result) = value.as_char() {
-        return serde_json::Value::String(result.to_string());
-    }
-    serde_json::Value::String(format!("{value:?}"))
 }
 
 /// Create a VM isolate from the module MIR.
@@ -380,20 +319,64 @@ fn create_isolate(
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> super::CommandResult<Isolate> {
-    let profile_id = repository
-        .profile_id_for_target_or_default(revision, module_id, target_id)
+    let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
+    let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
+    let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);
+
+    let optimized_version = repository
+        .artifact_version(revision, &optimized_key)
         .map_err(|error| error.to_string())?;
-    let (tree, strings) = if let Some(mir) =
-        repository.mir_optimized(revision, module_id, profile_id, *target_id)
+    let lowered_version = repository
+        .artifact_version(revision, &lowered_key)
+        .map_err(|error| error.to_string())?;
+
+    let artifact_store = repository.artifact_store();
+    let (tree, strings) = if let Some(version) = optimized_version
+        && let Some(mir) = artifact_store.mir_optimized(&version)
     {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
-    } else if let Some(mir) = repository.mir_base(revision, module_id, profile_id, *target_id) {
+    } else if let Some(version) = lowered_version
+        && let Some(mir) = artifact_store.mir_lowered(&version)
+    {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
     } else {
         return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());
     };
 
-    Ok(Isolate::build_with_options(tree, strings, options).map_err(|error| error.to_string())?)
+    let isolate_id = IsolateId::new(1);
+
+    Ok(
+        Isolate::build_with_options(isolate_id, tree, strings, options)
+            .map_err(|error| error.to_string())?,
+    )
+}
+
+/// Return the profile id selected for one module target.
+fn target_profile_id(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    target_id: TargetId,
+) -> Result<ProfileId, String> {
+    let profile = repository
+        .module_target_profile(revision, module_id, target_id)
+        .map_err(|error| format!("failed to resolve target profile: {error}"))?;
+    let profile = if let Some(profile) = profile {
+        profile
+    } else {
+        repository
+            .module_profile(revision, module_id)
+            .map_err(|error| format!("failed to resolve module profile: {error}"))?
+    };
+
+    Ok(profile.id())
+}
+
+/// Convert one finite float to json.
+fn float_payload(value: f64) -> serde_json::Value {
+    serde_json::Number::from_f64(value)
+        .map(serde_json::Value::Number)
+        .unwrap_or(serde_json::Value::Null)
 }
 
 /// Create isolate options from target configuration.

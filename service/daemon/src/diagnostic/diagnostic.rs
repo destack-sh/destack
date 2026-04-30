@@ -29,7 +29,7 @@ pub enum DaemonError {
         error: std::io::Error,
     },
     /// File path is not tracked in the program.
-    FileNotTracked {
+    FileMissing {
         /// The file path that failed.
         path: PathBuf,
     },
@@ -45,9 +45,9 @@ pub enum DaemonError {
         /// The underlying resolve error.
         error: Box<ImportError>,
     },
-    /// Workspace service operation failed.
-    Workspace {
-        /// The typed workspace service error.
+    /// Language service operation failed.
+    Service {
+        /// The typed language service error.
         error: LanguageServiceError,
     },
 }
@@ -59,7 +59,7 @@ impl std::fmt::Display for DaemonError {
             DaemonError::FileWrite { path, error } => {
                 write!(f, "failed to write file {}: {}", path.display(), error)
             }
-            DaemonError::FileNotTracked { path } => {
+            DaemonError::FileMissing { path } => {
                 write!(f, "file is not tracked: {}", path.display())
             }
             DaemonError::FileIdNotTracked { file_id } => {
@@ -68,8 +68,8 @@ impl std::fmt::Display for DaemonError {
             DaemonError::Resolve { path, error } => {
                 write!(f, "failed to resolve module {}: {error}", path.display())
             }
-            DaemonError::Workspace { error } => {
-                write!(f, "workspace error: {error}")
+            DaemonError::Service { error } => {
+                write!(f, "service error: {error}")
             }
         }
     }
@@ -79,6 +79,6 @@ impl std::error::Error for DaemonError {}
 
 impl From<LanguageServiceError> for DaemonError {
     fn from(error: LanguageServiceError) -> Self {
-        Self::Workspace { error }
+        Self::Service { error }
     }
 }

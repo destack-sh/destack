@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_workspace::Revision;
 
-use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
+use super::{BinaryPayload, DiagnosticBatch, RootHandleId};
 
-/// Encoded workspace query request payload.
+/// Encoded root query request payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryRequestPayload {
     /// Encoded request payload.
@@ -44,7 +44,7 @@ impl QueryRequestPayload {
     }
 }
 
-/// Encoded workspace query response payload.
+/// Encoded root query response payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryResponsePayload {
     /// Encoded response payload.
@@ -157,22 +157,20 @@ impl std::error::Error for QueryPayloadCodecError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonQuery {
     /// Request diagnostics snapshot.
-    Diagnostics { handle: WorkspaceHandleId },
-    /// Request cache statistics.
-    CacheStats { handle: WorkspaceHandleId },
+    Diagnostics { handle: RootHandleId },
     /// Request the current semantic revision.
-    CurrentRevision { handle: WorkspaceHandleId },
-    /// Execute a workspace query.
-    WorkspaceQuery {
-        /// Workspace handle.
-        handle: WorkspaceHandleId,
+    CurrentRevision { handle: RootHandleId },
+    /// Execute a root query.
+    RootQuery {
+        /// Root handle.
+        handle: RootHandleId,
         /// Encoded query request payload.
         request: QueryRequestPayload,
     },
-    /// Execute a batch of workspace queries.
-    WorkspaceQueryBatch {
-        /// Workspace handle.
-        handle: WorkspaceHandleId,
+    /// Execute a batch of root queries.
+    RootQueryBatch {
+        /// Root handle.
+        handle: RootHandleId,
         /// Encoded query request payloads.
         requests: Vec<QueryRequestPayload>,
     },
@@ -183,23 +181,12 @@ pub enum DaemonQuery {
 pub enum DaemonQueryResponse {
     /// Diagnostics snapshot.
     Diagnostics(Vec<DiagnosticBatch>),
-    /// Cache stats payload.
-    CacheStats(CacheStatsPayload),
     /// The current semantic revision.
     CurrentRevision(Revision),
-    /// Encoded workspace query response payload.
-    WorkspaceQuery(QueryResponsePayload),
-    /// Encoded workspace query batch response payloads.
-    WorkspaceQueryBatch(Vec<QueryResponsePayload>),
-}
-
-/// Cache stats payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CacheStatsPayload {
-    /// Cache hits observed.
-    pub hits: u64,
-    /// Cache misses observed.
-    pub misses: u64,
+    /// Encoded root query response payload.
+    RootQuery(QueryResponsePayload),
+    /// Encoded root query batch response payloads.
+    RootQueryBatch(Vec<QueryResponsePayload>),
 }
 
 #[cfg(test)]
@@ -216,7 +203,7 @@ mod tests {
         let envelope = QueryRequestEnvelope {
             expected_revision: Some(Revision::from_test_value(7)),
             request: QueryRequest::Hover(HoverRequest {
-                uri: Uri::from_string("/workspace/main.ds"),
+                uri: Uri::from_string("/root/main.ds"),
                 offset: 42,
             }),
         };

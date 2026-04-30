@@ -1,8 +1,8 @@
 use std::io;
 use std::sync::Arc;
 
-use destack_compiler::CompilerOptions;
-use destack_session::{SessionEventHandler, SessionObservationHandler};
+use destack_compiler::default_workers;
+use destack_session::SessionEventHandler;
 use destack_workspace::Repository;
 
 use crate::Daemon;
@@ -12,14 +12,12 @@ use crate::protocol::{
 };
 
 /// Options for starting a daemon service.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct DaemonServiceOptions {
-    /// Compiler options for daemon work.
-    pub compiler_options: CompilerOptions,
+    /// Number of workers for each opened session.
+    pub worker_limit: usize,
     /// Optional session event handler for in process progress.
     pub session_event_handler: Option<SessionEventHandler>,
-    /// Optional session observation handler for in process instrumentation.
-    pub session_observation_handler: Option<SessionObservationHandler>,
     /// Protocol server options.
     pub protocol: ProtocolServerOptions,
 }
@@ -29,14 +27,10 @@ impl std::fmt::Debug for DaemonServiceOptions {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DaemonServiceOptions")
-            .field("compiler_options", &self.compiler_options)
+            .field("worker_limit", &self.worker_limit)
             .field(
                 "session_event_handler",
                 &self.session_event_handler.is_some(),
-            )
-            .field(
-                "session_observation_handler",
-                &self.session_observation_handler.is_some(),
             )
             .field("protocol", &self.protocol)
             .finish()
@@ -62,11 +56,10 @@ impl DaemonService {
 
     /// Create a daemon service with explicit options.
     pub fn with_options(repository: Arc<Repository>, options: DaemonServiceOptions) -> Self {
-        let daemon = Arc::new(Daemon::with_options(
+        let daemon = Arc::new(Daemon::new(
             repository,
-            options.compiler_options.clone(),
+            options.worker_limit,
             options.session_event_handler.clone(),
-            options.session_observation_handler.clone(),
         ));
         let server = ProtocolServer::with_options(daemon.clone(), options.protocol.clone());
         Self {
@@ -95,6 +88,17 @@ impl DaemonService {
         let codec = FrameCodec::new(self.options.protocol.limits.max_frame_bytes as usize);
         let transport = FramedTransport::new(stdin, stdout, codec);
         self.serve_transport(&transport)
+    }
+}
+
+impl Default for DaemonServiceOptions {
+    /// Create default daemon service options.
+    fn default() -> Self {
+        Self {
+            worker_limit: default_workers() as usize,
+            session_event_handler: None,
+            protocol: ProtocolServerOptions::default(),
+        }
     }
 }
 
