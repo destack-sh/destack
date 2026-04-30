@@ -32,7 +32,7 @@ fn parser_bench_worker_count() -> usize {
 
 /// Parse one file through the full parser pipeline.
 fn parse_file(file: Arc<File>) -> Parser {
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
     let retain_trivia_tokens = env::var("DESTACK_PARSE_RETAIN_TRIVIA")
         .ok()
         .and_then(|value| value.parse::<u8>().ok())
@@ -157,7 +157,7 @@ fn bench_parse(criterion: &mut Criterion) {
         total_lines = total_lines.saturating_add(line_count);
 
         // register file
-        let file_id = FileId::new(source_files.len() as u64);
+        let file_id = FileId::new(source_files.len() as u128);
         let (file_name, uri) = Uri::from_path_with_name(path);
         let file = File::from_text(file_id, file_name, uri, None, file_type, content);
         source_files.push(Arc::new(file));

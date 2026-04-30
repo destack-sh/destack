@@ -100,7 +100,7 @@ fn bench_lex(criterion: &mut Criterion) {
         total_lines = total_lines.saturating_add(line_count);
 
         // record source
-        let file_id = FileId::new(sources.len() as u64);
+        let file_id = FileId::new(sources.len() as u128);
         let file_name = path
             .file_name()
             .and_then(|name| name.to_str())
@@ -131,7 +131,8 @@ fn bench_lex(criterion: &mut Criterion) {
             bencher.iter(|| {
                 // lex each file
                 for source in source_files {
-                    let language_type = LanguageType::from(source.file_type);
+                    let language_type = LanguageType::try_from(source.file_type)
+                        .expect("file type has no parser language");
                     let (tokens, side_tokens, _) = Lexer::lex(source.file.clone(), language_type);
                     black_box((tokens, side_tokens));
                 }
