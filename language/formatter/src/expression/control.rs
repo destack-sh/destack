@@ -815,7 +815,12 @@ fn write_control_branch_after_head_expanding_body<'ast>(
     if let Some(inner_expression_id) =
         transparent_control_body_expression(f.context(), branch_expression_id)
     {
-        format_statement_body_expression_after_head(f, inner_expression_id, false)?;
+        let force_expanded_body = force_expanded_body
+            && matches!(
+                f.context().tree.get(inner_expression_id),
+                Expression::TreeExpression { .. }
+            );
+        format_statement_body_expression_after_head(f, inner_expression_id, force_expanded_body)?;
         return Ok(());
     }
 

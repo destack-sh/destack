@@ -19,6 +19,7 @@ use crate::declaration::{
     format_using_statement_expression, statement_wrapper_needs_semicolon,
     write_statement_terminator,
 };
+use crate::tree::tree_control_child_should_expand;
 use destack_ast::{Comment, Expression, IfKind, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
@@ -59,6 +60,10 @@ fn value_branch_expression_should_expand<'ast>(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     if expression_is_value_block_tail(f.context(), node_id) {
+        return true;
+    }
+
+    if tree_control_child_should_expand(f.context(), node_id) {
         return true;
     }
 
