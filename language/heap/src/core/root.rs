@@ -1,11 +1,11 @@
 use crate::{HeapError, HeapReference, HeapResult};
 
-/// One mutable local root slot.
+/// One mutable heap root slot.
 #[derive(Debug)]
 pub enum RootSlot<'a> {
     /// One direct heap reference cell.
     Reference(&'a mut HeapReference),
-    /// One pointer-width byte cell.
+    /// One encoded heap reference cell.
     Bytes(&'a mut [u8]),
 }
 
@@ -31,19 +31,19 @@ impl RootSlot<'_> {
     }
 }
 
-/// Mutable local root slots for one collection safepoint.
-pub trait RootSlots {
-    /// The root-slot visitor error type.
+/// Mutable heap roots for one collection safepoint.
+pub trait HeapRoots {
+    /// The root visitor error type.
     type Error: From<HeapError>;
 
-    /// Visit every mutable local root slot.
+    /// Visit every mutable heap root slot.
     fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Self::Error>;
 }
 
-impl<F, E> RootSlots for F
+impl<F, E> HeapRoots for F
 where
     F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
     E: From<HeapError>,
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl RootSlots for [HeapReference] {
+impl HeapRoots for [HeapReference] {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -73,7 +73,7 @@ impl RootSlots for [HeapReference] {
     }
 }
 
-impl RootSlots for Vec<HeapReference> {
+impl HeapRoots for Vec<HeapReference> {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -84,7 +84,7 @@ impl RootSlots for Vec<HeapReference> {
     }
 }
 
-impl<const N: usize> RootSlots for [HeapReference; N] {
+impl<const N: usize> HeapRoots for [HeapReference; N] {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -95,7 +95,7 @@ impl<const N: usize> RootSlots for [HeapReference; N] {
     }
 }
 
-impl RootSlots for () {
+impl HeapRoots for () {
     type Error = HeapError;
 
     fn visit_root_slots(

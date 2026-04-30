@@ -74,22 +74,12 @@ impl<'a> EdgeMap<'a> {
     }
 
     /// Return heap edge offsets in one dirty byte range.
-    fn local_offsets_in_range(
-        self,
-        start: usize,
-        len: usize,
-        width: usize,
-    ) -> HeapResult<EdgeCursor<'a>> {
+    fn local_offsets_in_range(self, start: usize, len: usize, width: usize) -> EdgeCursor<'a> {
         EdgeCursor::in_range(self.local_offsets(), start, len, width)
     }
 
     /// Return shared heap edge offsets in one dirty byte range.
-    fn shared_offsets_in_range(
-        self,
-        start: usize,
-        len: usize,
-        width: usize,
-    ) -> HeapResult<EdgeCursor<'a>> {
+    fn shared_offsets_in_range(self, start: usize, len: usize, width: usize) -> EdgeCursor<'a> {
         EdgeCursor::in_range(self.shared_offsets(), start, len, width)
     }
 }
@@ -97,7 +87,7 @@ impl<'a> EdgeMap<'a> {
 /// One edge offset table for one heap.
 #[derive(Debug, Clone, Copy)]
 enum EdgeOffsets<'a> {
-    /// No edges of this kind.
+    /// No matching edges.
     None,
     /// One direct offset table.
     Direct(&'a [u32]),
@@ -114,16 +104,14 @@ enum EdgeOffsets<'a> {
 
 impl EdgeOffsets<'_> {
     /// Return whether these edges overlap one byte range.
-    fn overlaps(self, start: usize, len: usize, width: usize) -> HeapResult<bool> {
+    fn overlaps(self, start: usize, len: usize, width: usize) -> bool {
         if len == 0 {
-            return Ok(false);
+            return false;
         }
 
-        let Some(end) = start.checked_add(len) else {
-            return Ok(true);
-        };
+        let end = start + len;
 
-        let is_overlapping = match self {
+        match self {
             Self::None => false,
             Self::Direct(offsets) => offsets
                 .iter()
@@ -144,9 +132,7 @@ impl EdgeOffsets<'_> {
                 )
                 .is_some()
             }),
-        };
-
-        Ok(is_overlapping)
+        }
     }
 }
 
@@ -175,22 +161,15 @@ impl<'a> EdgeCursor<'a> {
     }
 
     /// Create one cursor over edge offsets overlapping a byte range.
-    fn in_range(
-        offsets: EdgeOffsets<'a>,
-        start: usize,
-        len: usize,
-        width: usize,
-    ) -> HeapResult<Self> {
-        let end = start
-            .checked_add(len)
-            .ok_or(HeapError::TraceOffsetOverflow { start, width: len })?;
+    fn in_range(offsets: EdgeOffsets<'a>, start: usize, len: usize, width: usize) -> Self {
+        let end = start + len;
 
-        Ok(Self {
+        Self {
             offsets,
             element_index: 0,
             offset_index: 0,
             range: Some(EdgeRange { start, end, width }),
-        })
+        }
     }
 
     /// Return the next concrete edge offset.
@@ -301,11 +280,7 @@ pub(crate) fn slot_reference_map(
 }
 
 /// Return whether one write range may overlap any heap-edge bytes.
-pub(crate) fn overlaps_heap_range(
-    reference_map: &ReferenceMap,
-    start: usize,
-    len: usize,
-) -> HeapResult<bool> {
+pub(crate) fn overlaps_heap_range(reference_map: &ReferenceMap, start: usize, len: usize) -> bool {
     EdgeMap::new(reference_map)
         .local_offsets()
         .overlaps(start, len, HeapReference::BYTE_LEN)
@@ -316,7 +291,7 @@ pub(crate) fn overlaps_shared_range(
     reference_map: &ReferenceMap,
     start: usize,
     len: usize,
-) -> HeapResult<bool> {
+) -> bool {
     EdgeMap::new(reference_map)
         .shared_offsets()
         .overlaps(start, len, SharedHeapReference::BYTE_LEN)
@@ -473,6 +448,10 @@ pub(crate) fn write_slot_reference_bits(
     slot_index: usize,
     size_class: usize,
 ) -> HeapResult<()> {
+    if !reference_map.has_reference() {
+        return Ok(());
+    }
+
     clear_slot_reference_bits(
         local_reference_bits,
         shared_reference_bits,
@@ -505,6 +484,10 @@ pub(crate) fn write_allocation_reference_bits(
     byte_offset: usize,
     byte_len: usize,
 ) -> HeapResult<()> {
+    if !reference_map.has_reference() {
+        return Ok(());
+    }
+
     clear_allocation_reference_bits(
         local_reference_bits,
         shared_reference_bits,
@@ -536,12 +519,7 @@ pub fn visit_heap_references(
     visit_heap_references_in_reader(
         reference_map,
         |start, buffer| {
-            let Some(end) = start.checked_add(buffer.len()) else {
-                return Err(HeapError::TraceOffsetOverflow {
-                    start,
-                    width: buffer.len(),
-                });
-            };
+            let end = start + buffer.len();
             let Some(window) = bytes.get(start..end) else {
                 return Err(HeapError::TruncatedReferenceReaderWindow {
                     start,
@@ -568,7 +546,7 @@ pub(crate) fn visit_heap_references_in_reader(
 }
 
 /// Visit each shared heap reference encoded by one scan through one reader.
-pub(crate) fn visit_shared_references_in_reader(
+pub fn visit_shared_references_in_reader(
     reference_map: &ReferenceMap,
     read_edge: impl FnMut(usize, &mut [u8]) -> HeapResult<()>,
     visit: impl FnMut(SharedHeapReference),
@@ -587,7 +565,7 @@ pub(crate) fn visit_heap_references_in_reader_range(
     visit: impl FnMut(HeapReference),
 ) -> HeapResult<()> {
     let cursor =
-        EdgeMap::new(reference_map).local_offsets_in_range(start, len, HeapReference::BYTE_LEN)?;
+        EdgeMap::new(reference_map).local_offsets_in_range(start, len, HeapReference::BYTE_LEN);
 
     visit_edges_in_reader(cursor, read_edge, visit)
 }
@@ -604,7 +582,7 @@ pub(crate) fn visit_shared_references_in_reader_range(
         start,
         len,
         SharedHeapReference::BYTE_LEN,
-    )?;
+    );
 
     visit_edges_in_reader(cursor, read_edge, visit)
 }
