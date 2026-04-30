@@ -12,6 +12,9 @@ use destack_workspace::FormatterOptions;
 
 const CORPUS_SECTION_SEPARATOR: &str =
     "================================================================================";
+const CORPUS_FIRST_PASS: &str = "first pass";
+const CORPUS_SECOND_PASS: &str = "second pass";
+const CORPUS_IDEMPOTENCE_PASS: &str = "idempotence";
 
 /// One builtin corpus failure summary.
 #[derive(Debug)]
@@ -110,6 +113,36 @@ fn print_corpus_section(title: &str, path: &Path) {
     eprintln!();
 }
 
+/// Count failures for one formatter pass.
+fn count_corpus_failures(failures: &[CorpusFailure], pass: &str) -> usize {
+    failures
+        .iter()
+        .filter(|failure| failure.pass == pass)
+        .count()
+}
+
+/// Print one corpus failure summary.
+fn print_corpus_summary(checked_file_count: usize, failures: &[CorpusFailure]) {
+    print_corpus_section("builtin formatter corpus: summary", Path::new("."));
+
+    let first_pass_failures = count_corpus_failures(failures, CORPUS_FIRST_PASS);
+    let second_pass_failures = count_corpus_failures(failures, CORPUS_SECOND_PASS);
+    let idempotence_failures = count_corpus_failures(failures, CORPUS_IDEMPOTENCE_PASS);
+
+    eprintln!(
+        "checked {checked_file_count} files, found {} failures",
+        failures.len()
+    );
+    eprintln!("first pass parse failures: {first_pass_failures}");
+    eprintln!("second pass parse failures: {second_pass_failures}");
+    eprintln!("idempotence failures: {idempotence_failures}");
+    eprintln!();
+
+    for failure in failures {
+        eprintln!("{}", failure.summary());
+    }
+}
+
 /// Build a source file for one builtin path.
 fn build_builtin_file(path: &Path, source: &str) -> File {
     let file_name = path.file_name().unwrap().to_string_lossy().to_string();
@@ -179,7 +212,7 @@ fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
                     relative_path,
                 );
                 print_builtin_parse_diagnostics(&path, &source);
-                failures.push(CorpusFailure::new(relative_path, "first pass", error));
+                failures.push(CorpusFailure::new(relative_path, CORPUS_FIRST_PASS, error));
                 continue;
             }
         };
@@ -193,7 +226,7 @@ fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
                     relative_path,
                 );
                 print_builtin_parse_diagnostics(&path, &first);
-                failures.push(CorpusFailure::new(relative_path, "second pass", error));
+                failures.push(CorpusFailure::new(relative_path, CORPUS_SECOND_PASS, error));
                 continue;
             }
         };
@@ -204,25 +237,14 @@ fn test_format_builtin_corpus_is_idempotent() -> Result<(), String> {
             print_diff(&first, &second, &diff_options);
             failures.push(CorpusFailure::new(
                 relative_path,
-                "idempotence",
+                CORPUS_IDEMPOTENCE_PASS,
                 "second pass changed output",
             ));
         }
     }
 
     if !failures.is_empty() {
-        print_corpus_section("builtin formatter corpus: summary", Path::new("."));
-        let summary = failures
-            .iter()
-            .map(CorpusFailure::summary)
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        eprintln!(
-            "checked {checked_file_count} files, found {} failures",
-            failures.len()
-        );
-        eprintln!("{summary}");
+        print_corpus_summary(checked_file_count, &failures);
 
         return Err(format!(
             "builtin formatter corpus failed: {} of {checked_file_count} files",
