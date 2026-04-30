@@ -8,8 +8,8 @@ pub const DEFAULT_GC_GROWTH_PERCENT: u32 = 100;
 pub const DEFAULT_GC_TRIGGER_PERCENT: u32 = 75;
 /// The default heap pacing floor.
 pub const DEFAULT_GC_MINIMUM_HEAP_BYTES: u64 = 4 * 1024 * 1024;
-/// The default minimum collector byte budget for one safepoint.
-pub const DEFAULT_GC_MINIMUM_BUDGET_BYTES: usize = 64 * 1024;
+/// The default minimum collector work for one safepoint.
+pub const DEFAULT_GC_MINIMUM_WORK_BYTES: usize = 64 * 1024;
 /// The default smoothing weight for observed collector work.
 const GC_WORK_ESTIMATE_OLD_WEIGHT: u64 = 7;
 /// The default smoothing divisor for observed collector work.
@@ -26,8 +26,8 @@ pub struct GcOptions {
     pub soft_limit_bytes: Option<u64>,
     /// Optional minimum heap floor in bytes.
     pub minimum_heap_bytes: Option<u64>,
-    /// Minimum collector byte budget for one safepoint.
-    pub minimum_budget_bytes: usize,
+    /// Minimum collector work for one safepoint.
+    pub minimum_work_bytes: usize,
 }
 
 impl GcOptions {
@@ -38,7 +38,7 @@ impl GcOptions {
             trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_budget_bytes: DEFAULT_GC_MINIMUM_BUDGET_BYTES,
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
         }
     }
 
@@ -49,7 +49,7 @@ impl GcOptions {
             trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(DEFAULT_GC_MINIMUM_HEAP_BYTES),
-            minimum_budget_bytes: DEFAULT_GC_MINIMUM_BUDGET_BYTES,
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
         }
     }
 
@@ -61,9 +61,9 @@ impl GcOptions {
             });
         }
 
-        if self.minimum_budget_bytes == 0 {
-            return Err(HeapError::InvalidGcMinimumBudgetBytes {
-                bytes: self.minimum_budget_bytes,
+        if self.minimum_work_bytes == 0 {
+            return Err(HeapError::InvalidGcMinimumWorkBytes {
+                bytes: self.minimum_work_bytes,
             });
         }
 
@@ -88,7 +88,7 @@ pub struct GcPacer {
     pub assist_debt_bytes: u64,
 }
 
-/// Collection pressure requested by one pacer snapshot.
+/// GC pressure requested by one pacer snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GcPressure {
     /// No collection work is currently requested.
@@ -134,7 +134,7 @@ impl GcPacer {
         // the new cycle owns all outstanding collector work
         self.remaining_work_bytes = self
             .estimated_work_bytes
-            .max(options.minimum_budget_bytes as u64);
+            .max(options.minimum_work_bytes as u64);
         self.assist_debt_bytes = 0;
     }
 
@@ -187,7 +187,7 @@ impl GcPacer {
         };
         let work_bytes = self
             .estimated_work_bytes
-            .max(options.minimum_budget_bytes as u64);
+            .max(options.minimum_work_bytes as u64);
         let debt_bytes = (byte_len as u128 * work_bytes as u128).div_ceil(runway_bytes as u128);
 
         debt_bytes.max(1).min(u128::from(u64::MAX)) as u64
@@ -206,7 +206,7 @@ impl GcPacer {
     /// Return the base work budget for one collector increment.
     pub fn base_budget_bytes(&self, options: GcOptions, worker_count: usize) -> usize {
         let worker_count = worker_count.max(1) as u64;
-        let minimum_bytes = options.minimum_budget_bytes as u64 * worker_count;
+        let minimum_bytes = options.minimum_work_bytes as u64 * worker_count;
 
         if self.remaining_work_bytes == 0 {
             return minimum_bytes as usize;
@@ -242,7 +242,7 @@ impl GcPacer {
 
 /// Return the initial collector work estimate for one heap size.
 fn initial_work_estimate(options: GcOptions, live_bytes: u64) -> u64 {
-    live_bytes.max(options.minimum_budget_bytes as u64)
+    live_bytes.max(options.minimum_work_bytes as u64)
 }
 
 /// Return the observed collector work from one completed cycle.
@@ -251,7 +251,7 @@ fn observed_cycle_work(options: GcOptions, stats: GcStats) -> u64 {
     let retained_bytes = stats.retained_bytes;
     let observed_bytes = swept_bytes.max(retained_bytes);
 
-    observed_bytes.max(options.minimum_budget_bytes as u64)
+    observed_bytes.max(options.minimum_work_bytes as u64)
 }
 
 /// Return one smoothed collector work estimate.

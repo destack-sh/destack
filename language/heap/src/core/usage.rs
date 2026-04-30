@@ -67,6 +67,7 @@ impl AllocationUsage {
     }
 
     /// Charge one allocation into this usage.
+    #[inline(always)]
     pub(crate) fn allocate(&mut self, byte_len: usize) {
         self.allocation_count += 1;
         self.allocated_bytes += byte_len as u64;

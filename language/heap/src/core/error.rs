@@ -18,13 +18,13 @@ pub enum ScanSource {
     LargeAllocation(u64),
 }
 
-/// Heap configuration failure.
+/// Heap operation failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeapError {
     /// The configured GC trigger percentage is unsupported.
     InvalidGcTriggerPercent { percent: u32 },
-    /// The configured minimum GC byte budget is unsupported.
-    InvalidGcMinimumBudgetBytes { bytes: usize },
+    /// The configured minimum GC work is unsupported.
+    InvalidGcMinimumWorkBytes { bytes: usize },
     /// The configured heap page width is unsupported.
     InvalidPageBytes { bytes: usize },
     /// The configured allocator chunk width is unsupported.
@@ -64,6 +64,8 @@ pub enum HeapError {
     },
     /// The configured heap young-allocation threshold exceeds young-space capacity.
     HeapYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
+    /// The configured heap young-space capacity exceeds young metadata capacity.
+    HeapYoungCapacityTooLarge { capacity: usize, max: usize },
     /// The configured small-allocation alignment is unsupported.
     InvalidSmallAllocationAlignmentBytes { bytes: usize },
     /// One size class violated the configured small-allocation alignment.
@@ -122,20 +124,10 @@ pub enum HeapError {
         /// The maximum configured chunk count.
         max_chunks: usize,
     },
-    /// One allocator chunk allocation failed.
-    AllocatorChunkAllocationFailed {
-        /// The requested chunk byte length.
-        byte_len: usize,
-    },
     /// One address-space operation failed.
     AddressSpaceFailed {
         /// The requested address space byte length.
         byte_len: usize,
-    },
-    /// One allocator address was outside the supported chunk map.
-    AllocatorAddressUnsupported {
-        /// The mapped chunk address.
-        address: usize,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -230,9 +222,9 @@ pub enum HeapError {
         /// The invalid shared raw pointer.
         pointer: SharedRawPointer,
     },
-    /// One internal heap invariant exceeded representable arithmetic range.
-    InvariantOverflow {
-        /// The overflowing invariant context.
+    /// One heap value exceeded its encoded representation.
+    RepresentationLimitExceeded {
+        /// The representation that was exceeded.
         context: &'static str,
     },
     /// One internal heap invariant was violated.
@@ -320,33 +312,12 @@ pub enum HeapError {
         /// The invalid byte width.
         bytes: usize,
     },
-    /// One traced field width overflowed its byte offset.
-    TraceOffsetOverflow {
-        /// The traced field byte offset.
-        start: usize,
-        /// The traced field byte width.
-        width: usize,
-    },
-    /// One traced field extended past the provided payload bytes.
-    TruncatedTracePayload {
-        /// The traced field byte offset.
-        start: usize,
-        /// The traced field byte width.
-        width: usize,
-        /// The available payload length.
-        len: usize,
-    },
     /// One traced field could not be read from one random-access reader.
     TruncatedReferenceReaderWindow {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
         width: usize,
-    },
-    /// One traced value payload was invalid.
-    InvalidReferenceValuePayload {
-        /// The traced value byte offset.
-        start: usize,
     },
     /// One allocation initializer did not match its requested byte length.
     InvalidAllocationBytes {
@@ -365,8 +336,8 @@ impl Display for HeapError {
             Self::InvalidGcTriggerPercent { percent } => {
                 write!(formatter, "invalid GC trigger percent: {percent}")
             }
-            Self::InvalidGcMinimumBudgetBytes { bytes } => {
-                write!(formatter, "invalid minimum GC byte budget: {bytes}")
+            Self::InvalidGcMinimumWorkBytes { bytes } => {
+                write!(formatter, "invalid minimum GC work bytes: {bytes}")
             }
             Self::InvalidPageBytes { bytes } => {
                 write!(
@@ -429,6 +400,12 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "heap young allocation threshold exceeds young-space capacity: {threshold} > {capacity}"
+                )
+            }
+            Self::HeapYoungCapacityTooLarge { capacity, max } => {
+                write!(
+                    formatter,
+                    "heap young-space capacity exceeds young metadata capacity: {capacity} > {max}"
                 )
             }
             Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
@@ -512,22 +489,10 @@ impl Display for HeapError {
                     "allocator chunk limit exceeded: required {required_chunks} chunks with maximum {max_chunks}"
                 )
             }
-            Self::AllocatorChunkAllocationFailed { byte_len } => {
-                write!(
-                    formatter,
-                    "allocator chunk allocation failed: {byte_len} bytes"
-                )
-            }
             Self::AddressSpaceFailed { byte_len } => {
                 write!(
                     formatter,
                     "address space operation failed: {byte_len} bytes"
-                )
-            }
-            Self::AllocatorAddressUnsupported { address } => {
-                write!(
-                    formatter,
-                    "allocator chunk address is outside the supported chunk map: {address:#x}"
                 )
             }
             Self::LimitExceeded {
@@ -638,8 +603,8 @@ impl Display for HeapError {
             Self::InvalidSharedRawPointer { pointer } => {
                 write!(formatter, "invalid shared raw pointer: {pointer:?}")
             }
-            Self::InvariantOverflow { context } => {
-                write!(formatter, "heap invariant overflow: {context}")
+            Self::RepresentationLimitExceeded { context } => {
+                write!(formatter, "heap representation limit exceeded: {context}")
             }
             Self::InvariantViolation { context } => {
                 write!(formatter, "heap invariant violation: {context}")
@@ -723,28 +688,10 @@ impl Display for HeapError {
                     "unsupported heap reference width for tracing window: {bytes}"
                 )
             }
-            Self::TraceOffsetOverflow { start, width } => {
-                write!(
-                    formatter,
-                    "heap reference offset overflow while tracing: start={start}, width={width}"
-                )
-            }
-            Self::TruncatedTracePayload { start, width, len } => {
-                write!(
-                    formatter,
-                    "truncated heap reference payload while tracing: start={start}, width={width}, len={len}"
-                )
-            }
             Self::TruncatedReferenceReaderWindow { start, width } => {
                 write!(
                     formatter,
                     "truncated heap reference payload while tracing: start={start}, width={width}"
-                )
-            }
-            Self::InvalidReferenceValuePayload { start } => {
-                write!(
-                    formatter,
-                    "invalid value payload while tracing heap references: start={start}"
                 )
             }
             Self::InvalidAllocationBytes { expected, actual } => {
