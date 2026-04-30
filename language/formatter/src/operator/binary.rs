@@ -217,7 +217,11 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         // prefix expressions
         Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
+        | Expression::Comptime { .. }
         | Expression::Yield { .. }
+        | Expression::ValueOf { .. }
+        | Expression::ReferenceOf { .. }
+        | Expression::PointerOf { .. }
         | Expression::Delete { .. }
         | Expression::Throw { .. }
         | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,

@@ -9,19 +9,20 @@ use super::{
     is_nested_lambda_expression, member_is_private_hash, transparent_inner_expression,
 };
 use crate::annotation::{
-    FormatLeadingComments, FormatTrailingComments, format_trailing_comments,
-    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
+    FormatLeadingComments, FormatTrailingComments, format_leading_comments,
+    format_trailing_comments, infix_or_postfix_annotations, postfix_annotations,
+    prefix_annotations,
 };
 use crate::call::{expression_is_long_curried_call, format_call_arguments, format_call_expression};
 use crate::context::{DestackFormatterSpeculationExt, with_following_span_start};
 use crate::expression::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
-    write_index_access,
+    format_if_else_chain, write_index_access,
 };
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionKind,
+    Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionKind, IfKind,
     LocalNodeId, Member, NodeType, PostfixPosition,
 };
 use destack_core::StringId;
@@ -30,7 +31,7 @@ use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,
     token,
 };
-use destack_fir::{best_fitting, write};
+use destack_fir::{best_fitting, format_args, write};
 use destack_source::Span;
 
 /// Check whether an assignment chain ends in a nested lambda expression.
@@ -99,6 +100,7 @@ impl MemberChain {
                 &self.root,
                 &self.head,
                 &self.tail_groups,
+                false,
             )
         });
         f.speculate_will_break_after(start, &content)
@@ -461,6 +463,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
                 &chain.root,
                 &chain.head,
                 &chain.tail_groups,
+                true,
             )
         });
 
@@ -558,7 +561,7 @@ fn write_one_line_chain<'ast>(
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
 ) -> FormatResult<()> {
-    write_chain_head(f, formatted_root_id, root, head, tail_groups)?;
+    write_chain_head(f, formatted_root_id, root, head, tail_groups, false)?;
     skip_comments_after_chain_head(f, root, head)?;
 
     let groups = tail_groups.iter().collect::<Vec<_>>();
@@ -587,6 +590,7 @@ fn write_expanded_chain<'ast>(
     root: &ChainRoot,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
+    expand_if_value_root: bool,
 ) -> FormatResult<()> {
     // parent expansion
     if should_expand_parent {
@@ -594,7 +598,14 @@ fn write_expanded_chain<'ast>(
     }
 
     // base
-    write_chain_head(f, formatted_root_id, root, head, tail_groups)?;
+    write_chain_head(
+        f,
+        formatted_root_id,
+        root,
+        head,
+        tail_groups,
+        expand_if_value_root,
+    )?;
     skip_comments_after_chain_head(f, root, head)?;
 
     // tail groups
@@ -835,6 +846,7 @@ fn write_chain_head<'ast>(
     root: &ChainRoot,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
+    expand_if_value_root: bool,
 ) -> FormatResult<()> {
     let root_is_decorator_expression = f
         .context()
@@ -878,7 +890,7 @@ fn write_chain_head<'ast>(
 
                 // the root expression still owns its own base formatting
                 with_following_span_start(f, following_span_start, |f| {
-                    write_postfix_base_expression(f, *node_id)?;
+                    write_chain_root_expression(f, *node_id, expand_if_value_root)?;
                     write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])
                 })?;
 
@@ -902,6 +914,43 @@ fn write_chain_head<'ast>(
     }
 
     Ok(())
+}
+
+/// Write one chain root expression.
+fn write_chain_root_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    expand_if_value_root: bool,
+) -> FormatResult<()> {
+    // regular if roots expand with the chain
+    let should_expand_if_root = expand_if_value_root
+        && matches!(
+            f.context().tree.get(expression_id),
+            Expression::If {
+                kind: IfKind::If,
+                ..
+            }
+        );
+    if should_expand_if_root {
+        let expression_span = f.context().span(expression_id);
+        let token_start = f.context().expression_token_start(expression_id);
+        let token_start_span = Span::new(expression_span.file, token_start, token_start);
+
+        // preserve the same leading trivia boundary as regular expressions
+        let expanded_if = format_with(|f| {
+            write!(f, [prefix_annotations(f.context(), expression_id)])?;
+            write!(f, [format_leading_comments(token_start_span)])?;
+            format_if_else_chain(f, expression_id, true)
+        });
+
+        write!(
+            f,
+            [group(&format_args![token("("), &expanded_if, token(")")])]
+        )?;
+        return Ok(());
+    }
+
+    write_postfix_base_expression(f, expression_id)
 }
 
 /// Advance the comment cursor past the head owner span.

@@ -2,8 +2,8 @@ use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_position;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_ast::{
-    AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition, IfKind,
-    LocalNodeId, MatchCase, NodeType, OperatorPrecedence,
+    Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition,
+    IfKind, LocalNodeId, MatchCase, NodeType, OperatorPrecedence, Property,
 };
 use destack_source::Span;
 
@@ -63,6 +63,38 @@ fn expression_is_match_case_body(
 
     let case_id = LocalNodeId::<MatchCase>::new(parent_id);
     matches!(context.tree.get(case_id), MatchCase::Expression { body, .. } if *body == parent_child_id)
+}
+
+/// Return whether one expression is a spread value.
+fn expression_is_spread_value(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    match parent_type {
+        NodeType::Argument => {
+            let argument_id = LocalNodeId::<Argument>::new(parent_id);
+            matches!(context.tree.get(argument_id), Argument::Spread { value, .. } if *value == parent_child_id)
+        }
+        NodeType::Property => {
+            let property_id = LocalNodeId::<Property>::new(parent_id);
+            matches!(context.tree.get(property_id), Property::Spread { value } if *value == parent_child_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one expression has statement-like value syntax.
+fn expression_is_statement_like_value(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::If {
+            kind: IfKind::If,
+            ..
+        } | Expression::Match { .. }
+            | Expression::Try { .. }
+    )
 }
 
 /// Return whether one parent requires type-cast-like parentheses for a child.
@@ -628,16 +660,37 @@ fn expression_is_update_or_lower_precedence(
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
-            | Expression::If {
-                kind: IfKind::Ternary,
-                ..
-            }
+            | Expression::If { .. }
+            | Expression::Match { .. }
+            | Expression::Try { .. }
             | Expression::As { .. }
             | Expression::Satisfies { .. }
             | Expression::Assign { .. }
             | Expression::SequenceExpression { .. }
             | Expression::Yield { .. }
     )
+}
+
+/// Return whether one statement-like value needs parentheses in a tighter parent.
+fn statement_like_value_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::Expression {
+        return expression_is_spread_value(context, parent_id, parent_type, parent_child_id);
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_expression = context.tree.get(parent_expression_id);
+
+    type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+        || matches!(
+            parent_expression,
+            Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. }
+        )
 }
 
 /// Return whether one explicit wrapper is required by a postfix parent.
@@ -656,7 +709,8 @@ fn parenthesized_wrapper_required_by_parent(
         return false;
     };
     if parent_type != NodeType::Expression {
-        return false;
+        return expression_is_statement_like_value(context.tree.get(expression_id))
+            && expression_is_spread_value(context, parent_id, parent_type, parent_child_id);
     }
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
@@ -703,6 +757,11 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         let is_match_case_body =
             expression_is_match_case_body(context, parent_id, parent_type, parent_child_id);
         if is_class_extends && class_extends_expression_needs_parentheses(context.tree.get(node_id))
+        {
+            return true;
+        }
+        if expression_is_statement_like_value(context.tree.get(node_id))
+            && expression_is_spread_value(context, parent_id, parent_type, parent_child_id)
         {
             return true;
         }
@@ -820,6 +879,16 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                     IfCondition::Expression { condition } if *condition == parent_child_id
                 )
             );
+    }
+
+    // statement-like values need parentheses in tighter parents
+    if expression_is_statement_like_value(context.tree.get(node_id)) {
+        return statement_like_value_needs_parentheses_in_parent(
+            context,
+            parent_id,
+            parent_type,
+            parent_child_id,
+        );
     }
 
     // `as` and `satisfies` need parentheses in tighter or ambiguous parent positions
