@@ -52,6 +52,34 @@ const node = <div className={cx("a", { b: cond })} />
 const node = <div className={cx("a", { b: cond })} />;
 ```
 
+### template attribute interpolation comments
+
+Template attributes keep multiline interpolation comments indented from the template segment.
+
+```tsx:main.tsx
+const node = <Panel className={`
+  color: ${theme?.activeColor[
+    // selected mode
+    mode === "dark" ? "dark" : "light"
+  ]};
+`} />
+```
+
+```tsx expected
+const node = (
+    <Panel
+        className={`
+  color: ${
+      theme?.activeColor[
+          // selected mode
+          mode === "dark" ? "dark" : "light"
+      ]
+  };
+`}
+    />
+);
+```
+
 ### attributes with trailing comments
 
 Trailing attribute comments stay attached to the same attributes.

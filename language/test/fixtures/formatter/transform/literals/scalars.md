@@ -224,6 +224,64 @@ const A = {
 };
 ```
 
+### multiline template interpolation comment
+
+Comments inside an indented multiline template interpolation keep the expression indented under `${`.
+
+```ts:main.ts
+const css = `
+  color: ${theme?.activeColor[
+    // selected mode
+    mode === "dark" ? "dark" : "light"
+  ]};
+`;
+```
+
+```ts expected
+const css = `
+  color: ${
+      theme?.activeColor[
+          // selected mode
+          mode === "dark" ? "dark" : "light"
+      ]
+  };
+`;
+```
+
+### multiline template interpolation comments
+
+Each interpolation derives indentation from the preceding template segment.
+
+```ts:main.ts
+const css = `
+  color: ${theme?.activeColor[
+    // selected mode
+    mode === "dark" ? "dark" : "light"
+  ]};
+    background: ${theme?.backgroundColor[
+      // selected mode
+      mode === "dark" ? "dark" : "light"
+    ]};
+`;
+```
+
+```ts expected
+const css = `
+  color: ${
+      theme?.activeColor[
+          // selected mode
+          mode === "dark" ? "dark" : "light"
+      ]
+  };
+    background: ${
+        theme?.backgroundColor[
+            // selected mode
+            mode === "dark" ? "dark" : "light"
+        ]
+    };
+`;
+```
+
 ## Tagged Templates
 
 ### tagged template

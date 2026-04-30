@@ -90,6 +90,32 @@ const node = (
 );
 ```
 
+### template child interpolation comments
+
+Template children keep multiline interpolation comments indented from the template segment.
+
+```tsx:main.tsx
+const node = <div>{`
+  color: ${theme?.activeColor[
+    // selected mode
+    mode === "dark" ? "dark" : "light"
+  ]};
+`}</div>
+```
+
+```tsx expected
+const node = (
+    <div>{`
+  color: ${
+      theme?.activeColor[
+          // selected mode
+          mode === "dark" ? "dark" : "light"
+      ]
+  };
+`}</div>
+);
+```
+
 ### multiline children break
 
 Multiple element children break to one per line.
@@ -214,6 +240,90 @@ const node = (
             <Pending />
         )}
     </div>
+);
+```
+
+### if value with element children
+
+If values used as children expand element branches.
+
+```ds
+const node = <Panel>{if (ready) { <Ready label={`state: ${readyLabel}`} /> } else {
+  // pending branch
+  <Pending label={`state: ${pendingLabel}`} />
+}}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {if (ready) {
+            <Ready label={`state: ${readyLabel}`} />
+        } else {
+            // pending branch
+            <Pending label={`state: ${pendingLabel}`} />
+        }}
+    </Panel>
+);
+```
+
+### if-let value with element children
+
+If-let values used as children expand element branches and pattern heads.
+
+```ds line-width=80
+const node = <Panel>{if (let Some(item) = selected) { <Ready item={item} /> } else { <Pending /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {if (let Some(item) = selected) {
+            <Ready item={item} />
+        } else {
+            <Pending />
+        }}
+    </Panel>
+);
+```
+
+### match value with element children
+
+Match values used as children keep each element arm attached to its pattern.
+
+```ds
+const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Pending => <Pending />; Failed(error) => <Failed error={error} /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {match (state) {
+            Ready(item) => <Ready item={item} />
+            Pending => <Pending />
+            Failed(error) => <Failed error={error} />
+        }}
+    </Panel>
+);
+```
+
+### try value with element children
+
+Try values used as children expand result and recovery element branches.
+
+```ds
+const node = <Panel>{try { <Ready data={load()} /> } catch (error) { <Failed error={error} /> }}</Panel>
+```
+
+```ds expected
+const node = (
+    <Panel>
+        {try {
+            <Ready data={load()} />
+        } catch (error) {
+            <Failed error={error} />
+        }}
+    </Panel>
 );
 ```
 
