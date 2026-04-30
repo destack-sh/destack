@@ -2,8 +2,8 @@ use crate::tests::harness::TestLanguageService;
 
 /// Emit diagnostics after a virtual update with invalid syntax.
 #[test]
-fn test_workspace_service_virtual_update_emits_diagnostics() {
-    let test = TestLanguageService::new("workspace_service_update");
+fn test_apply_file_emits_diagnostics() {
+    let test = TestLanguageService::new("service_update");
     let valid_source = "export const x: number = 1;\n";
     let invalid_source = "export const x = ;\n";
     let path = test.write_text("main.ds", valid_source);
@@ -29,10 +29,10 @@ fn test_workspace_service_virtual_update_emits_diagnostics() {
     );
 }
 
-/// Restore filesystem backed diagnostics after closing a tracked document.
+/// Restore filesystem backed diagnostics after closing an open file.
 #[test]
-fn test_workspace_service_close_document_restores_filesystem_diagnostics() {
-    let test = TestLanguageService::new("workspace_service_close_document");
+fn test_close_file_restores_filesystem_diagnostics() {
+    let test = TestLanguageService::new("service_close_file");
     let valid_source = "export const x: number = 1;\n";
     let invalid_source = "export const x = ;\n";
     let path = test.write_text("main.ds", valid_source);
@@ -40,35 +40,49 @@ fn test_workspace_service_close_document_restores_filesystem_diagnostics() {
 
     let opened = test
         .service
-        .set_document(&path, uri.clone(), 1, invalid_source.to_string())
-        .expect("expected tracked document open");
+        .open_file(&path, uri.clone(), 1, invalid_source.to_string())
+        .expect("expected open file");
 
     assert!(
         opened
             .updates
             .iter()
             .any(|update| !update.diagnostics.is_empty()),
-        "expected diagnostics for tracked invalid content"
+        "expected diagnostics for open invalid content"
     );
 
-    let closed = test
-        .service
-        .close_document(&path)
-        .expect("expected tracked document close");
+    let closed = test.service.close_file(&path).expect("expected close file");
 
     assert!(
         closed
             .updates
             .iter()
-            .any(|update| update.publish_uri == uri && update.diagnostics.is_empty()),
-        "expected a filesystem backed publish for the closed document"
+            .any(|update| update.diagnostic_uri == uri && update.diagnostics.is_empty()),
+        "expected filesystem backed diagnostics for the closed file"
+    );
+}
+
+/// Apply watched file changes and surface diagnostics.
+#[test]
+fn test_apply_watch_event_emits_diagnostics() {
+    let test = TestLanguageService::new("service_watch_diagnostics");
+    let path = test.write_text("main.ds", "export const value = ;\n");
+
+    let result = test.apply_watch_modified(&path);
+
+    assert!(
+        result
+            .updates
+            .iter()
+            .any(|update| !update.diagnostics.is_empty()),
+        "expected diagnostics for watched invalid source"
     );
 }
 
 /// Keep config updates scoped to direct file publishes.
 #[test]
-fn test_workspace_service_config_update_stays_direct() {
-    let test = TestLanguageService::new("workspace_service_config_fanout");
+fn test_apply_config_update_stays_direct() {
+    let test = TestLanguageService::new("service_config_fanout");
     let _package_path = test.write_text(
         "package.json",
         "{ \"name\": \"fanout\", \"version\": \"0.1.0\" }\n",
@@ -77,7 +91,7 @@ fn test_workspace_service_config_update_stays_direct() {
     let module_a = test.write_text("a.ds", "export const a = ;\n");
     let module_b = test.write_text("b.ds", "export const b = ;\n");
 
-    // admit the modules and config into the live program first
+    // load the modules and config into the live program first
     let _ = test.update_virtual_text(&module_a, "export const a = ;\n");
     let _ = test.update_virtual_text(&module_b, "export const b = ;\n");
     let _ = test.update_virtual_text(&config_path, "{ \"compilerOptions\": {} }\n");

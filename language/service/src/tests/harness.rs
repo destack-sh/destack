@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -10,21 +9,21 @@ use destack_source::{
 };
 use destack_workspace::HostEnvironment;
 
-use crate::{LanguageService, LanguageServiceResult};
+use crate::{FileMutation, LanguageService, LanguageServiceResult};
 
-/// Test harness for workspace service integration tests.
+/// Test harness for language service integration tests.
 #[derive(Debug)]
 pub(super) struct TestLanguageService {
     /// Temporary filesystem root.
     pub fs: TemporaryPhysicalFileSystem,
-    /// Workspace service under test.
+    /// Language service under test.
     pub service: LanguageService,
     /// Workspace roots registered in the service.
     pub roots: Vec<PathBuf>,
 }
 
 impl TestLanguageService {
-    /// Create a new harness rooted at a temporary workspace.
+    /// Create a new harness rooted at a temporary source root.
     pub(super) fn new(prefix: &str) -> Self {
         Self::new_with_roots(prefix, 1)
     }
@@ -60,7 +59,7 @@ impl TestLanguageService {
             compiler_options,
             None,
         )
-        .expect("expected workspace service");
+        .expect("expected language service");
 
         Self { fs, service, roots }
     }
@@ -70,7 +69,7 @@ impl TestLanguageService {
         self.path_for_root(0, path)
     }
 
-    /// Resolve a path under a specific workspace root.
+    /// Resolve a path under a specific source root.
     pub(super) fn path_for_root(&self, root_index: usize, path: impl AsRef<Path>) -> PathBuf {
         let root = self
             .roots
@@ -110,7 +109,12 @@ impl TestLanguageService {
     /// Apply a virtual source update for a path.
     pub(super) fn update_virtual_text(&self, path: &Path, source: &str) -> LanguageServiceResult {
         self.service
-            .update_virtual_file(path, source.to_string())
+            .apply_file(
+                path,
+                FileMutation::Text {
+                    content: source.to_string(),
+                },
+            )
             .unwrap_or_else(|error| panic!("failed virtual update for {}: {error}", path.display()))
     }
 
@@ -123,19 +127,19 @@ impl TestLanguageService {
         };
 
         self.service
-            .apply_watch_events(vec![event], HashMap::new())
+            .apply_watch_events(vec![event])
             .unwrap_or_else(|error| panic!("failed watch apply for {}: {error}", path.display()))
     }
 }
 
-/// Build workspace roots for a test harness.
+/// Build source roots for a test harness.
 fn build_roots(fs: &TemporaryPhysicalFileSystem, root_count: usize) -> Vec<PathBuf> {
     // keep a single root at the fs root for common cases
     if root_count == 1 {
         return vec![fs.root().to_path_buf()];
     }
 
-    // create one sub root per workspace
+    // create one sub root per source root
     let mut roots = Vec::new();
     for index in 0..root_count {
         let root = fs.path_for(format!("root-{index}"));

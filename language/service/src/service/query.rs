@@ -5,163 +5,171 @@ use std::sync::Arc;
 use destack_query as query;
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_session::Session;
-use destack_source::{Diagnostic, DiagnosticCollection, File, FileId, Span, Uri};
+use destack_source::{Diagnostic, File, FileId, ModuleId, ProfileId, Span, Uri};
 use destack_workspace::{Repository, Revision, RevisionPin};
 
-use super::{
-    DocumentDiagnosticSnapshot, LanguageService, LanguageServiceError, WorkspaceDiagnosticSnapshot,
-};
+use super::{DiagnosticSnapshot, LanguageService, LanguageServiceError};
 
 impl LanguageService {
-    /// Run one callback under the coherent read lock for a workspace root.
-    fn with_workspace_read<T, F>(&self, root: &Path, callback: F) -> Result<T, LanguageServiceError>
+    /// Run one callback under a coherent session read lock.
+    fn read_session<T, F>(&self, root: &Path, callback: F) -> Result<T, LanguageServiceError>
     where
         F: FnOnce(&Session, &RevisionPin) -> Result<T, LanguageServiceError>,
     {
-        // resolve the owning workspace and repository
-        let workspace = self.workspace_for_root(root)?;
+        // resolve the session and repository
+        let session = self.session(root)?;
 
-        // hold the workspace read section for the full query
-        let _query_guard = workspace.enter_query();
-        let repository = workspace.repository();
+        // hold the read section for the full query
+        let _query_guard = session.enter_query();
+        let repository = session.repository();
+        let revision = session.revision(session.head())?;
         let revision_pin = repository
-            .pin(workspace.revision())
+            .pin(revision)
             .map_err(LanguageServiceError::from)?;
 
-        callback(workspace.as_ref(), &revision_pin)
+        callback(session.as_ref(), &revision_pin)
     }
 
-    /// Prepare the default query artifact root for one document path.
-    pub fn prepare_default_query_for_path(&self, path: &Path) -> Result<(), LanguageServiceError> {
-        let workspace = self.workspace_for_document_path(path)?;
-        let module_id = workspace.admit_module_for_path(path).map_err(|error| {
-            LanguageServiceError::QueryNotReady {
-                detail: format!("query preparation failed for {}: {error}", path.display()),
-            }
-        })?;
-        let revision = workspace.revision();
-        let profile_id = workspace
-            .repository()
-            .default_profile_id_for_module(revision, module_id)
+    /// Prepare the default query artifact root for one file path.
+    pub fn prepare_query(&self, path: &Path) -> Result<(), LanguageServiceError> {
+        let session = self.edit_session(path)?;
+        let module_id = session
+            .load_module_from_fs(session.head(), path)
             .map_err(|error| LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
             })?;
+        let revision = session.revision(session.head())?;
+        let profile_id =
+            default_profile_id_for_module(session.repository().as_ref(), revision, module_id)
+                .map_err(|error| LanguageServiceError::QueryNotReady {
+                    detail: format!("query preparation failed for {}: {error}", path.display()),
+                })?;
         let artifact_key = query::default_document_artifact_key(module_id, profile_id);
 
-        workspace.provide(&[artifact_key]).map_err(|error| {
-            LanguageServiceError::QueryNotReady {
+        session
+            .provide(revision, &[artifact_key])
+            .map_err(|error| LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
-            }
-        })?;
+            })?;
 
         Ok(())
     }
 
     /// Run one callback with a coherent file snapshot for a path.
-    pub fn with_file_for_path<T, F>(
-        &self,
-        path: &Path,
-        callback: F,
-    ) -> Result<T, LanguageServiceError>
+    pub fn read_file<T, F>(&self, path: &Path, callback: F) -> Result<T, LanguageServiceError>
     where
         F: FnOnce(&Repository, FileId, Arc<File>, Revision) -> Result<T, LanguageServiceError>,
     {
-        // resolve the workspace root once before entering the read section
-        let root = self.workspace_root_for_path(path)?;
+        // resolve the root once before entering the read section
+        let root = self.root_at(path)?;
 
-        self.with_workspace_read(&root, |workspace, revision_pin| {
+        self.read_session(&root, |session, revision_pin| {
             let repository = revision_pin.repository();
             let revision = revision_pin.revision();
 
-            // require one tracked file for the request
-            let file_id = workspace.file_id_for_path(path)?.ok_or_else(|| {
-                LanguageServiceError::FileNotTracked {
+            // require one file for the request
+            let file_id = session.file_id_for_path(revision, path)?.ok_or_else(|| {
+                LanguageServiceError::FileMissing {
                     path: path.to_path_buf(),
                 }
             })?;
-            let file = workspace.file_for_id(file_id)?;
+            let file = session.file_for_id(revision, file_id)?;
 
             callback(repository, file_id, file, revision)
         })
     }
 
-    /// Return a current diagnostic snapshot for one document path.
-    pub fn document_diagnostics_for_path(
+    /// Return a current diagnostic snapshot for one file path.
+    pub fn file_diagnostics(
         &self,
         path: &Path,
-    ) -> Result<Option<DocumentDiagnosticSnapshot>, LanguageServiceError> {
-        let root = self.workspace_root_for_path(path)?;
+    ) -> Result<Option<DiagnosticSnapshot>, LanguageServiceError> {
+        let root = self.root_at(path)?;
 
-        self.with_workspace_read(&root, |workspace, revision_pin| {
-            let Some((file_id, file)) = workspace.file_for_path(path)? else {
+        self.read_session(&root, |session, revision_pin| {
+            let revision = revision_pin.revision();
+            let Some((file_id, file)) = session.file_for_path(revision_pin.revision(), path)?
+            else {
                 return Ok(None);
             };
-            let diagnostics =
-                current_root_diagnostics_by_file(workspace, revision_pin.repository())?
-                    .remove(&file_id)
-                    .unwrap_or_default();
+            let diagnostics = current_root_diagnostics_by_file(session, revision_pin.repository())?
+                .remove(&file_id)
+                .unwrap_or_default();
+            let diagnostic_uri = file
+                .path
+                .as_ref()
+                .map(Uri::from_file_path)
+                .unwrap_or_else(|| file.uri.clone());
+            let diagnostic_version = file
+                .path
+                .as_ref()
+                .map(|path| session.diagnostic_version(revision, file_id, path))
+                .transpose()?
+                .flatten();
 
-            Ok(Some(DocumentDiagnosticSnapshot { file, diagnostics }))
+            Ok(Some(DiagnosticSnapshot {
+                file,
+                diagnostic_uri,
+                diagnostic_version,
+                diagnostics,
+            }))
         })
     }
 
-    /// Return current diagnostic snapshots for every workspace-owned file.
-    pub fn workspace_diagnostics(
-        &self,
-    ) -> Result<Vec<WorkspaceDiagnosticSnapshot>, LanguageServiceError> {
-        let mut roots: Vec<_> = self
-            .workspaces_by_root
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect();
+    /// Return current diagnostic snapshots for every open root.
+    pub fn diagnostics(&self) -> Result<Vec<DiagnosticSnapshot>, LanguageServiceError> {
+        let mut roots: Vec<_> = self.roots.iter().map(|entry| entry.key().clone()).collect();
         roots.sort();
 
         let mut snapshots = Vec::new();
         for root in roots {
-            let handle_snapshots = self.diagnostics_for_root(&root)?;
+            let root_snapshots = self.root_diagnostics(&root)?;
 
-            snapshots.extend(handle_snapshots);
+            snapshots.extend(root_snapshots);
         }
 
         Ok(snapshots)
     }
 
-    /// Return current diagnostic snapshots for one workspace root.
-    pub fn diagnostics_for_root(
+    /// Return current diagnostic snapshots for one root.
+    pub fn root_diagnostics(
         &self,
         root: &Path,
-    ) -> Result<Vec<WorkspaceDiagnosticSnapshot>, LanguageServiceError> {
-        self.with_workspace_read(root, |workspace, revision_pin| {
+    ) -> Result<Vec<DiagnosticSnapshot>, LanguageServiceError> {
+        self.read_session(root, |session, revision_pin| {
             let mut diagnostics_by_file =
-                current_root_diagnostics_by_file(workspace, revision_pin.repository())?;
+                current_root_diagnostics_by_file(session, revision_pin.repository())?;
 
-            // tracked documents
-            let mut tracked_documents = std::collections::HashMap::new();
-            for (path, uri, version) in workspace.open_file_identities() {
-                let Some(file_id) = workspace.file_id_for_path(&path)? else {
+            // open files
+            let mut open_files = std::collections::HashMap::new();
+            for (path, uri, _version) in session.open_files() {
+                let Some(file_id) = session.file_id_for_path(revision_pin.revision(), &path)?
+                else {
                     continue;
                 };
+                let version =
+                    session.diagnostic_version(revision_pin.revision(), file_id, &path)?;
 
                 diagnostics_by_file.entry(file_id).or_insert(Vec::new());
-                tracked_documents.insert(file_id, (uri, version));
+                open_files.insert(file_id, (uri, version));
             }
 
             let mut snapshots = Vec::new();
             for (file_id, diagnostics) in diagnostics_by_file {
-                let Ok(file) = workspace.file_for_id(file_id) else {
+                let Ok(file) = session.file_for_id(revision_pin.revision(), file_id) else {
                     continue;
                 };
-                let tracked_document = tracked_documents.get(&file_id);
-                let publish_uri = tracked_document
+                let open_file = open_files.get(&file_id);
+                let diagnostic_uri = open_file
                     .map(|(uri, _)| uri.clone())
                     .or_else(|| file.path.as_ref().map(Uri::from_file_path))
                     .unwrap_or_else(|| file.uri.clone());
-                let publish_version = tracked_document.map(|(_, version)| *version);
+                let diagnostic_version = open_file.and_then(|(_, version)| *version);
 
-                snapshots.push(WorkspaceDiagnosticSnapshot {
+                snapshots.push(DiagnosticSnapshot {
                     file,
-                    publish_uri,
-                    publish_version,
+                    diagnostic_uri,
+                    diagnostic_version,
                     diagnostics,
                 });
             }
@@ -188,7 +196,7 @@ impl LanguageService {
     }
 
     /// Execute one coherent file-backed read query for a path.
-    pub fn execute_file_read_query_for_path<F>(
+    pub fn read_file_query<F>(
         &self,
         path: &Path,
         build_request: F,
@@ -196,9 +204,9 @@ impl LanguageService {
     where
         F: FnOnce(FileId, &File) -> Option<query::QueryRequest>,
     {
-        self.prepare_default_query_for_path(path)?;
+        self.prepare_query(path)?;
 
-        self.with_file_for_path(path, |repository, file_id, file, revision| {
+        self.read_file(path, |repository, file_id, file, revision| {
             // build the request from the exact file snapshot used for result conversion
             let Some(request) = build_request(file_id, &file) else {
                 return Ok(None);
@@ -214,8 +222,8 @@ impl LanguageService {
         })
     }
 
-    /// Execute a read query for the workspace that owns the path.
-    pub fn execute_read_query_for_path(
+    /// Run one read query for the root that owns a path.
+    pub fn read_query(
         &self,
         path: &Path,
         request: query::QueryRequest,
@@ -227,48 +235,21 @@ impl LanguageService {
         };
 
         // route through read envelope execution
-        self.execute_read_query_envelope_for_path(path, envelope)
+        self.read_query_at(path, envelope)
     }
 
-    /// Execute a read query envelope for the workspace that owns the path.
-    pub fn execute_read_query_envelope_for_path(
+    /// Run one read query envelope for the root that owns a path.
+    pub fn read_query_at(
         &self,
         path: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        let root = self.workspace_root_for_path(path)?;
-
-        self.execute_read_query_envelope_for_workspace_root(&root, envelope)
+        let root = self.root_at(path)?;
+        self.read_root_query_envelope(&root, envelope)
     }
 
-    /// Execute a read query envelope for any workspace-owned path.
-    pub fn execute_read_query_envelope_for_owned_path(
-        &self,
-        path: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        let root = self.workspace_root_for_path(path)?;
-        self.execute_read_query_envelope_for_workspace_root(&root, envelope)
-    }
-
-    /// Execute a read query for a specific workspace root.
-    pub fn execute_read_query_for_workspace_root(
-        &self,
-        root: &Path,
-        request: query::QueryRequest,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        // read queries never carry revision preconditions
-        let envelope = QueryRequestEnvelope {
-            expected_revision: None,
-            request,
-        };
-
-        // route through read envelope execution
-        self.execute_read_query_envelope_for_workspace_root(root, envelope)
-    }
-
-    /// Execute a read query envelope for a specific workspace root.
-    pub fn execute_read_query_envelope_for_workspace_root(
+    /// Run one read query envelope for a root.
+    pub fn read_root_query_envelope(
         &self,
         root: &Path,
         envelope: QueryRequestEnvelope,
@@ -276,7 +257,7 @@ impl LanguageService {
         // reject any non-read requests on the read path
         let request_mode = envelope.request.execution_mode();
         if request_mode != query::QueryExecutionMode::Read {
-            return Err(LanguageServiceError::QueryExecutionModeMismatch {
+            return Err(LanguageServiceError::QueryModeMismatch {
                 method: envelope.request.method_id(),
                 expected: query::QueryExecutionMode::Read,
                 actual: request_mode,
@@ -285,14 +266,12 @@ impl LanguageService {
 
         // reject revision preconditions on read path requests
         if let Some(expected_revision) = envelope.expected_revision {
-            return Err(LanguageServiceError::UnexpectedExpectedRevisionOnRead {
-                expected_revision,
-            });
+            return Err(LanguageServiceError::UnexpectedExpectedRevision { expected_revision });
         }
 
         self.prepare_query_request(&envelope.request)?;
 
-        self.with_workspace_read(root, |_workspace, revision_pin| {
+        self.read_session(root, |_session, revision_pin| {
             // dispatch pure read query execution
             let repository = revision_pin.repository();
             let revision = revision_pin.revision();
@@ -303,29 +282,18 @@ impl LanguageService {
         })
     }
 
-    /// Execute a write query envelope for the workspace that owns the path.
-    pub fn execute_write_query_envelope_for_path(
+    /// Run one write query envelope for the root that owns a path.
+    pub fn write_query_at(
         &self,
         path: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        let root = self.workspace_root_for_path(path)?;
-
-        self.execute_write_query_envelope_for_workspace_root(&root, envelope)
+        let root = self.root_at(path)?;
+        self.write_root_query(&root, envelope)
     }
 
-    /// Execute a write query envelope for any workspace-owned path.
-    pub fn execute_write_query_envelope_for_owned_path(
-        &self,
-        path: &Path,
-        envelope: QueryRequestEnvelope,
-    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        let root = self.workspace_root_for_path(path)?;
-        self.execute_write_query_envelope_for_workspace_root(&root, envelope)
-    }
-
-    /// Execute a write query envelope for a specific workspace root.
-    pub fn execute_write_query_envelope_for_workspace_root(
+    /// Run one write query envelope for a root.
+    pub fn write_root_query(
         &self,
         root: &Path,
         envelope: QueryRequestEnvelope,
@@ -333,19 +301,19 @@ impl LanguageService {
         // reject any non-write requests on the write path
         let request_mode = envelope.request.execution_mode();
         if request_mode != query::QueryExecutionMode::Write {
-            return Err(LanguageServiceError::QueryExecutionModeMismatch {
+            return Err(LanguageServiceError::QueryModeMismatch {
                 method: envelope.request.method_id(),
                 expected: query::QueryExecutionMode::Write,
                 actual: request_mode,
             });
         }
 
-        // resolve the owning workspace session and current revision
-        let workspace = self.workspace_for_root(root)?;
+        // resolve the owning session and current revision
+        let session = self.session(root)?;
 
-        // serialize write queries with all other workspace mutations
-        let _mutation_guard = workspace.enter_mutation();
-        let current_revision = workspace.revision();
+        // serialize write queries with all other root mutations
+        let _mutation_guard = session.enter_mutation();
+        let current_revision = session.revision(session.head())?;
 
         // require a matching revision precondition for write requests
         let expected_revision = envelope
@@ -359,9 +327,9 @@ impl LanguageService {
         }
 
         // root the checked revision for the full request
-        let repository = workspace.repository();
+        let repository = session.repository();
         let revision_pin = repository
-            .pin(workspace.revision())
+            .pin(current_revision)
             .map_err(LanguageServiceError::from)?;
 
         // dispatch mutating query execution
@@ -933,15 +901,16 @@ impl LanguageService {
             });
         };
 
-        let profile_id = repository
-            .default_profile_id_for_module(revision, module_id)
-            .map_err(|error| LanguageServiceError::QueryNotReady {
-                detail: format!("missing query profile for module {module_id:?}: {error}"),
+        let profile_id =
+            default_profile_id_for_module(repository, revision, module_id).map_err(|error| {
+                LanguageServiceError::QueryNotReady {
+                    detail: format!("missing query profile for module {module_id:?}: {error}"),
+                }
             })?;
         let artifact_key = query::default_document_artifact_key(module_id, profile_id);
 
         if repository
-            .dir_checked(revision, module_id, profile_id)
+            .artifact_version(revision, &artifact_key)?
             .is_some()
         {
             return Ok(file_id);
@@ -952,7 +921,7 @@ impl LanguageService {
         })
     }
 
-    /// Prepare one query request when it targets one document path.
+    /// Prepare one query request when it targets one file path.
     fn prepare_query_request(
         &self,
         request: &query::QueryRequest,
@@ -961,28 +930,27 @@ impl LanguageService {
             return Ok(());
         };
 
-        let workspace = self.workspace_for_document_path(&path)?;
-        let module_id = workspace.admit_module_for_path(&path).map_err(|error| {
-            LanguageServiceError::QueryNotReady {
-                detail: format!("query preparation failed for {}: {error}", path.display()),
-            }
-        })?;
-        let revision = workspace.revision();
-        let profile_id = workspace
-            .repository()
-            .default_profile_id_for_module(revision, module_id)
+        let session = self.edit_session(&path)?;
+        let module_id = session
+            .load_module_from_fs(session.head(), &path)
             .map_err(|error| LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
             })?;
+        let revision = session.revision(session.head())?;
+        let profile_id =
+            default_profile_id_for_module(session.repository().as_ref(), revision, module_id)
+                .map_err(|error| LanguageServiceError::QueryNotReady {
+                    detail: format!("query preparation failed for {}: {error}", path.display()),
+                })?;
         let Some(artifact_key) = request.default_artifact_key(module_id, profile_id) else {
             return Ok(());
         };
 
-        workspace.provide(&[artifact_key]).map_err(|error| {
-            LanguageServiceError::QueryNotReady {
+        session
+            .provide(revision, &[artifact_key])
+            .map_err(|error| LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
-            }
-        })?;
+            })?;
 
         Ok(())
     }
@@ -996,12 +964,12 @@ impl LanguageService {
     }
 }
 
-/// Return current diagnostics grouped by file for one workspace session.
+/// Return current diagnostics grouped by file for one session.
 fn current_root_diagnostics_by_file(
-    workspace: &Session,
+    session: &Session,
     repository: &Repository,
 ) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
-    current_repository_diagnostics_by_file(repository, workspace.revision())
+    current_repository_diagnostics_by_file(repository, session.revision(session.head())?)
 }
 
 /// Return current diagnostics grouped by file for one repository revision.
@@ -1009,29 +977,7 @@ fn current_repository_diagnostics_by_file(
     repository: &Repository,
     revision: Revision,
 ) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
-    let module_ids = repository
-        .module_ids(revision)
-        .map_err(LanguageServiceError::from)?;
-    let mut diagnostics = DiagnosticCollection::new();
-
-    for module_id in module_ids {
-        let Some(module) = repository
-            .module(revision, module_id)
-            .map_err(LanguageServiceError::from)?
-        else {
-            continue;
-        };
-
-        if module.path.is_none() {
-            continue;
-        }
-
-        let profile_id = repository
-            .default_profile_id_for_module(revision, module_id)
-            .map_err(LanguageServiceError::from)?;
-        diagnostics
-            .merge_from(&repository.module_artifact_diagnostics(revision, module_id, profile_id));
-    }
+    let diagnostics = repository.diagnostics(revision)?;
     let mut diagnostics_by_file = HashMap::new();
 
     for diagnostic in diagnostics.iter() {
@@ -1042,4 +988,15 @@ fn current_repository_diagnostics_by_file(
     }
 
     Ok(diagnostics_by_file)
+}
+
+/// Return the default semantic profile id for one module.
+fn default_profile_id_for_module(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+) -> Result<ProfileId, LanguageServiceError> {
+    let profile = repository.module_profile(revision, module_id)?;
+
+    Ok(profile.id())
 }

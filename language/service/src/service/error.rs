@@ -2,78 +2,39 @@ use std::path::PathBuf;
 
 use destack_query::{QueryExecutionMode, QueryMethodId};
 use destack_session::SessionError;
-use destack_source::{FileId, ModuleId};
 use destack_workspace::{RepositoryError, Revision};
 
-/// Errors produced by workspace service operations.
+/// Errors produced by language service operations.
 #[derive(Debug)]
 pub enum LanguageServiceError {
-    /// Cache clearing failed for a path.
-    CacheClearFailed {
-        /// Cache directory path.
+    /// A path is outside every opened root.
+    PathNotInRoot {
+        /// The path that failed root routing.
         path: PathBuf,
-        /// The failure detail.
-        detail: String,
     },
-    /// Path resolution failed.
-    ResolvePathFailed {
-        /// The path that failed.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
-    /// Semantic update failed for a path.
-    UpdatePathFailed {
-        /// The path that failed.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
-    /// Reading a path failed.
-    ReadPathFailed {
-        /// The path that failed.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
-    /// The file path is not tracked.
-    FileNotTracked {
+    /// A requested file is missing from the current revision.
+    FileMissing {
         /// The missing file path.
         path: PathBuf,
     },
-    /// The file id is not tracked.
-    FileIdNotTracked {
-        /// The missing file id.
-        file_id: FileId,
-    },
-    /// The module id is not tracked.
-    ModuleIdNotTracked {
-        /// The missing module id.
-        module_id: ModuleId,
-    },
-    /// The path is outside all opened workspace roots.
-    PathNotInWorkspace {
-        /// The path that failed workspace routing.
+    /// The incoming open file version is not newer than the tracked version.
+    StaleOpenFile {
+        /// The open file path.
         path: PathBuf,
-    },
-    /// The incoming document version is not newer than the tracked version.
-    StaleDocumentVersion {
-        /// The tracked document path.
-        path: PathBuf,
-        /// The incoming client document version.
+        /// The incoming client file version.
         incoming: i32,
-        /// The current tracked client document version.
+        /// The current tracked client file version.
         current: i32,
     },
     /// The query expected revision is missing for mutating requests.
     MissingExpectedRevision,
     /// The read query path received an unexpected revision precondition.
-    UnexpectedExpectedRevisionOnRead {
+    UnexpectedExpectedRevision {
         /// The unexpected revision carried on the request.
         expected_revision: Revision,
     },
     /// The query execution mode does not match the called API.
-    QueryExecutionModeMismatch {
+    QueryModeMismatch {
         /// The query method identifier.
         method: QueryMethodId,
         /// The expected query execution mode.
@@ -81,29 +42,30 @@ pub enum LanguageServiceError {
         /// The actual query execution mode.
         actual: QueryExecutionMode,
     },
-    /// The query expected revision does not match the current semantic revision.
+    /// The query expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
         expected: Revision,
-        /// The current semantic revision.
+        /// The current revision.
         current: Revision,
-    },
-    /// Repository work failed inside the service.
-    Repository {
-        /// The failure detail.
-        detail: String,
-    },
-    /// The semantic revision entry is missing for a workspace root.
-    RevisionNotTracked {
-        /// The workspace root missing revision state.
-        root: PathBuf,
     },
     /// Query artifacts are not ready.
     QueryNotReady {
         /// The failure detail.
         detail: String,
     },
-    /// Internal workspace service failure.
+    /// Repository work failed inside the service.
+    Repository(RepositoryError),
+    /// Session work failed inside the service.
+    Session(SessionError),
+    /// Filesystem work failed inside the service.
+    Io {
+        /// The path that failed.
+        path: PathBuf,
+        /// The filesystem failure.
+        source: std::io::Error,
+    },
+    /// Internal language service failure.
     Internal {
         /// The failure detail.
         detail: String,
@@ -113,66 +75,40 @@ pub enum LanguageServiceError {
 impl std::fmt::Display for LanguageServiceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LanguageServiceError::CacheClearFailed { path, detail } => {
-                write!(
-                    formatter,
-                    "cache clear failed at {}: {detail}",
-                    path.display()
-                )
+            LanguageServiceError::PathNotInRoot { path } => {
+                write!(formatter, "path is outside every root: {}", path.display())
             }
-            LanguageServiceError::ResolvePathFailed { path, detail } => {
-                write!(formatter, "resolve failed for {}: {detail}", path.display())
+            LanguageServiceError::FileMissing { path } => {
+                write!(formatter, "file is missing: {}", path.display())
             }
-            LanguageServiceError::UpdatePathFailed { path, detail } => {
-                write!(formatter, "update failed for {}: {detail}", path.display())
-            }
-            LanguageServiceError::ReadPathFailed { path, detail } => {
-                write!(formatter, "read failed for {}: {detail}", path.display())
-            }
-            LanguageServiceError::FileNotTracked { path } => {
-                write!(formatter, "file not tracked: {}", path.display())
-            }
-            LanguageServiceError::FileIdNotTracked { file_id } => {
-                write!(formatter, "file id not tracked: {file_id:?}")
-            }
-            LanguageServiceError::ModuleIdNotTracked { module_id } => {
-                write!(formatter, "module id not tracked: {module_id:?}")
-            }
-            LanguageServiceError::PathNotInWorkspace { path } => {
-                write!(
-                    formatter,
-                    "path is not in a workspace root: {}",
-                    path.display()
-                )
-            }
-            LanguageServiceError::StaleDocumentVersion {
+            LanguageServiceError::StaleOpenFile {
                 path,
                 incoming,
                 current,
             } => {
                 write!(
                     formatter,
-                    "stale document version for {}: incoming {incoming}, current {current}",
+                    "stale open file for {}: incoming {incoming}, current {current}",
                     path.display()
                 )
             }
             LanguageServiceError::MissingExpectedRevision => {
                 write!(formatter, "missing expected revision for mutating query")
             }
-            LanguageServiceError::UnexpectedExpectedRevisionOnRead { expected_revision } => {
+            LanguageServiceError::UnexpectedExpectedRevision { expected_revision } => {
                 write!(
                     formatter,
                     "read query must not carry expected revision: {expected_revision}"
                 )
             }
-            LanguageServiceError::QueryExecutionModeMismatch {
+            LanguageServiceError::QueryModeMismatch {
                 method,
                 expected,
                 actual,
             } => {
                 write!(
                     formatter,
-                    "query execution mode mismatch for {method:?}: expected {expected:?}, actual {actual:?}"
+                    "query mode mismatch for {method:?}: expected {expected:?}, actual {actual:?}"
                 )
             }
             LanguageServiceError::StaleRevision { expected, current } => {
@@ -181,65 +117,59 @@ impl std::fmt::Display for LanguageServiceError {
                     "stale query revision: expected {expected}, current {current}"
                 )
             }
-            LanguageServiceError::Repository { detail } => {
-                write!(formatter, "workspace service repository error: {detail}")
-            }
-            LanguageServiceError::RevisionNotTracked { root } => {
-                write!(
-                    formatter,
-                    "revision is not tracked for root: {}",
-                    root.display()
-                )
-            }
             LanguageServiceError::QueryNotReady { detail } => {
                 write!(formatter, "query artifacts are not ready: {detail}")
             }
+            LanguageServiceError::Repository(error) => {
+                write!(formatter, "repository error: {error}")
+            }
+            LanguageServiceError::Session(error) => {
+                write!(formatter, "session error: {error}")
+            }
+            LanguageServiceError::Io { path, source } => {
+                write!(
+                    formatter,
+                    "filesystem error at {}: {source}",
+                    path.display()
+                )
+            }
             LanguageServiceError::Internal { detail } => {
-                write!(formatter, "workspace service internal error: {detail}")
+                write!(formatter, "language service internal error: {detail}")
             }
         }
     }
 }
 
-impl std::error::Error for LanguageServiceError {}
+impl std::error::Error for LanguageServiceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            LanguageServiceError::Repository(error) => Some(error),
+            LanguageServiceError::Session(error) => Some(error),
+            LanguageServiceError::Io { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 impl From<RepositoryError> for LanguageServiceError {
     fn from(error: RepositoryError) -> Self {
-        LanguageServiceError::Repository {
-            detail: error.to_string(),
-        }
+        LanguageServiceError::Repository(error)
     }
 }
 
 impl From<SessionError> for LanguageServiceError {
     fn from(error: SessionError) -> Self {
         match error {
-            SessionError::ResolvePathFailed { path, detail } => {
-                LanguageServiceError::ResolvePathFailed { path, detail }
-            }
-            SessionError::UpdatePathFailed { path, detail } => {
-                LanguageServiceError::UpdatePathFailed { path, detail }
-            }
-            SessionError::ReadPathFailed { path, detail } => {
-                LanguageServiceError::ReadPathFailed { path, detail }
-            }
-            SessionError::FileIdNotTracked { file_id } => {
-                LanguageServiceError::FileIdNotTracked { file_id }
-            }
-            SessionError::ModuleIdNotTracked { module_id } => {
-                LanguageServiceError::ModuleIdNotTracked { module_id }
-            }
-            SessionError::StaleOpenFileVersion {
+            SessionError::StaleOpenFile {
                 path,
                 incoming,
                 current,
-            } => LanguageServiceError::StaleDocumentVersion {
+            } => LanguageServiceError::StaleOpenFile {
                 path,
                 incoming,
                 current,
             },
-            SessionError::Repository { detail } => LanguageServiceError::Repository { detail },
-            SessionError::Internal { detail } => LanguageServiceError::Internal { detail },
+            error => LanguageServiceError::Session(error),
         }
     }
 }
