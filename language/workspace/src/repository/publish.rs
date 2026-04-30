@@ -5,8 +5,8 @@ use destack_source::{FileContent, FileId, FileType};
 use im::OrdMap;
 
 use crate::repository::{
-    Edit, FileEntry, FileSource, Ref, Repository, RepositoryError, Revision, RevisionState,
-    normalize_logical_path_str,
+    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionState,
+    normalize_logical_path,
 };
 
 impl Repository {
@@ -19,7 +19,7 @@ impl Repository {
         Ok(revision)
     }
 
-    /// Set one ref to one already published revision.
+    /// Set one ref to one existing revision identity.
     pub fn set_ref(
         &self,
         reference: &Ref,
@@ -99,38 +99,6 @@ impl Repository {
         Ok(FileContent::Text { content })
     }
 
-    /// Validate one workspace logical path.
-    fn validate_workspace_logical_path(&self, logical_path: &str) -> Result<(), RepositoryError> {
-        if logical_path.starts_with("builtin://") {
-            return Err(RepositoryError::InvalidEditPath {
-                path: logical_path.to_string(),
-                message: "builtin source is toolchain provided".to_string(),
-            });
-        }
-
-        if logical_path.contains("://") {
-            return Err(RepositoryError::InvalidEditPath {
-                path: logical_path.to_string(),
-                message: "non workspace source is not writable through repository edits"
-                    .to_string(),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Return one file id for one validated workspace logical path.
-    fn file_id_for_workspace_logical_path(
-        &self,
-        logical_path: &str,
-    ) -> Result<FileId, RepositoryError> {
-        self.validate_workspace_logical_path(logical_path)?;
-        let logical_path = normalize_logical_path_str(logical_path);
-        let source = FileSource::workspace(logical_path);
-
-        Ok(self.file_id_for_source(&source))
-    }
-
     /// Apply edits to one file map.
     fn apply_edits<I>(
         &self,
@@ -147,16 +115,14 @@ impl Repository {
                     logical_path,
                     content,
                 } => {
-                    let file_id = self.file_id_for_workspace_logical_path(&logical_path)?;
+                    let logical_path = normalize_logical_path(&logical_path);
+                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
                     if files.contains_key(&file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
                     let content = self.files.intern(content);
-                    files.insert(
-                        file_id,
-                        FileEntry::loaded(FileSource::workspace(logical_path), content),
-                    );
+                    files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
 
                 // set the requested file payload
@@ -164,17 +130,16 @@ impl Repository {
                     logical_path,
                     content,
                 } => {
-                    let file_id = self.file_id_for_workspace_logical_path(&logical_path)?;
+                    let logical_path = normalize_logical_path(&logical_path);
+                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
                     let content = self.files.intern(content);
-                    files.insert(
-                        file_id,
-                        FileEntry::loaded(FileSource::workspace(logical_path), content),
-                    );
+                    files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
 
                 // remove the requested file payload
                 Edit::RemoveFile { logical_path } => {
-                    let file_id = self.file_id_for_workspace_logical_path(&logical_path)?;
+                    let logical_path = normalize_logical_path(&logical_path);
+                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
                     if !files.contains_key(&file_id) {
                         return Err(RepositoryError::MissingFile { path: logical_path });
                     }
@@ -188,21 +153,22 @@ impl Repository {
                         continue;
                     }
 
-                    let from_file_id = self.file_id_for_workspace_logical_path(&from)?;
+                    let from = normalize_logical_path(&from);
+                    let to = normalize_logical_path(&to);
+                    let from_file_id = FileId::from_source_bytes(from.as_bytes());
                     if !files.contains_key(&from_file_id) {
                         return Err(RepositoryError::MissingFile { path: from });
                     }
                     let Some(from_file) = files.get(&from_file_id).cloned() else {
                         return Err(RepositoryError::MissingFile { path: from });
                     };
-                    let to_file_id = self.file_id_for_workspace_logical_path(&to)?;
+                    let to_file_id = FileId::from_source_bytes(to.as_bytes());
                     if files.contains_key(&to_file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
 
                     files.remove(&from_file_id);
-                    let to_file =
-                        FileEntry::loaded(FileSource::workspace(to), from_file.content_id);
+                    let to_file = FileEntry::loaded(to, from_file.content_id);
 
                     files.insert(to_file_id, to_file);
                 }

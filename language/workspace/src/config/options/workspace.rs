@@ -2,7 +2,7 @@ use crate::config::{CacheOptions, DestackJson, WorkspaceMembershipDeclaration};
 
 use super::PackageOptions;
 
-/// Effective normalized workspace options for one revision scoped workspace view.
+/// Effective normalized workspace options for one revision.
 #[derive(Debug, Clone, Default)]
 pub struct WorkspaceOptions {
     /// The effective workspace cache options.

@@ -10,22 +10,22 @@ impl Repository {
         revision: Revision,
         target_id: TargetId,
     ) -> Result<Option<Target>, RepositoryError> {
-        let workspace = self.workspace(revision)?;
+        let Some(package) = self.package(revision, target_id.package_id())? else {
+            return Ok(None);
+        };
 
-        Ok(workspace.target_by_id(target_id).cloned())
+        Ok(package.targets.get(&target_id).cloned())
     }
 
     /// Return one effective revision-scoped target by id when present.
-    pub(crate) fn effective_target(
+    pub fn effective_target(
         &self,
         revision: Revision,
         target_id: TargetId,
     ) -> Result<Option<Target>, RepositoryError> {
-        let workspace = self.workspace(revision)?;
-
         // explicit targets
-        if let Some(target) = workspace.target_by_id(target_id) {
-            return Ok(Some(target.clone()));
+        if let Some(target) = self.target(revision, target_id)? {
+            return Ok(Some(target));
         }
 
         // implicit targets

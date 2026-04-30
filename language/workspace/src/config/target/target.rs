@@ -38,12 +38,13 @@ const DEFAULT_TARGET_OUT_DIR: &str = "dist";
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
+
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
     /// Entry points for entry-based discovery (bundled/executable targets).
     pub entry: Vec<PathBuf>,
-    /// Global provider modules added as discovery roots.
+    /// Global modules added as discovery roots.
     pub globals: Vec<PathBuf>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
@@ -1805,7 +1806,7 @@ pub struct TargetJson {
     /// Entry points for entry-based discovery (bundled/executable targets).
     /// If set, discovery mode is Entry; otherwise it's Include.
     pub entry: Option<Vec<String>>,
-    /// Global provider modules added as discovery roots.
+    /// Global modules added as discovery roots.
     pub globals: Option<Vec<String>>,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Option<Vec<String>>,

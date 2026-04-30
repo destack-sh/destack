@@ -66,7 +66,7 @@ impl Repository {
         let mut current = path.parent();
         while let Some(directory) = current {
             let tsconfig_path = directory.join("tsconfig.json");
-            let tsconfig_file_id = self.file_id_for_workspace_path(&tsconfig_path);
+            let tsconfig_file_id = self.file_id(&tsconfig_path);
             if self
                 .tsconfig_declaration_for_file(revision, tsconfig_file_id)?
                 .is_some()
@@ -151,7 +151,7 @@ impl Repository {
             return Ok(None);
         };
 
-        Ok(Some(self.file_id_for_workspace_path(&path)))
+        Ok(Some(self.file_id(&path)))
     }
 
     /// Materialize one tsconfig reference path.
@@ -160,19 +160,19 @@ impl Repository {
         revision: Revision,
         path: &Path,
     ) -> Result<Option<PathBuf>, RepositoryError> {
-        let direct_file_id = self.file_id_for_workspace_path(path);
+        let direct_file_id = self.file_id(path);
         if self.file(revision, direct_file_id)?.is_some() {
             return Ok(Some(path.to_path_buf()));
         }
 
         let nested_path = path.join("tsconfig.json");
-        let nested_file_id = self.file_id_for_workspace_path(&nested_path);
+        let nested_file_id = self.file_id(&nested_path);
         if self.file(revision, nested_file_id)?.is_some() {
             return Ok(Some(nested_path));
         }
 
         let json_path = PathBuf::from(format!("{}.json", path.display()));
-        let json_file_id = self.file_id_for_workspace_path(&json_path);
+        let json_file_id = self.file_id(&json_path);
         if self.file(revision, json_file_id)?.is_some() {
             return Ok(Some(json_path));
         }

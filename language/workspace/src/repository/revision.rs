@@ -10,7 +10,7 @@ use destack_source::{FileContentId, FileId};
 
 use crate::repository::{FileEntry, HostEnvironment};
 
-/// A ref names one movable repository tip.
+/// A movable name pointing at one repository revision.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Ref(String);
@@ -55,22 +55,22 @@ impl From<&str> for Ref {
     }
 }
 
-/// The immutable handle for one published repository state.
+/// Content identity for one immutable repository revision state.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Revision(pub [u8; 32]);
 
 impl Revision {
-    /// The null revision handle.
+    /// The null revision identity.
     pub const NULL: Self = Self([0; 32]);
 
-    /// Build one revision from one raw digest.
+    /// Build one revision identity from one raw digest.
     pub const fn new(value: [u8; 32]) -> Self {
         Self(value)
     }
 
-    /// Build one revision from one small test value.
+    /// Build one revision identity from one small test value.
     pub const fn from_test_value(value: u8) -> Self {
         Self([value; 32])
     }
@@ -93,17 +93,17 @@ impl Display for Revision {
     }
 }
 
-/// The immutable state behind one revision.
+/// Source and host inputs addressed by one revision identity.
 #[derive(Debug, Clone)]
 pub(crate) struct RevisionState {
-    /// The files for this revision.
+    /// File bindings included in this revision.
     pub files: Arc<OrdMap<FileId, FileEntry>>,
-    /// The captured environment for this revision.
+    /// Host inputs captured in this revision.
     pub host: Arc<HostEnvironment>,
 }
 
 impl RevisionState {
-    /// Build one revision state record from explicit parts.
+    /// Build one revision state from explicit parts.
     pub(crate) fn new(files: Arc<OrdMap<FileId, FileEntry>>, host: Arc<HostEnvironment>) -> Self {
         Self { files, host }
     }
@@ -118,7 +118,7 @@ impl RevisionState {
         self.files.get(&file_id).cloned()
     }
 
-    /// Compute the deterministic identity for this revision state.
+    /// Hash this revision state into its deterministic revision identity.
     pub(crate) fn revision(&self) -> Revision {
         Revision::new(stable_hash_value_256(&(&self.files, &self.host)))
     }

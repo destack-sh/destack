@@ -1,6 +1,6 @@
 use destack_source::FileContent;
 
-use crate::repository::normalize_logical_path_str;
+use crate::repository::normalize_logical_path;
 
 /// One atomic mutation inside one repository edit batch.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +35,7 @@ impl Edit {
     /// Build one text add edit.
     pub fn add_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
         Self::AddFile {
-            logical_path: normalize_logical_path_str(path.as_ref()),
+            logical_path: normalize_logical_path(path),
             content: FileContent::Text {
                 content: content.into(),
             },
@@ -45,7 +45,7 @@ impl Edit {
     /// Build one text set edit.
     pub fn set_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
         Self::SetFile {
-            logical_path: normalize_logical_path_str(path.as_ref()),
+            logical_path: normalize_logical_path(path),
             content: FileContent::Text {
                 content: content.into(),
             },
@@ -55,15 +55,15 @@ impl Edit {
     /// Build one remove edit.
     pub fn remove_file(path: impl AsRef<str>) -> Self {
         Self::RemoveFile {
-            logical_path: normalize_logical_path_str(path.as_ref()),
+            logical_path: normalize_logical_path(path),
         }
     }
 
     /// Build one move edit.
     pub fn move_file(from: impl AsRef<str>, to: impl AsRef<str>) -> Self {
         Self::MoveFile {
-            from: normalize_logical_path_str(from.as_ref()),
-            to: normalize_logical_path_str(to.as_ref()),
+            from: normalize_logical_path(from),
+            to: normalize_logical_path(to),
         }
     }
 }

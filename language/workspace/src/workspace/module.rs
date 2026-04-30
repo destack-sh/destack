@@ -1,38 +1,10 @@
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use destack_builtin::BuiltinLibraryKind;
 use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
+use im::OrdMap;
 
 use crate::config::{ModuleTarget, SourceType};
-
-/// The source of a module.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ModuleSource {
-    /// User or project code.
-    User,
-    /// Builtin library code.
-    Builtin(BuiltinLibraryKind),
-}
-
-impl Hash for ModuleSource {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Self::User => {
-                0_u8.hash(state);
-            }
-            Self::Builtin(kind) => {
-                1_u8.hash(state);
-                let tag = match kind {
-                    BuiltinLibraryKind::Intrinsic => 0_u8,
-                    BuiltinLibraryKind::Language => 1_u8,
-                    BuiltinLibraryKind::Library => 2_u8,
-                };
-                tag.hash(state);
-            }
-        }
-    }
-}
 
 /// The runtime module system format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -48,13 +20,13 @@ impl ModuleFormat {
     /// Detect a module format from extension and package context.
     pub fn detect(
         path: Option<&Path>,
-        language_type: LanguageType,
+        language_type: Option<LanguageType>,
         source_type: SourceType,
         package_type: Option<&str>,
         tsconfig_format: Option<Self>,
     ) -> Self {
         // destack modules always use esm semantics
-        if language_type.is_destack() {
+        if language_type.is_some_and(|language_type| language_type.is_destack()) {
             return Self::Esm;
         }
 
@@ -76,7 +48,7 @@ impl ModuleFormat {
         }
 
         // default typescript modules to esm semantics
-        if language_type.is_typescript() {
+        if language_type.is_some_and(|language_type| language_type.is_typescript()) {
             return Self::Esm;
         }
 
@@ -141,16 +113,14 @@ pub struct Module {
     pub package_id: PackageId,
     /// The active tsconfig file id when one applies.
     pub tsconfig_file_id: Option<FileId>,
-    /// The source language type.
-    pub language_type: LanguageType,
+    /// The source language type for code modules.
+    pub language_type: Option<LanguageType>,
     /// The active source type.
     pub source_type: SourceType,
     /// The active runtime module format.
     pub module_format: ModuleFormat,
     /// The loader used to interpret the module.
     pub loader: Loader,
-    /// The module source.
-    pub source: ModuleSource,
 }
 
 impl Module {
@@ -161,9 +131,8 @@ impl Module {
         uri: Uri,
         path: Option<PathBuf>,
         package_id: PackageId,
-        language_type: LanguageType,
+        language_type: Option<LanguageType>,
         loader: Loader,
-        source: ModuleSource,
     ) -> Self {
         Self {
             id,
@@ -176,22 +145,82 @@ impl Module {
             source_type: SourceType::default(),
             module_format: ModuleFormat::default(),
             loader,
-            source,
         }
-    }
-
-    /// Return true when this module is user code.
-    pub fn is_user(&self) -> bool {
-        matches!(self.source, ModuleSource::User)
-    }
-
-    /// Return true when this module is builtin code.
-    pub fn is_builtin(&self) -> bool {
-        matches!(self.source, ModuleSource::Builtin(_))
     }
 
     /// Return true when this module contains code.
     pub fn is_code(&self) -> bool {
         self.loader.is_code()
+    }
+
+    /// Return the code language type for this module.
+    pub fn code_language_type(&self) -> LanguageType {
+        self.language_type.unwrap_or_else(|| {
+            panic!("module has no code language type: {:?}", self.id);
+        })
+    }
+
+    /// Return true when this module is parsed as Destack.
+    pub fn is_destack(&self) -> bool {
+        self.language_type
+            .is_some_and(|language_type| language_type.is_destack())
+    }
+
+    /// Return true when this module is parsed as JavaScript.
+    pub fn is_javascript(&self) -> bool {
+        self.language_type
+            .is_some_and(|language_type| language_type.is_javascript())
+    }
+
+    /// Return true when this module is parsed as TypeScript.
+    pub fn is_typescript(&self) -> bool {
+        self.language_type
+            .is_some_and(|language_type| language_type.is_typescript())
+    }
+
+    /// Return true when this module is parsed as JavaScript or TypeScript.
+    pub fn is_ecmascript(&self) -> bool {
+        self.is_javascript() || self.is_typescript()
+    }
+
+    /// Return true when this module is parsed as a declaration file.
+    pub fn is_declaration(&self) -> bool {
+        self.language_type
+            .is_some_and(|language_type| language_type.is_declaration())
+    }
+
+    /// Return true when this module language supports declaration merging.
+    pub fn supports_declaration_merging(&self) -> bool {
+        self.language_type
+            .is_some_and(|language_type| language_type.supports_declaration_merging())
+    }
+}
+
+/// Revision-local module lookup data.
+#[derive(Debug, Clone)]
+pub(crate) struct ModuleIndex {
+    /// Modules keyed by module id.
+    modules: OrdMap<ModuleId, Arc<Module>>,
+}
+
+impl ModuleIndex {
+    /// Create one module index.
+    pub(crate) fn new(modules: OrdMap<ModuleId, Arc<Module>>) -> Self {
+        Self { modules }
+    }
+
+    /// Return one module by id.
+    pub(crate) fn module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
+        self.modules.get(&module_id).cloned()
+    }
+
+    /// Return all module ids.
+    pub(crate) fn module_ids(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.modules.keys().copied()
+    }
+
+    /// Iterate all modules.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&ModuleId, &Arc<Module>)> {
+        self.modules.iter()
     }
 }

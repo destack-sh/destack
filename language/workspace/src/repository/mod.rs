@@ -1,5 +1,4 @@
 mod artifact;
-mod builtin;
 mod cache;
 mod declaration;
 mod discovery;
@@ -18,7 +17,6 @@ mod revision;
 mod target;
 mod tsconfig;
 
-pub use builtin::*;
 pub(crate) use cache::*;
 pub use discovery::*;
 pub use edit::*;
