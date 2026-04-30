@@ -2,56 +2,56 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, WorkspaceHandleId};
+use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, RootHandleId};
 
-/// Request to open a workspace root.
+/// Request to open a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OpenWorkspaceRequest {
-    /// The workspace root path.
+pub struct OpenRootRequest {
+    /// The root path.
     pub root: PathBuf,
-    /// Workspace open options.
-    pub options: WorkspaceOpenOptions,
+    /// Root open options.
+    pub options: RootOpenOptions,
 }
 
-/// Options for opening a workspace.
+/// Options for opening a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorkspaceOpenOptions {
-    /// Whether to preload semantic workspace state.
+pub struct RootOpenOptions {
+    /// Whether to preload semantic root state.
     pub load_index: bool,
 }
 
-impl Default for WorkspaceOpenOptions {
+impl Default for RootOpenOptions {
     fn default() -> Self {
         Self { load_index: true }
     }
 }
 
-/// Response to opening a workspace.
+/// Response to opening a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorkspaceOpenedResponse {
-    /// Assigned workspace handle id.
-    pub handle: WorkspaceHandleId,
+pub struct RootOpenedResponse {
+    /// Assigned root handle id.
+    pub handle: RootHandleId,
     /// Diagnostics produced during initialization.
     pub diagnostics: Vec<DiagnosticBatch>,
     /// Messages produced during initialization.
     pub messages: Vec<DaemonMessageRecord>,
 }
 
-/// Request to close a workspace handle.
+/// Request to close a root handle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CloseWorkspaceRequest {
+pub struct CloseRootRequest {
     /// Handle to close.
-    pub handle: WorkspaceHandleId,
+    pub handle: RootHandleId,
 }
 
-/// Response to closing a workspace.
+/// Response to closing a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorkspaceClosedResponse {
+pub struct RootClosedResponse {
     /// Closed handle id.
-    pub handle: WorkspaceHandleId,
+    pub handle: RootHandleId,
 }
 
-/// Reason for a workspace reload request.
+/// Reason for a root reload request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReloadReason {
     /// Requested on startup.
@@ -64,20 +64,20 @@ pub enum ReloadReason {
     Update,
 }
 
-/// Request to reload a workspace.
+/// Request to reload a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ReloadWorkspaceRequest {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+pub struct ReloadRootRequest {
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Reason for the reload.
     pub reason: ReloadReason,
 }
 
-/// Response to workspace reloads.
+/// Response to root reloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WorkspaceReloadResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+pub struct RootReloadResponse {
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Updates produced during reload.
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced during reload.
@@ -87,17 +87,17 @@ pub struct WorkspaceReloadResponse {
 /// Request to apply a file update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileUpdateRequest {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Update payload.
     pub update: FileUpdate,
 }
 
-/// Request to prepare query artifacts for a path within a workspace.
+/// Request to prepare query artifacts for a path within a root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrepareQueryRequest {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Path to prepare.
     pub path: PathBuf,
 }
@@ -105,8 +105,8 @@ pub struct PrepareQueryRequest {
 /// Response to a file update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileUpdateResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Updates produced by the change.
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced by the change.
@@ -116,8 +116,8 @@ pub struct FileUpdateResponse {
 /// Response to a prepare-query request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrepareQueryResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Whether query artifacts are ready after preparation.
     pub query_ready: bool,
     /// Optional readiness detail when query artifacts are not ready.

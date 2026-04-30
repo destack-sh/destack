@@ -83,7 +83,7 @@ fn test_watch_batch_updates_daemon() {
     harness.stop();
 }
 
-/// Applies config changes through workspace service watch flow.
+/// Applies config changes through language service watch flow.
 #[test]
 fn test_watch_batch_requests_rescan_for_config() {
     let policy = WatchPolicy {
@@ -129,15 +129,15 @@ fn test_watch_batch_handles_status_rescan() {
     harness.stop();
 }
 
-/// Applies a batch across multiple workspace roots.
+/// Applies a batch across multiple roots.
 #[test]
 fn test_watch_batch_handles_multiple_roots() {
     let policy = WatchPolicy {
         coalesce_window: Duration::from_millis(50),
         max_batch_size: 8,
     };
-    let root_a = PathBuf::from("/workspace/a");
-    let root_b = PathBuf::from("/workspace/b");
+    let root_a = PathBuf::from("/root/a");
+    let root_b = PathBuf::from("/root/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
     let coordinator = test.watch_coordinator(policy);
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{Diagnostic, FileId};
 
-use super::WorkspaceHandleId;
+use super::RootHandleId;
 
 /// Diagnostic batch for notifications.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16,8 +16,8 @@ pub struct DiagnosticBatch {
 /// Notification for diagnostics updates.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiagnosticsNotification {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Diagnostics grouped by file.
     pub diagnostics: Vec<DiagnosticBatch>,
 }

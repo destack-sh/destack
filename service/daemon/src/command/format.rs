@@ -103,7 +103,7 @@ impl CommandContext<'_> {
                 summary.error_files.push("<eval>".to_string());
                 let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
                 let data = summary_payload(&summary)?;
-                return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0, None).with_data(data));
+                return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0).with_data(data));
             }
 
             summary.formatted_output = Some(formatted.clone());
@@ -111,7 +111,7 @@ impl CommandContext<'_> {
                 .push_stdout(colorize_formatted_output(&formatted).into_bytes());
             let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
             let data = summary_payload(&summary)?;
-            return Ok(CommandOutcome::new(diagnostics, 0, 0, 0, 0, None).with_data(data));
+            return Ok(CommandOutcome::new(diagnostics, 0, 0, 0, 0).with_data(data));
         }
 
         // collect file paths to format
@@ -208,7 +208,7 @@ impl CommandContext<'_> {
 
         let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
         let data = summary_payload(&summary)?;
-        Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0, None).with_data(data))
+        Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0).with_data(data))
     }
 }
 
@@ -310,7 +310,8 @@ fn print_diagnostics_to_output(
 
 /// Format a single file and return the formatted content.
 fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, DiagnosticCollector) {
-    let language_type = LanguageType::from(file.ty);
+    let language_type = LanguageType::try_from(file.ty)
+        .unwrap_or_else(|_| panic!("formatter received non-code file type: {:?}", file.ty));
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics.clone();
@@ -399,7 +400,7 @@ fn formatting_options_for_path(
     revision: Revision,
     path: &Path,
 ) -> FormatterOptions {
-    let package = repository.package_for_path(revision, path).ok().flatten();
+    let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
         && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
     {
@@ -467,7 +468,7 @@ fn format_single_file(
         },
         _ => {
             let (name, uri) = Uri::from_path_with_name(path);
-            let file_id = repository.file_id_for_workspace_path(path);
+            let file_id = repository.file_id(path);
             let file = File::from_text(
                 file_id,
                 name,
@@ -602,7 +603,6 @@ const FORMATTABLE_TYPES: &[FileType] = &[
     FileType::TypeScript,
     FileType::TypeScriptXml,
     FileType::TypeScriptDeclaration,
-    FileType::Json,
 ];
 
 /// Directory names skipped by formatter traversal.

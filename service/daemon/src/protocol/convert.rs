@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_service::{FileChangeKind, FileSnapshot as WorkspaceFileSnapshot};
+use destack_service::{FileChangeKind, FileImage as ServiceFileImage};
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
@@ -12,7 +12,7 @@ use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch as Daemon
 
 use super::{
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
-    DiagnosticBatch, FileSnapshot, ReloadReason, UpdateChangeKind as ProtocolUpdateChangeKind,
+    DiagnosticBatch, FileUpdateImage, ReloadReason, UpdateChangeKind as ProtocolUpdateChangeKind,
     UpdateChangeSummary, WatchBatch as ProtocolWatchBatch, WatchEvent as ProtocolWatchEvent,
     WatchEventKind as ProtocolWatchEventKind, WatchStatus as ProtocolWatchStatus,
 };
@@ -42,22 +42,22 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
         Self {
             module_id: update.module_id,
             file_id: update.file_id,
-            file: protocol_snapshot_from_workspace(&update.file),
+            file: protocol_image_from_root(&update.file),
             change: UpdateChangeSummary::from(update),
             diagnostics: update.diagnostics.clone(),
         }
     }
 }
 
-/// Convert a workspace snapshot into protocol shape.
-fn protocol_snapshot_from_workspace(snapshot: &WorkspaceFileSnapshot) -> FileSnapshot {
-    FileSnapshot {
-        id: snapshot.id,
-        name: snapshot.name.clone(),
-        uri: snapshot.uri.clone(),
-        path: snapshot.path.clone(),
-        file_type: snapshot.file_type,
-        content: snapshot.content.clone(),
+/// Convert a root image into protocol shape.
+fn protocol_image_from_root(image: &ServiceFileImage) -> FileUpdateImage {
+    FileUpdateImage {
+        id: image.id,
+        name: image.name.clone(),
+        uri: image.uri.clone(),
+        path: image.path.clone(),
+        file_type: image.file_type,
+        content: image.content.clone(),
     }
 }
 
@@ -246,35 +246,35 @@ pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch
     batches
 }
 
-/// Convert diagnostics into file snapshots for rendering.
-pub fn diagnostic_file_snapshots(
+/// Convert diagnostics into file images for rendering.
+pub fn diagnostic_file_images(
     repository: &Repository,
     revision: Revision,
     diagnostics: &[Diagnostic],
-) -> Vec<FileSnapshot> {
+) -> Vec<FileUpdateImage> {
     // collect unique file ids in order
     let mut seen = HashSet::new();
-    let mut snapshots = Vec::new();
+    let mut images = Vec::new();
     for diagnostic in diagnostics {
         if seen.insert(diagnostic.file_id)
-            && let Some(snapshot) = snapshot_for_file(repository, revision, diagnostic.file_id)
+            && let Some(image) = image_for_file(repository, revision, diagnostic.file_id)
         {
-            snapshots.push(snapshot);
+            images.push(image);
         }
     }
 
-    // keep snapshots stable by file id
-    snapshots.sort_by_key(|snapshot| snapshot.id.0);
-    snapshots
+    // keep images stable by file id
+    images.sort_by_key(|image| image.id.0);
+    images
 }
 
-/// Build a snapshot for a file id.
-fn snapshot_for_file(
+/// Build an image for a file id.
+fn image_for_file(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,
-) -> Option<FileSnapshot> {
-    // load the file snapshot
+) -> Option<FileUpdateImage> {
+    // load the file image
     let file = repository.file(revision, file_id).ok()??;
 
     // resolve text content when available
@@ -283,7 +283,7 @@ fn snapshot_for_file(
         FileContent::Binary { .. } => None,
     };
 
-    Some(FileSnapshot {
+    Some(FileUpdateImage {
         id: file.id,
         name: file.name.clone(),
         uri: file.uri.clone(),

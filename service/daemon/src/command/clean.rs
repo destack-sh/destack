@@ -136,7 +136,7 @@ impl CommandContext<'_> {
         let data = serde_json::to_value(payload)
             .map_err(|error| format!("invalid clean payload: {error}"))?;
         Ok(
-            CommandOutcome::new(DiagnosticCollection::default(), exit_code, 0, 0, 0, None)
+            CommandOutcome::new(DiagnosticCollection::default(), exit_code, 0, 0, 0)
                 .with_data(data),
         )
     }

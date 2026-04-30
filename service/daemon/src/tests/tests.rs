@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use destack_artifact::MemoryCacheStore;
-use destack_compiler::CompilerOptions;
+use destack_session::open_repository_from_fs;
 use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
@@ -12,9 +12,9 @@ use destack_source::{
 use destack_workspace::{Ref, Repository, Revision};
 
 use crate::protocol::{
-    DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,
-    ProtocolErrorCode, ProtocolServer, ProtocolServerError, ProtocolServerOptions,
-    WorkspaceHandleId, WorkspaceOpenOptions, loopback_transport_pair,
+    DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolClient, ProtocolClientOptions,
+    ProtocolErrorCode, ProtocolServer, ProtocolServerError, ProtocolServerOptions, RootHandleId,
+    RootOpenOptions, loopback_transport_pair,
 };
 use crate::{
     Daemon, DaemonUpdate, DaemonWatchBatchResult, WatchBatch, WatchCoordinator, WatchPolicy,
@@ -31,9 +31,9 @@ pub struct TestDaemon {
     pub repository: Arc<Repository>,
     /// The daemon under test.
     pub daemon: Daemon,
-    /// The primary workspace root.
+    /// The primary root.
     pub root: PathBuf,
-    /// The workspace roots for the daemon.
+    /// The roots for the daemon.
     roots: Vec<PathBuf>,
 }
 
@@ -91,16 +91,16 @@ impl Default for RequestRetryPolicy {
 impl TestDaemon {
     /// Create a test daemon with a default root.
     pub fn new() -> Self {
-        Self::new_with_roots(vec![PathBuf::from("/workspace")])
+        Self::new_with_roots(vec![PathBuf::from("/root")])
     }
 
-    /// Create a test daemon with explicit workspace roots.
+    /// Create a test daemon with explicit roots.
     pub fn new_with_roots(mut roots: Vec<PathBuf>) -> Self {
         // ensure we have a primary root
         let root = roots
             .first()
             .cloned()
-            .unwrap_or_else(|| PathBuf::from("/workspace"));
+            .unwrap_or_else(|| PathBuf::from("/root"));
         if roots.is_empty() {
             roots.push(root.clone());
         }
@@ -119,7 +119,7 @@ impl TestDaemon {
             common_workspace_root(&roots)
         };
         let repository = Arc::new(
-            Repository::open_root_from_fs(
+            open_repository_from_fs(
                 workspace_root,
                 fs.clone(),
                 destack_workspace::HostEnvironment::capture_process(),
@@ -128,12 +128,7 @@ impl TestDaemon {
             .with_cache(Arc::new(MemoryCacheStore::new())),
         );
 
-        // keep daemon tests deterministic: use a single compiler worker
-        let compiler_options = CompilerOptions {
-            workers: 1,
-            ..CompilerOptions::default()
-        };
-        let daemon = Daemon::with_options(repository.clone(), compiler_options, None, None);
+        let daemon = Daemon::new(repository.clone(), 1, None);
 
         Self {
             fs,
@@ -145,7 +140,7 @@ impl TestDaemon {
         }
     }
 
-    /// Return the primary workspace root.
+    /// Return the primary root.
     pub fn root(&self) -> &Path {
         &self.root
     }
@@ -176,11 +171,11 @@ impl TestDaemon {
             .updates
     }
 
-    /// Update a virtual file and return all daemon updates.
-    pub fn update_virtual_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
+    /// Update an in-memory file and return all daemon updates.
+    pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
         let path = self.path_for(path);
         self.daemon
-            .update_virtual_file(&path, content.to_string())
+            .update_memory_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
             .updates
     }
@@ -188,8 +183,8 @@ impl TestDaemon {
     /// Resolve the tracked file id for a path.
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
-        let file_id = self.repository.file_id_for_workspace_path(&path);
-        let revision = current_workspace_revision(self.repository.as_ref());
+        let file_id = self.repository.file_id(&path);
+        let revision = current_root_revision(self.repository.as_ref());
         let is_present = self
             .repository
             .file(revision, file_id)
@@ -210,8 +205,8 @@ impl TestDaemon {
     /// Return the current revision scoped file snapshot for a path.
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
-        let file_id = self.repository.file_id_for_workspace_path(&path);
-        let revision = current_workspace_revision(self.repository.as_ref());
+        let file_id = self.repository.file_id(&path);
+        let revision = current_root_revision(self.repository.as_ref());
         self.repository
             .file(revision, file_id)
             .unwrap_or_else(|error| {
@@ -226,7 +221,7 @@ impl TestDaemon {
     /// Return the current revision scoped module id for a path.
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
-        let revision = current_workspace_revision(self.repository.as_ref());
+        let revision = current_root_revision(self.repository.as_ref());
         self.repository
             .module_id_for_path(revision, &path)
             .unwrap_or_else(|error| {
@@ -264,17 +259,6 @@ impl TestDaemon {
     pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
         let path = self.path_for(path);
         let updates = self.update_file(&path, content);
-        self.update_for_path(&updates, &path).clone()
-    }
-
-    /// Update a virtual file and return the update for the target file.
-    pub fn update_virtual_file_for_path(
-        &self,
-        path: impl AsRef<Path>,
-        content: &str,
-    ) -> DaemonUpdate {
-        let path = self.path_for(path);
-        let updates = self.update_virtual_file(&path, content);
         self.update_for_path(&updates, &path).clone()
     }
 
@@ -326,15 +310,15 @@ impl TestDaemon {
     }
 }
 
-/// Return the current workspace revision for one repository.
-pub fn current_workspace_revision(repository: &Repository) -> Revision {
+/// Return the current root revision for one repository.
+pub fn current_root_revision(repository: &Repository) -> Revision {
     // resolve the root ref first
     let reference = Ref::for_workspace_root(repository.workspace_root());
 
-    // return the current published workspace revision
+    // return the current published root revision
     repository
         .current(&reference)
-        .expect("expected current workspace revision")
+        .expect("expected current root revision")
 }
 
 /// Return the shallowest common root for the provided paths.
@@ -560,19 +544,19 @@ impl TestProtocolHarness {
         );
     }
 
-    /// Open the default workspace and return the handle id.
-    pub fn open_workspace(&self) -> WorkspaceHandleId {
-        self.open_workspace_root(self.test.root.clone())
+    /// Open the default root and return the handle id.
+    pub fn open_root(&self) -> RootHandleId {
+        self.open_root_path(self.test.root.clone())
     }
 
-    /// Open one explicit workspace root and return the handle id.
-    pub fn open_workspace_root(&self, root: PathBuf) -> WorkspaceHandleId {
-        let open = OpenWorkspaceRequest {
+    /// Open one explicit root and return the handle id.
+    pub fn open_root_path(&self, root: PathBuf) -> RootHandleId {
+        let open = OpenRootRequest {
             root,
-            options: WorkspaceOpenOptions::default(),
+            options: RootOpenOptions::default(),
         };
-        match self.send_request(DaemonRequest::OpenWorkspace(open)) {
-            DaemonResponse::WorkspaceOpened(response) => response.handle,
+        match self.send_request(DaemonRequest::OpenRoot(open)) {
+            DaemonResponse::RootOpened(response) => response.handle,
             other => panic!("unexpected response: {other:?}"),
         }
     }

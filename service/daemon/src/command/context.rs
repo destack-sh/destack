@@ -5,7 +5,9 @@ use std::sync::Arc;
 use destack_linter::Linter;
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_session::{FileMutation, Session};
-use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, TargetId, glob};
+use destack_source::{
+    DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, ProfileId, TargetId, glob,
+};
 use destack_workspace::{
     DestackDeclaration, OptimizeLevel, Repository, Revision, Target, TargetDiscovery,
 };
@@ -62,19 +64,21 @@ impl<'a> CommandContext<'a> {
         // private command session
         let linter = Arc::new(Linter::new(repository.clone()));
         let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
+        let head = daemon.next_command_ref(&root);
         let session = Session::fork(
             root.clone(),
             cwd,
             repository.clone(),
+            head,
             revision,
             compiler.clone(),
             linter,
-            None,
+            daemon.worker_limit,
             None,
         )
         .expect("command session should initialize");
         session
-            .apply_workspace_config_overrides(&common.overrides)
+            .apply_workspace_config_overrides(session.head(), &common.overrides)
             .map_err(|error| {
                 super::DaemonCommandError::internal(format!(
                     "failed to apply command config overrides: {error}"
@@ -130,7 +134,7 @@ impl<'a> CommandContext<'a> {
             let module_id = match input {
                 CommandInput::File { path } => self
                     .session
-                    .admit_module_for_path(path)
+                    .load_module_from_fs(self.session.head(), path)
                     .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?,
                 CommandInput::Inline {
                     name,
@@ -158,7 +162,9 @@ impl<'a> CommandContext<'a> {
 
     /// Return the active workspace revision for this command.
     pub(super) fn revision(&self) -> super::CommandResult<Revision> {
-        Ok(self.session.revision())
+        self.session
+            .revision(self.session.head())
+            .map_err(|error| super::DaemonCommandError::internal(error.to_string()))
     }
 
     /// Materialize one inline command input into one command local revision.
@@ -174,7 +180,8 @@ impl<'a> CommandContext<'a> {
 
         // publish the new command-local file text
         self.session
-            .apply_virtual_update(
+            .apply(
+                self.session.head(),
                 path.as_path(),
                 FileMutation::Text {
                     content: content.to_string(),
@@ -185,20 +192,10 @@ impl<'a> CommandContext<'a> {
         let path = self.root.join(&logical_path);
         let module_id = self
             .session
-            .admit_module_for_path(path.as_path())
+            .load_module_from_fs(self.session.head(), path.as_path())
             .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?;
 
         Ok(module_id)
-    }
-
-    /// Return the visible module count for this command revision.
-    pub(super) fn module_count(&self, revision: Revision) -> super::CommandResult<usize> {
-        let modules = self
-            .repository
-            .module_ids(revision)
-            .map_err(|error| format!("failed to collect workspace modules: {error}"))?;
-
-        Ok(modules.len())
     }
 
     /// Return the unique default profile count for the provided modules.
@@ -210,14 +207,47 @@ impl<'a> CommandContext<'a> {
         let mut profiles = HashSet::new();
 
         for module_id in modules {
-            let profile_id = self
-                .repository
-                .default_profile_id_for_module(revision, *module_id)
-                .map_err(|error| format!("failed to resolve default profile: {error}"))?;
+            let profile_id = self.module_profile_id(revision, *module_id)?;
             profiles.insert(profile_id);
         }
 
         Ok(profiles.len())
+    }
+
+    /// Return the default profile id for one module.
+    pub(super) fn module_profile_id(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> super::CommandResult<ProfileId> {
+        let profile = self
+            .repository
+            .module_profile(revision, module_id)
+            .map_err(|error| format!("failed to resolve module profile: {error}"))?;
+
+        Ok(profile.id())
+    }
+
+    /// Return the profile id selected for one module target.
+    pub(super) fn target_profile_id(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        target_id: TargetId,
+    ) -> super::CommandResult<ProfileId> {
+        let profile = self
+            .repository
+            .module_target_profile(revision, module_id, target_id)
+            .map_err(|error| format!("failed to resolve target profile: {error}"))?;
+        let profile = if let Some(profile) = profile {
+            profile
+        } else {
+            self.repository
+                .module_profile(revision, module_id)
+                .map_err(|error| format!("failed to resolve module profile: {error}"))?
+        };
+
+        Ok(profile.id())
     }
 
     /// Commit diagnostics to the repository store for module files.
@@ -246,14 +276,15 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| format!("failed to read module snapshot: {error}"))?
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         let package_id = module.package_id;
-        let target_id = self.repository.intern_target_id(package_id, target_name);
-        let is_explicit_target = self
-            .repository
-            .has_explicit_target(revision, package_id, target_id)
-            .map_err(|error| format!("failed to read target snapshot: {error}"))?;
+        let target_id = TargetId::new(package_id, target_name);
         let existing_target = self
             .repository
             .target(revision, target_id)
+            .map_err(|error| format!("failed to read target snapshot: {error}"))?;
+        let is_explicit_target = existing_target.is_some();
+        let effective_target = self
+            .repository
+            .effective_target(revision, target_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?;
 
         if let Some(overrides) = overrides
@@ -267,7 +298,7 @@ impl<'a> CommandContext<'a> {
             );
         }
 
-        let target = if let Some(target) = existing_target {
+        let target = if let Some(target) = effective_target {
             target
         } else {
             let mut target = Target::implicit_for_name(target_name)
@@ -326,11 +357,7 @@ impl<'a> CommandContext<'a> {
         }
 
         // infer a fallback target when no explicit configuration exists
-        let target_name = if module.language_type.is_destack() {
-            "native"
-        } else {
-            "js"
-        };
+        let target_name = if module.is_destack() { "native" } else { "js" };
 
         self.ensure_target_for_module(module_id, target_name, overrides)
     }
@@ -430,7 +457,7 @@ fn resolve_destack_config_path(
             cwd.join(config_path)
         };
         let metadata = repository
-            .metadata(revision, &resolved)
+            .file_metadata(revision, &resolved)
             .map_err(|error| error.to_string())?
             .ok_or_else(|| "destack.json not found".to_string())?;
 
@@ -462,10 +489,29 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     let revision = resolver_revision(resolver).ok()?;
     let repository = resolver.repository();
 
-    repository
-        .nearest_destack_file_path(revision, cwd)
+    let mut directory = if repository
+        .file_metadata(revision, cwd)
         .ok()
         .flatten()
+        .is_some_and(|metadata| metadata.is_directory)
+    {
+        cwd.to_path_buf()
+    } else {
+        cwd.parent()?.to_path_buf()
+    };
+
+    loop {
+        let candidate = directory.join("destack.json");
+        match repository.destack_declaration_for_path(revision, &candidate) {
+            Ok(Some(_)) => return Some(candidate),
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+
+        if !directory.pop() {
+            return None;
+        }
+    }
 }
 
 fn resolver_revision(resolver: &Resolver) -> super::CommandResult<Revision> {

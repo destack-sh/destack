@@ -2,11 +2,11 @@ use std::path::PathBuf;
 
 use crate::tests::TestDaemon;
 
-/// Tracks workspace roots independently.
+/// Tracks roots independently.
 #[test]
-fn test_daemon_tracks_workspace_roots() {
-    let root_a = PathBuf::from("/workspace/a");
-    let root_b = PathBuf::from("/workspace/b");
+fn test_daemon_tracks_root_by_handle() {
+    let root_a = PathBuf::from("/root/a");
+    let root_b = PathBuf::from("/root/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
 
     let file_a = root_a.join("main.ds");
@@ -15,14 +15,14 @@ fn test_daemon_tracks_workspace_roots() {
     test.update_file(&file_b, "export const b = 2;");
 
     // check that each root has its own live state
-    assert_eq!(test.daemon.workspace_root_count(), 2);
+    assert_eq!(test.daemon.root_count(), 2);
 }
 
 /// Keeps updates isolated to the root that changed.
 #[test]
 fn test_daemon_updates_do_not_cross_roots() {
-    let root_a = PathBuf::from("/workspace/a");
-    let root_b = PathBuf::from("/workspace/b");
+    let root_a = PathBuf::from("/root/a");
+    let root_b = PathBuf::from("/root/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
 
     let file_a = root_a.join("main.ds");

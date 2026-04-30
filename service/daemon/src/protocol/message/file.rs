@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{FileId, FileType, Uri};
 
-/// File snapshot for protocol responses.
+/// File image for protocol responses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileSnapshot {
+pub struct FileUpdateImage {
     /// The file id.
     pub id: FileId,
     /// The file name.

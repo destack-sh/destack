@@ -1,17 +1,11 @@
-use std::path::Path;
-use std::time::{Duration, Instant};
-
-use destack_compiler::StatsSnapshot;
-use destack_session::SessionStats;
 use destack_source::{Diagnostic, DiagnosticCollection};
 use destack_workspace::Revision;
+use std::path::Path;
 
 use crate::Daemon;
 use crate::command::context::CommandContext;
 use crate::command::{CommandPayload, CommonCommandOptions, DaemonCommandError};
-use crate::protocol::{
-    CommandCacheStats, CommandOutputChunk, CommandStats, CommandTimingTagStats, OutputStream,
-};
+use crate::protocol::{CommandOutputChunk, OutputStream};
 
 /// Result of executing a daemon command.
 #[derive(Debug, Clone)]
@@ -34,8 +28,6 @@ pub struct DaemonCommandResult {
     pub profile_count: usize,
     /// Count of targets involved.
     pub target_count: usize,
-    /// Optional stats payload.
-    pub stats: Option<CommandStats>,
 }
 
 /// Buffered output for command execution.
@@ -81,10 +73,6 @@ pub(super) struct CommandOutcome {
     pub(super) profile_count: usize,
     /// Number of targets included in the command.
     pub(super) target_count: usize,
-    /// Stats snapshot from compiler execution.
-    pub(super) stats: Option<StatsSnapshot>,
-    /// Session owned run summary.
-    pub(super) run_stats: Option<SessionStats>,
 }
 
 impl CommandOutcome {
@@ -95,7 +83,6 @@ impl CommandOutcome {
         module_count: usize,
         profile_count: usize,
         target_count: usize,
-        stats: Option<StatsSnapshot>,
     ) -> Self {
         Self {
             diagnostics,
@@ -104,8 +91,6 @@ impl CommandOutcome {
             module_count,
             profile_count,
             target_count,
-            stats,
-            run_stats: None,
         }
     }
 
@@ -114,27 +99,20 @@ impl CommandOutcome {
         self.data = Some(data);
         self
     }
-
-    /// Attach session owned run stats.
-    pub(super) fn with_run_stats(mut self, run_stats: SessionStats) -> Self {
-        self.run_stats = Some(run_stats);
-        self
-    }
 }
 
 impl Daemon {
-    /// Execute a command request for the given workspace root.
-    pub fn run_workspace_command(
+    /// Execute a command request for the given root.
+    pub fn run_root_command(
         &self,
         root: &Path,
         common: &CommonCommandOptions,
         payload: &CommandPayload,
     ) -> super::CommandResult<DaemonCommandResult> {
-        // resolve workspace repository and compiler handles before command execution
-        self.workspace_service
-            .with_workspace_for_root(root, |repository, compiler| {
+        // resolve root repository and compiler handles before command execution
+        self.language_service
+            .with_session(root, |repository, compiler| {
                 // gather shared context
-                let start_time = Instant::now();
                 let mut output = CommandOutputBuffer::default();
                 let mut context = CommandContext::new(
                     self,
@@ -165,14 +143,7 @@ impl Daemon {
                     CommandPayload::Clean(options) => context.run_clean_command(root, options)?,
                 };
 
-                // finalize stats and output
-                let stats_payload = result.stats.as_ref().map(|stats| {
-                    command_stats_from_snapshot(
-                        stats,
-                        result.run_stats.unwrap_or_default(),
-                        start_time.elapsed(),
-                    )
-                });
+                // finalize command output
                 let data = result.data.clone();
                 let exit_code = result.exit_code;
                 let success = exit_code == 0;
@@ -188,60 +159,10 @@ impl Daemon {
                     module_count: result.module_count,
                     profile_count: result.profile_count,
                     target_count: result.target_count,
-                    stats: stats_payload,
                 })
             })
             .map_err(|error| {
-                DaemonCommandError::internal(format!(
-                    "workspace repository routing failed: {error}"
-                ))
+                DaemonCommandError::internal(format!("root repository routing failed: {error}"))
             })?
-    }
-}
-
-/// Map stats snapshots into daemon command payloads.
-fn command_stats_from_snapshot(
-    snapshot: &StatsSnapshot,
-    run_stats: SessionStats,
-    elapsed: Duration,
-) -> CommandStats {
-    // collect cache totals
-    let elapsed_ms = elapsed.as_millis() as u64;
-    let cache_totals = snapshot.cache_totals();
-    let cache = CommandCacheStats {
-        hits_memory: cache_totals.hits_memory as u64,
-        misses: cache_totals.misses as u64,
-        writes_memory: cache_totals.writes_memory as u64,
-        errors: cache_totals.errors as u64,
-        hit_rate: snapshot.cache_hit_rate(),
-    };
-    let timings = if snapshot.timings.is_empty() {
-        None
-    } else {
-        Some(
-            snapshot
-                .timings
-                .iter()
-                .map(|entry| CommandTimingTagStats {
-                    name: entry.name.clone(),
-                    duration_ms: entry.duration.as_millis() as u64,
-                    sample_count: entry.sample_count as u64,
-                })
-                .collect(),
-        )
-    };
-
-    // build stats payload
-    CommandStats {
-        elapsed_ms,
-        artifacts_started: run_stats.started as u64,
-        artifacts_completed: run_stats.completed as u64,
-        artifacts_failed: run_stats.failed as u64,
-        artifacts_yielded: run_stats.yielded as u64,
-        modules_processed: snapshot.modules_processed() as u64,
-        lines_processed: snapshot.modules.lines_processed as u64,
-        artifacts_slow: run_stats.slow as u64,
-        cache: Some(cache),
-        timings,
     }
 }

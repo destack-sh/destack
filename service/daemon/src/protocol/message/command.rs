@@ -6,13 +6,13 @@ use destack_source::{FileType, TargetId};
 
 use crate::command::{CommandPayload, CommonCommandOptions};
 
-use super::{BinaryPayload, DaemonMessageRecord, DiagnosticBatch, FileSnapshot, WorkspaceHandleId};
+use super::{BinaryPayload, DaemonMessageRecord, DiagnosticBatch, FileUpdateImage, RootHandleId};
 
 /// Command request payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CommandRequest {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Common command options.
     pub common: CommonCommandOptions,
     /// Command payload data.
@@ -22,16 +22,16 @@ pub struct CommandRequest {
 /// Result of a command execution.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CommandResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Whether the command succeeded.
     pub success: bool,
     /// Exit code for the command.
     pub exit_code: i32,
     /// Diagnostics emitted during execution.
     pub diagnostics: Vec<DiagnosticBatch>,
-    /// File snapshots for diagnostics rendering.
-    pub files: Vec<FileSnapshot>,
+    /// File images for diagnostics rendering.
+    pub files: Vec<FileUpdateImage>,
     /// Messages emitted during execution.
     pub messages: Vec<DaemonMessageRecord>,
     /// Output captured from the command.
@@ -44,8 +44,6 @@ pub struct CommandResponse {
     pub profile_count: usize,
     /// Count of targets involved.
     pub target_count: usize,
-    /// Optional stats payload.
-    pub stats: Option<CommandStats>,
     /// Command-specific payload for structured output.
     pub data: Option<BinaryPayload>,
 }
@@ -71,8 +69,8 @@ pub enum OutputStream {
 /// Notification for command output streaming.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CommandOutputNotification {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Output stream kind.
     pub stream: OutputStream,
     /// Output bytes.
@@ -96,58 +94,4 @@ pub struct OutputInfo {
     pub size_bytes: u64,
     /// Optional content hash.
     pub content_hash: Option<u64>,
-}
-
-/// Command cache statistics payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandCacheStats {
-    /// Cache hits from memory.
-    pub hits_memory: u64,
-    /// Cache misses.
-    pub misses: u64,
-    /// Cache writes to memory.
-    pub writes_memory: u64,
-    /// Cache errors.
-    pub errors: u64,
-    /// Cache hit rate across all cache kinds.
-    pub hit_rate: f32,
-}
-
-/// Command statistics payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandStats {
-    /// Elapsed time in milliseconds.
-    pub elapsed_ms: u64,
-    /// Number of artifact attempts started.
-    pub artifacts_started: u64,
-    /// Number of artifact attempts completed.
-    pub artifacts_completed: u64,
-    /// Number of artifact attempts failed.
-    pub artifacts_failed: u64,
-    /// Number of artifact attempts that yielded requirements.
-    pub artifacts_yielded: u64,
-    /// Number of modules processed.
-    pub modules_processed: u64,
-    /// Number of lines processed.
-    pub lines_processed: u64,
-    /// Number of slow artifact attempts detected.
-    pub artifacts_slow: u64,
-    /// Cache statistics when available.
-    pub cache: Option<CommandCacheStats>,
-    /// Timing tag statistics when available.
-    pub timings: Option<Vec<CommandTimingTagStats>>,
-}
-
-/// Timing tag statistics for command payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandTimingTagStats {
-    /// Timing tag name.
-    pub name: String,
-    /// Total time spent in this tag (milliseconds).
-    pub duration_ms: u64,
-    /// Number of samples recorded.
-    pub sample_count: u64,
 }

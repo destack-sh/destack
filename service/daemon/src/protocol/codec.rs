@@ -384,9 +384,9 @@ mod tests {
     use super::{DEFAULT_MAX_FRAME_SIZE_BYTES, FrameCodec, ProtocolCodec, ProtocolMessage};
     use crate::protocol::{
         CommandBuildOptions, CommandInput, CommandPayload, CommandRequest, CommandResponse,
-        CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
-        FileUpdate, FileUpdateKind, FileUpdateRequest, ProtocolRequest, ProtocolResponse,
-        RequestId, RequestOptions, WorkspaceHandleId, loopback_transport_pair,
+        CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
+        FileUpdateImage, FileUpdateKind, FileUpdateRequest, ProtocolRequest, ProtocolResponse,
+        RequestId, RequestOptions, RootHandleId, loopback_transport_pair,
     };
 
     #[test]
@@ -410,10 +410,10 @@ mod tests {
             id: RequestId::new(7),
             options: RequestOptions::default(),
             payload: DaemonRequest::Command(Box::new(CommandRequest {
-                handle: WorkspaceHandleId::new(2),
+                handle: RootHandleId::new(2),
                 common: CommonCommandOptions {
                     inputs: vec![CommandInput::File {
-                        path: "/workspace/app.ds".into(),
+                        path: "/root/app.ds".into(),
                     }],
                     allow_destack_config_fallback: false,
                     target: Some("app".to_string()),
@@ -455,9 +455,9 @@ mod tests {
             id: RequestId::new(4),
             options: RequestOptions::default(),
             payload: DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
-                handle: WorkspaceHandleId::new(1),
+                handle: RootHandleId::new(1),
                 update: FileUpdate {
-                    path: "/workspace/app.ds".into(),
+                    path: "/root/app.ds".into(),
                     update: FileUpdateKind::Text {
                         content: "let x = 1".to_string(),
                     },
@@ -542,19 +542,19 @@ mod tests {
             diagnostics: vec![diagnostic],
         }];
 
-        // build a snapshot for diagnostics rendering
-        let snapshot = FileSnapshot {
+        // build an image for diagnostics rendering
+        let image = FileUpdateImage {
             id: file_id,
             name: "main.ds".to_string(),
             uri: Uri::from_string("file:///main.ds"),
-            path: Some("/workspace/main.ds".into()),
+            path: Some("/root/main.ds".into()),
             file_type: FileType::Destack,
             content: Some("export const answer = 42;\n".to_string()),
         };
 
         // build base response data
         let base = CommandResponse {
-            handle: WorkspaceHandleId::new(1),
+            handle: RootHandleId::new(1),
             success: true,
             exit_code: 0,
             diagnostics: Vec::new(),
@@ -565,7 +565,6 @@ mod tests {
             module_count: 1,
             profile_count: 1,
             target_count: 0,
-            stats: None,
             data: None,
         };
 
@@ -577,9 +576,9 @@ mod tests {
         with_diagnostics.diagnostics = diagnostics;
         assert_command_roundtrip("diagnostics", with_diagnostics);
 
-        // roundtrip a response with file snapshots only
+        // roundtrip a response with file images only
         let mut with_files = base.clone();
-        with_files.files = vec![snapshot];
+        with_files.files = vec![image];
         assert_command_roundtrip("files", with_files);
     }
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{Diagnostic, FileId, ModuleId};
 
-use super::FileSnapshot;
+use super::FileUpdateImage;
 
 /// Record of one file change.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -33,8 +33,8 @@ pub struct DaemonUpdateRecord {
     pub module_id: Option<ModuleId>,
     /// File id for the update.
     pub file_id: FileId,
-    /// File snapshot for the update.
-    pub file: FileSnapshot,
+    /// File image for the update.
+    pub file: FileUpdateImage,
     /// File change summary.
     pub change: UpdateChangeSummary,
     /// Diagnostics produced by the update.

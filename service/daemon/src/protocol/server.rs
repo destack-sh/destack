@@ -4,24 +4,23 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use destack_workspace::{Ref, Repository, Revision};
+use destack_workspace::Repository;
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service};
 
 use crate::{Daemon, DaemonError, WatchBatch as DaemonWatchBatch};
 
 use super::{
-    BinaryPayload, CacheStatsPayload, CommandRequest, CommandResponse, DaemonNotification,
-    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
+    BinaryPayload, CommandRequest, CommandResponse, DaemonNotification, DaemonQuery,
+    DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
     FileUpdateKind, FileUpdateRequest, FileUpdateResponse, HandshakeRequest, HandshakeResponse,
     PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec,
     ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
     ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, QueryRequestPayload,
-    QueryResponsePayload, ReloadWorkspaceRequest, RepositoryId, ServerInfo, Transport,
-    TransportError, WatchBatchRequest, WatchBatchResponse, WorkspaceHandleId,
-    WorkspaceOpenedResponse, WorkspaceReloadResponse, daemon_messages_to_records,
-    daemon_updates_to_records, diagnostic_file_snapshots, diagnostics_to_batches,
-    inline_payload_max_bytes, payload_chunk_bytes,
+    QueryResponsePayload, ReloadRootRequest, RepositoryId, RootHandleId, RootOpenedResponse,
+    RootReloadResponse, ServerInfo, Transport, TransportError, WatchBatchRequest,
+    WatchBatchResponse, daemon_messages_to_records, daemon_updates_to_records,
+    diagnostic_file_images, diagnostics_to_batches, inline_payload_max_bytes, payload_chunk_bytes,
 };
 
 /// Server side protocol handler for daemon requests.
@@ -85,12 +84,12 @@ impl ProtocolServerControl {
         self.activity.unregister_connection();
     }
 
-    /// Register a workspace handle lease.
+    /// Register a root handle lease.
     pub fn register_handle(&self) {
         self.activity.register_handle();
     }
 
-    /// Release a workspace handle lease.
+    /// Release a root handle lease.
     pub fn unregister_handle(&self) {
         self.activity.unregister_handle();
     }
@@ -150,14 +149,14 @@ impl ProtocolServerActivity {
         state.last_activity = Instant::now();
     }
 
-    /// Register a workspace handle lease.
+    /// Register a root handle lease.
     pub fn register_handle(&self) {
         let mut state = self.state.lock();
         state.active_handles = state.active_handles.saturating_add(1);
         state.last_activity = Instant::now();
     }
 
-    /// Release a workspace handle lease.
+    /// Release a root handle lease.
     pub fn unregister_handle(&self) {
         let mut state = self.state.lock();
         state.active_handles = state.active_handles.saturating_sub(1);
@@ -199,7 +198,7 @@ impl Default for ProtocolServerActivity {
 struct ProtocolServerActivityState {
     /// Number of active connections.
     active_connections: usize,
-    /// Number of active workspace handles.
+    /// Number of active root handles.
     active_handles: usize,
     /// Last activity timestamp.
     last_activity: Instant,
@@ -241,14 +240,14 @@ struct ProtocolServerState {
     negotiated_limits: Option<super::ProtocolLimits>,
     /// Next session id to allocate.
     next_session_id: u64,
-    /// Next workspace handle id to allocate.
-    next_workspace_handle: u64,
+    /// Next root handle id to allocate.
+    next_root_handle: u64,
     /// Next payload id to allocate.
     next_payload_id: u64,
-    /// Workspace roots keyed by handle id.
-    workspace_roots: HashMap<WorkspaceHandleId, PathBuf>,
-    /// Workspace handles keyed by root path.
-    workspace_handles: HashMap<PathBuf, WorkspaceHandleId>,
+    /// Roots keyed by handle id.
+    root_by_handle: HashMap<RootHandleId, PathBuf>,
+    /// Root handles keyed by root path.
+    handle_by_root: HashMap<PathBuf, RootHandleId>,
     /// Pending payloads to stream.
     pending_payloads: Vec<PendingPayload>,
     /// Whether a shutdown was requested.
@@ -262,10 +261,10 @@ impl ProtocolServerState {
             session_id: None,
             negotiated_limits: None,
             next_session_id: 1,
-            next_workspace_handle: 1,
+            next_root_handle: 1,
             next_payload_id: 1,
-            workspace_roots: HashMap::new(),
-            workspace_handles: HashMap::new(),
+            root_by_handle: HashMap::new(),
+            handle_by_root: HashMap::new(),
             pending_payloads: Vec::new(),
             shutting_down: false,
         }
@@ -400,18 +399,14 @@ impl ProtocolServer {
             DaemonRequest::Ping => Ok(DaemonResponse::Pong),
             DaemonRequest::Cancel { id } => Ok(DaemonResponse::Canceled { id }),
             DaemonRequest::Shutdown => self.handle_shutdown(),
-            DaemonRequest::OpenWorkspace(request) => self.handle_open_workspace(request),
-            DaemonRequest::CloseWorkspace(request) => self.handle_close_workspace(request),
-            DaemonRequest::ReloadWorkspace(request) => self.handle_reload_workspace(request),
+            DaemonRequest::OpenRoot(request) => self.handle_open_root(request),
+            DaemonRequest::CloseRoot(request) => self.handle_close_root(request),
+            DaemonRequest::ReloadRoot(request) => self.handle_reload_root(request),
             DaemonRequest::ApplyFileUpdate(request) => self.handle_file_update(request),
             DaemonRequest::PrepareQuery(request) => self.handle_prepare_query(request),
             DaemonRequest::ApplyWatchBatch(request) => self.handle_watch_batch(request),
             DaemonRequest::Command(request) => self.handle_command(*request),
             DaemonRequest::Query(query) => self.handle_query(query),
-            DaemonRequest::Repl(_) => self.not_ready("repl requests are not ready"),
-            DaemonRequest::Runtime(_) => self.not_ready("runtime requests are not ready"),
-            DaemonRequest::Cache(_) => self.not_ready("cache control is not ready"),
-            DaemonRequest::Output(_) => self.not_ready("output requests are not ready"),
         };
 
         match payload {
@@ -482,16 +477,16 @@ impl ProtocolServer {
         Ok(DaemonResponse::ShutdownAck)
     }
 
-    /// Handle opening a workspace root.
-    fn handle_open_workspace(
+    /// Handle opening a root.
+    fn handle_open_root(
         &self,
-        request: super::OpenWorkspaceRequest,
+        request: super::OpenRootRequest,
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
 
         let root = self.normalize_root(&request.root)?;
-        // open or reuse the workspace handle
-        let (handle, inserted) = self.open_workspace_handle(&root)?;
+        // open or reuse the root handle
+        let (handle, inserted) = self.open_root_handle(&root)?;
         if inserted {
             self.control.register_handle();
         }
@@ -504,50 +499,48 @@ impl ProtocolServer {
             Vec::new()
         };
 
-        Ok(DaemonResponse::WorkspaceOpened(WorkspaceOpenedResponse {
+        Ok(DaemonResponse::RootOpened(RootOpenedResponse {
             handle,
             diagnostics,
             messages: Vec::new(),
         }))
     }
 
-    /// Handle closing a workspace handle.
-    fn handle_close_workspace(
+    /// Handle closing a root handle.
+    fn handle_close_root(
         &self,
-        request: super::CloseWorkspaceRequest,
+        request: super::CloseRootRequest,
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let mut state = self.state.lock();
         let root = state
-            .workspace_roots
+            .root_by_handle
             .remove(&request.handle)
-            .ok_or_else(|| self.missing_workspace(request.handle))?;
-        let removed = state.workspace_handles.remove(&root);
+            .ok_or_else(|| self.missing_root(request.handle))?;
+        let removed = state.handle_by_root.remove(&root);
         drop(state);
 
-        // release the workspace handle
+        // release the root handle
         self.daemon
-            .release_workspace_root(&root)
+            .release_root(&root)
             .map_err(|error| self.protocol_error_from_daemon(error))?;
         if removed.is_some() {
             self.control.unregister_handle();
         }
-        Ok(DaemonResponse::WorkspaceClosed(
-            super::WorkspaceClosedResponse {
-                handle: request.handle,
-            },
-        ))
+        Ok(DaemonResponse::RootClosed(super::RootClosedResponse {
+            handle: request.handle,
+        }))
     }
 
-    /// Handle a workspace reload request.
-    fn handle_reload_workspace(
+    /// Handle a root reload request.
+    fn handle_reload_root(
         &self,
-        request: ReloadWorkspaceRequest,
+        request: ReloadRootRequest,
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let root = self.root_for_handle(request.handle)?;
-        let reload = self.daemon.reload_workspaces(&[root]);
-        Ok(DaemonResponse::WorkspaceReloaded(WorkspaceReloadResponse {
+        let reload = self.daemon.reload_roots(&[root]);
+        Ok(DaemonResponse::RootReloaded(RootReloadResponse {
             handle: request.handle,
             updates: daemon_updates_to_records(&reload.updates),
             messages: daemon_messages_to_records(&reload.messages),
@@ -562,14 +555,12 @@ impl ProtocolServer {
         self.require_session()?;
         let root = self.root_for_handle(request.handle)?;
         if !self.path_within_root(&request.update.path, &root) {
-            return Err(self.protocol_error(
-                ProtocolErrorCode::Forbidden,
-                "update path is outside workspace root",
-            ));
+            return Err(
+                self.protocol_error(ProtocolErrorCode::Forbidden, "update path is outside root")
+            );
         }
 
-        let update =
-            workspace_update_from_request(&request.update, self.daemon.repository.as_ref())?;
+        let update = file_mutation_from_request(&request.update, self.daemon.repository.as_ref())?;
         let update_result = self
             .daemon
             .apply_file_update(&request.update.path, update, request.update.write_to_disk)
@@ -590,21 +581,18 @@ impl ProtocolServer {
         self.require_session()?;
         let root = self.root_for_handle(request.handle)?;
         if !self.path_within_root(&request.path, &root) {
-            return Err(self.protocol_error(
-                ProtocolErrorCode::Forbidden,
-                "path is outside workspace root",
-            ));
+            return Err(self.protocol_error(ProtocolErrorCode::Forbidden, "path is outside root"));
         }
 
         let outcome = (|| {
             self.daemon
-                .workspace_service
-                .prepare_default_query_for_path(&request.path)
+                .language_service
+                .prepare_query(&request.path)
                 .map_err(crate::DaemonError::from)
         })();
         let (query_ready, detail) = match outcome {
             Ok(()) => (true, None),
-            Err(crate::DaemonError::Workspace {
+            Err(crate::DaemonError::Service {
                 error: service::LanguageServiceError::QueryNotReady { detail },
             }) => (false, Some(detail)),
             Err(error) => return Err(self.protocol_error_from_daemon(error)),
@@ -628,7 +616,7 @@ impl ProtocolServer {
             if !self.path_within_root(&event.path, &root) {
                 return Err(self.protocol_error(
                     ProtocolErrorCode::Forbidden,
-                    "watch event path is outside workspace root",
+                    "watch event path is outside root",
                 ));
             }
             if let Some(previous) = event.previous_path.as_ref()
@@ -636,7 +624,7 @@ impl ProtocolServer {
             {
                 return Err(self.protocol_error(
                     ProtocolErrorCode::Forbidden,
-                    "watch event path is outside workspace root",
+                    "watch event path is outside root",
                 ));
             }
         }
@@ -658,7 +646,7 @@ impl ProtocolServer {
 
         let result = self
             .daemon
-            .run_workspace_command(&root, &request.common, &request.payload)
+            .run_root_command(&root, &request.common, &request.payload)
             .map_err(|error| {
                 self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
             })?;
@@ -676,7 +664,7 @@ impl ProtocolServer {
         };
         let repository = Arc::clone(&self.daemon.repository);
         let diagnostics = diagnostics_to_batches(&result.diagnostics);
-        let files = diagnostic_file_snapshots(&repository, result.revision, &result.diagnostics);
+        let files = diagnostic_file_images(&repository, result.revision, &result.diagnostics);
 
         Ok(DaemonResponse::CommandResult(CommandResponse {
             handle: request.handle,
@@ -690,7 +678,6 @@ impl ProtocolServer {
             module_count: result.module_count,
             profile_count: result.profile_count,
             target_count: result.target_count,
-            stats: result.stats,
             data,
         }))
     }
@@ -703,40 +690,35 @@ impl ProtocolServer {
                 let diagnostics = self.diagnostics_for_handle(handle)?;
                 DaemonQueryResponse::Diagnostics(diagnostics)
             }
-            DaemonQuery::CacheStats { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let stats = self.cache_stats_for_root(&root)?;
-                DaemonQueryResponse::CacheStats(stats)
-            }
             DaemonQuery::CurrentRevision { handle } => {
                 let root = self.root_for_handle(handle)?;
                 let revision = self
                     .daemon
-                    .workspace_service
-                    .revision_for_root(&root)
+                    .language_service
+                    .revision(&root)
                     .map_err(|error| self.protocol_error_from_service("current revision", error))?;
                 DaemonQueryResponse::CurrentRevision(revision)
             }
-            DaemonQuery::WorkspaceQuery { handle, request } => {
+            DaemonQuery::RootQuery { handle, request } => {
                 let root = self.root_for_handle(handle)?;
-                let response = self.execute_workspace_query(&root, request)?;
-                DaemonQueryResponse::WorkspaceQuery(response)
+                let response = self.execute_query(&root, request)?;
+                DaemonQueryResponse::RootQuery(response)
             }
-            DaemonQuery::WorkspaceQueryBatch { handle, requests } => {
+            DaemonQuery::RootQueryBatch { handle, requests } => {
                 let root = self.root_for_handle(handle)?;
                 let responses = requests
                     .into_iter()
-                    .map(|request| self.execute_workspace_query(&root, request))
+                    .map(|request| self.execute_query(&root, request))
                     .collect::<Result<Vec<_>, ProtocolError>>()?;
-                DaemonQueryResponse::WorkspaceQueryBatch(responses)
+                DaemonQueryResponse::RootQueryBatch(responses)
             }
         };
 
         Ok(DaemonResponse::QueryResult(response))
     }
 
-    /// Execute a workspace query against the current session.
-    fn execute_workspace_query(
+    /// Execute a root query against the current session.
+    fn execute_query(
         &self,
         root: &Path,
         request: QueryRequestPayload,
@@ -752,25 +734,24 @@ impl ProtocolServer {
         // capture request kind before dispatch
         let request_method_id = request.request.method_id();
 
-        // execute the semantic query through the workspace service
+        // execute the semantic query through the language service
         let response = match request.request.execution_mode() {
             query::QueryExecutionMode::Read => self
                 .daemon
-                .workspace_service
-                .execute_read_query_envelope_for_workspace_root(root, request),
-            query::QueryExecutionMode::Write => self
-                .daemon
-                .workspace_service
-                .execute_write_query_envelope_for_workspace_root(root, request),
+                .language_service
+                .read_root_query_envelope(root, request),
+            query::QueryExecutionMode::Write => {
+                self.daemon.language_service.write_root_query(root, request)
+            }
         }
-        .map_err(|error| self.protocol_error_from_service("workspace query", error))?;
+        .map_err(|error| self.protocol_error_from_service("root query", error))?;
 
         // keep query response variants aligned with query request variants
         if response.response.method_id() != request_method_id {
             return Err(self.protocol_error(
                 ProtocolErrorCode::Internal,
                 &format!(
-                    "workspace query response kind mismatch: request={request_method_id:?} response={:?}",
+                    "root query response kind mismatch: request={request_method_id:?} response={:?}",
                     response.response.method_id(),
                 ),
             ));
@@ -790,11 +771,6 @@ impl ProtocolServer {
         Ok(response)
     }
 
-    /// Return a NotReady protocol error with message.
-    fn not_ready(&self, message: &str) -> Result<DaemonResponse, ProtocolError> {
-        Err(self.protocol_error(ProtocolErrorCode::NotReady, message))
-    }
-
     /// Ensure a session is established.
     fn require_session(&self) -> Result<RepositoryId, ProtocolError> {
         let state = self.state.lock();
@@ -803,7 +779,7 @@ impl ProtocolServer {
             .ok_or_else(|| self.protocol_error(ProtocolErrorCode::NotReady, "handshake required"))
     }
 
-    /// Normalize workspace roots.
+    /// Normalize roots.
     fn normalize_root(&self, root: &Path) -> Result<PathBuf, ProtocolError> {
         self.daemon
             .repository
@@ -813,14 +789,14 @@ impl ProtocolServer {
                 self.protocol_error(
                     ProtocolErrorCode::InvalidRequest,
                     &format!(
-                        "workspace root canonicalization failed for {}: {error}",
+                        "root canonicalization failed for {}: {error}",
                         root.display()
                     ),
                 )
             })
     }
 
-    /// Check whether a path is within a workspace root.
+    /// Check whether a path is within a root.
     fn path_within_root(&self, path: &Path, root: &Path) -> bool {
         if path.starts_with(root) {
             return true;
@@ -849,109 +825,97 @@ impl ProtocolServer {
         Some(canonical_parent.join(file_name))
     }
 
-    /// Open or reuse a workspace handle for a root.
-    fn open_workspace_handle(
-        &self,
-        root: &Path,
-    ) -> Result<(WorkspaceHandleId, bool), ProtocolError> {
+    /// Open or reuse a root handle for a root.
+    fn open_root_handle(&self, root: &Path) -> Result<(RootHandleId, bool), ProtocolError> {
         let mut state = self.state.lock();
-        if let Some(existing) = state.workspace_handles.get(root) {
+        if let Some(existing) = state.handle_by_root.get(root) {
             return Ok((*existing, false));
         }
 
         self.daemon
-            .acquire_workspace_root(root)
+            .acquire_root(root)
             .map_err(|error| self.protocol_error_from_daemon(error))?;
-        let handle = WorkspaceHandleId::new(state.next_workspace_handle);
-        state.next_workspace_handle += 1;
-        state.workspace_handles.insert(root.to_path_buf(), handle);
-        state.workspace_roots.insert(handle, root.to_path_buf());
+        let handle = RootHandleId::new(state.next_root_handle);
+        state.next_root_handle += 1;
+        state.handle_by_root.insert(root.to_path_buf(), handle);
+        state.root_by_handle.insert(handle, root.to_path_buf());
         Ok((handle, true))
     }
 
-    /// Release workspace handles tied to this connection.
+    /// Release root handles tied to this connection.
     fn cleanup_connection(&self) {
         // drain roots and clear subscriptions for this connection
         let roots = {
             let mut state = self.state.lock();
-            state.workspace_handles.clear();
+            state.handle_by_root.clear();
             state
-                .workspace_roots
+                .root_by_handle
                 .drain()
                 .map(|(_, root)| root)
                 .collect::<Vec<_>>()
         };
 
-        // release workspace leases for the drained roots
+        // release root leases for the drained roots
         for root in roots {
-            let _ = self.daemon.release_workspace_root(&root);
+            let _ = self.daemon.release_root(&root);
             self.control.unregister_handle();
         }
     }
 
-    /// Resolve a root for a workspace handle.
-    fn root_for_handle(&self, handle: WorkspaceHandleId) -> Result<PathBuf, ProtocolError> {
+    /// Resolve a root for a root handle.
+    fn root_for_handle(&self, handle: RootHandleId) -> Result<PathBuf, ProtocolError> {
         let state = self.state.lock();
         state
-            .workspace_roots
+            .root_by_handle
             .get(&handle)
             .cloned()
-            .ok_or_else(|| self.missing_workspace(handle))
+            .ok_or_else(|| self.missing_root(handle))
     }
 
     /// Convert a daemon error to a protocol error.
     fn protocol_error_from_daemon(&self, error: DaemonError) -> ProtocolError {
         match error {
-            DaemonError::FileNotTracked { .. } | DaemonError::FileIdNotTracked { .. } => {
+            DaemonError::FileMissing { .. } | DaemonError::FileIdNotTracked { .. } => {
                 self.protocol_error(ProtocolErrorCode::NotFound, &error.to_string())
             }
             _ => self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()),
         }
     }
 
-    /// Convert a workspace service error to a protocol error.
+    /// Convert a language service error to a protocol error.
     fn protocol_error_from_service(
         &self,
         context: &str,
         error: service::LanguageServiceError,
     ) -> ProtocolError {
-        // map workspace service errors into protocol domain errors
+        // map language service errors into protocol domain errors
         let code = match error {
-            service::LanguageServiceError::FileNotTracked { .. }
-            | service::LanguageServiceError::FileIdNotTracked { .. }
-            | service::LanguageServiceError::ModuleIdNotTracked { .. }
-            | service::LanguageServiceError::PathNotInWorkspace { .. }
-            | service::LanguageServiceError::RevisionNotTracked { .. } => {
-                ProtocolErrorCode::NotFound
-            }
-            service::LanguageServiceError::StaleDocumentVersion { .. } => {
-                ProtocolErrorCode::Conflict
-            }
+            service::LanguageServiceError::FileMissing { .. }
+            | service::LanguageServiceError::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
+            service::LanguageServiceError::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
             service::LanguageServiceError::MissingExpectedRevision => {
                 ProtocolErrorCode::InvalidRequest
             }
-            service::LanguageServiceError::UnexpectedExpectedRevisionOnRead { .. }
-            | service::LanguageServiceError::QueryExecutionModeMismatch { .. } => {
+            service::LanguageServiceError::UnexpectedExpectedRevision { .. }
+            | service::LanguageServiceError::QueryModeMismatch { .. } => {
                 ProtocolErrorCode::InvalidRequest
             }
             service::LanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
             service::LanguageServiceError::QueryNotReady { .. } => ProtocolErrorCode::NotReady,
-            service::LanguageServiceError::CacheClearFailed { .. }
-            | service::LanguageServiceError::ResolvePathFailed { .. }
-            | service::LanguageServiceError::UpdatePathFailed { .. }
-            | service::LanguageServiceError::ReadPathFailed { .. }
-            | service::LanguageServiceError::Repository { .. }
+            service::LanguageServiceError::Repository(_)
+            | service::LanguageServiceError::Session(_)
+            | service::LanguageServiceError::Io { .. }
             | service::LanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
         };
 
         self.protocol_error(code, &format!("{context} failed: {error}"))
     }
 
-    /// Create a protocol error for missing workspace handles.
-    fn missing_workspace(&self, handle: WorkspaceHandleId) -> ProtocolError {
+    /// Create a protocol error for missing root handles.
+    fn missing_root(&self, handle: RootHandleId) -> ProtocolError {
         self.protocol_error(
             ProtocolErrorCode::NotFound,
-            &format!("unknown workspace handle {handle:?}"),
+            &format!("unknown root handle {handle:?}"),
         )
     }
 
@@ -1126,67 +1090,28 @@ impl ProtocolServer {
         }
     }
 
-    /// Return diagnostics for one workspace handle.
+    /// Return diagnostics for one root handle.
     fn diagnostics_for_handle(
         &self,
-        handle: WorkspaceHandleId,
+        handle: RootHandleId,
     ) -> Result<Vec<DiagnosticBatch>, ProtocolError> {
         let root = self.root_for_handle(handle)?;
-        let snapshots = self
+        let images = self
             .daemon
-            .workspace_service
-            .diagnostics_for_root(&root)
+            .language_service
+            .root_diagnostics(&root)
             .map_err(|error| self.protocol_error_from_service("diagnostics", error))?;
-        let diagnostics: Vec<_> = snapshots
+        let diagnostics: Vec<_> = images
             .into_iter()
-            .flat_map(|snapshot| snapshot.diagnostics)
+            .flat_map(|image| image.diagnostics)
             .collect();
 
         Ok(diagnostics_to_batches(&diagnostics))
     }
-
-    /// Return cache stats for the workspace root.
-    fn cache_stats_for_root(&self, root: &Path) -> Result<CacheStatsPayload, ProtocolError> {
-        let compiler = self
-            .daemon
-            .compiler_for_workspace_root(root)
-            .map_err(|error| {
-                self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
-            })?;
-        let revision = self.current_workspace_revision(root, compiler.repository.as_ref())?;
-        let module_count = compiler
-            .repository
-            .module_ids(revision)
-            .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()))?
-            .len();
-        let snapshot = compiler
-            .stats
-            .snapshot_with_repository(module_count, Some(&compiler.repository));
-        Ok(CacheStatsPayload {
-            hits: (snapshot.cache.ast_hits_memory
-                + snapshot.cache.dir_hits_memory
-                + snapshot.cache.mir_hits_memory) as u64,
-            misses: (snapshot.cache.ast_misses
-                + snapshot.cache.dir_misses
-                + snapshot.cache.mir_misses) as u64,
-        })
-    }
-
-    /// Return the current revision for one workspace repository.
-    fn current_workspace_revision(
-        &self,
-        root: &Path,
-        repository: &Repository,
-    ) -> Result<Revision, ProtocolError> {
-        let reference = Ref::for_workspace_root(root);
-        repository
-            .current(&reference)
-            .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()))
-    }
 }
 
-/// Build a workspace update from a protocol payload.
-fn workspace_update_from_request(
+/// Build a service update from a protocol payload.
+fn file_mutation_from_request(
     update: &FileUpdate,
     repository: &Repository,
 ) -> Result<service::FileMutation, ProtocolError> {

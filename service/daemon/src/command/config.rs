@@ -67,7 +67,7 @@ impl CommandContext<'_> {
         let data = serde_json::to_value(payload)
             .map_err(|error| format!("invalid config payload: {error}"))?;
 
-        Ok(CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0, None).with_data(data))
+        Ok(CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0).with_data(data))
     }
 }
 
@@ -81,8 +81,9 @@ fn read_config_json(
     let revision = repository
         .current(&reference)
         .map_err(|error| error.to_string())?;
+    let file_id = repository.file_id(path);
     let file = repository
-        .file_for_path(revision, path)
+        .file(revision, file_id)
         .map_err(|error| format!("failed to load {}: {error}", path.display()))?
         .ok_or_else(|| format!("failed to load {}", path.display()))?;
     let content = file.text();

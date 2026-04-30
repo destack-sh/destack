@@ -1,9 +1,7 @@
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_source::{DiagnosticCollection, ModuleId};
-use destack_workspace::{Repository, Revision};
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use super::context::{CommandContext, ResolvedTarget};
@@ -39,31 +37,22 @@ impl CommandContext<'_> {
         }
 
         // provide the requested build roots
-        let run_stats = self
-            .session
-            .provide(&artifact_keys)
+        let revision = self.revision()?;
+        self.session
+            .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
-        let revision = self.session.revision();
-        let raw_diagnostics =
-            collect_module_target_diagnostics(&self.repository, revision, &module_targets)?;
+        let raw_diagnostics = self
+            .repository
+            .diagnostics(revision)
+            .map_err(|error| error.to_string())?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
-        let module_count = self.module_count(revision)?;
         let profile_count = module_targets
             .iter()
-            .map(|(module_id, target)| {
-                self.repository
-                    .profile_id_for_target_or_default(revision, *module_id, &target.id)
-                    .map_err(|error| error.to_string())
-            })
+            .map(|(module_id, target)| self.target_profile_id(revision, *module_id, target.id))
             .collect::<Result<HashSet<_>, _>>()?
             .len();
-        let stats = self
-            .session
-            .compiler()
-            .stats
-            .snapshot_with_repository(module_count, Some(&self.repository));
 
         Ok(CommandOutcome::new(
             diagnostics,
@@ -71,32 +60,8 @@ impl CommandContext<'_> {
             modules.len(),
             profile_count,
             target_ids.len(),
-            Some(stats),
-        )
-        .with_run_stats(run_stats))
+        ))
     }
-}
-
-/// Collect diagnostics across the current target artifact families for the requested modules.
-fn collect_module_target_diagnostics(
-    repository: &Arc<Repository>,
-    revision: Revision,
-    module_targets: &[(ModuleId, ResolvedTarget)],
-) -> super::CommandResult<DiagnosticCollection> {
-    let mut diagnostics = DiagnosticCollection::new();
-
-    // current target families
-    for (module_id, target) in module_targets {
-        let profile_id = repository
-            .profile_id_for_target_or_default(revision, *module_id, &target.id)
-            .map_err(|error| error.to_string())?;
-        diagnostics.merge_from(
-            &repository
-                .module_target_artifact_diagnostics(revision, *module_id, profile_id, target.id),
-        );
-    }
-
-    Ok(diagnostics)
 }
 
 /// Build the requested build root for one target.

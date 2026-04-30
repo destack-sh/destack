@@ -164,7 +164,7 @@ impl CommandContext<'_> {
             cwd: self.session.cwd().display().to_string(),
             os: os.to_string(),
             arch: arch.to_string(),
-            workers: u64::from(self.daemon.compiler_options.workers),
+            workers: self.daemon.worker_limit as u64,
             available_parallelism: u64::try_from(available_parallelism).unwrap_or(u64::MAX),
             workspace: CommandDoctorWorkspace {
                 root: workspace.root.display().to_string(),
@@ -199,7 +199,7 @@ impl CommandContext<'_> {
         let data = serde_json::to_value(payload)
             .map_err(|error| format!("invalid doctor payload: {error}"))?;
 
-        Ok(CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0, None).with_data(data))
+        Ok(CommandOutcome::new(DiagnosticCollection::default(), 0, 0, 0, 0).with_data(data))
     }
 }
 

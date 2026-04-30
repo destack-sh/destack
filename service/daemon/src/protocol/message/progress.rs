@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use super::WorkspaceHandleId;
+use super::RootHandleId;
 
 /// Progress notification payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProgressNotification {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Progress event payload.
     pub event: ProgressEvent,
 }

@@ -8,8 +8,8 @@ use destack_workspace::{HostEnvironment, Repository};
 
 use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions, DaemonShutdownOptions};
 use crate::protocol::{
-    DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest,
-    OpenWorkspaceRequest, WorkspaceOpenOptions,
+    DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenRootRequest,
+    RootOpenOptions,
 };
 use crate::{DaemonConnectOptions, connect_ipc_daemon};
 
@@ -72,8 +72,8 @@ fn ipc_test_server_options() -> DaemonServerOptions {
         ..DaemonServerOptions::default()
     };
 
-    // run compiler work in a single worker to avoid test contention
-    options.compiler_options.workers = 1;
+    // run provider work in one worker to avoid test contention
+    options.worker_limit = 1;
 
     // return configured options
     options
@@ -111,7 +111,7 @@ fn join_daemon_server(
 /// Harness for daemon ipc lifecycle tests.
 #[cfg(unix)]
 struct TestIpcDaemon {
-    /// Temporary workspace root for this daemon.
+    /// Temporary root for this daemon.
     root: TemporaryPhysicalFileSystem,
     /// Shared repository backing server restarts.
     repository: Arc<Repository>,
@@ -127,7 +127,7 @@ struct TestIpcDaemon {
 impl TestIpcDaemon {
     /// Create an ipc daemon harness with an isolated root.
     fn new(prefix: &str) -> Self {
-        // build a workspace and daemon instance
+        // build a root and daemon instance
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let repository = Arc::new(Repository::new(
@@ -148,7 +148,7 @@ impl TestIpcDaemon {
         }
     }
 
-    /// Return the workspace root path.
+    /// Return the root path.
     fn root_path(&self) -> &std::path::Path {
         self.root.root()
     }
@@ -311,7 +311,7 @@ fn test_daemon_ipc_restart() {
     daemon.shutdown_and_join(connection);
 }
 
-/// Opens a workspace again after restart and handles updates.
+/// Opens a root again after restart and handles updates.
 #[cfg(unix)]
 #[test]
 fn test_daemon_ipc_restart_resubscribe() {
@@ -323,17 +323,16 @@ fn test_daemon_ipc_restart_resubscribe() {
     let mut daemon = TestIpcDaemon::new("daemon_ipc_resubscribe");
     daemon.start();
 
-    // connect to the daemon and open the workspace
+    // connect to the daemon and open the root
     let connection = daemon.connect();
-    let response =
-        connection
-            .client
-            .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
-                root: daemon.root_path().to_path_buf(),
-                options: WorkspaceOpenOptions::default(),
-            }));
+    let response = connection
+        .client
+        .send_request(DaemonRequest::OpenRoot(OpenRootRequest {
+            root: daemon.root_path().to_path_buf(),
+            options: RootOpenOptions::default(),
+        }));
     let handle_id = match response {
-        Ok(DaemonResponse::WorkspaceOpened(response)) => response.handle,
+        Ok(DaemonResponse::RootOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
     };
 
@@ -365,17 +364,16 @@ fn test_daemon_ipc_restart_resubscribe() {
     // restart the daemon server
     daemon.start();
 
-    // reconnect and open the workspace again
+    // reconnect and open the root again
     let connection = daemon.connect();
-    let response =
-        connection
-            .client
-            .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
-                root: daemon.root_path().to_path_buf(),
-                options: WorkspaceOpenOptions::default(),
-            }));
+    let response = connection
+        .client
+        .send_request(DaemonRequest::OpenRoot(OpenRootRequest {
+            root: daemon.root_path().to_path_buf(),
+            options: RootOpenOptions::default(),
+        }));
     let handle_id = match response {
-        Ok(DaemonResponse::WorkspaceOpened(response)) => response.handle,
+        Ok(DaemonResponse::RootOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
     };
 

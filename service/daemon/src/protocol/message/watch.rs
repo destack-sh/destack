@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{DaemonMessageRecord, DaemonUpdateRecord, ReloadReason, WorkspaceHandleId};
+use super::{DaemonMessageRecord, DaemonUpdateRecord, ReloadReason, RootHandleId};
 
 /// Request to apply a watch batch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchBatchRequest {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Watch batch payload.
     pub batch: WatchBatch,
 }
@@ -16,8 +16,8 @@ pub struct WatchBatchRequest {
 /// Response for watch batch processing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchBatchResponse {
-    /// Workspace handle.
-    pub handle: WorkspaceHandleId,
+    /// Root handle.
+    pub handle: RootHandleId,
     /// Updates produced by the batch.
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced by the batch.

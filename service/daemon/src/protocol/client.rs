@@ -314,10 +314,8 @@ impl PayloadInbox {
     ) -> Result<bool, ProtocolClientError> {
         // resolve binary payloads in query responses
         match response {
-            DaemonQueryResponse::WorkspaceQuery(payload) => {
-                self.resolve_payload(&mut payload.payload)
-            }
-            DaemonQueryResponse::WorkspaceQueryBatch(payloads) => {
+            DaemonQueryResponse::RootQuery(payload) => self.resolve_payload(&mut payload.payload),
+            DaemonQueryResponse::RootQueryBatch(payloads) => {
                 // resolve each payload and return early when any stream is incomplete
                 for payload in payloads {
                     let resolved = self.resolve_payload(&mut payload.payload)?;

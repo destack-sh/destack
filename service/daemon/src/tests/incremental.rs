@@ -2,13 +2,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{DiskCacheStore, MemoryCacheStore};
-use destack_compiler::CompilerOptions;
 use destack_query as query;
 use destack_source::{FileContent, FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::{HostEnvironment, Repository};
 
 use crate::Daemon;
-use crate::tests::{TestDaemon, current_workspace_revision};
+use crate::tests::{TestDaemon, current_root_revision};
 
 const NAVIGATION_SOURCE: &str = r#"function greet(name: string): string {
     return "Hello, " + name;
@@ -32,10 +31,10 @@ value;
 /// Assert semantic query readiness for a virtual source file.
 fn assert_virtual_navigation_ready(repository: &Repository, path: &Path, source: &str) {
     // resolve the file id from the tracked path
-    let file_id = repository.file_id_for_workspace_path(path);
+    let file_id = repository.file_id(path);
 
-    // resolve the workspace revision
-    let revision = current_workspace_revision(repository);
+    // resolve the root revision
+    let revision = current_root_revision(repository);
 
     assert!(
         repository
@@ -83,14 +82,14 @@ fn test_daemon_virtual_update_emits_diagnostics() {
     let path = test.root.join("main.ds");
 
     // initial diagnostics are empty
-    let initial_update = test.update_virtual_file_for_path(&path, "export const value = 1;");
+    let initial_update = test.update_file_for_path(&path, "export const value = 1;");
     assert!(
         initial_update.diagnostics.is_empty(),
         "expected no diagnostics for valid content"
     );
 
     // invalid content emits diagnostics
-    let updated_update = test.update_virtual_file_for_path(&path, "export const value = ;");
+    let updated_update = test.update_file_for_path(&path, "export const value = ;");
     assert!(
         !updated_update.diagnostics.is_empty(),
         "expected diagnostics for invalid content"
@@ -113,19 +112,14 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
         .with_cache(Arc::new(MemoryCacheStore::new())),
     );
 
-    // run compiler work in a single worker to avoid test contention
-    let compiler_options = CompilerOptions {
-        workers: 1,
-        ..CompilerOptions::default()
-    };
-    let daemon = Daemon::with_options(repository.clone(), compiler_options, None, None);
+    let daemon = Daemon::new(repository.clone(), 1, None);
 
     // initial diagnostics are empty
     let path = root.join("main.ds");
     let initial = daemon
-        .update_virtual_file(&path, "export const value = 1;".to_string())
+        .update_file(&path, "export const value = 1;".to_string())
         .expect("virtual update failed");
-    let file_id = repository.file_id_for_workspace_path(&path);
+    let file_id = repository.file_id(&path);
     let initial_update = initial
         .updates
         .into_iter()
@@ -138,7 +132,7 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
 
     // invalid content emits diagnostics
     let updated = daemon
-        .update_virtual_file(&path, "export const value = ;".to_string())
+        .update_file(&path, "export const value = ;".to_string())
         .expect("virtual update failed");
     let updated_update = updated
         .updates
@@ -158,7 +152,7 @@ fn test_daemon_virtual_update_builds_navigation_semantic_query_state() {
     let path = test.root.join("main.ds");
     let source = NAVIGATION_SOURCE;
 
-    let update = test.update_virtual_file_for_path(&path, source);
+    let update = test.update_file_for_path(&path, source);
     assert!(
         update.diagnostics.is_empty(),
         "expected no diagnostics for valid content"
@@ -174,22 +168,20 @@ fn test_daemon_virtual_update_navigates_exported_function_call() {
     let path = test.root.join("main.ds");
     let source = EXPORTED_NAVIGATION_SOURCE;
 
-    let _ = test.update_virtual_file(&path, source);
+    let _ = test.update_file(&path, source);
 
     assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
 
-/// Ensure navigation still works after an initial workspace reload.
+/// Ensure navigation still works after an initial root reload.
 #[test]
 fn test_daemon_virtual_update_navigates_after_reload() {
     let test = TestDaemon::new();
     let path = test.root.join("main.ds");
     let source = EXPORTED_NAVIGATION_SOURCE;
 
-    let _ = test
-        .daemon
-        .reload_workspaces(std::slice::from_ref(&test.root));
-    let _ = test.update_virtual_file(&path, source);
+    let _ = test.daemon.reload_roots(std::slice::from_ref(&test.root));
+    let _ = test.update_file(&path, source);
 
     assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
@@ -229,9 +221,7 @@ fn test_daemon_reload_refreshes_file() {
         .expect("write updated file");
 
     // reload to refresh file contents
-    let result = test
-        .daemon
-        .reload_workspaces(std::slice::from_ref(&test.root));
+    let result = test.daemon.reload_roots(std::slice::from_ref(&test.root));
 
     // check that the reload reports updates without errors
     assert!(result.updated());
@@ -261,9 +251,7 @@ fn test_daemon_reload_does_not_realize_diagnostics() {
         .expect("write invalid file");
 
     // reload only refreshes the tracked file state
-    let result = test
-        .daemon
-        .reload_workspaces(std::slice::from_ref(&test.root));
+    let result = test.daemon.reload_roots(std::slice::from_ref(&test.root));
     assert!(result.updated());
 
     // confirm the reload update stays source only

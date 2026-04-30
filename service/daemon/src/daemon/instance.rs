@@ -6,10 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
-use destack_artifact::DiskCacheStore;
 use destack_core::stable_hash_bytes;
-use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{HostEnvironment, Repository};
+use destack_workspace::Repository;
 
 use crate::protocol::{MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, ProtocolRange};
 
@@ -22,15 +20,15 @@ pub const DAEMON_METADATA_FILE_NAME: &str = "daemon.json";
 /// Socket file name for daemon instances.
 pub const DAEMON_SOCKET_FILE_NAME: &str = "daemon.sock";
 
-/// Daemon instance paths for a workspace root.
+/// Daemon instance paths for a root.
 #[derive(Debug, Clone)]
 pub struct DaemonInstance {
-    /// Workspace root for this instance.
-    pub workspace_root: PathBuf,
+    /// Root for this instance.
+    pub root: PathBuf,
     /// Cache root used for daemon data.
     pub cache_root: PathBuf,
-    /// Stable workspace hash for this instance.
-    pub workspace_id: String,
+    /// Stable root hash for this instance.
+    pub root_id: String,
     /// Directory for daemon instance files.
     pub dir: PathBuf,
     /// Directory for daemon socket files.
@@ -44,26 +42,26 @@ pub struct DaemonInstance {
 }
 
 impl DaemonInstance {
-    /// Create daemon instance paths for a workspace and cache root.
-    pub fn new(workspace_root: PathBuf, cache_root: PathBuf) -> Self {
-        // canonicalize the workspace root
-        let stable_root = fs::canonicalize(&workspace_root).unwrap_or(workspace_root.clone());
+    /// Create daemon instance paths for a root and cache root.
+    pub fn new(root: PathBuf, cache_root: PathBuf) -> Self {
+        // canonicalize the root
+        let stable_root = fs::canonicalize(&root).unwrap_or(root.clone());
 
-        // hash the workspace root for the instance id
-        let workspace_id = hash_workspace_root(&stable_root);
+        // hash the root for the instance id
+        let root_id = hash_root(&stable_root);
 
         // build instance paths
-        let dir = cache_root.join(DAEMON_DIR_NAME).join(&workspace_id);
+        let dir = cache_root.join(DAEMON_DIR_NAME).join(&root_id);
         let socket_dir = std::env::temp_dir().join("destack").join("daemon");
-        let socket_path = socket_dir.join(format!("{workspace_id}.sock"));
+        let socket_path = socket_dir.join(format!("{root_id}.sock"));
         let lock_path = dir.join(DAEMON_LOCK_FILE_NAME);
         let metadata_path = dir.join(DAEMON_METADATA_FILE_NAME);
 
         // return the instance layout
         Self {
-            workspace_root,
+            root,
             cache_root,
-            workspace_id,
+            root_id,
             dir,
             socket_dir,
             socket_path,
@@ -75,11 +73,11 @@ impl DaemonInstance {
     /// Build a daemon instance from a repository.
     pub fn from_repository(repository: &Repository) -> Self {
         // resolve roots from the repository
-        let workspace_root = repository.workspace_root().to_path_buf();
+        let root = repository.workspace_root().to_path_buf();
         let cache_root = repository.cache_directory();
 
         // build the daemon instance
-        Self::new(workspace_root, cache_root)
+        Self::new(root, cache_root)
     }
 
     /// Ensure the daemon directory exists.
@@ -195,8 +193,8 @@ pub struct DaemonInstanceLock {
 pub struct DaemonMetadata {
     /// Metadata schema version.
     pub schema_version: u32,
-    /// Workspace root for the daemon.
-    pub workspace_root: PathBuf,
+    /// Root for the daemon.
+    pub root: PathBuf,
     /// Cache root for daemon data.
     pub cache_root: PathBuf,
     /// Socket path for daemon connections.
@@ -214,8 +212,8 @@ pub struct DaemonMetadata {
 /// Launch configuration for spawning a daemon process.
 #[derive(Debug, Clone)]
 pub struct DaemonLaunchConfig {
-    /// Workspace root for the daemon.
-    pub workspace_root: PathBuf,
+    /// Root for the daemon.
+    pub root: PathBuf,
     /// Socket path for the daemon.
     pub socket_path: PathBuf,
     /// Cache dir override for the daemon.
@@ -231,7 +229,7 @@ impl DaemonLaunchConfig {
     pub fn for_instance(instance: &DaemonInstance) -> Self {
         // build default launch config values
         Self {
-            workspace_root: instance.workspace_root.clone(),
+            root: instance.root.clone(),
             socket_path: instance.socket_path.clone(),
             cache_dir: None,
             config_path: None,
@@ -253,7 +251,7 @@ impl DaemonLaunchConfig {
         // build the base daemon command
         let mut command = Command::new(executable);
         command.arg("daemon").arg("serve");
-        command.arg("--workspace").arg(&self.workspace_root);
+        command.arg("--workspace").arg(&self.root);
         command.arg("--socket").arg(&self.socket_path);
 
         // append optional overrides
@@ -278,7 +276,7 @@ impl DaemonMetadata {
         // build the metadata payload
         Self {
             schema_version: 1,
-            workspace_root: instance.workspace_root.clone(),
+            root: instance.root.clone(),
             cache_root: instance.cache_root.clone(),
             socket_path: instance.socket_path.clone(),
             pid: std::process::id(),
@@ -328,9 +326,9 @@ impl From<serde_json::Error> for DaemonInstanceError {
     }
 }
 
-/// Hash a workspace root into a stable instance id.
-fn hash_workspace_root(root: &Path) -> String {
-    // hash the workspace root string
+/// Hash a root into a stable instance id.
+fn hash_root(root: &Path) -> String {
+    // hash the root string
     let root_bytes = root.to_string_lossy();
     let hash = stable_hash_bytes(root_bytes.as_bytes());
 
@@ -351,7 +349,9 @@ fn current_unix_seconds() -> u64 {
 mod tests {
     use std::sync::Arc;
 
-    use destack_source::TemporaryPhysicalFileSystem;
+    use destack_artifact::DiskCacheStore;
+    use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+    use destack_workspace::{HostEnvironment, Repository};
 
     use super::{DaemonInstance, DaemonInstanceError};
 
