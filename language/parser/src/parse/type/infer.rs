@@ -24,24 +24,24 @@ impl Parser {
 
             self.bump(); // eat extends
 
-            let mut constraint_options = self
-                .options
+            let mut constraint_flags = self
+                .flags
                 .not_in_position()
                 .in_type()
                 .disallow_type_conditional();
-            if self.options.is_in_type_conditional_right() {
-                constraint_options = constraint_options.in_type_conditional_right();
+            if self.flags.is_in_type_conditional_right() {
+                constraint_flags = constraint_flags.in_type_conditional_right();
             }
 
             let constraint = self.eat_type_expression_or_recover_missing(
-                constraint_options,
+                constraint_flags,
                 NodeType::TypeExpression,
             )?;
 
             // `infer T extends U ? X : Y` belongs to the surrounding conditional type
             let has_conditional_marker = self.peek_is(TokenType::Maybe)
                 || (self.current_token_is_on_new_line() && self.peek_is(TokenType::Maybe));
-            if has_conditional_marker && !self.options.is_disallow_type_conditional() {
+            if has_conditional_marker && !self.flags.is_disallow_type_conditional() {
                 self.restore(mark, tree_mark);
                 None
             } else {

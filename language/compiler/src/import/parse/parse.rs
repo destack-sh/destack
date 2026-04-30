@@ -7,7 +7,7 @@ use destack_artifact::{ArtifactKey, ArtifactStamp, Ast, Css, Data, Html, Loader}
 use destack_core::StringPool;
 use destack_css::parse_css;
 use destack_html::parse_html;
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, FileContent, FileType, LanguageType, ModuleId, Span};
 
 impl Compiler {
@@ -331,12 +331,12 @@ impl Compiler {
         let language_type = self.language_type_for_code_file(file.ty, package_id, context);
         let mut parser = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_LEX);
-            Parser::lex_file_with_settings(
+            Parser::lex_file_with_options(
                 file.clone(),
                 language_type,
-                ParserSettings {
+                ParserOptions {
                     disallow_ambiguous_tree_literal: self.options.disallow_ambiguous_tree_literal,
-                    ..ParserSettings::default()
+                    ..ParserOptions::default()
                 },
             )
         };

@@ -8,7 +8,7 @@ use destack_source::LanguageType;
 fn test_parse_unary_operator_span() {
     let mut test = TestParser::new("-value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -26,7 +26,7 @@ fn test_parse_unary_operator_span() {
 fn test_parse_unary_postfix_operator_span() {
     let mut test = TestParser::new("value++");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::PostIncrement);
@@ -45,14 +45,14 @@ fn test_parse_unary_keyword_operators() {
     let mut test = TestParser::new("typeof foo; void 0");
     let mut parser = test.prepare();
 
-    let typeof_id = parser.eat_expression(parser.options).unwrap();
+    let typeof_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, typeof_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Typeof);
         assert_expression_path!(parser, parser.tree.get(*right), "foo");
     });
     parser.eat_statement_stop().unwrap();
 
-    let void_id = parser.eat_expression(parser.options).unwrap();
+    let void_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, void_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Void);
         assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -61,9 +61,9 @@ fn test_parse_unary_keyword_operators() {
 
 #[test]
 fn test_parse_unary_negate_allows_newline_before_operand() {
-    let mut test = TestParser::new_with_options("-\n1", LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language("-\n1", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -73,9 +73,9 @@ fn test_parse_unary_negate_allows_newline_before_operand() {
 
 #[test]
 fn test_parse_unary_negate_allows_line_comment_before_operand() {
-    let mut test = TestParser::new_with_options("-// comment\n1", LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language("-// comment\n1", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -86,9 +86,9 @@ fn test_parse_unary_negate_allows_line_comment_before_operand() {
 /// Parse a unary operand with an explicit parenthesized comment wrapper.
 #[test]
 fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
-    let mut test = TestParser::new_with_options("-(/* comment */ 1)", LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language("-(/* comment */ 1)", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
@@ -105,12 +105,12 @@ fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
 /// Parse await parenthesized `new` with generic receiver and `void` type argument.
 #[test]
 fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "await (new Promise<void>(resolve => setTimeout(() => resolve(), delay)))",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
@@ -129,7 +129,7 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
 fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
     let mut test = TestParser::new("(a++ + ++a) * (b-- - --b)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
@@ -169,7 +169,7 @@ fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
 fn test_parse_pointer_variable() {
     let mut test = TestParser::new("*x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::PointerOf { mutability: Some(mutability), right } => {
         assert_eq!(*mutability, Mutability::Mutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
@@ -181,7 +181,7 @@ fn test_parse_pointer_variable() {
 fn test_parse_readonly_pointer_variable() {
     let mut test = TestParser::new("*readonly x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::PointerOf { mutability: Some(mutability), right } => {
         assert_eq!(*mutability, Mutability::Immutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
@@ -191,10 +191,10 @@ fn test_parse_readonly_pointer_variable() {
 /// Reject dereference in untyped value mode.
 #[test]
 fn test_reject_dereference_in_untyped_value_mode() {
-    let options = LanguageType::JavaScript;
-    let mut test = TestParser::new_with_options("*x", options);
+    let language = LanguageType::JavaScript;
+    let mut test = TestParser::new_with_language("*x", language);
     let mut parser = test.prepare();
-    let result = parser.eat_expression(parser.options);
+    let result = parser.eat_expression(parser.flags);
     assert!(result.is_err());
 }
 
@@ -203,7 +203,7 @@ fn test_reject_dereference_in_untyped_value_mode() {
 fn test_parse_reference_variable() {
     let mut test = TestParser::new("&x");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance: None, right } => {
         assert_eq!(*mutability, Mutability::Mutable);
         assert_expression_path!(parser, parser.tree.get(*right), "x");
@@ -215,7 +215,7 @@ fn test_parse_reference_variable() {
 fn test_parse_reference_member_call() {
     let mut test = TestParser::new("&self.foo()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(Mutability::Mutable), variance: None, right } => {
         assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, arguments, .. } => {
             assert!(arguments.is_empty());
@@ -229,7 +229,7 @@ fn test_parse_reference_member_call() {
 fn test_parse_bound_reference_expression() {
     let mut test = TestParser::new("&readonly super T");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance, right } => {
         assert_eq!(*mutability, Mutability::Immutable);
         assert_eq!(*variance, Some(VarianceBound::Super));
@@ -242,7 +242,7 @@ fn test_parse_bound_reference_expression() {
 fn test_parse_value_expression() {
     let mut test = TestParser::new("^super T");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ValueOf { mutability, variance, right, .. } => {
         assert_eq!(*mutability, Some(Mutability::Mutable));
         assert_eq!(*variance, Some(VarianceBound::Super));
@@ -255,7 +255,7 @@ fn test_parse_value_expression() {
 fn test_parse_new_constructor_call() {
     let mut test = TestParser::new("new Foo()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::New { left, generic_arguments, arguments } => {
         assert_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(generic_arguments.is_empty());
@@ -268,7 +268,7 @@ fn test_parse_new_constructor_call() {
 fn test_parse_delete_expression() {
     let mut test = TestParser::new("delete foo.bar");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Delete { value } => {
         assert_expression_path!(parser, parser.tree.get(*value), "foo.bar");
     });

@@ -36,12 +36,9 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_type_expression_here(NodeType::TypeExpression)
         } else {
-            let index_options = self.options.nested().in_type();
+            let index_flags = self.flags.nested().in_type();
 
-            self.eat_type_expression_node_or_recover_missing(
-                index_options,
-                NodeType::TypeExpression,
-            )?
+            self.eat_type_expression_node_or_recover_missing(index_flags, NodeType::TypeExpression)?
         };
 
         // close bracket
@@ -103,7 +100,7 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.eat_expression(self.options.nested())?
+            self.eat_expression(self.flags.nested())?
         };
 
         // close bracket
@@ -141,9 +138,9 @@ impl Parser {
         let left = if self.current_token_is_on_new_line() {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            let receiver_options = self.options.not_in_position().in_new_receiver();
-            self.with_options(receiver_options, |parser| {
-                parser.eat_expression_or_recover_missing(parser.options, NodeType::Expression)
+            let receiver_flags = self.flags.not_in_position().in_new_receiver();
+            self.with_flags(receiver_flags, |parser| {
+                parser.eat_expression_or_recover_missing(parser.flags, NodeType::Expression)
             })?
         };
 
@@ -193,10 +190,8 @@ impl Parser {
         self.eat_keyword(Keyword::Delete)?;
 
         // value
-        let value_options = self.options.not_in_position();
-        let value = self.with_options(value_options, |parser| {
-            parser.eat_expression(parser.options)
-        })?;
+        let value_flags = self.flags.not_in_position();
+        let value = self.with_flags(value_flags, |parser| parser.eat_expression(parser.flags))?;
 
         // delete
         let delete_id = self

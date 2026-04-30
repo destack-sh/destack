@@ -53,7 +53,7 @@ fn test_unary_negative_separator_comment_attaches_before_operand_token() {
     let literal_start = input.find('1').unwrap() as u32;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
-            parser.eat_expression(Default::default())
+            parser.parse_expression()
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -81,7 +81,7 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
     let literal_start = input.rfind('1').unwrap() as u32;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
-            parser.eat_expression(Default::default())
+            parser.parse_expression()
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -111,7 +111,7 @@ fn test_format_unary_negative_expression_separator_block_comments() {
     let (test, expression_id) = TestFormatter::parse_with_file_type(
         "-/* unary-note */ 1",
         FileType::TypeScript,
-        |parser| parser.eat_expression(Default::default()),
+        |parser| parser.parse_expression(),
     )
     .unwrap();
 
@@ -183,7 +183,7 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     let inner_start = 27;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
-            parser.eat_expression(Default::default())
+            parser.parse_expression()
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -232,7 +232,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     a as any) + 1"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
-            parser.eat_expression(Default::default())
+            parser.parse_expression()
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -341,7 +341,7 @@ fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
 }"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
-            parser.eat_expression(Default::default())
+            parser.parse_expression()
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));

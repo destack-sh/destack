@@ -88,14 +88,14 @@ impl Parser {
         // for condition loop
         if asynchrony == Asynchrony::Sync && has_top_level_semicolon {
             // c style for clauses always allow comma operator expressions
-            let mut clause_options = self.options.nested();
-            clause_options.set_allow_sequence_expression(true);
+            let mut clause_flags = self.flags.nested();
+            clause_flags.set_allow_sequence_expression(true);
 
             // initialization
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.eat_expression(clause_options)?)
+                Some(self.eat_expression(clause_flags)?)
             };
             self.eat_token(TokenType::Semicolon)?;
 
@@ -103,7 +103,7 @@ impl Parser {
             let condition_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.eat_expression(clause_options)?)
+                Some(self.eat_expression(clause_flags)?)
             };
             self.eat_token(TokenType::Semicolon)?;
 
@@ -111,7 +111,7 @@ impl Parser {
             let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
                 None
             } else {
-                Some(self.eat_expression(clause_options)?)
+                Some(self.eat_expression(clause_flags)?)
             };
 
             // close parenthesis
@@ -160,10 +160,9 @@ impl Parser {
             }
 
             // iterator
-            let iterator_options = self.options.nested().in_before_block();
-            let iterator_id = self.with_options(iterator_options, |parser| {
-                parser.eat_expression(parser.options)
-            })?;
+            let iterator_flags = self.flags.nested().in_before_block();
+            let iterator_id =
+                self.with_flags(iterator_flags, |parser| parser.eat_expression(parser.flags))?;
 
             // close parenthesis
             self.eat_close_token_or_recover_missing_with(
@@ -202,8 +201,8 @@ impl Parser {
             }
 
             self.bump(); // eat using
-            let pattern_options = self.options.not_in_position().in_for_each();
-            let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
+            let pattern_flags = self.flags.not_in_position().in_for_each();
+            let pattern = self.with_flags(pattern_flags, |parser| parser.eat_pattern())?;
             Ok(ForEachBinding::Using {
                 asynchrony: using_asynchrony,
                 pattern,
@@ -214,12 +213,8 @@ impl Parser {
             if declaration_kind.is_none() {
                 // for each without declarations keeps expression heads as expression patterns
                 let start = self.span_start();
-                let expression = self.eat_expression(
-                    self.options
-                        .not_in_position()
-                        .in_for_each()
-                        .in_before_block(),
-                )?;
+                let expression = self
+                    .eat_expression(self.flags.not_in_position().in_for_each().in_before_block())?;
 
                 let pattern = self.insert_node(
                     Pattern::Expression { value: expression },
@@ -231,8 +226,8 @@ impl Parser {
                 })
             } else {
                 // declaration forms keep binding-pattern parsing
-                let pattern_options = self.options.not_in_position().in_for_each();
-                let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
+                let pattern_flags = self.flags.not_in_position().in_for_each();
+                let pattern = self.with_flags(pattern_flags, |parser| parser.eat_pattern())?;
                 Ok(ForEachBinding::Pattern {
                     pattern,
                     declaration_kind,
@@ -328,8 +323,8 @@ impl Parser {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_options = self.options.not_in_position();
-            let condition_id = self.with_options(condition_options, |parser| {
+            let condition_flags = self.flags.not_in_position();
+            let condition_id = self.with_flags(condition_flags, |parser| {
                 parser.eat_parenthesized_expression()
             })?;
 
@@ -350,8 +345,8 @@ impl Parser {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_options = self.options.not_in_position().in_before_block();
-            let condition_id = self.with_options(condition_options, |parser| {
+            let condition_flags = self.flags.not_in_position().in_before_block();
+            let condition_id = self.with_flags(condition_flags, |parser| {
                 parser.eat_parenthesized_expression()
             })?;
 
@@ -449,7 +444,7 @@ for (const item in items) {
     #[test]
     fn test_parse_for_loop_with_line_comment_after_keyword() {
         let mut test =
-            TestParser::new_with_options("for // comment\n(;;);", LanguageType::JavaScript);
+            TestParser::new_with_language("for // comment\n(;;);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -467,7 +462,7 @@ for (const item in items) {
     #[test]
     fn test_parse_for_loop_with_block_comment_after_keyword() {
         let mut test =
-            TestParser::new_with_options("for /* comment */(;;);", LanguageType::JavaScript);
+            TestParser::new_with_language("for /* comment */(;;);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -536,7 +531,7 @@ for await (const item of items) {
     /// Parse for of headers with multiline destructured bindings.
     #[test]
     fn test_parse_for_of_multiline_destructured_binding() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (
   const {
@@ -577,7 +572,7 @@ for (
 
     #[test]
     fn test_parse_for_of_await_generic_call_with_object_type_argument() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (const { item } of await fetchList<{ item: string }>(values)) {}
 "###,
@@ -635,7 +630,7 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
     #[test]
     fn test_parse_for_each_binding_const_object_stops_before_of() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (const { item } of fetchList<{ item: string }>(values)) {}
 "###,
@@ -782,7 +777,7 @@ for (using item of items) {
     #[test]
     fn test_parse_for_loop_with_using_identifier_member_binding_in() {
         let mut test =
-            TestParser::new_with_options("for (using().foo in items);", LanguageType::JavaScript);
+            TestParser::new_with_language("for (using().foo in items);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -809,7 +804,7 @@ for (using item of items) {
     #[test]
     fn test_parse_for_loop_with_using_identifier_member_binding_of() {
         let mut test =
-            TestParser::new_with_options("for (using().foo of items);", LanguageType::JavaScript);
+            TestParser::new_with_language("for (using().foo of items);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -835,7 +830,7 @@ for (using item of items) {
 
     #[test]
     fn test_parse_for_loop_with_await_using_of_binding() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "for await (await using of of items);",
             LanguageType::JavaScript,
         );
@@ -861,7 +856,7 @@ for (using item of items) {
     fn test_parse_for_in_with_member_expression_binding() {
         // for (a[b in c] in d);
         let mut test =
-            TestParser::new_with_options("for (a[b in c] in d);", LanguageType::JavaScript);
+            TestParser::new_with_language("for (a[b in c] in d);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -879,7 +874,7 @@ for (using item of items) {
     fn test_parse_for_in_with_call_expression_binding() {
         // for (a(b in c)[1] in d);
         let mut test =
-            TestParser::new_with_options("for (a(b in c)[1] in d);", LanguageType::JavaScript);
+            TestParser::new_with_language("for (a(b in c)[1] in d);", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -896,7 +891,7 @@ for (using item of items) {
     #[test]
     fn test_parse_for_in_with_array_expression_binding() {
         // for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);",
             LanguageType::JavaScript,
         );
@@ -916,7 +911,7 @@ for (using item of items) {
     #[test]
     fn test_parse_for_in_with_unary_binding_expression() {
         // source: for (+i in {});
-        let mut test = TestParser::new_with_options("for (+i in {});", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("for (+i in {});", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -933,7 +928,8 @@ for (using item of items) {
     #[test]
     fn test_parse_for_in_with_binary_binding_expression() {
         // source: for (i + 1 in {});
-        let mut test = TestParser::new_with_options("for (i + 1 in {});", LanguageType::JavaScript);
+        let mut test =
+            TestParser::new_with_language("for (i + 1 in {});", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let for_id = parser.eat_for().unwrap();
@@ -950,7 +946,7 @@ for (using item of items) {
     #[test]
     fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
         // source: for((1 + 1) in list) process(x);
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "for((1 + 1) in list) process(x);",
             LanguageType::JavaScript,
         );
@@ -1036,7 +1032,7 @@ for (var x = 0; x < 10; x++) {
     /// Parse multiline C style for loop headers in JavaScript.
     #[test]
     fn test_parse_for_loop_condition_multiline_header() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (
   start = 0, end = Math.min(len, newLen);
@@ -1065,7 +1061,7 @@ for (
     /// Parse C style for headers with comma operator in init and increment.
     #[test]
     fn test_parse_for_loop_condition_with_sequence_clauses() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (start = 0, end = 10; start < end; start++, end--) {}
 "###,
@@ -1090,7 +1086,7 @@ for (start = 0, end = 10; start < end; start++, end--) {}
     /// Parse JavaScript for of loops with `type` as an identifier binding.
     #[test]
     fn test_parse_for_of_with_type_identifier_binding() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 for (type of values) {}
 "###,

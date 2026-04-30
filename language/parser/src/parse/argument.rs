@@ -5,7 +5,7 @@ use destack_ast::{
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
@@ -68,11 +68,11 @@ impl Parser {
         let is_recoverable_boundary =
             // allow end and generic closers
             token_type == TokenType::End
-                || self.options.is_in_static() && Self::starts_type_angle_close(token_type)
+                || self.flags.is_in_static() && Self::starts_type_angle_close(token_type)
 
                 // allow ternary and arrow continuations
-                || self.options.is_in_ternary_condition() && token_type == TokenType::Colon
-                || self.options.is_in_type()
+                || self.flags.is_in_ternary_condition() && token_type == TokenType::Colon
+                || self.flags.is_in_type()
                     && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
 
                 // allow stops and delimiters
@@ -92,7 +92,7 @@ impl Parser {
                 )
 
                 // allow heritage terminators after generic arguments
-                || self.options.is_in_super_type()
+                || self.flags.is_in_super_type()
                     && (token_type == TokenType::OpenBrace
                         || token_type == TokenType::Identifier
                             && matches!(
@@ -108,8 +108,8 @@ impl Parser {
 
     /// Return the common context for non-sequence argument values.
     #[inline]
-    fn current_non_sequence_argument_context(&self) -> ParserOptions {
-        self.options
+    fn current_non_sequence_argument_context(&self) -> ParserFlags {
+        self.flags
             .not_in_sequence_expression()
             .not_in_arrow_return_type()
     }
@@ -130,9 +130,9 @@ impl Parser {
     }
 
     /// Return whether one generic argument slot stays in type space.
-    fn generic_argument_slot_stays_in_type_space(&mut self, context: ParserOptions) -> bool {
+    fn generic_argument_slot_stays_in_type_space(&mut self, context: ParserFlags) -> bool {
         // non type ambient sites parse generic arguments as plain expressions
-        if !self.options.is_in_type() {
+        if !self.flags.is_in_type() {
             return false;
         }
 
@@ -140,7 +140,7 @@ impl Parser {
         let speculative_start = self.checkpoint();
         let speculative_start_idx = self.tree.next_id();
         let parsed_type_expression =
-            self.with_options(context, |parser| parser.eat_type_expression());
+            self.with_flags(context, |parser| parser.eat_type_expression());
         let prefers_type_expression =
             parsed_type_expression.is_ok() && self.current_token_ends_generic_argument();
 
@@ -152,7 +152,7 @@ impl Parser {
     /// Eat one mixed generic argument node.
     fn eat_generic_argument(
         &mut self,
-        context: ParserOptions,
+        context: ParserFlags,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<GenericArgument>> {
         // direct spread generic arguments are not supported
@@ -162,15 +162,15 @@ impl Parser {
 
         // type ambient sites commit only when one full type expression owns the slot
         if self.generic_argument_slot_stays_in_type_space(context) {
-            let value = self.with_options(context, |parser| parser.eat_type_expression())?;
+            let value = self.with_flags(context, |parser| parser.eat_type_expression())?;
 
             return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
         }
 
         // otherwise parse the slot in value space
-        let value_ambient_context = self.options.with_type(false);
+        let value_ambient_context = self.flags.with_type(false);
         let value = self.eat_expression(
-            self.options
+            self.flags
                 .with_ambient_context(value_ambient_context)
                 .with_expression_context(context),
         )?;
@@ -180,7 +180,7 @@ impl Parser {
 
     /// Return the common context for positional argument values.
     #[inline]
-    fn current_positional_argument_context(&self) -> ParserOptions {
+    fn current_positional_argument_context(&self) -> ParserFlags {
         self.current_non_sequence_argument_context()
             .not_in_position()
     }
@@ -188,7 +188,7 @@ impl Parser {
     /// Return true when the current keyword should end a malformed parameter list after a newline.
     fn current_keyword_starts_parameter_recovery_boundary(&mut self) -> bool {
         // only statement scoped dynamic parameters should stop at newline led keywords
-        if self.options.is_in_static() || !self.options.is_in_statement_context() {
+        if self.flags.is_in_static() || !self.flags.is_in_statement_context() {
             return false;
         }
 
@@ -258,7 +258,7 @@ impl Parser {
         is_recovered_argument: bool,
     ) -> bool {
         is_recovered_argument
-            && self.options.is_in_statement_context()
+            && self.flags.is_in_statement_context()
             && self.current_token_is_on_new_line()
     }
 
@@ -283,13 +283,13 @@ impl Parser {
     /// Parse a parameter type annotation expression.
     #[inline]
     fn eat_parameter_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let ambient_context = self.options.with_type(true);
-        let mut expression_context = self.options.not_in_position().not_in_left_precedence();
-        if self.options.is_in_type_conditional_right() {
+        let ambient_context = self.flags.with_type(true);
+        let mut expression_context = self.flags.not_in_position().not_in_left_precedence();
+        if self.flags.is_in_type_conditional_right() {
             expression_context = expression_context.in_type_conditional_right();
         }
         self.eat_type_expression_node_or_recover_missing(
-            self.options
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             NodeType::Parameter,
@@ -300,13 +300,13 @@ impl Parser {
     #[inline]
     fn eat_parameter_default_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let ambient_context = self
-            .options
-            .with_type(self.options.is_in_static())
+            .flags
+            .with_type(self.flags.is_in_static())
             .with_forbid_await(true)
             .with_variant(false);
         let expression_context = self.current_positional_argument_context();
         self.eat_expression(
-            self.options
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
         )
@@ -688,7 +688,7 @@ impl Parser {
     /// ```
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         // collect runtime decorators so validation can check placement
-        let decorators = if !self.options.is_in_type() {
+        let decorators = if !self.flags.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
             smallvec::SmallVec::new()
@@ -699,7 +699,7 @@ impl Parser {
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
             false,
-            self.options.is_in_static(),
+            self.flags.is_in_static(),
             false,
             true,
         )?;
@@ -728,7 +728,7 @@ impl Parser {
             let annotation_token_type = self.peek_token_type();
             let annotation_keyword = self.current_keyword();
             let has_type_annotation_marker = annotation_token_type == TokenType::Colon
-                || self.options.is_in_static()
+                || self.flags.is_in_static()
                     && matches!(
                         annotation_keyword,
                         Some(Keyword::Extends | Keyword::Implements)
@@ -872,10 +872,10 @@ impl Parser {
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
         ) || self.language.is_destack() && self.peek_identifier_str_is("_")
         {
-            let ambient_context = self.options.with_before_type(true);
-            let expression_context = self.options;
-            let pattern = self.with_options(
-                self.options
+            let ambient_context = self.flags.with_before_type(true);
+            let expression_context = self.flags;
+            let pattern = self.with_flags(
+                self.flags
                     .with_ambient_context(ambient_context)
                     .with_expression_context(expression_context),
                 |parser| parser.eat_pattern(),
@@ -932,7 +932,7 @@ impl Parser {
                     } else {
                         self.try_recover_in_item_list(
                             &parameter_start,
-                            if self.options.is_in_static() {
+                            if self.flags.is_in_static() {
                                 TokenType::GreaterThan
                             } else {
                                 TokenType::CloseParenthesis
@@ -977,7 +977,7 @@ impl Parser {
                 }
 
                 if !self.can_continue_after_recovered_item(
-                    if self.options.is_in_static() {
+                    if self.flags.is_in_static() {
                         TokenType::GreaterThan
                     } else {
                         TokenType::CloseParenthesis
@@ -994,7 +994,7 @@ impl Parser {
             else if is_recovered_parameter
                 && (self.current_keyword_starts_parameter_recovery_boundary()
                     || !self.can_continue_after_recovered_item(
-                        if self.options.is_in_static() {
+                        if self.flags.is_in_static() {
                             TokenType::GreaterThan
                         } else {
                             TokenType::CloseParenthesis
@@ -1188,16 +1188,14 @@ impl Parser {
         }
 
         // regular generic parameters
-        let mut ambient_context = self.options.nested().with_static(true);
-        if self.options.is_in_type()
-            || self.options.is_in_decorator()
-            || self.language.is_typescript()
+        let mut ambient_context = self.flags.nested().with_static(true);
+        if self.flags.is_in_type() || self.flags.is_in_decorator() || self.language.is_typescript()
         {
             ambient_context = ambient_context.with_type(true);
         }
-        let expression_context = self.options.nested();
-        let parameters = self.with_options(
-            self.options
+        let expression_context = self.flags.nested();
+        let parameters = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| {
@@ -1258,16 +1256,16 @@ impl Parser {
         }
 
         // regular dynamic parameters
-        let mut ambient_context = self.options.nested();
-        if self.options.is_in_type() {
+        let mut ambient_context = self.flags.nested();
+        if self.flags.is_in_type() {
             ambient_context = ambient_context.with_type(true);
         }
-        if self.options.is_in_variant() {
+        if self.flags.is_in_variant() {
             ambient_context = ambient_context.with_variant(true);
         }
-        let expression_context = self.options.nested();
-        let parameters = self.with_options(
-            self.options
+        let expression_context = self.flags.nested();
+        let parameters = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_parameters_body(),
@@ -1335,7 +1333,7 @@ impl Parser {
         }
 
         let start = self.span_start();
-        let decorators = if !self.options.is_in_type() {
+        let decorators = if !self.flags.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
             smallvec::SmallVec::new()
@@ -1449,14 +1447,14 @@ impl Parser {
             // spread child: {...expr}
             if self.peek_is(TokenType::Spread) {
                 self.bump(); // eat spread
-                let value_ambient_context = self.options.with_tree_literal(false);
+                let value_ambient_context = self.flags.with_tree_literal(false);
                 let value_expression_context = self
-                    .options
+                    .flags
                     .not_in_position()
                     .not_in_ternary_condition()
                     .not_in_left_precedence();
                 let value = self.eat_expression(
-                    self.options
+                    self.flags
                         .with_ambient_context(value_ambient_context)
                         .with_expression_context(value_expression_context),
                 )?;
@@ -1476,14 +1474,14 @@ impl Parser {
                 return Ok(argument_id);
             }
 
-            let value_ambient_context = self.options.with_tree_literal(false);
+            let value_ambient_context = self.flags.with_tree_literal(false);
             let value_expression_context = self
-                .options
+                .flags
                 .not_in_position()
                 .not_in_ternary_condition()
                 .not_in_left_precedence();
             let value = self.eat_expression(
-                self.options
+                self.flags
                     .with_ambient_context(value_ambient_context)
                     .with_expression_context(value_expression_context),
             )?;
@@ -1500,7 +1498,7 @@ impl Parser {
         // positional argument (bare expression like nested <Element />)
         else {
             // jsx content without braces must be text or nested tags
-            if self.language.supports_jsx() && self.options.is_in_tree_literal() {
+            if self.language.supports_jsx() && self.flags.is_in_tree_literal() {
                 let token = *self.peek()?;
                 let is_tree_text = token.token.ty == TokenType::Literal
                     && matches!(
@@ -1529,7 +1527,7 @@ impl Parser {
                 self.eat_tree_literal_with_child_context(in_tree_child)?
             } else {
                 let value_expression_context =
-                    self.options.not_in_position().not_in_sequence_expression();
+                    self.flags.not_in_position().not_in_sequence_expression();
                 self.eat_expression_with_context_unchecked(value_expression_context)?
             };
             let argument_id =
@@ -1553,7 +1551,7 @@ impl Parser {
         // spread argument
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
-            let value_expression_context = self.options.with_statement_position(true);
+            let value_expression_context = self.flags.with_statement_position(true);
             let value = self.eat_expression_with_context_unchecked(value_expression_context)?;
             let argument_id = self.insert_node(
                 Argument::Spread { label: None, value },
@@ -1565,15 +1563,15 @@ impl Parser {
         else if self.starts_tree_spread_attribute() {
             self.bump(); // eat open brace
             self.bump(); // eat spread
-            let value_ambient_context = self.options.with_tree_literal(false);
+            let value_ambient_context = self.flags.with_tree_literal(false);
             let value_expression_context = self
-                .options
+                .flags
                 .not_in_position()
                 .not_in_ternary_condition()
                 .not_in_left_precedence()
                 .not_in_sequence_expression();
             let value = self.eat_expression(
-                self.options
+                self.flags
                     .with_ambient_context(value_ambient_context)
                     .with_expression_context(value_expression_context),
             )?;
@@ -1599,14 +1597,14 @@ impl Parser {
                 // tree expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat {
-                    let value_ambient_context = self.options.with_tree_literal(false);
+                    let value_ambient_context = self.flags.with_tree_literal(false);
                     let value_expression_context = self
-                        .options
+                        .flags
                         .not_in_position()
                         .not_in_ternary_condition()
                         .not_in_left_precedence();
                     let value = self.eat_expression(
-                        self.options
+                        self.flags
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
                     )?;
@@ -1627,10 +1625,10 @@ impl Parser {
                 // shorthand array attribute
                 else if self.peek_is(TokenType::OpenBracket) {
                     let value_start = self.span_start();
-                    let value_ambient_context = self.options.with_tree_literal(false);
-                    let value_expression_context = self.options.not_in_position();
-                    let elements = self.with_options(
-                        self.options
+                    let value_ambient_context = self.flags.with_tree_literal(false);
+                    let value_expression_context = self.flags.not_in_position();
+                    let elements = self.with_flags(
+                        self.flags
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
                         |parser| parser.eat_array_literal(),
@@ -1642,10 +1640,10 @@ impl Parser {
                 }
                 // tree literal attribute value
                 else if self.language.supports_jsx() && self.peek_is(TokenType::LessThan) {
-                    let value_ambient_context = self.options.with_tree_literal(true);
-                    let value_expression_context = self.options.not_in_position();
-                    self.with_options(
-                        self.options
+                    let value_ambient_context = self.flags.with_tree_literal(true);
+                    let value_expression_context = self.flags.not_in_position();
+                    self.with_flags(
+                        self.flags
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
                         |parser| parser.eat_tree_literal(),
@@ -1781,8 +1779,7 @@ impl Parser {
         let first_argument_boundary_start = self.prev_token_end();
 
         // empty generic arguments only recover in committed type-like contexts
-        let allow_empty_generic_arguments =
-            self.options.is_in_type() || self.options.is_in_decorator();
+        let allow_empty_generic_arguments = self.flags.is_in_type() || self.flags.is_in_decorator();
         let has_empty_generic_arguments = if allow_empty_generic_arguments {
             self.peek_starts_type_angle_close()
         } else {
@@ -1805,17 +1802,17 @@ impl Parser {
         }
         // regular generic arguments: type or value only
         else {
-            let mut ambient_context = self.options.nested().with_static(true);
-            if self.options.is_in_type()
-                || self.options.is_in_decorator()
+            let mut ambient_context = self.flags.nested().with_static(true);
+            if self.flags.is_in_type()
+                || self.flags.is_in_decorator()
                 || self.language.is_destack()
                 || self.language.is_typescript()
             {
                 ambient_context = ambient_context.with_type(true);
             }
-            let expression_context = self.options.nested();
-            self.with_options(
-                self.options
+            let expression_context = self.flags.nested();
+            self.with_flags(
+                self.flags
                     .with_ambient_context(ambient_context)
                     .with_expression_context(expression_context),
                 |parser| parser.eat_generic_arguments_body(first_argument_boundary_start),
@@ -1824,8 +1821,8 @@ impl Parser {
 
         // committed type-like contexts can consume glued right-angle tails
         let allow_glued_type_close =
-            self.options.is_in_type() || self.options.is_in_decorator() || used_shift_left_start;
-        let allow_missing_type_close = self.options.is_in_type() || self.options.is_in_decorator();
+            self.flags.is_in_type() || self.flags.is_in_decorator() || used_shift_left_start;
+        let allow_missing_type_close = self.flags.is_in_type() || self.flags.is_in_decorator();
 
         if allow_glued_type_close {
             if allow_missing_type_close {
@@ -1862,10 +1859,10 @@ impl Parser {
         }
 
         // regular dynamic arguments
-        let ambient_context = self.options.nested();
-        let expression_context = self.options.nested();
-        let arguments = self.with_options(
-            self.options
+        let ambient_context = self.flags.nested();
+        let expression_context = self.flags.nested();
+        let arguments = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_positional_arguments_body(TokenType::CloseParenthesis),
@@ -2119,7 +2116,7 @@ mod tests {
 
     #[test]
     fn test_parse_parameter_default_async_lambda_with_await_body() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "loadFonts: () => Promise<void> = async () => { await Fonts.loadElementsFonts(elements); }",
             LanguageType::TypeScript,
         );
@@ -2177,7 +2174,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_optional_pattern() {
         // []? optional pattern parameter
-        let mut test = TestParser::new_with_options("[]?", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("[]?", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, is_optional, .. } => {
@@ -2189,7 +2186,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_underscore_name() {
         // _ in TypeScript parameters is a normal name
-        let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("_", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
@@ -2226,7 +2223,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_optional_variadic() {
         // ...args? optional rest parameter
-        let mut test = TestParser::new_with_options("...args?", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("...args?", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, .. } => {
@@ -2239,7 +2236,7 @@ mod tests {
     fn test_parse_parameter_variadic_tuple_name() {
         let mut test = TestParser::new("...[value]: [] | [TNext]");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type } => {
             assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
@@ -2258,7 +2255,8 @@ mod tests {
     #[test]
     fn test_parse_parameter_variadic_array_pattern() {
         // ...[first, second]
-        let mut test = TestParser::new_with_options("...[first, second]", LanguageType::TypeScript);
+        let mut test =
+            TestParser::new_with_language("...[first, second]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -2272,7 +2270,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_variadic_array_pattern_with_type() {
         // ...[body, init]: ConstructorParameters<typeof Response>
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "...[body, init]: ConstructorParameters<typeof Response>",
             LanguageType::TypeScript,
         );
@@ -2310,7 +2308,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults() {
         // ...[src, { id, systemId, input, syncSnapshot = false } = {} as any]: SpawnArguments<...>
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"...[
     src,
     { id, systemId, input, syncSnapshot = false } = {} as any
@@ -2369,7 +2367,7 @@ mod tests {
     fn test_parse_parameter_variadic_object_pattern() {
         // ...{ value: alias }
         let mut test =
-            TestParser::new_with_options("...{ value: alias }", LanguageType::TypeScript);
+            TestParser::new_with_language("...{ value: alias }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -2411,7 +2409,7 @@ mod tests {
 
     #[test]
     fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"<
   Return extends ReturnType<onRequestHookHandler<RawServer>>
     | ReturnType<onRequestAsyncHookHandler<RawServer>>
@@ -2495,7 +2493,7 @@ mod tests {
 
     #[test]
     fn test_parse_generic_parameters_default_before_shifted_close() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "<Union, LastElement = LastOf<Union>>",
             LanguageType::TypeScriptDeclaration,
         );
@@ -2554,7 +2552,7 @@ mod tests {
         // <string, number
         let mut test = TestParser::new("<string, number");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
         let arguments = parser.eat_generic_arguments().unwrap();
 
         // diagnostics
@@ -2575,7 +2573,7 @@ mod tests {
         // <>
         let mut test = TestParser::new("<>");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
         let arguments = parser.eat_generic_arguments().unwrap();
 
         // diagnostics
@@ -2589,9 +2587,9 @@ mod tests {
     #[test]
     fn test_parse_generic_arguments_first_value_with_boundary_comment() {
         let source = "<\n  // first-type-arg\n  string | number\n>";
-        let mut test = TestParser::new_with_options(source, LanguageType::TypeScriptDeclaration);
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScriptDeclaration);
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
         let arguments = parser.eat_generic_arguments().unwrap();
         parser.attach_comments();
 
@@ -2606,9 +2604,9 @@ mod tests {
     #[test]
     fn test_parse_generic_arguments_following_value_with_boundary_comment() {
         let source = "<string,\n  // second-type-arg\n  number>";
-        let mut test = TestParser::new_with_options(source, LanguageType::TypeScriptDeclaration);
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScriptDeclaration);
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
         let arguments = parser.eat_generic_arguments().unwrap();
         parser.attach_comments();
 
@@ -2623,7 +2621,7 @@ mod tests {
     #[test]
     fn test_reject_generic_arguments_missing_close_angle_in_value_context() {
         // <string, number
-        let mut test = TestParser::new_with_options("<string, number", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("<string, number", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let result = parser.eat_generic_arguments();
 
@@ -2633,7 +2631,7 @@ mod tests {
     #[test]
     fn test_reject_spread_generic_argument() {
         // <...T>
-        let mut test = TestParser::new_with_options("<...T>", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("<...T>", LanguageType::Destack);
         let mut parser = test.prepare();
         let arguments = parser.eat_generic_arguments().unwrap();
 
@@ -2647,7 +2645,7 @@ mod tests {
     fn test_parse_parameter_with_readonly_public_modifier_order_reports_error() {
         // readonly public x: number
         let mut test =
-            TestParser::new_with_options("readonly public x: number", LanguageType::TypeScript);
+            TestParser::new_with_language("readonly public x: number", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
 
@@ -2666,7 +2664,7 @@ mod tests {
     #[test]
     fn test_parse_constructor_parameter_with_readonly_public_modifier_order_reports_error() {
         // class D { constructor(readonly public x: number) {} }
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "class D { constructor(readonly public x: number) {} }",
             LanguageType::TypeScript,
         );
@@ -2770,7 +2768,7 @@ class Test {
     method(@p1 t1, @p1 @p2 ...t2) {}
 }
 "#;
-        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2909,7 +2907,7 @@ class Test {
 
     #[test]
     fn test_parse_named_argument_with_newline_before_assign_before_tree() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }",
             LanguageType::TypeScriptXml,
         );
@@ -2927,7 +2925,7 @@ class Test {
 
     #[test]
     fn test_parse_named_argument_with_numeric_kebab_segment() {
-        let mut test = TestParser::new_with_options("panose-1=\"test\"", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("panose-1=\"test\"", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_literal_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
@@ -2940,7 +2938,7 @@ class Test {
 
     #[test]
     fn test_parse_named_argument_with_double_hyphen_kebab_segment() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? 'add' : 'remove'}",
             LanguageType::TypeScriptXml,
         );
@@ -3139,7 +3137,7 @@ class Test {
 
     #[test]
     fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
-        let mut test = TestParser::new_with_options("foo(a,b;", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("foo(a,b;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3156,7 +3154,7 @@ class Test {
 
     #[test]
     fn test_parse_malformed_call_statement_before_var_keeps_call_shape() {
-        let mut test = TestParser::new_with_options("foo(a,b var;", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("foo(a,b var;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3181,7 +3179,7 @@ class Test {
 
     #[test]
     fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape() {
-        let mut test = TestParser::new_with_options("foo (,,b);", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("foo (,,b);", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3200,7 +3198,7 @@ class Test {
 
     #[test]
     fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
-        let mut test = TestParser::new_with_options("foo (a, ...);", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("foo (a, ...);", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3222,7 +3220,7 @@ class Test {
 foo(a,b var;
 foo (,,b);
 "#;
-        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3262,7 +3260,7 @@ foo (,,b);
 foo(a,b var;
 foo (a, ...);
 "#;
-        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3301,7 +3299,7 @@ foo (a, ...);
 foo(,
 bar();
 "#;
-        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3333,7 +3331,7 @@ bar();
 foo(,
 const value = 1;
 "#;
-        let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3381,7 +3379,7 @@ const value = 1;
     fn test_parse_spread_argument_with_doc_block_comment_newline() {
         // .../** comment */\nargs
         let mut test =
-            TestParser::new_with_options(".../** comment */\nargs", LanguageType::JavaScript);
+            TestParser::new_with_language(".../** comment */\nargs", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
 
@@ -3451,7 +3449,7 @@ const value = 1;
 
     #[test]
     fn test_parse_generic_arguments_with_nested_generics_and_union() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "<keyof ServerReservedEventsMap<never, never, never, never> | keyof NamespaceReservedEventsMap<never, never, never, never>>",
             LanguageType::TypeScript,
         );

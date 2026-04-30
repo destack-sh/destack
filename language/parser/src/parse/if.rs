@@ -1,4 +1,4 @@
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{
     Block, BlockContext, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId,
@@ -9,9 +9,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 impl Parser {
     /// Return parser contexts for `if` conditions.
     #[inline]
-    fn if_condition_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.nested().with_before_block(true);
-        let expression_context = self.options.nested();
+    fn if_condition_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.nested().with_before_block(true);
+        let expression_context = self.flags.nested();
         (ambient_context, expression_context)
     }
 
@@ -38,11 +38,11 @@ impl Parser {
         }
 
         // parse one statement expression in statement mode
-        let ambient_context = self.options.with_before_block(true);
-        let expression_id = self.with_options(
-            self.options.with_ambient_context(ambient_context),
-            |parser| parser.eat_statement_expression(),
-        )?;
+        let ambient_context = self.flags.with_before_block(true);
+        let expression_id = self
+            .with_flags(self.flags.with_ambient_context(ambient_context), |parser| {
+                parser.eat_statement_expression()
+            })?;
 
         // semicolon statement forms reject declarations in single-statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -119,8 +119,8 @@ impl Parser {
 
         // else body
         let (ambient_context, expression_context) = self.statement_position_contexts();
-        let else_expression_id = self.with_options(
-            self.options
+        let else_expression_id = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_expression_as_block(),
@@ -170,8 +170,8 @@ impl Parser {
 
         // condition
         let (ambient_context, expression_context) = self.if_condition_contexts();
-        let condition: IfCondition = self.with_options(
-            self.options
+        let condition: IfCondition = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| {
@@ -189,7 +189,7 @@ impl Parser {
                     })
                 } else {
                     parser
-                        .eat_expression(parser.options)
+                        .eat_expression(parser.flags)
                         .map(|condition| IfCondition::Expression { condition })
                 }
             },
@@ -206,8 +206,8 @@ impl Parser {
 
         // then block
         let (ambient_context, expression_context) = self.statement_position_contexts();
-        let then_expression_id = self.with_options(
-            self.options
+        let then_expression_id = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_expression_as_block(),
@@ -393,7 +393,7 @@ else {
 
     #[test]
     fn test_parse_if_empty_statement() {
-        let mut test = TestParser::new_with_options("if (cond);", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("if (cond);", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         // if (cond);
@@ -518,7 +518,7 @@ if (cond) {
     #[test]
     fn test_parse_if_else_if_ambiguous() {
         // ambiguous because y and z could be interpreted as struct literals
-        //  (this is disambiguated in a condition / guard clause, see ExpressionParserOptions)
+        // this is disambiguated in a condition / guard clause
         let mut test = TestParser::new(
             r"
 if (x > y) {
@@ -769,7 +769,7 @@ else
 
     #[test]
     fn test_parse_if_else_with_typed_parenthesized_arrow_statement() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 if (payments) res.status(200).json({ payments });
 else
@@ -879,7 +879,7 @@ else
 
     #[test]
     fn test_parse_if_head_trailing_comment_on_condition_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "if (ready) // if-head\n    run()",
             LanguageType::TypeScript,
         );
@@ -921,7 +921,7 @@ else
 
     #[test]
     fn test_parse_if_else_boundary_comment_on_else_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n",
             LanguageType::TypeScript,
         );
@@ -949,7 +949,7 @@ else
     #[test]
     fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
         let input = "if (foo) a = b;\n/* foo */ else foo.split;";
-        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -964,7 +964,7 @@ else
     #[test]
     fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
         let input = "if (foo) a = b;\nelse /* foo */ foo.split;";
-        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 

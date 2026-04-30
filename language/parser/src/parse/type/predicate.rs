@@ -32,13 +32,13 @@ impl Parser {
             let is_span = self.eat_keyword(Keyword::Is)?.span;
             operator_span = Some(is_span);
 
-            let mut target_options = self.options.not_in_position().in_type();
-            if self.options.is_in_type_conditional_right() {
-                target_options = target_options.in_type_conditional_right();
+            let mut target_flags = self.flags.not_in_position().in_type();
+            if self.flags.is_in_type_conditional_right() {
+                target_flags = target_flags.in_type_conditional_right();
             }
 
             let target = self
-                .eat_type_expression_or_recover_missing(target_options, NodeType::TypeExpression)?;
+                .eat_type_expression_or_recover_missing(target_flags, NodeType::TypeExpression)?;
             let target_span = self.tree.get_span(target);
             self.tree.set_side_span(
                 target,

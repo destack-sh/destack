@@ -108,8 +108,8 @@ impl Parser {
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
-        let member_options = self.options.nested().in_variant();
-        let members = self.with_options(member_options, |parser| parser.eat_members(false))?;
+        let member_flags = self.flags.nested().in_variant();
+        let members = self.with_flags(member_flags, |parser| parser.eat_members(false))?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // struct or class
@@ -183,7 +183,7 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_node,
+        ParserOptions, TestParser, assert_comment, assert_expression_path, assert_node,
         assert_path, assert_string,
     };
 
@@ -272,7 +272,7 @@ struct Foo extends Bar {}
     #[test]
     fn test_parse_class_with_parenthesized_binary_extends_expression() {
         let mut test =
-            TestParser::new_with_options("class A extends (a + b) {}", LanguageType::JavaScript);
+            TestParser::new_with_language("class A extends (a + b) {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let start = parser.span_start();
@@ -291,11 +291,11 @@ struct Foo extends Bar {}
     #[test]
     fn test_parse_class_with_parenthesized_sequence_extends_expression() {
         let mut test =
-            TestParser::new_with_options("class A extends (a, b) {}", LanguageType::TypeScript);
+            TestParser::new_with_language("class A extends (a, b) {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
 
         let start = parser.span_start();
@@ -311,7 +311,7 @@ struct Foo extends Bar {}
 
     #[test]
     fn test_reject_class_with_unparenthesized_as_extends_expression() {
-        let mut parser = TestParser::new_with_options(
+        let mut parser = TestParser::new_with_language(
             "class A extends Base as Mixin {}",
             LanguageType::TypeScript,
         )
@@ -330,7 +330,7 @@ struct Foo extends Bar {}
 
     #[test]
     fn test_parse_class_with_parenthesized_as_extends_expression() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "class A extends (Base as Mixin) {}",
             LanguageType::TypeScript,
         );
@@ -356,7 +356,7 @@ struct Foo extends Bar {}
 
     #[test]
     fn test_parse_class_keeps_unparenthesized_decorated_extends_head_unwrapped() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "class Outer extends\n@deco\nclass {} {}",
             LanguageType::JavaScript,
         );
@@ -375,7 +375,7 @@ struct Foo extends Bar {}
 
     #[test]
     fn test_parse_class_keeps_parenthesized_decorated_extends_head_parenthesized() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "class Outer extends (@deco class Base {}) {}",
             LanguageType::JavaScript,
         );
@@ -436,7 +436,7 @@ class Counter extends {}
 
     #[test]
     fn test_parse_class_member_method_parameter_type_then_default_value() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"class LicensingStore {
   usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {
     return userCount >= userLimit
@@ -479,7 +479,7 @@ class Counter extends {}
 
     #[test]
     fn test_parse_class_superclass_boundary_comment_on_super_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r"class Child extends Base // extends-tail
 {
   value = 1
@@ -510,7 +510,7 @@ class Counter extends {}
 
     #[test]
     fn test_parse_class_implement_list_comments_on_interface_types() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r"class Child implements First, // impl-first
 Second // impl-second
 {
@@ -551,7 +551,7 @@ Second // impl-second
 
     #[test]
     fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r"declare class Box // box-head
 <T> implements Item<T>, Other {
   value: T

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserSettings, source_colorizer};
+use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType,
     PrintOptions, Uri, print_diff,
@@ -120,12 +120,12 @@ fn format_once(
 
     // parse source and fail on syntax errors
     let language_type = LanguageType::from(file_type);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();

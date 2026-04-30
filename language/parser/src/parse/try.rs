@@ -49,7 +49,7 @@ impl Parser {
                 // no pattern or catch match
                 if self.is_block_start() || self.is_keyword(Keyword::Match) {
                     let catch_expression = self
-                        .with_options(self.options.not_in_position(), |parser| {
+                        .with_flags(self.flags.not_in_position(), |parser| {
                             parser.eat_statement_expression()
                         })?;
                     (None, None, Some(catch_expression))
@@ -59,18 +59,18 @@ impl Parser {
                     // parse catch binding pattern
                     self.eat_token(TokenType::OpenParenthesis)?;
 
-                    let catch_pattern_options = self
-                        .options
+                    let catch_pattern_flags = self
+                        .flags
                         .not_in_position()
                         .in_before_type()
                         .in_before_block();
                     let catch_pattern =
-                        self.with_options(catch_pattern_options, |parser| parser.eat_pattern())?;
+                        self.with_flags(catch_pattern_flags, |parser| parser.eat_pattern())?;
 
                     let catch_ty = if self.peek_colon_is() {
                         self.bump(); // eat :
                         let catch_ty = self.eat_type_expression_node_or_recover_missing(
-                            self.options.not_in_position().in_type().in_before_block(),
+                            self.flags.not_in_position().in_type().in_before_block(),
                             NodeType::Pattern,
                         )?;
                         Some(catch_ty)
@@ -89,7 +89,7 @@ impl Parser {
                     )?;
 
                     let catch_expression = self
-                        .with_options(self.options.not_in_position(), |parser| {
+                        .with_flags(self.flags.not_in_position(), |parser| {
                             parser.eat_statement_expression()
                         })?;
                     (Some(catch_pattern), catch_ty, Some(catch_expression))
@@ -102,7 +102,7 @@ impl Parser {
             let finally_expression = if self.is_keyword(Keyword::Finally) {
                 self.bump(); // eat keyword
                 let finally_expression = self
-                    .with_options(self.options.not_in_position(), |parser| {
+                    .with_flags(self.flags.not_in_position(), |parser| {
                         parser.eat_statement_expression()
                     })?;
                 Some(finally_expression)
@@ -125,9 +125,9 @@ impl Parser {
         }
         // try expression
         else {
-            let expression_options = self.options.not_in_position();
-            let expression_id = self.with_options(expression_options, |parser| {
-                parser.eat_expression(parser.options)
+            let expression_flags = self.flags.not_in_position();
+            let expression_id = self.with_flags(expression_flags, |parser| {
+                parser.eat_expression(parser.flags)
             })?;
             let try_id = self.insert_node(
                 Expression::Try {
@@ -273,7 +273,7 @@ try {
 
     #[test]
     fn test_try_expression_with_typed_catch_pattern() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 try {
     foo()
@@ -338,7 +338,7 @@ try {
     /// Recover a missing catch close parenthesis in place.
     #[test]
     fn test_try_expression_with_missing_catch_close_parenthesis() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 try {
     foo()
@@ -366,7 +366,7 @@ try {
     /// Parse typed destructuring catch patterns.
     #[test]
     fn test_try_expression_with_typed_destructuring_catch_pattern() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 try {
     foo()
@@ -418,7 +418,7 @@ try {
     fn test_parse_untyped_catch_expression_parameter() {
         // source: try {} catch (answer()) {}
         let mut test =
-            TestParser::new_with_options("try {} catch (answer()) {}", LanguageType::JavaScript);
+            TestParser::new_with_language("try {} catch (answer()) {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let try_id = parser.eat_try().unwrap();
@@ -436,7 +436,7 @@ try {
     fn test_parse_untyped_catch_literal_parameter() {
         // source: try {} catch (42) {}
         let mut test =
-            TestParser::new_with_options("try {} catch (42) {}", LanguageType::JavaScript);
+            TestParser::new_with_language("try {} catch (42) {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let try_id = parser.eat_try().unwrap();
@@ -451,7 +451,7 @@ try {
     /// Parse untyped catch blocks separated from try by a newline.
     #[test]
     fn test_parse_untyped_catch_without_binding_after_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "try {\n  foo()\n}\ncatch {\n  bar()\n}",
             LanguageType::JavaScript,
         );
@@ -474,7 +474,7 @@ try {
     /// Parse untyped try/catch/finally with comment and newline breaks around keyword boundaries.
     #[test]
     fn test_parse_untyped_try_with_comment_newline_boundaries() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "try // Comment 1\n{\n}\ncatch(\n// Comment 2\ne\n) {\n}\nfinally // Comment 3\n{\n}\n",
             LanguageType::JavaScript,
         );

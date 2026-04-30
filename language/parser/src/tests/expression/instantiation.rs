@@ -5,11 +5,11 @@ use destack_source::LanguageType;
 
 /// Assert that one instantiation assignment target is rejected.
 fn assert_instantiation_assignment_rejects_at(input: &str, expected_leaf: &str) {
-    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     let error = parser
-        .eat_expression(parser.options)
+        .eat_expression(parser.flags)
         .expect_err("expected instantiation assignment target to fail");
     let (span, node_type, token_type) = error.leaf_content();
     let leaf = parser.get_span_str(span);
@@ -21,9 +21,9 @@ fn assert_instantiation_assignment_rejects_at(input: &str, expected_leaf: &str) 
 
 #[test]
 fn test_parse_instantiation_expression_with_index() {
-    let mut test = TestParser::new_with_options("f[\"g\"]<number>", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("f[\"g\"]<number>", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -48,9 +48,9 @@ fn test_parse_instantiation_expression_with_index() {
 
 #[test]
 fn test_parse_instantiation_expression_parenthesized() {
-    let mut test = TestParser::new_with_options("(f<number>)<number>", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("(f<number>)<number>", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -80,7 +80,7 @@ fn test_parse_instantiation_expression_parenthesized() {
 /// Parse optional-chain generic argument calls in value positions.
 #[test]
 fn test_parse_optional_chain_generic_argument_call() {
-    let mut test = TestParser::new_with_options("fn?.<number>();", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("fn?.<number>();", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -105,7 +105,7 @@ fn test_parse_optional_chain_generic_argument_call() {
 /// Parse instantiation expressions that end a statement before the next declaration.
 #[test]
 fn test_parse_instantiation_expression_before_next_statement_keyword() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"const addSpanBaseAttributes = addSpanAttributes("gen_ai", String.camelToSnake)<BaseAttributes>
 const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.camelToSnake)<OperationAttributes>"#,
         LanguageType::TypeScript,
@@ -165,9 +165,9 @@ fn test_reject_instantiation_expression_member_assignment() {
 /// Parse parenthesized instantiation receivers before member access.
 #[test]
 fn test_parse_instantiation_expression_member_access_with_parentheses() {
-    let mut test = TestParser::new_with_options("(f<T>).x", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("(f<T>).x", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "x");
@@ -191,7 +191,7 @@ fn test_parse_instantiation_expression_member_access_with_parentheses() {
 /// Instantiation expressions should parse in mixed operator contexts.
 #[test]
 fn test_parse_instantiation_expression_more_exprs() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"
 f<x>, g<y>;
 [f<x>];
@@ -259,12 +259,12 @@ f<x> !== g<y>;
 /// Parse a call with string literal type arguments.
 #[test]
 fn test_parse_call_with_string_literal_type_arguments() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "accessor.getValue<\"auto\" | \"always\" | \"never\">(\"long\")",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
         assert_eq!(generic_arguments.len(), 1);
@@ -283,7 +283,7 @@ fn test_parse_call_with_string_literal_type_arguments() {
 /// Parse await call expressions with object type arguments in before block contexts.
 #[test]
 fn test_parse_await_call_with_object_type_argument_in_before_block_context() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"
 await fetchListResult<{
     pattern: string;
@@ -293,8 +293,8 @@ await fetchListResult<{
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.options.set_in_before_block(true);
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.flags.set_in_before_block(true);
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
         assert_node!(parser.tree, *expression, Expression::Call { left, generic_arguments, arguments, .. } => {
@@ -338,9 +338,10 @@ await fetchListResult<{
 /// Parse a call with shift-left generic arguments.
 #[test]
 fn test_parse_call_with_shift_left_generic_arguments() {
-    let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("f<<T>(v: T) => void>()", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
         assert!(arguments.is_empty());
@@ -357,15 +358,16 @@ fn test_parse_call_with_shift_left_generic_arguments() {
 /// Parse shift-left generic arguments in decorator context.
 #[test]
 fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
-    let mut test = TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("f<<T>(v: T) => void>()", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let options = parser
-        .options
+    let flags = parser
+        .flags
         .not_in_position()
         .in_left_precedence(u16::MAX)
         .not_in_sequence_expression()
         .in_decorator();
-    let expr_id = parser.eat_expression(options).unwrap();
+    let expr_id = parser.eat_expression(flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
         assert!(arguments.is_empty());
@@ -379,7 +381,7 @@ fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
 fn test_parse_generic_arguments_disambiguate_relational() {
     let mut test = TestParser::new("fn(x < y, x > y)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
         assert_eq!(arguments.len(), 2);
@@ -399,10 +401,10 @@ fn test_parse_generic_arguments_disambiguate_relational() {
 /// Relational call arguments should stay relational before shift right assign.
 #[test]
 fn test_parse_call_arguments_relational_then_shift_right_assign() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options("fn(x < y, x < y, x >>= y)", options);
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language("fn(x < y, x < y, x >>= y)", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
@@ -431,10 +433,10 @@ fn test_parse_call_arguments_relational_then_shift_right_assign() {
 /// Relational call arguments should stay relational before unsigned shift right assign.
 #[test]
 fn test_parse_call_arguments_relational_then_unsigned_shift_right_assign() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options("fn(x < y, x < y, x >>>= y)", options);
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language("fn(x < y, x < y, x >>>= y)", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "fn");
@@ -465,7 +467,7 @@ fn test_parse_call_arguments_relational_then_unsigned_shift_right_assign() {
 fn test_parse_type_with_generic_arguments() {
     let mut test = TestParser::new("let Alias = A<B<C>>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
@@ -499,9 +501,9 @@ fn test_parse_type_with_generic_arguments() {
 #[test]
 fn test_parse_call_with_instantiation_callee_and_inline_block_comment() {
     let mut test =
-        TestParser::new_with_options("foo/* marker */<string>(1)", LanguageType::TypeScript);
+        TestParser::new_with_language("foo/* marker */<string>(1)", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -513,9 +515,9 @@ fn test_parse_call_with_instantiation_callee_and_inline_block_comment() {
 #[test]
 fn test_parse_call_with_instantiation_callee_and_newline_block_comment_before_type_arguments() {
     let mut test =
-        TestParser::new_with_options("foo/* marker */\n<string>(1)", LanguageType::TypeScript);
+        TestParser::new_with_language("foo/* marker */\n<string>(1)", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -528,9 +530,9 @@ fn test_parse_call_with_instantiation_callee_and_newline_block_comment_before_ty
 fn test_parse_empty_call_with_instantiation_callee_and_newline_block_comment_before_type_arguments()
 {
     let mut test =
-        TestParser::new_with_options("foo/* marker */\n<string>()", LanguageType::TypeScript);
+        TestParser::new_with_language("foo/* marker */\n<string>()", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert!(arguments.is_empty());
@@ -542,9 +544,9 @@ fn test_parse_empty_call_with_instantiation_callee_and_newline_block_comment_bef
 #[test]
 fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments() {
     let mut test =
-        TestParser::new_with_options("foo<string>// marker\n(1)", LanguageType::TypeScript);
+        TestParser::new_with_language("foo<string>// marker\n(1)", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(arguments.len(), 1);

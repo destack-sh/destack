@@ -52,18 +52,17 @@ impl Parser {
 
         // static type arguments may be followed by angle closers
         if token_type == TokenType::End
-            || self.options.is_in_static() && Self::starts_type_angle_close(token_type)
+            || self.flags.is_in_static() && Self::starts_type_angle_close(token_type)
         {
             return true;
         }
 
         // conditional and arrow continuations stay valid
-        if self.options.is_in_ternary_condition() && token_type == TokenType::Colon {
+        if self.flags.is_in_ternary_condition() && token_type == TokenType::Colon {
             return true;
         }
 
-        if self.options.is_in_type()
-            && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
+        if self.flags.is_in_type() && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
         {
             return true;
         }
@@ -96,7 +95,7 @@ impl Parser {
         }
 
         // heritage clauses may continue with structural heads or later constraints
-        if self.options.is_in_super_type()
+        if self.flags.is_in_super_type()
             && (token_type == TokenType::OpenBrace
                 || token_type == TokenType::Identifier
                     && matches!(
@@ -132,8 +131,8 @@ impl Parser {
     ) -> Option<Vec<LocalNodeId<GenericArgument>>> {
         // untyped value mode does not support generic arguments
         if self.language.is_javascript()
-            && !self.options.is_in_type()
-            && !self.options.is_in_decorator()
+            && !self.flags.is_in_type()
+            && !self.flags.is_in_decorator()
         {
             return None;
         }
@@ -163,7 +162,7 @@ impl Parser {
         match self.eat_generic_arguments() {
             Ok(generic_arguments) => {
                 // in type or decorator context, type arguments are always valid
-                if self.options.is_in_type() || self.options.is_in_decorator() {
+                if self.flags.is_in_type() || self.flags.is_in_decorator() {
                     return Some(generic_arguments);
                 }
 

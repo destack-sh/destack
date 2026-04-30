@@ -9,7 +9,7 @@ fn test_parse_function_type_return_conditional() {
         "type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -50,7 +50,7 @@ fn test_parse_function_type_return_conditional() {
 fn test_parse_function_type_return_predicate() {
     let mut test = TestParser::new("type Is<T> = (value: any) => value is T");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -77,7 +77,7 @@ fn test_parse_function_type_predicate_in_conditional_type() {
         "type Guarded<Actual> = Actual extends (value: any, ...args: any[]) => value is infer T ? T : never",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -112,7 +112,7 @@ fn test_parse_type_arguments_with_conditional() {
         "type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -156,7 +156,7 @@ fn test_parse_type_index_with_conditional() {
     let mut test =
         TestParser::new("type Lookup<Depth> = Foo[Depth extends -1 ? \"done\" : \"recur\"]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Lookup<Depth> = Foo[Depth extends -1 ? "done" : "recur"]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -196,7 +196,7 @@ fn test_parse_type_index_with_conditional() {
 fn test_parse_type_index_access_chain() {
     let mut test = TestParser::new("type T = A[B][C]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = A[B][C]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -218,7 +218,7 @@ fn test_parse_generic_with_indexed_access_type() {
     // Foo<T[number]> - indexed access inside generic
     let mut test = TestParser::new("type A = Foo<T[number]>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -244,7 +244,7 @@ fn test_parse_indexed_access_with_array_suffix() {
     // T[number][]
     let mut test = TestParser::new("type A = T[number][]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -268,7 +268,7 @@ fn test_parse_generic_indexed_access_with_array_suffix() {
     // Foo<T[number]>[]
     let mut test = TestParser::new("type A = Foo<T[number]>[]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -295,7 +295,7 @@ fn test_parse_generic_indexed_access_with_array_suffix() {
 /// Parenthesized leading-pipe unions should remain grouped before array suffixes.
 #[test]
 fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type Result = (
   | "a"
   | "b"
@@ -303,7 +303,7 @@ fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -322,7 +322,7 @@ fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
 fn test_parse_type_associated_projection_with_generic_arguments() {
     let mut test = TestParser::new("type A = Pair<int32, string>.Swap<boolean>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -358,12 +358,12 @@ fn test_parse_type_associated_projection_with_generic_arguments() {
 #[test]
 fn test_parse_generic_indexed_access_in_declaration_file() {
     // Foo<T[number]>[]
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type A = Foo<T[number]>[]",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -392,7 +392,7 @@ fn test_parse_generic_indexed_access_in_declaration_file() {
 fn test_parse_nested_generic_closings_in_type() {
     let mut test = TestParser::new("type A = Foo<Bar<Baz<Qux>>>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -423,12 +423,12 @@ fn test_parse_nested_generic_closings_in_type() {
 /// Tuple expressions inside generic arguments should parse as a single argument.
 #[test]
 fn test_parse_tuple_generic_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type A = And<[Left, Right]>",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -454,12 +454,12 @@ fn test_parse_tuple_generic_argument() {
 /// Parenthesized union expressions inside generic arguments should stay grouped.
 #[test]
 fn test_parse_parenthesized_union_generic_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Alias = Wrap<(number | string)>;",
         LanguageType::Destack,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -488,9 +488,9 @@ fn test_parse_parenthesized_union_generic_argument() {
 #[test]
 fn test_parse_value_expression_generic_argument() {
     let mut test =
-        TestParser::new_with_options("type Alias = Buffer<1 + 2>", LanguageType::Destack);
+        TestParser::new_with_language("type Alias = Buffer<1 + 2>", LanguageType::Destack);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Alias = Buffer<1 + 2>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -519,12 +519,12 @@ fn test_parse_value_expression_generic_argument() {
 /// Nested generic arguments inside tuple generic arguments should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_with_nested_generics() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type A<Actual> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]>;"#,
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -543,12 +543,12 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
 /// Tuple generic arguments inside a conditional type should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_in_type_conditional() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type A<Actual, Expected> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]> extends true ? Actual : Expected;"#,
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -570,12 +570,12 @@ fn test_parse_tuple_generic_argument_in_type_conditional() {
 #[test]
 fn test_parse_readonly_generic_indexed_access() {
     // readonly Foo<T[number]>
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type A = readonly Foo<T[number]>",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -604,12 +604,12 @@ fn test_parse_readonly_generic_indexed_access() {
 #[test]
 fn test_parse_readonly_generic_indexed_access_array() {
     // readonly Foo<T[number]>[]
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type A = readonly Foo<T[number]>[]",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -640,7 +640,7 @@ fn test_parse_readonly_generic_indexed_access_array() {
 /// Complex conditional type from deno builtins with nested indexed access.
 #[test]
 fn test_parse_deno_conditional_indexed_access() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type ToNativeParameterTypes<T extends readonly NativeType[]> =
 [T[number][]] extends [T] ? ToNativeType<T[number]>[]
   : [readonly T[number][]] extends [T] ? readonly ToNativeType<T[number]>[]
@@ -648,7 +648,7 @@ fn test_parse_deno_conditional_indexed_access() {
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { generic_parameters, value, .. }) => {
@@ -663,7 +663,7 @@ fn test_parse_deno_conditional_indexed_access() {
 fn test_reject_type_predicate_alias_expression() {
     let mut test = TestParser::new("type T = value is string");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.options).unwrap_err();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
     let (span, node_type, expected) = error.leaf_content();
 
     assert_eq!(
@@ -676,7 +676,7 @@ fn test_reject_type_predicate_alias_expression() {
 fn test_parse_this_type_predicate_alias_expression() {
     let mut test = TestParser::new("type T = this is Foo");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -693,7 +693,7 @@ fn test_parse_this_type_predicate_alias_expression() {
 fn test_reject_parenthesized_type_predicate_subject() {
     let mut test = TestParser::new("function isString(value: unknown): (value) is string {}");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.options).unwrap_err();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
     let (span, node_type, expected) = error.leaf_content();
 
     assert_eq!(

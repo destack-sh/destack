@@ -7,9 +7,9 @@ use destack_source::LanguageType;
 #[test]
 fn test_parse_class_expression_with_implements() {
     let mut test =
-        TestParser::new_with_options("new (class implements Foo {})()", LanguageType::TypeScript);
+        TestParser::new_with_language("new (class implements Foo {})()", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -28,12 +28,12 @@ fn test_parse_class_expression_with_implements() {
 /// Parse a class expression when heritage starts on the next line.
 #[test]
 fn test_parse_class_expression_with_newline_implements() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "new (class\n  implements Foo\n{})()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -52,12 +52,12 @@ fn test_parse_class_expression_with_newline_implements() {
 /// Parse a class expression with multiline extends heritage.
 #[test]
 fn test_parse_class_expression_with_newline_extends() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "new (class\n  extends Foo<Bar>\n{})()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -80,12 +80,12 @@ fn test_parse_class_expression_with_newline_extends() {
 /// Parse an unparenthesized class expression as a new receiver.
 #[test]
 fn test_parse_new_unparenthesized_class_expression_with_extends() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "new class extends TestRepository {}()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -104,9 +104,9 @@ fn test_parse_new_unparenthesized_class_expression_with_extends() {
 #[test]
 fn test_parse_class_expression_with_parenthesized_sequence_extends() {
     let mut test =
-        TestParser::new_with_options("var a = class extends (b,c) {};", LanguageType::JavaScript);
+        TestParser::new_with_language("var a = class extends (b,c) {};", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -132,12 +132,12 @@ fn test_parse_class_expression_with_parenthesized_sequence_extends() {
 /// Parse an object property value that is a named class expression.
 #[test]
 fn test_parse_object_property_named_class_expression_value() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "{ useClass: class MyExampleClass {} }",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
@@ -158,14 +158,14 @@ fn test_parse_object_property_named_class_expression_value() {
 /// Parse class expression values in decorator call arguments.
 #[test]
 fn test_eat_decorator_object_property_named_class_expression_value() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "Component({ useClass: class MyExampleClass {} })",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser
-        .with_options(parser.options.in_decorator(), |parser| {
-            parser.eat_expression(parser.options)
+        .with_flags(parser.flags.in_decorator(), |parser| {
+            parser.eat_expression(parser.flags)
         })
         .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
@@ -190,7 +190,7 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
 /// Parse new class expressions with generic implements clauses.
 #[test]
 fn test_parse_new_class_expression_with_generic_implements_clause() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"new class implements Iterable<string> {
   *[Symbol.iterator]() {
     yield "value";
@@ -199,7 +199,7 @@ fn test_parse_new_class_expression_with_generic_implements_clause() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { left, arguments, .. } => {
         assert_eq!(arguments.len(), 0);
@@ -217,7 +217,7 @@ fn test_parse_new_class_expression_with_generic_implements_clause() {
 
 #[test]
 fn test_parse_arrow_body_with_anonymous_class_expression() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r###"<P extends Props>(
   wrapped: ComponentType<P>
 ) => class extends Component<Omit<P, keyof A> & Partial<B>, C> {
@@ -226,7 +226,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // <P extends Props>(wrapped: ComponentType<P>) => class extends Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
@@ -251,7 +251,7 @@ fn test_parse_arrow_body_with_anonymous_class_expression() {
 
 #[test]
 fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r###"<P extends Props>(
   wrapped: React.ComponentType<P>
 ) => class extends React.Component<
@@ -263,7 +263,7 @@ fn test_parse_arrow_body_with_multiline_class_heritage_generic_arguments() {
         LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // <P extends Props>(wrapped: React.ComponentType<P>) => class extends React.Component<...> { ... }
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {

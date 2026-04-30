@@ -306,7 +306,7 @@ impl Parser {
             }
             Keyword::Class => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.is_in_statement_position()
+                let allow_anonymous_class = !self.flags.is_in_statement_position()
                     || header.export == Some(ExportMode::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
@@ -350,7 +350,7 @@ impl Parser {
                     self.insert_declaration_expression(start, extension_id),
                 ))
             }
-            Keyword::Type if !self.options.is_in_new_receiver() => {
+            Keyword::Type if !self.flags.is_in_new_receiver() => {
                 if !self.keyword_begins_type_form(
                     Keyword::Type,
                     next_token_type,
@@ -460,7 +460,7 @@ impl Parser {
                         .insert(Expression::Debugger, self.get_span_from(start)),
                 ))
             }
-            Keyword::Yield if self.options.is_in_generator() => {
+            Keyword::Yield if self.flags.is_in_generator() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_yield()?))
             }
@@ -496,7 +496,7 @@ impl Parser {
                 }
             }
             Keyword::Await => {
-                if self.options.is_forbid_await() {
+                if self.flags.is_forbid_await() {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -531,7 +531,7 @@ impl Parser {
         next_keyword: Option<Keyword>,
     ) -> bool {
         // this path only applies inside type expressions
-        if !self.options.is_in_type() {
+        if !self.flags.is_in_type() {
             return false;
         }
 
@@ -590,7 +590,7 @@ impl Parser {
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.is_in_statement_position()
+                let allow_anonymous_class = !self.flags.is_in_statement_position()
                     || header.export == Some(ExportMode::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
 
@@ -603,7 +603,7 @@ impl Parser {
             Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = header.export == Some(ExportMode::Default)
-                    || !self.options.is_in_statement_position();
+                    || !self.flags.is_in_statement_position();
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
 
                 Ok(Some(
@@ -675,7 +675,7 @@ impl Parser {
             // extension declaration
             Keyword::Extension
                 if self.language.is_destack()
-                    && self.options.is_in_statement_position()
+                    && self.flags.is_in_statement_position()
                     && is_declaration_start =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -701,7 +701,7 @@ impl Parser {
                     parser.peek_is(TokenType::ShiftLeft)
                 });
                 let has_stronger_infix_context =
-                    self.options.left_precedence.is_some_and(|left_precedence| {
+                    self.flags.left_precedence.is_some_and(|left_precedence| {
                         left_precedence > OperatorPrecedence::Assignment as u16
                     });
                 if has_generic_head && has_stronger_infix_context {
@@ -710,8 +710,8 @@ impl Parser {
 
                 // avoid async generic parses when tree literal disambiguation is active
                 if self.language.supports_jsx()
-                    && self.options.is_disallow_ambiguous_tree_literal()
-                    && self.options.left_precedence.is_some()
+                    && self.flags.is_disallow_ambiguous_tree_literal()
+                    && self.flags.left_precedence.is_some()
                     && has_generic_head
                 {
                     return Ok(None);
@@ -766,7 +766,7 @@ impl Parser {
             }
 
             // variant method declaration
-            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.is_in_variant() => {
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.flags.is_in_variant() => {
                 if !Self::can_start_function_signature(next_token_type) {
                     return Ok(None);
                 }
@@ -832,7 +832,7 @@ impl Parser {
 
             // readonly stays a type operator in typed type contexts
             Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
-                if self.options.is_in_new_receiver() {
+                if self.flags.is_in_new_receiver() {
                     return Ok(None);
                 }
 
@@ -844,11 +844,11 @@ impl Parser {
 
             // type alias declaration and readonly aliases
             Keyword::Type | Keyword::Readonly => {
-                if self.options.is_in_for_each() {
+                if self.flags.is_in_for_each() {
                     return Ok(None);
                 }
 
-                if self.options.is_in_new_receiver() {
+                if self.flags.is_in_new_receiver() {
                     return Ok(None);
                 }
 
@@ -922,7 +922,7 @@ impl Parser {
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.is_in_statement_position()
+                let allow_anonymous_class = !self.flags.is_in_statement_position()
                     || header.export == Some(ExportMode::Default);
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
@@ -931,7 +931,7 @@ impl Parser {
             Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = header.export == Some(ExportMode::Default)
-                    || !self.options.is_in_statement_position();
+                    || !self.flags.is_in_statement_position();
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
@@ -1002,7 +1002,7 @@ impl Parser {
             // extension declaration
             Keyword::Extension
                 if self.language.is_destack()
-                    && self.options.is_in_statement_position()
+                    && self.flags.is_in_statement_position()
                     && is_declaration_start =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -1026,7 +1026,7 @@ impl Parser {
                     parser.peek_is(TokenType::ShiftLeft)
                 });
                 let has_stronger_infix_context =
-                    self.options.left_precedence.is_some_and(|left_precedence| {
+                    self.flags.left_precedence.is_some_and(|left_precedence| {
                         left_precedence > OperatorPrecedence::Assignment as u16
                     });
                 if has_generic_head && has_stronger_infix_context {
@@ -1035,8 +1035,8 @@ impl Parser {
 
                 // avoid async generic parses when tree literal disambiguation is active
                 if self.language.supports_jsx()
-                    && self.options.is_disallow_ambiguous_tree_literal()
-                    && self.options.left_precedence.is_some()
+                    && self.flags.is_disallow_ambiguous_tree_literal()
+                    && self.flags.left_precedence.is_some()
                     && has_generic_head
                 {
                     return Ok(None);
@@ -1057,7 +1057,7 @@ impl Parser {
             Keyword::Override => Ok(None),
             // abstract is contextual outside declaration positions
             Keyword::Abstract
-                if !self.options.is_in_statement_position() && header.export.is_none() =>
+                if !self.flags.is_in_statement_position() && header.export.is_none() =>
             {
                 Ok(None)
             }
@@ -1080,7 +1080,7 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // variant method declaration
-            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.is_in_variant() => {
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.flags.is_in_variant() => {
                 // require a valid function signature start
                 let can_start_signature = Self::can_start_function_signature(next_token_type);
                 if !can_start_signature {
@@ -1216,7 +1216,7 @@ impl Parser {
             // readonly stays a type operator in typed type contexts
             Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
                 // in new receiver context, readonly behaves like an identifier
-                if self.options.is_in_new_receiver() {
+                if self.flags.is_in_new_receiver() {
                     return Ok(None);
                 }
 
@@ -1226,12 +1226,12 @@ impl Parser {
             // type alias declaration and readonly or newtype aliases
             Keyword::Type | Keyword::Readonly => {
                 // for each bindings keep `type` and `readonly` as identifiers
-                if self.options.is_in_for_each() {
+                if self.flags.is_in_for_each() {
                     return Ok(None);
                 }
 
                 // in new receiver context, `type` and `readonly` behave like identifiers
-                if self.options.is_in_new_receiver() {
+                if self.flags.is_in_new_receiver() {
                     return Ok(None);
                 }
 
@@ -1311,7 +1311,7 @@ impl Parser {
             // await expression or await using
             Keyword::Await => {
                 // reject await in contexts that forbid it
-                if self.options.is_forbid_await() {
+                if self.flags.is_forbid_await() {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -1333,7 +1333,7 @@ impl Parser {
                 Ok(Some(self.eat_comptime()?))
             }
             // yield statement
-            Keyword::Yield if self.options.is_in_generator() => {
+            Keyword::Yield if self.flags.is_in_generator() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_yield()?))
             }

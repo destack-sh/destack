@@ -67,7 +67,7 @@ impl Parser {
         let (name, name_span) = self.eat_identifier_with_span()?;
         self.eat_keyword(Keyword::In)?;
         let source_type = self.eat_type_expression_or_recover_missing(
-            self.options
+            self.flags
                 .not_in_position()
                 .not_in_left_precedence()
                 .in_type()
@@ -82,7 +82,7 @@ impl Parser {
             self.set_node_trailing_span(source_type, as_span.start);
             let remap_boundary_start = as_span.end;
             let remap_expression = self.eat_type_expression_or_recover_missing(
-                self.options
+                self.flags
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type(),
@@ -105,7 +105,7 @@ impl Parser {
             self.eat_token(TokenType::Colon)?;
             let value_boundary_start = self.prev_token_end();
             let value = self.eat_type_expression_node_or_recover_missing(
-                self.options
+                self.flags
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type(),

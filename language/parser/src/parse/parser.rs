@@ -82,18 +82,17 @@ impl TypeLiteralIdentifiers {
     }
 }
 
-/// Configure Parser behavior.
-/// Useful for enabling/disabling features in some AST subtrees.
+/// Internal parser context flags.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ParserOptions {
+pub(crate) struct ParserFlags {
     /// Packed parser context and behavior flags.
     flags: u32,
     /// The left precedence preceding (i.e. before) the expression.
     /// Determines expression operator lifting and grouping.
-    pub left_precedence: Option<u16>,
+    pub(crate) left_precedence: Option<u16>,
 }
 
-impl Default for ParserOptions {
+impl Default for ParserFlags {
     fn default() -> Self {
         Self {
             flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
@@ -102,9 +101,9 @@ impl Default for ParserOptions {
     }
 }
 
-/// Parser settings that can be configured externally.
+/// Parser options that can be configured externally.
 #[derive(Debug, Copy, Clone)]
-pub struct ParserSettings {
+pub struct ParserOptions {
     /// Whether ambiguous tree literal syntax is disallowed.
     pub disallow_ambiguous_tree_literal: bool,
     /// Whether token side tokens should be retained for formatter and comment output.
@@ -113,7 +112,7 @@ pub struct ParserSettings {
     pub preserve_parenthesized_wrappers: bool,
 }
 
-impl Default for ParserSettings {
+impl Default for ParserOptions {
     fn default() -> Self {
         Self {
             disallow_ambiguous_tree_literal: false,
@@ -124,7 +123,7 @@ impl Default for ParserSettings {
 }
 
 #[allow(unused)]
-impl ParserOptions {
+impl ParserFlags {
     const EXPRESSION_FLAG_MASK: u32 = Self::IN_PARENTHESIS_FLAG
         | Self::IN_STATEMENT_POSITION_FLAG
         | Self::IN_TERNARY_CONDITION_FLAG
@@ -340,9 +339,9 @@ impl ParserOptions {
         self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
     }
 
-    /// Replace the hot expression-local portion of these options.
+    /// Replace the hot expression-local portion of these flags.
     #[inline]
-    pub(crate) fn with_expression_context(mut self, context: ParserOptions) -> Self {
+    pub(crate) fn with_expression_context(mut self, context: ParserFlags) -> Self {
         self.flags = (self.flags & !Self::EXPRESSION_FLAG_MASK)
             | (context.flags & Self::EXPRESSION_FLAG_MASK);
         if context.is_in_statement_position() {
@@ -352,9 +351,9 @@ impl ParserOptions {
         self
     }
 
-    /// Replace the ambient parser portion of these options.
+    /// Replace the ambient parser portion of these flags.
     #[inline]
-    pub(crate) fn with_ambient_context(mut self, context: ParserOptions) -> Self {
+    pub(crate) fn with_ambient_context(mut self, context: ParserFlags) -> Self {
         self.flags =
             (self.flags & !Self::AMBIENT_FLAG_MASK) | (context.flags & Self::AMBIENT_FLAG_MASK);
         self
@@ -526,11 +525,11 @@ impl ParserOptions {
     /// Set `in_super_type` to the given value.
     #[inline]
     pub(crate) fn with_super_type(self, enabled: bool) -> Self {
-        let options = self.with_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
+        let flags = self.with_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
         if enabled {
-            options.with_type(true)
+            flags.with_type(true)
         } else {
-            options
+            flags
         }
     }
 
@@ -573,11 +572,11 @@ impl ParserOptions {
     /// Set `in_statement_position` to the given value.
     #[inline]
     pub(crate) fn with_statement_position(self, enabled: bool) -> Self {
-        let options = self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled);
+        let flags = self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled);
         if enabled {
-            options.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, true)
+            flags.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, true)
         } else {
-            options
+            flags
         }
     }
 
@@ -940,19 +939,19 @@ impl ParserOptions {
             .with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, false)
     }
 
-    /// Reset position-related options but preserve context options like `in_generator`.
+    /// Reset position-related flags but preserve context flags like `in_generator`.
     pub(crate) fn nested(self) -> Self {
-        let mut options = Self::default();
-        options.set_in_generator(self.is_in_generator());
-        options.set_in_comptime(self.is_in_comptime());
-        options.set_forbid_yield(self.is_forbid_yield());
-        options.set_forbid_await(self.is_forbid_await());
-        options.set_allow_sequence_expression(self.allows_sequence_expression());
-        options.set_in_decorator(self.is_in_decorator());
-        options.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
-        options.set_in_declare_context(self.is_in_declare_context());
-        options.set_in_statement_context(self.is_in_statement_context());
-        options
+        let mut flags = Self::default();
+        flags.set_in_generator(self.is_in_generator());
+        flags.set_in_comptime(self.is_in_comptime());
+        flags.set_forbid_yield(self.is_forbid_yield());
+        flags.set_forbid_await(self.is_forbid_await());
+        flags.set_allow_sequence_expression(self.allows_sequence_expression());
+        flags.set_in_decorator(self.is_in_decorator());
+        flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
+        flags.set_in_declare_context(self.is_in_declare_context());
+        flags.set_in_statement_context(self.is_in_statement_context());
+        flags
     }
 }
 
@@ -976,8 +975,8 @@ pub struct Parser {
     last_consumed_token: TokenSpan,
     /// Whether the parser is finished.
     is_finished: bool,
-    /// The parser options.
-    pub(crate) options: ParserOptions,
+    /// The parser context flags.
+    pub(crate) flags: ParserFlags,
     /// Whether transparent parenthesized wrappers should be preserved in the tree.
     preserve_parenthesized_wrappers: bool,
 
@@ -1073,7 +1072,7 @@ impl Parser {
                 span: Span::new(file_id, 0, 0),
             },
             is_finished: false,
-            options: ParserOptions::default(),
+            flags: ParserFlags::default(),
             preserve_parenthesized_wrappers: true,
             language,
             tree: Tree::with_capacity(estimated_nodes),
@@ -1097,39 +1096,39 @@ impl Parser {
         parser
     }
 
-    /// Lex a file and apply parser settings.
+    /// Lex a file and apply parser options.
     #[tracing::instrument(
         name = "parser.lex",
         level = "trace",
         skip_all,
         fields(file_id = ?file.id)
     )]
-    pub fn lex_file_with_settings(
+    pub fn lex_file_with_options(
         file: Arc<File>,
         language: LanguageType,
-        settings: ParserSettings,
+        options: ParserOptions,
     ) -> Self {
         let mut parser = Self::parser_for_file(file, language);
         parser
             .lexer
-            .set_retain_trivia_tokens(settings.retain_trivia_tokens);
+            .set_retain_trivia_tokens(options.retain_trivia_tokens);
         parser.reset();
-        parser.apply_settings(settings);
+        parser.apply_options(options);
         parser
     }
 
-    /// Apply externally provided parser settings.
+    /// Apply externally provided parser options.
     #[inline]
-    pub fn apply_settings(&mut self, settings: ParserSettings) {
-        self.options
-            .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
-        self.preserve_parenthesized_wrappers = settings.preserve_parenthesized_wrappers;
+    pub fn apply_options(&mut self, options: ParserOptions) {
+        self.flags
+            .set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
+        self.preserve_parenthesized_wrappers = options.preserve_parenthesized_wrappers;
         if self.lexer.tokens().is_empty() && self.lexer.side_tokens().is_empty() {
             self.lexer
-                .set_retain_trivia_tokens(settings.retain_trivia_tokens);
+                .set_retain_trivia_tokens(options.retain_trivia_tokens);
         } else {
             debug_assert!(
-                self.lexer.retains_trivia_tokens() == settings.retain_trivia_tokens,
+                self.lexer.retains_trivia_tokens() == options.retain_trivia_tokens,
                 "trivia retention must be configured before lexing starts"
             );
         }
@@ -1158,11 +1157,11 @@ impl Parser {
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.previous_token_end = 0;
-        let mut options = ParserOptions::default();
-        options.set_disallow_ambiguous_tree_literal(
+        let mut flags = ParserFlags::default();
+        flags.set_disallow_ambiguous_tree_literal(
             self.language.supports_jsx() && self.language.is_typescript(),
         );
-        self.options = options;
+        self.flags = flags;
         self.errors.clear();
         self.stats.reset();
         self.state.reset();
@@ -1203,15 +1202,6 @@ impl Parser {
         #[cfg(feature = "timings")]
         {
             self.timings.as_ref().map(|timings| timings.snapshot())
-        }
-    }
-
-    /// Record a parser timing sample directly.
-    #[cfg(feature = "timings")]
-    #[inline]
-    pub(crate) fn record_timing(&self, tag: ParserTimingTag, duration: std::time::Duration) {
-        if let Some(timings) = self.timings.as_ref() {
-            timings.record(tag, duration);
         }
     }
 
@@ -1535,37 +1525,37 @@ impl Parser {
         self.tree.comments_mut().extend(comments);
     }
 
-    /// Swap parser options and return the previous value.
+    /// Swap parser flags and return the previous value.
     #[inline(always)]
-    pub(crate) fn swap_options(&mut self, options: ParserOptions) -> ParserOptions {
-        let old_options = self.options;
-        self.options = options;
-        old_options
+    pub(crate) fn swap_flags(&mut self, flags: ParserFlags) -> ParserFlags {
+        let old_flags = self.flags;
+        self.flags = flags;
+        old_flags
     }
 
-    /// Restore parser options from a previous swap.
+    /// Restore parser flags from a previous swap.
     #[inline(always)]
-    pub(crate) fn restore_options(&mut self, old_options: ParserOptions) {
-        self.options = old_options;
+    pub(crate) fn restore_flags(&mut self, old_flags: ParserFlags) {
+        self.flags = old_flags;
     }
 
-    /// Execute a function with new parser options.
-    /// The previous options are restored after the function returns.
+    /// Execute a function with new parser flags.
+    /// The previous flags are restored after the function returns.
     #[inline(always)]
-    pub(crate) fn with_options<T>(
+    pub(crate) fn with_flags<T>(
         &mut self,
-        options: ParserOptions,
+        flags: ParserFlags,
         func: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        if self.options == options {
+        if self.flags == flags {
             return func(self);
         }
 
-        self.stats.record_with_options_call();
+        self.stats.record_with_flags_call();
 
-        let old_options = self.swap_options(options);
+        let old_flags = self.swap_flags(flags);
         let result = func(self);
-        self.restore_options(old_options);
+        self.restore_flags(old_flags);
         result
     }
 
@@ -2316,36 +2306,36 @@ impl Parser {
     /// Eat one committed type expression or recover one missing child at a type boundary.
     pub(crate) fn eat_type_expression_or_recover_missing(
         &mut self,
-        options: ParserOptions,
+        flags: ParserFlags,
         owner: NodeType,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         if self.is_type_expression_boundary() {
             return Ok(self.recover_missing_type_expression_here(owner));
         }
 
-        self.with_options(options, |parser| parser.eat_type_expression())
+        self.with_flags(flags, |parser| parser.eat_type_expression())
     }
 
     /// Eat one committed type expression node or recover one missing child at a type boundary.
     pub(crate) fn eat_type_expression_node_or_recover_missing(
         &mut self,
-        options: ParserOptions,
+        flags: ParserFlags,
         owner: NodeType,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        self.eat_type_expression_or_recover_missing(options, owner)
+        self.eat_type_expression_or_recover_missing(flags, owner)
     }
 
     /// Eat one committed expression or recover one missing child at an expression boundary.
     pub(crate) fn eat_expression_or_recover_missing(
         &mut self,
-        options: ParserOptions,
+        flags: ParserFlags,
         owner: NodeType,
     ) -> ParseResult<LocalNodeId<Expression>> {
         if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
             return Ok(self.recover_missing_expression_here(owner));
         }
 
-        self.eat_expression(options)
+        self.eat_expression(flags)
     }
 
     /// Eat one close token or recover one committed missing close delimiter.

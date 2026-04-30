@@ -88,16 +88,16 @@ impl Parser {
 
         // body
         // propagate ambient declaration contexts into module bodies
-        let body_options = if header.ambient == Ambientness::Ambient {
-            self.options.in_declare_context()
+        let body_flags = if header.ambient == Ambientness::Ambient {
+            self.flags.in_declare_context()
         } else {
-            self.options
+            self.flags
         };
 
         let has_body = self.peek_is(TokenType::OpenBrace);
         let expressions = if has_body {
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
-            let expressions_result = self.with_options(body_options, |parser| {
+            let expressions_result = self.with_flags(body_flags, |parser| {
                 parser.eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
             })?;
             let expressions = expressions_result;
@@ -189,7 +189,7 @@ declare global {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Ambient);
@@ -200,7 +200,7 @@ declare global {
 
     #[test]
     fn test_parse_global_block_without_declare() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 global {
     interface Foo { }
@@ -210,7 +210,7 @@ global {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Ambient);
@@ -221,7 +221,7 @@ global {
 
     #[test]
     fn test_parse_declare_module_block() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 declare module "foo" {
     interface Bar { }
@@ -231,7 +231,7 @@ declare module "foo" {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Ambient);
@@ -265,7 +265,7 @@ declare module "foo" {
     #[test]
     fn test_parse_declare_module_body_recovers_statement_like_object_properties() {
         // declare module A { "name": ..., "typings": ..., "version": ... }
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r##"
 declare module A {
     "name": "troublesome-lib",
@@ -301,7 +301,7 @@ declare module A {
 
     #[test]
     fn test_parse_module_newline_as_identifiers() {
-        let mut test = TestParser::new_with_options("module\nFoo\n{}", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("module\nFoo\n{}", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
         assert_eq!(expressions.len(), 3);
@@ -318,7 +318,8 @@ declare module A {
 
     #[test]
     fn test_parse_namespace_newline_as_identifiers() {
-        let mut test = TestParser::new_with_options("namespace\nFoo\n{}", LanguageType::TypeScript);
+        let mut test =
+            TestParser::new_with_language("namespace\nFoo\n{}", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
         assert_eq!(expressions.len(), 3);
@@ -336,7 +337,7 @@ declare module A {
     /// Parse a global augmentation inside a module declaration.
     #[test]
     fn test_parse_nested_global_block_in_string_module() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 declare module "buffer" {
     global {
@@ -348,7 +349,7 @@ declare module "buffer" {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Ambient);
@@ -370,7 +371,7 @@ declare module "buffer" {
 
     #[test]
     fn test_parse_nested_global_block_in_module() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 declare module "m" {
     global {
@@ -382,7 +383,7 @@ declare module "m" {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Ambient);
@@ -404,7 +405,7 @@ declare module "m" {
 
     #[test]
     fn test_parse_module_block_declaration() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 module "foo" {
     interface Bar { }
@@ -414,7 +415,7 @@ module "foo" {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Concrete);
@@ -429,7 +430,7 @@ module "foo" {
 
     #[test]
     fn test_parse_module_block() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 module "foo" {
     interface Bar { }
@@ -439,7 +440,7 @@ module "foo" {
         );
         let mut parser = test.prepare();
 
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
                 assert_eq!(*ambient, Ambientness::Concrete);
@@ -453,9 +454,9 @@ module "foo" {
 
     #[test]
     fn test_reject_identifier_module_without_body() {
-        let mut test = TestParser::new_with_options("module Foo;", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("module Foo;", LanguageType::Destack);
         let mut parser = test.prepare();
-        let result = parser.eat_expression(parser.options);
+        let result = parser.eat_expression(parser.flags);
         assert!(result.is_err());
     }
 
@@ -527,7 +528,7 @@ namespace Foo where Guard: Limit {
 
     #[test]
     fn test_parse_namespace_directive_then_export_with_comment_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 namespace M {
   /******/ 'use strict'

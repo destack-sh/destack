@@ -55,21 +55,21 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // decorators always parse as value expressions
-        let mut decorator_options = self
-            .options
+        let mut decorator_flags = self
+            .flags
             .not_in_position()
             .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
             .not_in_sequence_expression()
             .in_decorator();
-        decorator_options.set_in_type(false);
-        decorator_options.set_in_static(false);
-        decorator_options.set_in_super_type(false);
-        decorator_options.set_in_before_type(false);
-        decorator_options.set_in_type_conditional_right(false);
-        decorator_options.set_in_type_mapped_constraint(false);
+        decorator_flags.set_in_type(false);
+        decorator_flags.set_in_static(false);
+        decorator_flags.set_in_super_type(false);
+        decorator_flags.set_in_before_type(false);
+        decorator_flags.set_in_type_conditional_right(false);
+        decorator_flags.set_in_type_mapped_constraint(false);
 
         // parse decorator target expression
-        let expression = self.eat_expression(decorator_options)?;
+        let expression = self.eat_expression(decorator_flags)?;
 
         // store decorator side node
         let decorator = self.tree.insert(

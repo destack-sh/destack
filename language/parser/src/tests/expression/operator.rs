@@ -27,11 +27,11 @@ fn assert_defaulted_assign_pattern(
 
 /// Assert that one expression rejects with a single leaf span.
 fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_leaf: &str) {
-    let mut test = TestParser::new_with_options(input, language);
+    let mut test = TestParser::new_with_language(input, language);
     let mut parser = test.prepare();
 
     let error = parser
-        .eat_expression(parser.options)
+        .eat_expression(parser.flags)
         .expect_err("expected expression to fail");
     let (span, node_type, token_type) = error.leaf_content();
     let leaf = parser.get_span_str(span);
@@ -46,7 +46,7 @@ fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_le
 fn test_parse_precedence_addition_left_associative() {
     let mut test = TestParser::new("a + b + c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a + b + c
     assert_node!(
         parser.tree,
@@ -80,7 +80,7 @@ fn test_parse_precedence_addition_across_lines() {
  c"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a + b + c (across lines)
     assert_node!(
         parser.tree,
@@ -110,7 +110,7 @@ fn test_parse_precedence_addition_across_lines() {
 fn test_parse_precedence_multiply_before_addition() {
     let mut test = TestParser::new("a + b * c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a + b * c
     assert_node!(
         parser.tree,
@@ -140,7 +140,7 @@ fn test_parse_precedence_multiply_before_addition() {
 fn test_parse_precedence_chain_mixed() {
     let mut test = TestParser::new("a + b * c + d");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a + b * c + d
     assert_node!(
         parser.tree,
@@ -180,7 +180,7 @@ fn test_parse_precedence_chain_mixed() {
 fn test_parse_precedence_cast_before_addition() {
     let mut test = TestParser::new("a as number + b");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a as number + b
     assert_node!(
         parser.tree,
@@ -212,7 +212,7 @@ fn test_parse_precedence_cast_before_addition() {
 fn test_parse_precedence_elementwise_vs_addition() {
     let mut test = TestParser::new("a + b | c + d");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a + b | c + d
     assert_node!(
         parser.tree,
@@ -252,7 +252,7 @@ fn test_parse_precedence_elementwise_vs_addition() {
 fn test_parse_precedence_elementwise_and_before_or() {
     let mut test = TestParser::new("a & b | c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // a & b | c
     assert_node!(
@@ -287,7 +287,7 @@ fn test_parse_precedence_elementwise_and_before_or() {
 fn test_parse_precedence_elementwise_and_before_or_right_side() {
     let mut test = TestParser::new("a | b & c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // a | b & c
     assert_node!(
@@ -322,7 +322,7 @@ fn test_parse_precedence_elementwise_and_before_or_right_side() {
 fn test_parse_precedence_comparison_before_equality() {
     let mut test = TestParser::new("a < b == c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // a < b == c
     assert_node!(
@@ -357,7 +357,7 @@ fn test_parse_precedence_comparison_before_equality() {
 fn test_parse_precedence_comparison_vs_logical() {
     let mut test = TestParser::new("a == b && c == d");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a == b && c == d
     assert_node!(
         parser.tree,
@@ -397,7 +397,7 @@ fn test_parse_precedence_comparison_vs_logical() {
 fn test_parse_precedence_is_before_logical_and() {
     let mut test = TestParser::new("value is string && ready");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // value is string && ready
     assert_node!(
@@ -426,9 +426,9 @@ fn test_parse_precedence_is_before_logical_and() {
 #[test]
 fn test_parse_precedence_instanceof_before_logical_and() {
     for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_options("value instanceof Box && ready", language);
+        let mut test = TestParser::new_with_language("value instanceof Box && ready", language);
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // value instanceof Box && ready
         assert_node!(
@@ -456,9 +456,9 @@ fn test_parse_precedence_instanceof_before_logical_and() {
 #[test]
 fn test_parse_newline_before_instanceof_in_expression_position() {
     for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_options("call(value\ninstanceof Box)", language);
+        let mut test = TestParser::new_with_language("call(value\ninstanceof Box)", language);
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 1);
@@ -479,7 +479,7 @@ fn test_parse_newline_before_instanceof_in_expression_position() {
 fn test_parse_precedence_unary_before_multiply() {
     let mut test = TestParser::new("-a * b");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // -a * b
     assert_node!(
         parser.tree,
@@ -506,7 +506,7 @@ fn test_parse_precedence_unary_before_multiply() {
 fn test_parse_binary_operator_span() {
     let mut test = TestParser::new("left + right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         assert_eq!(*operator, BinaryOperator::Add);
@@ -525,7 +525,7 @@ fn test_parse_binary_operator_span() {
 fn test_parse_binary_operator_multichar_span() {
     let mut test = TestParser::new("left === right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         assert_eq!(*operator, BinaryOperator::EqualStrict);
@@ -544,7 +544,7 @@ fn test_parse_binary_operator_multichar_span() {
 fn test_parse_binary_operator_logical_span() {
     let mut test = TestParser::new("left && right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         assert_eq!(*operator, BinaryOperator::And);
@@ -563,7 +563,7 @@ fn test_parse_binary_operator_logical_span() {
 fn test_parse_binary_operator_coalesce_span() {
     let mut test = TestParser::new("left ?? right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
         assert_eq!(*operator, BinaryOperator::Coalesce);
@@ -582,7 +582,7 @@ fn test_parse_binary_operator_coalesce_span() {
 fn test_parse_assign_operator_span() {
     let mut test = TestParser::new("left += right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Assign { operator, left, right } => {
         assert_eq!(*operator, AssignOperator::AddAssign);
@@ -610,7 +610,7 @@ fn test_parse_object_destructuring_assignment_defaults() {
         TestParser::new("({ x = fallback, y: z = other, [key]: target, ...rest } = value)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
@@ -651,7 +651,7 @@ fn test_parse_array_destructuring_assignment_defaults() {
     let mut test = TestParser::new("[first, , second = fallback, ...rest] = value");
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
         assert_eq!(*operator, AssignOperator::Assign);
@@ -683,7 +683,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
     let mut test = TestParser::new("({ a: { b = c } = d, e: [f = g] } = h)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
@@ -735,7 +735,7 @@ fn test_parse_destructuring_assignment_member_targets() {
     let mut test = TestParser::new("({ value: object.property, [key]: target[index] } = source)");
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
@@ -839,7 +839,7 @@ fn test_reject_compound_destructuring_default() {
 fn test_parse_precedence_assignment_right_associative() {
     let mut test = TestParser::new("alpha = beta = computeValue()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(
         parser.tree,
@@ -867,12 +867,12 @@ fn test_parse_precedence_assignment_right_associative() {
 /// Conditional expressions bind tighter than assignment.
 #[test]
 fn test_parse_precedence_assignment_rhs_conditional() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "files = commit.files ? commit.files.map((file) => file.name) : []",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(
         parser.tree,
@@ -907,7 +907,7 @@ fn test_parse_precedence_assignment_rhs_conditional() {
 fn test_parse_precedence_postfix_call_before_add() {
     let mut test = TestParser::new("a() + b() / c");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // a() + b() / c
     assert_node!(
         parser.tree,
@@ -951,7 +951,7 @@ fn test_parse_precedence_postfix_call_before_add() {
 fn test_parse_precedence_postfix_call_before_coalesce() {
     let mut test = TestParser::new("y.sqrt() ?? 0");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // y.sqrt() ?? 0
     assert_node!(
         parser.tree,

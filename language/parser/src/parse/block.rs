@@ -5,7 +5,7 @@ use destack_ast::{
 use destack_core::StringId;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
@@ -40,9 +40,9 @@ impl Parser {
 
     /// Return parser contexts for statement-position parsing.
     #[inline]
-    pub(crate) fn statement_position_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.nested().with_statement_context(true);
-        let expression_context = self.options.nested().with_statement_position(true);
+    pub(crate) fn statement_position_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.nested().with_statement_context(true);
+        let expression_context = self.flags.nested().with_statement_position(true);
         (ambient_context, expression_context)
     }
 
@@ -76,7 +76,7 @@ impl Parser {
     /// Eat an expression in a non-position context.
     #[inline]
     fn eat_expression_not_in_position(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        self.eat_expression_with_context_unchecked(self.options.not_in_position())
+        self.eat_expression_with_context_unchecked(self.flags.not_in_position())
     }
 
     /// Return true when a token ends the current block body.
@@ -147,7 +147,7 @@ impl Parser {
 
         // labelled blocks are only allowed in statement position
         let is_labelled_block = label_target_type == TokenType::OpenBrace;
-        let is_in_statement_position = self.options.is_in_statement_position();
+        let is_in_statement_position = self.flags.is_in_statement_position();
         if is_in_statement_position && !self.language.is_destack() {
             return true;
         }
@@ -305,7 +305,7 @@ impl Parser {
         Ok(None)
     }
 
-    /// Eat one statement expression in the current parser options.
+    /// Eat one statement expression in the current parser flags.
     #[inline]
     pub(crate) fn eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // normalize to the next non-newline token once per dispatch
@@ -361,7 +361,7 @@ impl Parser {
         }
 
         // parenthesized lambda heads keep statement mode
-        if token_type == TokenType::OpenParenthesis && self.options.is_in_statement_position() {
+        if token_type == TokenType::OpenParenthesis && self.flags.is_in_statement_position() {
             let has_lambda_follow = self.lookahead(|parser| {
                 let mut depth = 0u32;
                 while parser.has_more_tokens() {
@@ -429,8 +429,8 @@ impl Parser {
 
         // otherwise, eat a single statement and wrap it in a block
         let (ambient_context, expression_context) = self.statement_position_contexts();
-        let expression_id = self.with_options(
-            self.options
+        let expression_id = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_statement_expression(),
@@ -580,15 +580,15 @@ impl Parser {
     )> {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
-        // keep statement options for the whole body to avoid per statement option churn
+        // keep statement flags for the whole body to avoid per statement flag churn
         let (ambient_context, expression_context) = self.statement_position_contexts();
-        if self.options == ambient_context && self.options == expression_context {
+        if self.flags == ambient_context && self.flags == expression_context {
             return self.eat_block_body_parts_in_statement_position(format, block_context);
         }
 
-        self.stats.record_with_options_call();
-        self.with_options(
-            self.options
+        self.stats.record_with_flags_call();
+        self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_block_body_parts_in_statement_position(format, block_context),
@@ -677,8 +677,8 @@ impl Parser {
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let (ambient_context, expression_context) = self.statement_position_contexts();
-        self.with_options(
-            self.options
+        self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.try_eat_statement_expression_in_statement_position(),
@@ -980,11 +980,11 @@ impl Parser {
         self.eat_keyword(Keyword::Comptime)?;
 
         // body expression
-        // parse body with comptime statement options
-        let ambient_context = self.options.with_comptime(true);
-        let expression_context = self.options.not_in_position();
-        let body_id = self.with_options(
-            self.options
+        // parse body with comptime statement flags
+        let ambient_context = self.flags.with_comptime(true);
+        let expression_context = self.flags.not_in_position();
+        let body_id = self.with_flags(
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| parser.eat_statement_expression(),
@@ -1147,7 +1147,7 @@ mod tests {
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::{
-        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_node,
+        ParserOptions, TestParser, assert_comment, assert_expression_path, assert_node,
         assert_string, block_expression_ids,
     };
 
@@ -1199,7 +1199,7 @@ mod tests {
 
     #[test]
     fn test_statement_expression_separator_with_comment_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "'use strict' /**/ \n nextValue",
             LanguageType::TypeScript,
         );
@@ -1513,8 +1513,8 @@ mod tests {
     /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
     #[test]
     fn test_yield_asi_with_newline_js_mode() {
-        let options = LanguageType::JavaScript;
-        let mut test = TestParser::new_with_options("yield\n*a", options);
+        let language = LanguageType::JavaScript;
+        let mut test = TestParser::new_with_language("yield\n*a", language);
         let mut parser = test.prepare();
 
         // yield parses fine with ASI
@@ -1526,7 +1526,7 @@ mod tests {
 
         // try to parse *a as next statement: should fail in untyped value mode
         // because * is not valid as a unary prefix there
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
         // *
         assert_eq!(parser.get_span_str(error.leaf_span()), "*");
@@ -1536,7 +1536,7 @@ mod tests {
     #[test]
     fn test_yield_asi_with_block_comment_newline_js_mode() {
         // source: yield/*\n*/*a
-        let mut test = TestParser::new_with_options("yield/*\n*/*a", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("yield/*\n*/*a", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let yield_id = parser.eat_yield().unwrap();
@@ -1545,7 +1545,7 @@ mod tests {
             assert!(value.is_none());
         });
 
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
         // *
         assert_eq!(parser.get_span_str(error.leaf_span()), "*");
@@ -1565,7 +1565,7 @@ mod tests {
     #[test]
     fn test_reject_throw_expression_with_block_comment_newline() {
         // source: throw /*\n*/ e
-        let mut test = TestParser::new_with_options("throw /*\n*/ e", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("throw /*\n*/ e", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let throw_id = parser.eat_throw().unwrap();
 
@@ -1586,7 +1586,7 @@ mod tests {
     fn test_reject_throw_expression_with_line_separator_comment() {
         // source: throw /* \u{2028} */ e
         let mut test =
-            TestParser::new_with_options("throw /* \u{2028} */ e", LanguageType::JavaScript);
+            TestParser::new_with_language("throw /* \u{2028} */ e", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let throw_id = parser.eat_throw().unwrap();
 
@@ -1698,7 +1698,7 @@ const value = 1
 
     #[test]
     fn test_parse_block_const_then_return_cast() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "{\n  const result = CreateRecord(IntegerKey, value)\n  return result as never\n}",
             LanguageType::TypeScript,
         );
@@ -1724,7 +1724,7 @@ const value = 1
 
     #[test]
     fn test_parse_return_ternary_with_newline_before_question() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "return Result.IsExtendsTrueLike(check)\n  ? TryInferResults(tail, right, [...result, head])\n  : undefined",
             LanguageType::TypeScript,
         );
@@ -1741,7 +1741,8 @@ const value = 1
 
     #[test]
     fn test_parse_block_statement_before_close_brace_without_semicolon() {
-        let mut test = TestParser::new_with_options("{ process.exit(1)}", LanguageType::JavaScript);
+        let mut test =
+            TestParser::new_with_language("{ process.exit(1)}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
@@ -1759,11 +1760,11 @@ const value = 1
     /// Parse semicolon led parenthesized calls without parenthesized wrappers.
     #[test]
     fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrappers() {
-        let mut test = TestParser::new_with_options("{\n;(()=>{})()\n}", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("{\n;(()=>{})()\n}", LanguageType::Destack);
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
         let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
@@ -1784,11 +1785,11 @@ const value = 1
     /// Record statement source spans when parenthesized wrappers are skipped.
     #[test]
     fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
-        let mut test = TestParser::new_with_options("(() => value);", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("(() => value);", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
 
         let (expression_id, is_statement) =
@@ -1808,11 +1809,11 @@ const value = 1
     /// Record statement source spans for root tail statements.
     #[test]
     fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
-        let mut test = TestParser::new_with_options("(() => value);", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("(() => value);", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
 
         let expressions = parser.parse();
@@ -1831,14 +1832,14 @@ const value = 1
     /// Record root expression statement spans before skipped wrappers.
     #[test]
     fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "const a = 1\n\n;(function() {})()",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
 
         let expressions = parser.parse();
@@ -2009,7 +2010,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     /// Parse a function declaration followed by a call on the same line in JavaScript.
     #[test]
     fn test_parse_function_declaration_followed_by_call_without_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function main(){return 1}main().catch((function(error){console.error(error);process.exit(1)}));",
             LanguageType::JavaScript,
         );
@@ -2039,7 +2040,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
     #[test]
     fn test_parse_block_sequence_statement_with_newlines_after_commas() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"{
   callA(),
   callB(),
@@ -2085,21 +2086,21 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     /// `return/*\n*/value` should omit the operand due to line terminator trivia.
     #[test]
     fn test_return_asi_with_block_comment_newline_js_mode() {
-        let mut test = TestParser::new_with_options("return/*\n*/value", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("return/*\n*/value", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let return_id = parser.eat_return().unwrap();
 
         assert_node!(parser.tree, return_id, Expression::Return { value } => {
             assert!(value.is_none());
         });
-        let value_id = parser.eat_expression(parser.options).unwrap();
+        let value_id = parser.eat_expression(parser.flags).unwrap();
         assert_expression_path!(parser, parser.tree.get(value_id), "value");
     }
 
     #[test]
     fn test_parse_throw_trailing_comment_on_statement_wrapper_owner() {
         let mut test =
-            TestParser::new_with_options("throw error // throw-tail", LanguageType::TypeScript);
+            TestParser::new_with_language("throw error // throw-tail", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2124,7 +2125,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     #[test]
     fn test_parse_throw_semicolon_trailing_comment_on_statement_wrapper_owner() {
         let mut test =
-            TestParser::new_with_options("throw error; // throw-tail", LanguageType::TypeScript);
+            TestParser::new_with_language("throw error; // throw-tail", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2149,7 +2150,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
     #[test]
     fn test_parse_return_semicolon_trailing_comment_on_statement_wrapper_owner() {
         let mut test =
-            TestParser::new_with_options("return value; // return-tail", LanguageType::TypeScript);
+            TestParser::new_with_language("return value; // return-tail", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2293,7 +2294,7 @@ const value = 1
 
     #[test]
     fn test_parse_function_throw_semicolon_trailing_comment_on_statement_wrapper_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function fail() {\n    throw error; // throw-tail\n}",
             LanguageType::TypeScript,
         );
@@ -2331,7 +2332,7 @@ const value = 1
     }
     #[test]
     fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function render(isEnabled) {
   return (
     <div>
@@ -2374,7 +2375,7 @@ const value = 1
 
     #[test]
     fn test_parse_statement_separator_comment_before_semicolon_attaches_to_previous_statement() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()",
             LanguageType::TypeScript,
         );
@@ -2413,7 +2414,7 @@ const value = 1
             source.push('}');
         }
 
-        let mut test = TestParser::new_with_options(&source, LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(&source, LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 

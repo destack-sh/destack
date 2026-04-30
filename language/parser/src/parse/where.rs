@@ -40,8 +40,8 @@ impl Parser {
     pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
         let _timing = self.timing_scope(tags::PARSE_WHERE);
         self.eat_keyword(Keyword::Where)?;
-        let body_options = self.options.in_before_block();
-        let clauses = self.with_options(body_options, |parser| parser.eat_where_body())?;
+        let body_flags = self.flags.in_before_block();
+        let clauses = self.with_flags(body_flags, |parser| parser.eat_where_body())?;
         Ok(clauses)
     }
 
@@ -98,7 +98,7 @@ impl Parser {
         let type_start = self.span_start();
         self.eat_token(TokenType::Colon)?;
         let right = self.eat_type_expression_node_or_recover_missing(
-            self.options.in_type(),
+            self.flags.in_type(),
             NodeType::WhereClause,
         )?;
         let clause = self

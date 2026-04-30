@@ -67,8 +67,8 @@ impl Parser {
             // tuple (without type, no struct tuples)
             else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump(); // eat open parenthesis
-                let field_options = self.options.nested();
-                let fields_result = self.with_options(field_options, |parser| {
+                let field_flags = self.flags.nested();
+                let fields_result = self.with_flags(field_flags, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                 })?;
                 let fields = fields_result;
@@ -82,8 +82,8 @@ impl Parser {
             // struct (without type)
             else if self.peek_is(TokenType::OpenBrace) {
                 self.bump(); // eat open brace
-                let field_options = self.options.nested();
-                let fields_result = self.with_options(field_options, |parser| {
+                let field_flags = self.flags.nested();
+                let fields_result = self.with_flags(field_flags, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                 })?;
                 let fields = fields_result;
@@ -94,8 +94,8 @@ impl Parser {
             // array or slice
             else if self.peek_is(TokenType::OpenBracket) {
                 self.bump(); // eat open bracket
-                let field_options = self.options.nested();
-                let fields_result = self.with_options(field_options, |parser| {
+                let field_flags = self.flags.nested();
+                let fields_result = self.with_flags(field_flags, |parser| {
                     parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)
                 })?;
                 let fields = fields_result;
@@ -150,7 +150,7 @@ impl Parser {
                 self.insert_node(pattern, self.get_span_from(&start))
             }
             // binding with expression or pattern
-            else if !self.options.is_in_before_type()
+            else if !self.flags.is_in_before_type()
                 && self.peek_identifier_is()
                 && self.lookahead(|parser| {
                     parser.bump();
@@ -159,9 +159,9 @@ impl Parser {
             {
                 let (name, name_span) = self.eat_binding_identifier_with_span()?;
                 self.bump(); // eat colon
-                let inner_pattern_options = self.options.in_static().in_before_block();
+                let inner_pattern_flags = self.flags.in_static().in_before_block();
                 let inner_pattern_result =
-                    self.with_options(inner_pattern_options, |parser| parser.eat_pattern())?;
+                    self.with_flags(inner_pattern_flags, |parser| parser.eat_pattern())?;
                 let inner_pattern_id = inner_pattern_result;
                 let pattern_id = self.insert_node(
                     Pattern::Binding {
@@ -203,7 +203,7 @@ impl Parser {
                     self.insert_node(pattern, self.get_span_from(&start))
                 }
                 // struct with path
-                else if !self.options.is_in_before_block() && self.peek_is(TokenType::OpenBrace) {
+                else if !self.flags.is_in_before_block() && self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat open brace
                     let fields = self
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
@@ -294,14 +294,14 @@ impl Parser {
             pattern_id = self.insert_node(pattern, self.get_span_from(&start));
         }
         // union
-        if self.peek_is(TokenType::ElementwiseOr) && !self.options.is_in_union_pattern() {
+        if self.peek_is(TokenType::ElementwiseOr) && !self.flags.is_in_union_pattern() {
             // eat all union "fields" (just unnamed patterns)
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_is(TokenType::ElementwiseOr) {
                 self.bump(); // eat '|'
-                let union_options = self.options.in_union_pattern();
+                let union_flags = self.flags.in_union_pattern();
                 let field_pattern_result =
-                    self.with_options(union_options, |parser| parser.eat_pattern())?;
+                    self.with_flags(union_flags, |parser| parser.eat_pattern())?;
                 let field_pattern_id = field_pattern_result;
                 patterns.push(field_pattern_id);
             }
@@ -489,8 +489,7 @@ impl Parser {
     ) -> ParseResult<PatternField> {
         let mutability = self.eat_mutability_maybe()?;
         self.eat_token(TokenType::OpenBracket)?;
-        let key =
-            self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+        let key = self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseBracket,
             NodeType::PatternField,
@@ -671,7 +670,7 @@ impl Parser {
 
         self.bump(); // eat assign
         let value =
-            self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+            self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
         let pattern = Pattern::Assign {
             pattern: pattern_id,
             value,
@@ -806,7 +805,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_underscore_identifier() {
         // _ in TypeScript patterns is a normal binding name
-        let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("_", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Binding { mutability: None, name, pattern: None } => {
@@ -979,7 +978,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_object_field_const_alias() {
         let mut test =
-            TestParser::new_with_options("{ const: value, title }", LanguageType::TypeScript);
+            TestParser::new_with_language("{ const: value, title }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1134,7 +1133,8 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_named_default_after_comment_newline() {
-        let mut test = TestParser::new_with_options("{d //comment\n= b}", LanguageType::JavaScript);
+        let mut test =
+            TestParser::new_with_language("{d //comment\n= b}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1187,7 +1187,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_struct_boolean_name_aliases() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "{ false: decorators, true: metadata }",
             LanguageType::TypeScript,
         );
@@ -1213,7 +1213,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_struct_numeric_literal_field() {
-        let mut test = TestParser::new_with_options("{ 5 }", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("{ 5 }", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1355,7 +1355,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_object_readonly_shorthand() {
-        let mut test = TestParser::new_with_options("{ readonly }", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("{ readonly }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1369,7 +1369,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_object_readonly_shorthand_with_newline() {
-        let mut test = TestParser::new_with_options("{ readonly\n}", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("{ readonly\n}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1397,7 +1397,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_array_readonly_identifier() {
         let mut test =
-            TestParser::new_with_options("[readonly, setReadonly]", LanguageType::TypeScript);
+            TestParser::new_with_language("[readonly, setReadonly]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1441,8 +1441,10 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_object_spread_newline_before_terminator() {
-        let mut test =
-            TestParser::new_with_options("{\n  onSuccess,\n  ...rest\n}", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(
+            "{\n  onSuccess,\n  ...rest\n}",
+            LanguageType::TypeScript,
+        );
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1596,7 +1598,7 @@ mod tests {
     fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
         // {a,b=1,c:d,e:f=2,[g]:[h]}
         let mut test =
-            TestParser::new_with_options("{a,b=1,c:d,e:f=2,[g]:[h]}", LanguageType::JavaScript);
+            TestParser::new_with_language("{a,b=1,c:d,e:f=2,[g]:[h]}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1629,7 +1631,7 @@ mod tests {
     fn test_parse_object_pattern_alias_and_computed_defaults() {
         // {c, d:e=1, [f]:g=2, h=i}
         let mut test =
-            TestParser::new_with_options("{c, d:e=1, [f]:g=2, h=i}", LanguageType::JavaScript);
+            TestParser::new_with_language("{c, d:e=1, [f]:g=2, h=i}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1656,7 +1658,7 @@ mod tests {
     #[test]
     fn test_parse_object_pattern_computed_field_with_newline_after_colon() {
         // { [key]:\nvalue }
-        let mut test = TestParser::new_with_options("{ [key]:\nvalue }", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("{ [key]:\nvalue }", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1679,7 +1681,7 @@ mod tests {
     fn test_parse_object_pattern_alias_with_newline_after_colon() {
         // { source:\ntarget }
         let mut test =
-            TestParser::new_with_options("{ source:\ntarget }", LanguageType::JavaScript);
+            TestParser::new_with_language("{ source:\ntarget }", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 

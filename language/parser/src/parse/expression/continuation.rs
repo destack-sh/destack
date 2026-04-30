@@ -1,4 +1,4 @@
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserCheckpoint, ParserSpanStart};
 
@@ -156,7 +156,7 @@ impl Parser {
                         && self.can_start_tree_literal_after_line_break();
 
                     // typeof query operands must not absorb the next line as generic postfix syntax
-                    let continues_typeof_query = self.options.is_in_typeof_query()
+                    let continues_typeof_query = self.flags.is_in_typeof_query()
                         && matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft);
 
                     matches!(
@@ -194,7 +194,7 @@ impl Parser {
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        if !self.options.is_in_statement_position() {
+        if !self.flags.is_in_statement_position() {
             return false;
         }
 
@@ -242,7 +242,7 @@ impl Parser {
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        if !self.options.is_in_statement_context() {
+        if !self.flags.is_in_statement_context() {
             return false;
         }
 
@@ -1018,7 +1018,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if !self.language.is_destack()
             || !self.peek_is(TokenType::OpenBrace)
-            || self.options.is_in_before_block()
+            || self.flags.is_in_before_block()
         {
             return Ok(None);
         }
@@ -1099,8 +1099,8 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
-            self.stats.record_with_options_call();
-            let tuple_elements = self.with_options(self.options.not_in_position(), |parser| {
+            self.stats.record_with_flags_call();
+            let tuple_elements = self.with_flags(self.flags.not_in_position(), |parser| {
                 parser
                     .eat_sequence_literal_body(Some(first_element_id), TokenType::CloseParenthesis)
             })?;
@@ -1120,8 +1120,8 @@ impl Parser {
                 continue;
             }
 
-            let expression_options = self.options.not_in_position().not_in_sequence_expression();
-            let expression_id = self.eat_expression_with_context_unchecked(expression_options)?;
+            let expression_flags = self.flags.not_in_position().not_in_sequence_expression();
+            let expression_id = self.eat_expression_with_context_unchecked(expression_flags)?;
             expressions.push(expression_id);
         }
 
@@ -1158,7 +1158,7 @@ impl Parser {
 
         // direct calls depend on newline and `new` receiver context
         let has_statement_boundary_newline = token.has_line_break_before;
-        let is_in_new_receiver = self.options.is_in_new_receiver();
+        let is_in_new_receiver = self.flags.is_in_new_receiver();
 
         match token.token_type {
             // tagged template literals
@@ -1251,7 +1251,7 @@ impl Parser {
             }
 
             // tuple or sequence continuations inside parenthesis
-            TokenType::Comma if self.options.is_in_parenthesis() => {
+            TokenType::Comma if self.flags.is_in_parenthesis() => {
                 let expression_id =
                     self.eat_parenthesized_sequence_postfix(start, left_expression_id)?;
 
@@ -1319,9 +1319,9 @@ impl Parser {
         mut left_is_parenthesized: bool,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
-        let is_in_static = self.options.is_in_static();
+        let is_in_static = self.flags.is_in_static();
         let is_in_ternary_or_match =
-            self.options.is_in_ternary_condition() || self.options.is_in_match_case();
+            self.flags.is_in_ternary_condition() || self.flags.is_in_match_case();
 
         loop {
             // struct literal postfix with `{` (like `Vector2 { x: 0, y }`)
@@ -1373,9 +1373,9 @@ impl Parser {
         mut left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX);
-        let is_in_static = self.options.is_in_static();
+        let is_in_static = self.flags.is_in_static();
         let is_in_ternary_or_match =
-            self.options.is_in_ternary_condition() || self.options.is_in_match_case();
+            self.flags.is_in_ternary_condition() || self.flags.is_in_match_case();
 
         loop {
             // normalize the next postfix token once before branch dispatch
@@ -1402,15 +1402,15 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left_type_id: LocalNodeId<TypeExpression>,
-        right_context: ParserOptions,
+        right_context: ParserFlags,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // right side of `extends`
-        let right_ambient_context = self.options.with_type(true);
+        let right_ambient_context = self.flags.with_type(true);
         let extends_context = right_context
             .not_in_left_precedence()
             .disallow_type_conditional();
         let extends_type = self.eat_type_expression_node_or_recover_missing(
-            self.options
+            self.flags
                 .with_ambient_context(right_ambient_context)
                 .with_expression_context(extends_context),
             NodeType::Expression,
@@ -1423,21 +1423,21 @@ impl Parser {
         let (then_type, else_type) = if has_conditional_marker {
             self.bump(); // eat ?
 
-            let then_context = self.options.not_in_position();
+            let then_context = self.flags.not_in_position();
             let then_type = self.eat_type_expression_node_or_recover_missing(
-                self.options
+                self.flags
                     .with_type(true)
                     .with_expression_context(then_context),
                 NodeType::TypeExpression,
             )?;
             self.eat_colon()?;
 
-            let mut else_context = self.options.not_in_position();
-            if self.options.is_in_type_conditional_right() {
+            let mut else_context = self.flags.not_in_position();
+            if self.flags.is_in_type_conditional_right() {
                 else_context = else_context.in_type_conditional_right();
             }
             let else_type = self.eat_type_expression_node_or_recover_missing(
-                self.options
+                self.flags
                     .with_type(true)
                     .with_expression_context(else_context),
                 NodeType::TypeExpression,
@@ -1479,7 +1479,7 @@ impl Parser {
         mut left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
-        let left_precedence = self.options.left_precedence;
+        let left_precedence = self.flags.left_precedence;
 
         loop {
             // normalize the next infix token once before operator analysis
@@ -1495,7 +1495,7 @@ impl Parser {
             }
 
             // stop before ternary or match boundaries
-            if (self.options.is_in_ternary_condition() || self.options.is_in_match_case())
+            if (self.flags.is_in_ternary_condition() || self.flags.is_in_match_case())
                 && token_type == TokenType::Colon
             {
                 break;
@@ -1523,15 +1523,14 @@ impl Parser {
             };
 
             // infer constraints treat `extends` as an outer boundary unless nested explicitly
-            if self.options.is_disallow_type_conditional()
+            if self.flags.is_disallow_type_conditional()
                 && right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
             {
                 break;
             }
 
             // mapped constraints stop before the remap `as`
-            if self.options.is_in_type_mapped_constraint()
-                && right_operator == ParseInfixOperator::As
+            if self.flags.is_in_type_mapped_constraint() && right_operator == ParseInfixOperator::As
             {
                 break;
             }
@@ -1571,11 +1570,11 @@ impl Parser {
 
             // right side context
             let mut right_context = self
-                .options
+                .flags
                 .not_in_statement_position()
                 .not_in_type_conditional_right()
                 .in_left_precedence(right_operator.precedence());
-            if self.options.is_in_type_conditional_right()
+            if self.flags.is_in_type_conditional_right()
                 || matches!(
                     right_operator,
                     ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
@@ -1588,7 +1587,7 @@ impl Parser {
             let previous_left_type_id = left_type_id;
             let head_span = self.type_expression_head_span(left_type_id);
             let full_span = self.get_span_from(start);
-            let is_allowed_type_predicate = self.options.allows_type_predicate()
+            let is_allowed_type_predicate = self.flags.allows_type_predicate()
                 || self.type_expression_is_bare_this(left_type_id);
             left_type_id =
                 if right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends) {
@@ -1596,12 +1595,12 @@ impl Parser {
                 } else if right_operator == ParseInfixOperator::Is && !is_allowed_type_predicate {
                     return Err(ParseError::unexpected(operator_span));
                 } else {
-                    let right_ambient_context = self.options.with_type(true);
+                    let right_ambient_context = self.flags.with_type(true);
                     let right_type_id = if self.is_type_expression_boundary() {
                         self.recover_missing_type_expression_here(NodeType::Expression)
                     } else {
-                        self.with_options(
-                            self.options
+                        self.with_flags(
+                            self.flags
                                 .with_ambient_context(right_ambient_context)
                                 .with_expression_context(right_context),
                             |parser| parser.eat_type_expression(),
@@ -1643,7 +1642,7 @@ impl Parser {
         left_expression_id: LocalNodeId<Expression>,
         right_operator: ParseInfixOperator,
         operator_span: Span,
-        right_context: ParserOptions,
+        right_context: ParserFlags,
     ) -> ParseResult<(Expression, Option<u32>)> {
         // `as const`
         let parses_const_type_reference =
@@ -1654,9 +1653,9 @@ impl Parser {
             as_const_operator_end = Some(const_span.end);
             self.insert_node(TypeExpression::Const, const_span)
         } else {
-            let right_ambient_context = self.options.with_type(true);
+            let right_ambient_context = self.flags.with_type(true);
             self.eat_type_expression_node_or_recover_missing(
-                self.options
+                self.flags
                     .with_ambient_context(right_ambient_context)
                     .with_expression_context(right_context),
                 NodeType::Expression,
@@ -1683,7 +1682,7 @@ impl Parser {
     /// Eat one infix right operand in type space or insert a missing node at a hard boundary.
     fn eat_infix_right_type_or_missing(
         &mut self,
-        right_context: ParserOptions,
+        right_context: ParserFlags,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         // hard boundaries synthesize a missing type node in place
         if self.is_type_expression_boundary() {
@@ -1691,9 +1690,9 @@ impl Parser {
         }
 
         // otherwise parse the full right type in ambient type context
-        let right_ambient_context = self.options.with_type(true);
+        let right_ambient_context = self.flags.with_type(true);
         self.eat_type_expression_node_or_recover_missing(
-            self.options
+            self.flags
                 .with_ambient_context(right_ambient_context)
                 .with_expression_context(right_context),
             NodeType::Expression,
@@ -1717,14 +1716,14 @@ impl Parser {
         mut left_expression_id: LocalNodeId<Expression>,
         mut left_is_parenthesized: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let left_is_statement = self.options.is_in_statement_position()
+        let left_is_statement = self.flags.is_in_statement_position()
             && self
                 .tree
                 .get(left_expression_id)
                 .ends_statement_on_newline();
 
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
-        let left_precedence = self.options.left_precedence;
+        let left_precedence = self.flags.left_precedence;
         loop {
             // wrapped type expressions keep the explicit value/type boundary
             let left_is_type_expression =
@@ -1738,8 +1737,8 @@ impl Parser {
             let has_line_break_before = token.has_line_break_before;
 
             // new receivers stop before type argument delimiters at top-level receiver scope
-            if self.options.is_in_new_receiver()
-                && !self.options.is_in_parenthesis()
+            if self.flags.is_in_new_receiver()
+                && !self.flags.is_in_parenthesis()
                 && (token_type == TokenType::LessThan || token_type == TokenType::ShiftLeft)
             {
                 break;
@@ -1751,7 +1750,7 @@ impl Parser {
             }
 
             // stop before ternary or match case boundary so infix lookahead does not lex past `:`
-            if (self.options.is_in_ternary_condition() || self.options.is_in_match_case())
+            if (self.flags.is_in_ternary_condition() || self.flags.is_in_match_case())
                 && token_type == TokenType::Colon
             {
                 break;
@@ -1789,15 +1788,14 @@ impl Parser {
             };
 
             // infer constraints treat `extends` as an outer boundary unless nested explicitly
-            if self.options.is_disallow_type_conditional()
+            if self.flags.is_disallow_type_conditional()
                 && right_operator == ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
             {
                 break;
             }
 
             // mapped constraints stop before the remap `as`
-            if self.options.is_in_type_mapped_constraint()
-                && right_operator == ParseInfixOperator::As
+            if self.flags.is_in_type_mapped_constraint() && right_operator == ParseInfixOperator::As
             {
                 break;
             }
@@ -1840,11 +1838,11 @@ impl Parser {
             let right_kind = InfixRightKind::new(
                 right_operator,
                 left_is_type_expression,
-                self.options.is_in_before_block(),
-                self.options.allows_type_predicate(),
+                self.flags.is_in_before_block(),
+                self.flags.allows_type_predicate(),
             );
             let mut right_context = self
-                .options
+                .flags
                 .not_in_statement_position()
                 .not_in_type_conditional_right()
                 .in_left_precedence(right_operator.precedence());
@@ -1862,7 +1860,7 @@ impl Parser {
             }
 
             // conditional type right sides must keep their boundary marker active
-            if self.options.is_in_type_conditional_right()
+            if self.flags.is_in_type_conditional_right()
                 || right_kind.keeps_type_conditional_boundary()
             {
                 right_context = right_context.in_type_conditional_right();
@@ -1931,8 +1929,8 @@ impl Parser {
 
                 // normal value infix expressions
                 InfixRightKind::Value => {
-                    let right_expression_id = self.with_options(
-                        self.options.with_expression_context(right_context),
+                    let right_expression_id = self.with_flags(
+                        self.flags.with_expression_context(right_context),
                         |parser| parser.eat_expression_in_scope(),
                     )?;
 
@@ -2001,7 +1999,7 @@ impl Parser {
         start: &ParserSpanStart,
         mut left_expression_id: LocalNodeId<Expression>,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let left_precedence = self.options.left_precedence;
+        let left_precedence = self.flags.left_precedence;
 
         // ternary sits between assignment and short-circuit expressions
         // type conditionals already consume `?` in type-space continuation parsing
@@ -2010,16 +2008,16 @@ impl Parser {
         {
             self.bump(); // eat ?
 
-            let then_options = self
-                .options
+            let then_flags = self
+                .flags
                 .not_in_position()
                 .in_ternary_condition()
                 .not_in_sequence_expression();
-            let then_expression_id = self.eat_expression_with_context_unchecked(then_options)?;
+            let then_expression_id = self.eat_expression_with_context_unchecked(then_flags)?;
             self.eat_colon()?;
 
-            let else_options = self.options.not_in_position().not_in_sequence_expression();
-            let else_expression_id = self.eat_expression_with_context_unchecked(else_options)?;
+            let else_flags = self.flags.not_in_position().not_in_sequence_expression();
+            let else_expression_id = self.eat_expression_with_context_unchecked(else_flags)?;
             let expression = Expression::If {
                 kind: IfKind::Ternary,
                 condition: IfCondition::Expression {
@@ -2033,7 +2031,7 @@ impl Parser {
 
         // sequence expressions only exist in typed and untyped value space
         if left_precedence.is_none()
-            && self.options.allows_sequence_expression()
+            && self.flags.allows_sequence_expression()
             && (self.language.is_typescript() || self.language.is_javascript())
             && self.peek_is(TokenType::Comma)
         {
@@ -2041,10 +2039,8 @@ impl Parser {
             while self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
 
-                let expression_options =
-                    self.options.not_in_position().not_in_sequence_expression();
-                let expression_id =
-                    self.eat_expression_with_context_unchecked(expression_options)?;
+                let expression_flags = self.flags.not_in_position().not_in_sequence_expression();
+                let expression_id = self.eat_expression_with_context_unchecked(expression_flags)?;
                 expressions.push(expression_id);
             }
 
@@ -2159,10 +2155,10 @@ impl Parser {
         if matches!(self.tree.get(left_expression_id), Expression::New { .. }) {
             return None;
         }
-        if self.options.is_in_new_receiver() || self.options.is_in_tree_literal() {
+        if self.flags.is_in_new_receiver() || self.flags.is_in_tree_literal() {
             return None;
         }
-        if self.options.is_in_tree_literal() || self.language.is_javascript() {
+        if self.flags.is_in_tree_literal() || self.language.is_javascript() {
             return None;
         }
 
@@ -2191,7 +2187,7 @@ impl Parser {
         let position = self.postfix_generic_arguments_position_maybe()?;
 
         // postfix generic arguments are disabled in tree contexts
-        if self.options.is_in_tree_literal() || self.language.is_javascript() {
+        if self.flags.is_in_tree_literal() || self.language.is_javascript() {
             return None;
         }
 

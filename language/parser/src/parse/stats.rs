@@ -2,8 +2,8 @@
 /// Counters for speculative parser dispatch and rollback behavior.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ParserSpeculationStats {
-    /// The number of `with_options` scope switches.
-    pub with_options_calls: u64,
+    /// The number of `with_flags` scope switches.
+    pub with_flags_calls: u64,
     /// The number of parser rewinds.
     pub rewind_calls: u64,
     /// The number of parser restores with tree rollback.
@@ -93,12 +93,12 @@ impl ParserStats {
         self.speculation_stats
     }
 
-    /// Record one `with_options` scope switch.
+    /// Record one `with_flags` scope switch.
     #[inline]
-    pub(crate) fn record_with_options_call(&mut self) {
+    pub(crate) fn record_with_flags_call(&mut self) {
         #[cfg(feature = "timings")]
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.with_options_calls += 1;
+            speculation_stats.with_flags_calls += 1;
         }
     }
 

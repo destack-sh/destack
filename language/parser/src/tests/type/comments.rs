@@ -1,12 +1,12 @@
 use crate::tests::*;
-use crate::{Parser, ParserSettings, assert_comment, assert_expression_path, assert_node};
+use crate::{Parser, ParserOptions, assert_comment, assert_expression_path, assert_node};
 use destack_ast::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
     let source = "type Value = First | // union-line\nSecond | Third";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -52,7 +52,7 @@ fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
 #[test]
 fn test_parse_type_intersection_line_comment_on_rhs_separator_owner() {
     let source = "type Value = First & // intersection-line\nSecond";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -121,7 +121,7 @@ fn test_parse_type_predicate_comment_boundaries() {
 #[test]
 fn test_parse_type_reference_prefix_decorator_on_owner() {
     let source = r#"type Value = @addrspace("shared") &Buffer"#;
-    let mut test = TestParser::new_with_options(source, LanguageType::Destack);
+    let mut test = TestParser::new_with_language(source, LanguageType::Destack);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -146,7 +146,7 @@ fn test_parse_type_reference_prefix_decorator_on_owner() {
 #[test]
 fn test_parse_type_union_line_comment_on_leading_separator_owner() {
     let source = "type Value = | // leading-union\nFirst | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -215,7 +215,7 @@ fn test_parse_type_union_line_comment_on_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_block_comment_on_leading_separator_owner() {
     let source = "type Value = | /* leading-union */ First | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -259,7 +259,7 @@ fn test_parse_type_union_block_comment_on_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_doc_comment_on_leading_separator_owner() {
     let source = "type Value = | /** leading-union */ First | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -303,7 +303,7 @@ fn test_parse_type_union_doc_comment_on_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_multiline_doc_comment_on_leading_separator_owner() {
     let source = "type Value = | /**\n * leading-union\n */ First | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -340,7 +340,7 @@ fn test_parse_type_union_multiline_doc_comment_on_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_multiline_doc_comment_before_first_arm_line() {
     let source = "type Value =\n  | /**\n   * leading-union\n   */\n  First | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -382,7 +382,7 @@ fn test_parse_type_union_multiline_doc_comment_before_first_arm_line() {
 #[test]
 fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
     let source = "type Value = (/** leading-union */ | First | Second)";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -424,7 +424,7 @@ fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_single_arm_with_leading_separator() {
     let source = "type Value = | First";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -444,7 +444,7 @@ fn test_parse_type_union_single_arm_with_leading_separator() {
 #[test]
 fn test_parse_type_comment_after_open_parenthesis_attaches_to_inner_leading() {
     let mut test =
-        TestParser::new_with_options("type Value = (/* keep */ string)", LanguageType::TypeScript);
+        TestParser::new_with_language("type Value = (/* keep */ string)", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -474,7 +474,7 @@ fn test_parse_type_comment_after_open_parenthesis_attaches_to_inner_leading() {
 #[test]
 fn test_parse_type_alias_doc_comment_before_leading_separator_owner() {
     let source = "type Value = /** leading-union */ | First | Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -512,7 +512,7 @@ fn test_parse_type_alias_doc_comment_before_leading_separator_owner() {
 
 #[test]
 fn test_parse_type_union_line_comment_before_operator_on_left_arm_owner() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Value = First // left-union\n| Second",
         LanguageType::TypeScript,
     );
@@ -559,7 +559,7 @@ fn test_parse_type_union_line_comment_before_operator_on_left_arm_owner() {
 #[test]
 fn test_parse_declarator_type_comment_on_declared_type_leading_owner() {
     let mut test =
-        TestParser::new_with_options("let value: /* anno */ string", LanguageType::TypeScript);
+        TestParser::new_with_language("let value: /* anno */ string", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -593,7 +593,7 @@ fn test_parse_declarator_type_comment_on_declared_type_leading_owner() {
 #[test]
 fn test_parse_type_argument_comment_on_argument_leading_owner() {
     let mut test =
-        TestParser::new_with_options("type Box = Foo</* a */ string>", LanguageType::TypeScript);
+        TestParser::new_with_language("type Box = Foo</* a */ string>", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -627,7 +627,7 @@ fn test_parse_type_argument_comment_on_argument_leading_owner() {
 
 #[test]
 fn test_parse_type_argument_line_comment_on_argument_leading_owner() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Box = Foo<\n  // a\n  string>",
         LanguageType::TypeScript,
     );
@@ -664,7 +664,7 @@ fn test_parse_type_argument_line_comment_on_argument_leading_owner() {
 
 #[test]
 fn test_parse_type_union_line_comment_between_members_after_leading_separator() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type A6 = /*1*/\n| A\n// A comment to force break\n| B;",
         LanguageType::TypeScript,
     );
@@ -687,7 +687,7 @@ fn test_parse_type_union_line_comment_between_members_after_leading_separator() 
 
 #[test]
 fn test_parse_type_intersection_line_comment_before_operator_on_left_arm_owner() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Value = First // left-intersection\n& Second",
         LanguageType::TypeScript,
     );
@@ -715,7 +715,7 @@ fn test_parse_type_intersection_line_comment_before_operator_on_left_arm_owner()
 #[test]
 fn test_parse_type_intersection_line_comment_on_leading_separator_owner() {
     let source = "type Value = & // leading-intersection\nFirst & Second";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -763,7 +763,7 @@ fn test_parse_type_intersection_line_comment_on_leading_separator_owner() {
 #[test]
 fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
     let source = "type Mixed = null // null-arm\n| {\n  y: number;\n  z: string;\n} // object-arm\n| void // void-arm\n;";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -816,7 +816,7 @@ fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
 #[test]
 fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment() {
     let source = "type Value = First | Second // second-tail\n;";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -847,7 +847,7 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment() {
 #[test]
 fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment_without_semicolon() {
     let source = "type Value =\n  | A\n  | B // last-union\n";
-    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -878,13 +878,13 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment_withou
 #[test]
 fn test_parse_without_parenthesized_wrappers_trims_type_union_last_arm() {
     let source = "type Value = First | Second // second-tail\n;";
-    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();
@@ -910,13 +910,13 @@ fn test_parse_without_parenthesized_wrappers_trims_type_union_last_arm() {
 #[test]
 fn test_parse_without_parenthesized_wrappers_keeps_inner_type_span() {
     let source = "type Box = (/* keep */ string);";
-    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();
@@ -944,13 +944,13 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_type_span() {
 #[test]
 fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
     let source = "type Value = | (A | B);";
-    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();
@@ -995,13 +995,13 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
 #[test]
 fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_head() {
     let source = "type Value = & (A & B);";
-    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();
@@ -1045,7 +1045,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_he
 
 #[test]
 fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "export type Value = /** union-doc\n */\n| { ok: true }\n| { ok: false; value: bigint | null };",
         LanguageType::TypeScript,
     );
@@ -1077,12 +1077,12 @@ fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
 /// Record mapped remap and value separator ownership and template head spans.
 #[test]
 fn test_parse_type_mapped_expression_records_separator_and_template_head_spans() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Paths<T> = {\n  [K in keyof T as // remap-note\n    `get${Capitalize<K & string>}`]: // value-note\n    () => T[K]\n}",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1134,12 +1134,12 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
 /// Keep mapped remap block comments inside the `as` boundary range.
 #[test]
 fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Paths<T> = {\n  [K in keyof T as /* remap-note */\n    `get${Capitalize<K & string>}`]: () => T[K]\n}",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1193,12 +1193,12 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
 /// Record mapped field trailing ownership after the value terminator.
 #[test]
 fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Paths<T> = {\n  [K in keyof T as Capitalize<K & string>]: () => T[K]; // remap-note\n}",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1223,13 +1223,13 @@ fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
 fn test_parse_without_parenthesized_wrappers_trims_mapped_union_last_arm() {
     let source =
         "type Value<T> = {\n  [K in keyof T]:\n    | T[K] // arm-a\n    | undefined // arm-b\n}";
-    let test = TestParser::new_with_options(source, LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language(source, LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let expressions = parser.parse();
@@ -1257,12 +1257,12 @@ fn test_parse_without_parenthesized_wrappers_trims_mapped_union_last_arm() {
 /// Keep template interpolation trailing line comments as raw trailing trivia.
 #[test]
 fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type Paths<T> = {\n  [K in keyof T as `get${Capitalize<\n    K & string\n  > // remap-note\n  }`]: () => T[K]\n}",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

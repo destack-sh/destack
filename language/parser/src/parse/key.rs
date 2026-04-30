@@ -510,7 +510,7 @@ impl Parser {
     /// Return true when the next tokens start a private hash key.
     #[inline]
     fn peek_private_hash_key_is(&mut self) -> bool {
-        if !self.options.allows_private_hash_key()
+        if !self.flags.allows_private_hash_key()
             || !(self.language.is_javascript()
                 || self.language.is_typescript()
                 || self.language.is_destack())
@@ -568,7 +568,7 @@ impl Parser {
             // expression
             else {
                 let key = self.eat_expression(
-                    self.options
+                    self.flags
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
@@ -641,7 +641,7 @@ impl Parser {
             // expression
             else {
                 let key = self.eat_expression(
-                    self.options
+                    self.flags
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
@@ -733,7 +733,7 @@ string
     #[test]
     fn test_reject_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
         // source: [a,b]
-        let mut test = TestParser::new_with_options("[a,b]", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("[a,b]", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let error = parser.eat_key_with_span().unwrap_err();
 
@@ -745,7 +745,7 @@ string
     #[test]
     fn test_reject_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
         // source: 021
-        let mut test = TestParser::new_with_options("021", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("021", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let error = parser.eat_key_with_span().unwrap_err();
 
@@ -756,12 +756,12 @@ string
     /// Parse computed keys with ternaries even when outer left precedence is set.
     #[test]
     fn test_parse_key_computed_ternary_with_outer_left_precedence() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "[hasCjsFormat ? 'module' : 'import']",
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.options = parser.options.in_left_precedence(1);
+        parser.flags = parser.flags.in_left_precedence(1);
 
         let (key, _span) = parser.eat_key_with_span().unwrap();
 

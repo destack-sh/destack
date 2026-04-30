@@ -181,7 +181,7 @@ impl Parser {
     pub fn eat_parenthesized_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
-        let expression_id = self.eat_expression(self.options)?;
+        let expression_id = self.eat_expression(self.flags)?;
 
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 

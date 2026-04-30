@@ -1,4 +1,4 @@
-use crate::parse::parser::ParserOptions;
+use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
@@ -11,25 +11,25 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 impl Parser {
     /// Return parser contexts for a match value expression.
     #[inline]
-    fn match_value_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.with_before_block(true);
-        let expression_context = self.options;
+    fn match_value_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.with_before_block(true);
+        let expression_context = self.flags;
         (ambient_context, expression_context)
     }
 
     /// Return parser contexts for a match-case pattern.
     #[inline]
-    fn match_pattern_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.with_match_case(true);
-        let expression_context = self.options;
+    fn match_pattern_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.with_match_case(true);
+        let expression_context = self.flags;
         (ambient_context, expression_context)
     }
 
     /// Return parser contexts for a match-case guard.
     #[inline]
-    fn match_guard_contexts(&self) -> (ParserOptions, ParserOptions) {
-        let ambient_context = self.options.with_match_case(true).with_before_block(true);
-        let expression_context = ParserOptions::default();
+    fn match_guard_contexts(&self) -> (ParserFlags, ParserFlags) {
+        let ambient_context = self.flags.with_match_case(true).with_before_block(true);
+        let expression_context = ParserFlags::default();
         (ambient_context, expression_context)
     }
 
@@ -67,8 +67,8 @@ impl Parser {
 
         // value
         let (value_ambient_context, value_expression_context) = self.match_value_contexts();
-        let value_id = self.with_options(
-            self.options
+        let value_id = self.with_flags(
+            self.flags
                 .with_ambient_context(value_ambient_context)
                 .with_expression_context(value_expression_context),
             |parser| parser.eat_parenthesized_expression(),
@@ -192,7 +192,7 @@ impl Parser {
                         let (guard_ambient_context, guard_expression_context) =
                             self.match_guard_contexts();
                         let value = self.eat_expression(
-                            self.options
+                            self.flags
                                 .with_ambient_context(guard_ambient_context)
                                 .with_expression_context(guard_expression_context),
                         )?;
@@ -207,8 +207,8 @@ impl Parser {
                         self.eat_keyword(Keyword::If)?;
                         let (guard_ambient_context, guard_expression_context) =
                             self.match_guard_contexts();
-                        let guard = self.with_options(
-                            self.options
+                        let guard = self.with_flags(
+                            self.flags
                                 .with_ambient_context(guard_ambient_context)
                                 .with_expression_context(guard_expression_context),
                             |parser| parser.eat_parenthesized_expression(),
@@ -228,8 +228,8 @@ impl Parser {
                 // pattern
                 let (pattern_ambient_context, pattern_expression_context) =
                     self.match_pattern_contexts();
-                let pattern = self.with_options(
-                    self.options
+                let pattern = self.with_flags(
+                    self.flags
                         .with_ambient_context(pattern_ambient_context)
                         .with_expression_context(pattern_expression_context),
                     |parser| parser.eat_pattern(),
@@ -241,8 +241,8 @@ impl Parser {
                     self.eat_keyword(Keyword::If)?;
                     let (guard_ambient_context, guard_expression_context) =
                         self.match_guard_contexts();
-                    let guard = self.with_options(
-                        self.options
+                    let guard = self.with_flags(
+                        self.flags
                             .with_ambient_context(guard_ambient_context)
                             .with_expression_context(guard_expression_context),
                         |parser| parser.eat_parenthesized_expression(),
@@ -807,7 +807,7 @@ switch (tag.injectTo) {
     /// Parse a switch case with an if block, following assignments, then fallthrough case.
     #[test]
     fn test_parse_switch_case_if_block_then_assignments_then_fallthrough_case() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r###"
 switch (tag) {
   case dataViewTag:
@@ -900,7 +900,7 @@ switch (value) {
     /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
     #[test]
     fn test_parse_switch_case_minified_if_continue_then_if() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
             LanguageType::JavaScript,
         );
@@ -926,7 +926,7 @@ switch (value) {
 
     #[test]
     fn test_parse_switch_case_boundary_comment_ownership() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"switch (state) {
   // before-ready
   case "ready":

@@ -242,13 +242,13 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         // parse the first argument as the import target
-        let target_options = self
-            .options
+        let target_flags = self
+            .flags
             .nested()
             .not_in_position()
             .not_in_sequence_expression();
         let target_expression =
-            self.eat_expression_or_recover_missing(target_options, NodeType::Expression)?;
+            self.eat_expression_or_recover_missing(target_flags, NodeType::Expression)?;
 
         // keep static string targets interned when no decorators are attached
         let target_has_decorators = !self.tree.get_decorators(target_expression.id).is_empty();
@@ -269,8 +269,8 @@ impl Parser {
             if self.peek_is(TokenType::CloseParenthesis) || self.peek_is(TokenType::End) {
                 Some(vec![])
             } else {
-                let argument_options = self.options.nested();
-                let arguments = self.with_options(argument_options, |parser| {
+                let argument_flags = self.flags.nested();
+                let arguments = self.with_flags(argument_flags, |parser| {
                     parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
                 })?;
                 Some(arguments)
@@ -592,7 +592,7 @@ impl Parser {
             }
 
             let value =
-                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+                self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
             let item = self.insert_node(
                 DependencyItem::Item {
                     mode: DependencyMode::Default,
@@ -630,7 +630,7 @@ impl Parser {
         else if self.peek_is(TokenType::Assign) {
             self.bump(); // eat assign
             let value =
-                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+                self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
             let item = self.insert_node(
                 DependencyItem::Item {
                     mode: DependencyMode::Namespace,
@@ -879,8 +879,8 @@ impl Parser {
 
         // attribute clause body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
-        let argument_options = self.options.nested();
-        let arguments = self.with_options(argument_options, |parser| {
+        let argument_flags = self.flags.nested();
+        let arguments = self.with_flags(argument_flags, |parser| {
             parser.eat_arguments_body(TokenType::CloseBrace)
         })?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
@@ -1350,7 +1350,7 @@ mod tests {
     fn test_parse_import_from_expression() {
         let mut test = TestParser::new("import os from 'os'");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // import os from 'os'
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, .. } => {
@@ -2012,7 +2012,7 @@ import {
     #[test]
     fn test_parse_export_clause_after_comment_newline_keyword() {
         let mut test =
-            TestParser::new_with_options("export //comment\n{}", LanguageType::JavaScript);
+            TestParser::new_with_language("export //comment\n{}", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
@@ -2024,7 +2024,7 @@ import {
 
     #[test]
     fn test_parse_export_specifier_alias_after_comment_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "export {\n  bar as // comment\n  baz,\n} from 'foo'",
             LanguageType::JavaScript,
         );
@@ -2044,7 +2044,7 @@ import {
 
     #[test]
     fn test_parse_import_specifier_alias_after_comment_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "import {\n  bar as // comment\n  baz,\n} from 'foo'",
             LanguageType::JavaScript,
         );
@@ -2148,7 +2148,7 @@ import {
 
     #[test]
     fn test_parse_import_type_equals_require_with_newlines() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "import type\nMyType = require(\"pkg\")",
             LanguageType::TypeScript,
         );
@@ -2170,7 +2170,7 @@ import {
 
     #[test]
     fn test_parse_import_type_equals_path() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"import type Alias = Namespace.Value"#,
             LanguageType::TypeScript,
         );
@@ -2193,7 +2193,7 @@ import {
     #[test]
     fn test_parse_import_type_equals_identifier() {
         let mut test =
-            TestParser::new_with_options(r#"import type Alias = Value"#, LanguageType::TypeScript);
+            TestParser::new_with_language(r#"import type Alias = Value"#, LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expression_id = parser.eat_import().unwrap();
 
@@ -2395,7 +2395,7 @@ export type { CreateUIMessage, UIMessage }
 
     #[test]
     fn test_parse_triple_slash_reference_path_leading_import() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"/// <reference path="global.d.ts" />
 export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
@@ -2418,7 +2418,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_parse_triple_slash_reference_path_stops_after_code() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"export as namespace Foo
 /// <reference path="./late.d.ts" />"#,
             LanguageType::TypeScriptDeclaration,
@@ -2434,7 +2434,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_parse_triple_slash_reference_types_leading_import() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"/// <reference types="node" />
 export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
@@ -2457,7 +2457,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_parse_triple_slash_reference_lib_leading_import() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"/// <reference lib="dom" />
 export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
@@ -2480,7 +2480,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_parse_triple_slash_directive_only_file_with_banner_comment() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"/*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 ***************************************************************************** */
@@ -2513,7 +2513,7 @@ Copyright (c) Microsoft Corporation.
     }
     #[test]
     fn test_parse_triple_slash_no_default_lib_is_preserved() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"/// <reference no-default-lib="true" />
 export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
@@ -2536,7 +2536,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_parse_export_as_namespace() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "export as namespace Foo",
             LanguageType::TypeScriptDeclaration,
         );
@@ -2648,7 +2648,7 @@ export as namespace Foo"#,
     fn test_reject_export_type_without_binding() {
         // source: export type
         let source = "export type";
-        let mut test = TestParser::new_with_options("export type", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("export type", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let error = parser.eat_export().unwrap_err();
 
@@ -2792,7 +2792,7 @@ export as namespace Foo"#,
     #[test]
     fn test_parse_export_type_identifier_without_target() {
         // source: export { type }
-        let mut test = TestParser::new_with_options("export { type }", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("export { type }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
@@ -2813,7 +2813,7 @@ export as namespace Foo"#,
     fn test_parse_export_named_type_with_keyword_alias_without_target() {
         // source: export { type as if }
         let mut test =
-            TestParser::new_with_options("export { type as if }", LanguageType::TypeScript);
+            TestParser::new_with_language("export { type as if }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
@@ -2834,7 +2834,7 @@ export as namespace Foo"#,
     fn test_parse_export_type_only_as_as_keyword_alias_without_target() {
         // source: export { type as as if }
         let mut test =
-            TestParser::new_with_options("export { type as as if }", LanguageType::TypeScript);
+            TestParser::new_with_language("export { type as as if }", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
@@ -2853,7 +2853,7 @@ export as namespace Foo"#,
 
     #[test]
     fn test_reject_export_function_without_name() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "export function(option: any): void",
             LanguageType::TypeScript,
         );
@@ -2865,7 +2865,7 @@ export as namespace Foo"#,
     #[test]
     fn test_parse_root_import_named_binding_from_source() {
         let mut test =
-            TestParser::new_with_options("import {a} from 'a';", LanguageType::JavaScript);
+            TestParser::new_with_language("import {a} from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2881,7 +2881,7 @@ export as namespace Foo"#,
     #[test]
     fn test_parse_root_import_default_and_namespace() {
         let mut test =
-            TestParser::new_with_options("import a, * as b from 'a';", LanguageType::JavaScript);
+            TestParser::new_with_language("import a, * as b from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2897,7 +2897,7 @@ export as namespace Foo"#,
     #[test]
     fn test_parse_root_empty_type_import() {
         let mut test =
-            TestParser::new_with_options("import type {} from 'a';", LanguageType::TypeScript);
+            TestParser::new_with_language("import type {} from 'a';", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -2913,7 +2913,7 @@ export as namespace Foo"#,
     #[test]
     fn test_parse_root_export_named_binding_from_source() {
         let mut test =
-            TestParser::new_with_options("export {a} from 'a';", LanguageType::JavaScript);
+            TestParser::new_with_language("export {a} from 'a';", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 

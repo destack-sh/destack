@@ -19,7 +19,7 @@ fn test_parse_mapped_type() {
  [Property in keyof Type as `get${Capitalize<string & Property>}`]: () => Type[Property]
  };
 "#;
-    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -148,7 +148,7 @@ fn test_parse_mapped_type() {
 fn test_parse_type_mapped_expression_in_generic_arguments() {
     let mut test = TestParser::new("type T = Promise<{ -readonly [P in keyof T]: T[P] }>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
@@ -169,7 +169,7 @@ fn test_parse_type_mapped_expression_in_generic_arguments() {
 fn test_parse_type_mapped_expression_with_newline_between_plus_and_readonly() {
     let mut test = TestParser::new("type T = { +\nreadonly [K in keyof T]: T[K] }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = { +\nreadonly [K in keyof T]: T[K] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -215,7 +215,7 @@ fn test_parse_type_mapped_expression_distinguishes_plain_and_explicit_add_modifi
 fn test_parse_type_mapped_expression_with_semicolon() {
     let mut test = TestParser::new("type T = { [K in T]: T[K]; }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = { [K in T]: T[K]; }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -283,7 +283,7 @@ fn test_parse_type_mapped_expression_with_intersection() {
         "type T = { [P in keyof T]: T[P]; } & { [x: string]: PropertyDescriptor; }",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = { [P in keyof T]: T[P]; } & { [x: string]: PropertyDescriptor; }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -311,7 +311,7 @@ fn test_parse_type_mapped_expression_with_intersection() {
 
 #[test]
 fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_value() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T = (O extends P ? B<
     O,
     {
@@ -325,7 +325,7 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -374,7 +374,7 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
 
 #[test]
 fn test_parse_type_mapped_expression_with_leading_intersection_parenthesized_conditional() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T =
     & A
     & (O extends P ? B<
@@ -391,7 +391,7 @@ fn test_parse_type_mapped_expression_with_leading_intersection_parenthesized_con
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -429,7 +429,7 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
     let mut test =
         TestParser::new("type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -445,12 +445,12 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
 
 #[test]
 fn test_parse_type_mapped_expression_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type T = { [K in keyof T]: T[K] }",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = { [K in keyof T]: T[K] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -462,12 +462,12 @@ fn test_parse_type_mapped_expression_in_declaration_file() {
 
 #[test]
 fn test_parse_type_mapped_expression_with_remap_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }",
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -485,7 +485,7 @@ fn test_parse_type_mapped_expression_missing_value_type() {
     // type T = { [K in keyof T]: }
     let mut test = TestParser::new("type T = { [K in keyof T]: }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -511,7 +511,7 @@ fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
     // type T = { [K in keyof T: T[K] }
     let mut test = TestParser::new("type T = { [K in keyof T: T[K] }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -543,7 +543,7 @@ fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
 
 #[test]
 fn test_parse_type_mapped_expression_with_leading_union_constraint() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T = {
   /* head */
   [K in
@@ -553,7 +553,7 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -576,7 +576,7 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
 
 #[test]
 fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T<O> = {
   [K in keyof O
   as O[K] extends {} ? K : never]: O[K]
@@ -584,7 +584,7 @@ fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_fi
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -602,7 +602,7 @@ fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_fi
 
 #[test]
 fn test_parse_leading_intersection_with_mapped_types_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T = (
   & { [K in keyof T]: T[K] }
   & { [K in keyof T as K extends string ? K : never]: T[K] }
@@ -610,7 +610,7 @@ fn test_parse_leading_intersection_with_mapped_types_in_declaration_file() {
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = (& { [K in keyof T]: T[K] } & { [K in keyof T as K extends string ? K : never]: T[K] })
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -628,7 +628,7 @@ fn test_parse_leading_intersection_with_mapped_types_in_declaration_file() {
 
 #[test]
 fn test_parse_leading_intersection_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T = (
   & A
   & B
@@ -636,7 +636,7 @@ fn test_parse_leading_intersection_in_declaration_file() {
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = (& A & B)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -654,7 +654,7 @@ fn test_parse_leading_intersection_in_declaration_file() {
 
 #[test]
 fn test_parse_leading_intersection_with_mapped_type_and_path_in_declaration_file() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type T = (
   & { [K in keyof T]: T[K] }
   & A
@@ -662,7 +662,7 @@ fn test_parse_leading_intersection_with_mapped_type_and_path_in_declaration_file
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = (& { [K in keyof T]: T[K] } & A)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -680,14 +680,14 @@ fn test_parse_leading_intersection_with_mapped_type_and_path_in_declaration_file
 
 #[test]
 fn test_parse_leading_union_in_type_alias() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type IframeChannelIncomingEvent
   = | IframeViewportEvent
 | ChannelDoneEvent"#,
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {

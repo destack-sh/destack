@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions, ImportError, ResolveMode};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{
     DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
     MemoryFileSystem, ModuleId, Uri,
@@ -236,12 +236,12 @@ fn parse_file_with_parser(
 
     // parse and collect diagnostics
     let language = LanguageType::from(file_type);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language,
-        ParserSettings {
+        ParserOptions {
             disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let _ = parser.parse();

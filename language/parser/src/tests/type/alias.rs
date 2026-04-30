@@ -27,7 +27,7 @@ fn test_parse_type_alias() {
 
 #[test]
 fn test_parse_declare_type_alias_kind() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "declare type T = string",
         LanguageType::TypeScriptDeclaration,
     );
@@ -49,7 +49,7 @@ fn test_parse_declare_type_alias_kind() {
 /// Parse a type alias followed by a tree literal.
 #[test]
 fn test_parse_type_alias_before_tree_literal() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "type X = typeof Array\n<div>a</div>;",
         LanguageType::TypeScriptXml,
     );
@@ -71,9 +71,9 @@ fn test_parse_type_alias_before_tree_literal() {
 
 #[test]
 fn test_parse_bigint_literal_type() {
-    let mut test = TestParser::new_with_options("let x: 0n;", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("let x: 0n;", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         let declarator = parser.tree.get(declarators[0]);
@@ -89,7 +89,7 @@ fn test_parse_bigint_literal_type() {
 fn test_parse_this_type_alias() {
     let mut test = TestParser::new("type Builder = this");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // type Builder = this
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -103,7 +103,7 @@ fn test_parse_this_type_alias() {
 fn test_parse_type_alias_with_generic_parameters() {
     let mut test = TestParser::new("type T<A, B> = isize");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // type T<A, B> = int32
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, generic_parameters, .. }) => {
@@ -119,9 +119,9 @@ fn test_parse_type_alias_with_generic_parameters() {
 /// Parse a type alias when `>` and `=` are adjacent.
 #[test]
 fn test_parse_type_alias_with_generic_parameters_without_spacing() {
-    let mut test = TestParser::new_with_options("type T<U>=U;", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("type T<U>=U;", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T<U>=U
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -139,9 +139,9 @@ fn test_parse_type_alias_with_generic_parameters_without_spacing() {
 /// Parse a type alias with an explicit empty generic list.
 #[test]
 fn test_parse_type_alias_with_empty_generic_parameters() {
-    let mut test = TestParser::new_with_options("type Box<> = string;", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("type Box<> = string;", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Box<> = string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -158,7 +158,7 @@ fn test_parse_type_alias_with_empty_generic_parameters() {
 /// Parse parenthesized multiline unions with a leading separator and comments.
 #[test]
 fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"type Schema = (
   | // leading separator comment
   {
@@ -171,7 +171,7 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -189,7 +189,7 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
 fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
     let mut test = TestParser::new("type T = (string");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
 
@@ -210,7 +210,7 @@ fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
 fn test_parse_pointer_type_alias() {
     let mut test = TestParser::new("type Ptr = *int32");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Ptr");
@@ -232,7 +232,7 @@ fn test_parse_pointer_type_alias() {
 fn test_parse_borrowed_reference_type_alias() {
     let mut test = TestParser::new("type Borrowed = &Buffer");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Borrowed");
@@ -253,7 +253,7 @@ fn test_parse_borrowed_reference_type_alias() {
 fn test_parse_readonly_borrowed_reference_type_alias() {
     let mut test = TestParser::new("type Borrowed = &readonly Buffer");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Borrowed");
@@ -273,7 +273,7 @@ fn test_parse_readonly_borrowed_reference_type_alias() {
 fn test_parse_type_parameter_function_constraint() {
     let mut test = TestParser::new("type Parameters<T extends (a: any) => any> = T");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     // type Parameters<T extends (a: any) => any> = T
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { generic_parameters, .. }) => {
@@ -293,7 +293,7 @@ fn test_parse_type_parameter_default_conditional() {
         "type Wrapper<F extends Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type Wrapper<F extends Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::{env, fs};
 
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 /// Return whether parser-side trivia retention should stay enabled.
@@ -27,12 +27,12 @@ fn main() {
     let file = File::from_text(FileId::new(0), file_name, uri, None, file_type, content);
 
     let retain_trivia_tokens = retain_trivia_tokens_from_env();
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         Arc::new(file),
         language,
-        ParserSettings {
+        ParserOptions {
             retain_trivia_tokens,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     let nodes = if retain_trivia_tokens {

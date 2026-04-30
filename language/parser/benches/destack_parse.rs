@@ -1,6 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -145,8 +145,8 @@ fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
 
     eprintln!("parser speculation snapshot: {label}");
     eprintln!(
-        "  with_options={} rewind={} restore={}",
-        stats.with_options_calls, stats.rewind_calls, stats.restore_calls
+        "  with_flags={} rewind={} restore={}",
+        stats.with_flags_calls, stats.rewind_calls, stats.restore_calls
     );
     eprintln!(
         "  statement dispatch: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={}",
@@ -191,12 +191,12 @@ fn parse_file(file: Arc<File>) -> Parser {
         .and_then(|value| value.parse::<u8>().ok())
         .map(|value| value > 0)
         .unwrap_or(true);
-    let mut parser = Parser::lex_file_with_settings(
+    let mut parser = Parser::lex_file_with_options(
         file,
         language_type,
-        ParserSettings {
+        ParserOptions {
             retain_trivia_tokens,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
     if retain_trivia_tokens {

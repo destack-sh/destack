@@ -6,7 +6,7 @@ use destack_ast::*;
 fn test_parse_type_import_expression_with_generic_arguments() {
     let mut test = TestParser::new("type T = import(\"mod\").Type<string, number>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = import("mod").Type<string, number>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -38,7 +38,7 @@ fn test_parse_type_import_expression_with_qualified_default_name() {
     let mut test =
         TestParser::new("type T = import(\"./interceptors\").default.createRedirectInterceptor");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = import("./interceptors").default.createRedirectInterceptor
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -61,7 +61,7 @@ fn test_parse_typeof_import_expression_uses_import_type_operand() {
         "type T = typeof import(\"./interceptors\").default.createRedirectInterceptor",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = typeof import("./interceptors").default.createRedirectInterceptor
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -88,7 +88,7 @@ fn test_parse_type_import_expression_with_attributes() {
     let mut test =
         TestParser::new("type T = import(\"vite\", { with: { \"resolution-mode\": \"import\" } })");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -110,7 +110,7 @@ fn test_parse_type_import_expression_with_attributes() {
 fn test_parse_type_import_expression_with_non_string_target() {
     let mut test = TestParser::new("type T = import(1)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -127,7 +127,7 @@ fn test_parse_type_import_expression_with_non_string_target() {
 fn test_parse_type_import_expression_with_trailing_comma() {
     let mut test = TestParser::new("type T = import(\"vite\",)");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -146,7 +146,7 @@ fn test_parse_type_import_expression_missing_target() {
     // type T = import()
     let mut test = TestParser::new("type T = import()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = import()
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -166,7 +166,7 @@ fn test_parse_type_import_expression_replaces_error_target_slot() {
     // type T = import(, "fallback")
     let mut test = TestParser::new("type T = import(, \"fallback\")");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = import(, "fallback")
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -191,7 +191,7 @@ fn test_parse_type_import_expression_missing_close_parenthesis_with_member_targe
     // type T = import("mod".Type
     let mut test = TestParser::new("type T = import(\"mod\".Type");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
 
@@ -217,7 +217,7 @@ fn test_parse_type_import_expression_missing_close_parenthesis_with_member_targe
 fn test_parse_type_import_expression() {
     let mut test = TestParser::new("type T = import(\"mod\").Type");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = import("mod").Type
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -238,7 +238,7 @@ fn test_parse_type_import_expression() {
 fn test_parse_type_import_span() {
     let mut test = TestParser::new(r#"type T = import("foo").Bar"#);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {

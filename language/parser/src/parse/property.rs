@@ -383,14 +383,14 @@ impl Parser {
     /// Eat one spread or embed value expression.
     #[inline]
     fn eat_property_value_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let ambient_context = self.options;
+        let ambient_context = self.flags;
         let expression_context = self
-            .options
+            .flags
             .not_in_position()
             .not_in_left_precedence()
             .not_in_sequence_expression();
         self.eat_expression(
-            self.options
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
         )
@@ -440,13 +440,12 @@ impl Parser {
         is_generator: bool,
     ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let ambient_context = self
-            .options
+            .flags
             .with_generator(is_generator)
             .with_forbid_yield(is_generator);
-        self.with_options(
-            self.options.with_ambient_context(ambient_context),
-            |parser| parser.eat_dynamic_parameters(),
-        )
+        self.with_flags(self.flags.with_ambient_context(ambient_context), |parser| {
+            parser.eat_dynamic_parameters()
+        })
     }
 
     /// Eat one method or field type expression.
@@ -455,17 +454,17 @@ impl Parser {
         &mut self,
         owner: NodeType,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let mut ambient_context = self.options.nested().with_type(true);
+        let mut ambient_context = self.flags.nested().with_type(true);
         if !self.peek_is(TokenType::OpenBrace) {
             ambient_context = ambient_context.with_before_block(true);
         }
         let expression_context = self
-            .options
+            .flags
             .nested()
             .not_in_left_precedence()
             .not_in_sequence_expression();
         self.eat_type_expression_node_or_recover_missing(
-            self.options
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context.allow_type_predicate()),
             owner,
@@ -479,16 +478,16 @@ impl Parser {
         is_generator: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let ambient_context = self
-            .options
+            .flags
             .with_generator(is_generator)
             .with_decorator(false);
         let expression_context = self
-            .options
+            .flags
             .not_in_position()
             .with_statement_position(true)
             .with_sequence_expression(true);
         self.eat_expression(
-            self.options
+            self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
         )
@@ -654,9 +653,9 @@ impl Parser {
     /// Eat one member type expression.
     #[inline]
     fn eat_member_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let ambient_context = self.options.with_type(true);
+        let ambient_context = self.flags.with_type(true);
         self.eat_type_expression_node_or_recover_missing(
-            self.options.with_ambient_context(ambient_context),
+            self.flags.with_ambient_context(ambient_context),
             NodeType::Member,
         )
     }
@@ -664,11 +663,10 @@ impl Parser {
     /// Eat a key with private hash parsing enabled.
     #[inline]
     fn eat_property_key_with_span(&mut self) -> ParseResult<Option<(Key, Span)>> {
-        let ambient_context = self.options.with_allow_private_hash_key(true);
-        self.with_options(
-            self.options.with_ambient_context(ambient_context),
-            |parser| parser.eat_key_maybe_with_span(),
-        )
+        let ambient_context = self.flags.with_allow_private_hash_key(true);
+        self.with_flags(self.flags.with_ambient_context(ambient_context), |parser| {
+            parser.eat_key_maybe_with_span()
+        })
     }
 
     /// Try to eat one associated type member.
@@ -817,7 +815,7 @@ impl Parser {
         } = self.eat_property_member_head(modifiers, false, false)?;
 
         // object fields cannot start with an unkeyed call signature
-        if !self.options.is_in_type()
+        if !self.flags.is_in_type()
             && key.is_none()
             && mode.is_none()
             && !is_async
@@ -910,7 +908,7 @@ impl Parser {
                     self.bump(); // eat colon
 
                     // field type
-                    let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
+                    let is_type_context = self.flags.is_in_variant() || self.flags.is_in_type();
                     let value = if self.peek_is(TokenType::Assign)
                         || self.peek_is(TokenType::Comma)
                         || self.peek_is(TokenType::CloseBrace)
@@ -918,14 +916,14 @@ impl Parser {
                     {
                         self.recover_missing_expression_here(NodeType::Property)
                     } else {
-                        let ambient_context = self.options.nested().with_type(is_type_context);
+                        let ambient_context = self.flags.nested().with_type(is_type_context);
                         let expression_context = self
-                            .options
+                            .flags
                             .not_in_position()
                             .not_in_left_precedence()
                             .not_in_sequence_expression();
                         self.eat_expression(
-                            self.options
+                            self.flags
                                 .with_ambient_context(ambient_context)
                                 .with_expression_context(expression_context),
                         )?
@@ -949,17 +947,17 @@ impl Parser {
                     self.recover_missing_expression_here(NodeType::Property)
                 } else {
                     let ambient_context = if associated_comptime_name.is_some() {
-                        self.options.nested()
+                        self.flags.nested()
                     } else {
-                        self.options
+                        self.flags
                     };
                     let expression_context = self
-                        .options
+                        .flags
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression();
                     self.eat_expression(
-                        self.options
+                        self.flags
                             .with_ambient_context(ambient_context)
                             .with_expression_context(expression_context),
                     )?
@@ -1080,7 +1078,7 @@ impl Parser {
                 break;
             }
             // consume decorator prefixes in type literal properties
-            else if self.options.is_in_type() && token_type == TokenType::At {
+            else if self.flags.is_in_type() && token_type == TokenType::At {
                 let decorators = self.eat_decorators_maybe()?;
                 pending_property_decorators.extend(decorators);
                 continue;
@@ -1171,7 +1169,7 @@ impl Parser {
             self.eat_token(TokenType::Colon)?;
 
             let key_type = self.eat_type_expression_node_or_recover_missing(
-                self.options
+                self.flags
                     .not_in_position()
                     .not_in_left_precedence()
                     .not_in_sequence_expression()
@@ -1692,7 +1690,7 @@ impl Parser {
                     self.recover_missing_expression_here(NodeType::Member)
                 } else {
                     self.eat_expression(
-                        self.options
+                        self.flags
                             .not_in_position()
                             .not_in_left_precedence()
                             .not_in_sequence_expression(),
@@ -1840,7 +1838,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_with_private_hash_name() {
-        let mut test = TestParser::new_with_options(r#"#name: string"#, LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(r#"#name: string"#, LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -1854,7 +1852,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_definite_assignment() {
-        let mut test = TestParser::new_with_options("prop!: Foo", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -1866,7 +1864,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_accessor_definite_assignment() {
-        let mut test = TestParser::new_with_options("accessor a!: any", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("accessor a!: any", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -1881,7 +1879,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_declare_accessor_private_hash() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "private declare accessor #value: string",
             LanguageType::TypeScript,
         );
@@ -1901,7 +1899,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_rejects_optional_definite_assignment_combo() {
-        let mut test = TestParser::new_with_options("prop!?: Foo", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("prop!?: Foo", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         assert!(parser.eat_member().is_err());
@@ -1910,7 +1908,7 @@ mod tests {
     #[test]
     fn test_parse_member_override_field() {
         let mut test =
-            TestParser::new_with_options("override foo: int32", LanguageType::TypeScript);
+            TestParser::new_with_language("override foo: int32", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -1931,7 +1929,7 @@ mod tests {
 
     #[test]
     fn test_parse_member_default_object_arrow_with_this_member_call_argument() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r"
 port2 = {
   postMessage: () => {
@@ -1942,7 +1940,7 @@ port2 = {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
         let member_id = parser.eat_member().unwrap();
 
         // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
@@ -1982,8 +1980,10 @@ port2 = {
 
     #[test]
     fn test_parse_member_abstract_override_method() {
-        let mut test =
-            TestParser::new_with_options("abstract override foo(): void", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language(
+            "abstract override foo(): void",
+            LanguageType::TypeScript,
+        );
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -1997,7 +1997,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_async_override_method() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "public async override foo(): void",
             LanguageType::TypeScript,
         );
@@ -2014,7 +2014,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_parameter_type_then_default_value() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {}",
             LanguageType::TypeScript,
         );
@@ -2052,7 +2052,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_generic_with_newline_before_parameters() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "private method<T>\n(value: T): T { return value }",
             LanguageType::TypeScript,
         );
@@ -2085,7 +2085,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_with_newline_before_return_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "method(value: string)\n: string { return value }",
             LanguageType::TypeScript,
         );
@@ -2116,7 +2116,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_object_union_return_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "overlaps(): { overlaps: false } | { overlaps: true; reason: string }",
             LanguageType::TypeScript,
         );
@@ -2141,7 +2141,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_body_boundary_comment_on_return_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "method(): number // method-body\n{ return 1 }",
             LanguageType::TypeScript,
         );
@@ -2169,7 +2169,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_async_string_literal_name() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"async 'delete'(name: string): Promise<boolean> { return true }"#,
             LanguageType::TypeScript,
         );
@@ -2206,7 +2206,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_method_named_public() {
-        let mut test = TestParser::new_with_options("public() {}", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("public() {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -2219,7 +2219,7 @@ port2 = {
     #[test]
     fn test_parse_member_static_method_named_protected() {
         let mut test =
-            TestParser::new_with_options("static protected() {}", LanguageType::JavaScript);
+            TestParser::new_with_language("static protected() {}", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -2231,7 +2231,7 @@ port2 = {
 
     #[test]
     fn test_parse_member_field_named_static() {
-        let mut test = TestParser::new_with_options("static", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language("static", LanguageType::JavaScript);
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
@@ -2284,7 +2284,8 @@ port2 = {
 
     #[test]
     fn test_reject_member_method_signature_without_separator() {
-        let mut test = TestParser::new_with_options("method() method2()", LanguageType::TypeScript);
+        let mut test =
+            TestParser::new_with_language("method() method2()", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let result = parser.eat_member();
@@ -2293,7 +2294,7 @@ port2 = {
 
     #[test]
     fn test_parse_interface_get_set_with_newlines() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"interface Foo {
   get
   foo(): string;
@@ -2329,13 +2330,13 @@ port2 = {
 
     #[test]
     fn test_parse_member_get_set_newline_only() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"get
 foo(): string;"#,
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let member = parser.with_options(parser.options.in_variant(), |parser| parser.eat_member());
+        let member = parser.with_flags(parser.flags.in_variant(), |parser| parser.eat_member());
         assert!(
             member.is_ok(),
             "unexpected member parse error: {:#?}",
@@ -2347,7 +2348,7 @@ foo(): string;"#,
     fn test_parse_property_with_value() {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
         let property = parser.eat_property().unwrap();
         assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
             assert_string!(parser, *name, "x");
@@ -2400,7 +2401,7 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_property_with_typed_arrow_value() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "reproFunc: (_: any): any => { }",
             LanguageType::TypeScript,
         );
@@ -2421,7 +2422,7 @@ foo(): string;"#,
     fn test_parse_property_with_value_and_default_value() {
         let mut test = TestParser::new("x: int32 = 42");
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
         let property = parser.eat_property().unwrap();
         assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "x");
@@ -2431,7 +2432,7 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_property_definite_assignment() {
-        let mut test = TestParser::new_with_options("prop!: LongType[]", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("prop!: LongType[]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let property = parser.eat_property().unwrap();
         assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
@@ -2448,7 +2449,7 @@ foo(): string;"#,
         // +\ny: int32
         let mut test = TestParser::new("+\ny: int32");
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
         let properties = parser.eat_properties().unwrap();
 
         assert_eq!(parser.errors.len(), 1);
@@ -2474,7 +2475,8 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_property_rejects_optional_definite_assignment_combo() {
-        let mut test = TestParser::new_with_options("prop!?: LongType[]", LanguageType::TypeScript);
+        let mut test =
+            TestParser::new_with_language("prop!?: LongType[]", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         assert!(parser.eat_property().is_err());
@@ -2547,7 +2549,7 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_constructor_parameter_property_readonly_public_modifier_order_reports_error() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r"class D extends B {
   constructor(readonly public foo: string) {}
 }",
@@ -2561,12 +2563,12 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_member_computed_optional_method() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, is_optional, .. } => {
@@ -2749,7 +2751,7 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_member_method_with_multiline_return_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"Type(object: unknown):
     | 'Undefined'
     | 'Boolean'
@@ -2757,7 +2759,7 @@ foo(): string;"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
@@ -2770,12 +2772,12 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_member_method_with_type_predicate_return_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "public isDynamicModule(module: Type<any> | DynamicModule): module is DynamicModule",
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.options.set_in_variant(true);
+        parser.flags.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
@@ -2790,7 +2792,7 @@ foo(): string;"#,
 
     #[test]
     fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"class Box {
   first = 1 // first-tail
   second = 2 // second-tail

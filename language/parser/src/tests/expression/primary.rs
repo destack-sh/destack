@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{
-    Parser, ParserSettings, assert_expression_path, assert_node, assert_path,
+    Parser, ParserOptions, assert_expression_path, assert_node, assert_path,
     assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 use destack_ast::*;
@@ -11,7 +11,7 @@ use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 fn test_parse_import_meta_expression() {
     let mut test = TestParser::new("import.meta.env");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, name.expect("expected member name"), "env");
@@ -24,7 +24,7 @@ fn test_parse_import_meta_expression() {
 fn test_parse_new_target_expression() {
     let mut test = TestParser::new("new.target.member");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, name.expect("expected member name"), "member");
@@ -35,21 +35,21 @@ fn test_parse_new_target_expression() {
 /// Disambiguate import source phase access as a path.
 #[test]
 fn test_parse_import_source_as_path() {
-    let mut test = TestParser::new_with_options("import.source", LanguageType::JavaScript);
+    let mut test = TestParser::new_with_language("import.source", LanguageType::JavaScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_qualified_reference_path!(parser, parser.tree.get(expression_id), "import.source");
 }
 
 /// Parse import source phase calls as member calls.
 #[test]
 fn test_parse_import_source_call_expression() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"import.source("data:text/javascript,console.log(1)")"#,
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -60,12 +60,12 @@ fn test_parse_import_source_call_expression() {
 /// Parse import source phase calls with expression arguments.
 #[test]
 fn test_parse_import_source_call_expression_with_template_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "import.source(String.raw`data:text/javascript,console.log(1)`)",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
@@ -81,7 +81,7 @@ fn test_parse_import_source_call_expression_with_template_argument() {
 fn test_parse_this_expression() {
     let mut test = TestParser::new("this");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::This);
 }
 
@@ -90,7 +90,7 @@ fn test_parse_this_expression() {
 fn test_parse_identifier_expression_as_identifier() {
     let mut test = TestParser::new("value");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Identifier { name } => {
         assert_string!(parser, *name, "value");
@@ -103,7 +103,7 @@ fn test_parse_identifier_expression_as_identifier() {
 fn test_parse_contextual_type_literal_name_member_expression() {
     let mut test = TestParser::new("object.property");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_expression_path!(parser, parser.tree.get(*left), "object");
@@ -118,7 +118,7 @@ fn test_parse_contextual_type_literal_name_member_expression() {
 fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
     let mut test = TestParser::new("type Foo.Bar");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
@@ -138,18 +138,18 @@ fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
 /// Parse a bare super expression.
 #[test]
 fn test_parse_super_expression() {
-    let mut test = TestParser::new_with_options("super", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("super", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Super);
 }
 
 /// Parse a bare null literal in TypeScript.
 #[test]
 fn test_parse_null_literal() {
-    let mut test = TestParser::new_with_options("null", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("null", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(
         parser.tree,
         expression_id,
@@ -160,9 +160,9 @@ fn test_parse_null_literal() {
 /// Parse parenthesized expressions with a transparent head span.
 #[test]
 fn test_parse_parenthesized_expression_records_semantic_head_span() {
-    let mut test = TestParser::new_with_options("(value)", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("(value)", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
         let head_span = parser
@@ -179,16 +179,16 @@ fn test_parse_parenthesized_expression_records_semantic_head_span() {
 /// Keep inner spans without parenthesized expression wrappers.
 #[test]
 fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
-    let test = TestParser::new_with_options("(/* keep */ value)", LanguageType::TypeScript);
-    let mut parser = Parser::lex_file_with_settings(
+    let test = TestParser::new_with_language("(/* keep */ value)", LanguageType::TypeScript);
+    let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
         test.language,
-        ParserSettings {
+        ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         },
     );
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
@@ -211,9 +211,9 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
 /// Parse a private identifier used in an in expression.
 #[test]
 fn test_parse_private_identifier_in_expression() {
-    let mut test = TestParser::new_with_options("#a in this", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("#a in this", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
     // #a in this
     assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::In);
@@ -227,7 +227,7 @@ fn test_parse_private_identifier_in_expression() {
 /// Parse typed object methods in decorator style call arguments.
 #[test]
 fn test_parse_typed_object_method_in_call_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"connect({
     num(state: State) {
         return state.counter.num;
@@ -238,7 +238,7 @@ fn test_parse_typed_object_method_in_call_argument() {
     );
     let mut parser = test.prepare();
 
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "connect");
@@ -282,7 +282,7 @@ fn test_parse_typed_object_method_in_call_argument() {
 /// Parse typed object methods in decorator call arguments.
 #[test]
 fn test_parse_typed_object_method_in_decorator_argument() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"connect({
     num(state: State) {
         if (state.counter.num === 0) return true;
@@ -298,8 +298,8 @@ fn test_parse_typed_object_method_in_decorator_argument() {
     );
     let mut parser = test.prepare();
     let expression_id = parser
-        .with_options(parser.options.in_decorator(), |parser| {
-            parser.eat_expression(parser.options)
+        .with_flags(parser.flags.in_decorator(), |parser| {
+            parser.eat_expression(parser.flags)
         })
         .unwrap();
 
@@ -373,7 +373,7 @@ fn test_parse_keywords_as_fields_and_identifiers() {
 }",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 25);
@@ -403,9 +403,9 @@ fn test_parse_keywords_as_fields_and_identifiers() {
 /// Parse `type instanceof Foo` as an instanceof guard.
 #[test]
 fn test_parse_type_keyword_instanceof_expression() {
-    let mut test = TestParser::new_with_options("type instanceof Foo", LanguageType::TypeScript);
+    let mut test = TestParser::new_with_language("type instanceof Foo", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::InstanceOf { value, target } => {
         assert_expression_path!(parser, parser.tree.get(*value), "type");
@@ -416,12 +416,12 @@ fn test_parse_type_keyword_instanceof_expression() {
 /// Parse `extension` as an identifier in TypeScript expressions.
 #[test]
 fn test_parse_extension_identifier_in_ternary_expression() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r#"typeof extension === "function" ? extension(cloned) : extension"#,
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
         assert_eq!(*kind, IfKind::Ternary);

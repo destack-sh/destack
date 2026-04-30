@@ -53,7 +53,7 @@ const shapes = (
 )",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
@@ -78,8 +78,8 @@ const shapes = (
 fn test_parse_anonymous_struct_literal() {
     let mut test = TestParser::new("{ }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block { .. });
 }
 
@@ -88,8 +88,8 @@ fn test_parse_anonymous_struct_literal() {
 fn test_parse_statement_position_object_literal_with_comment() {
     let mut test = TestParser::new("{ /* key */ a: 1 }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
@@ -104,8 +104,8 @@ fn test_parse_statement_position_object_literal_with_comment() {
 fn test_parse_statement_position_object_literal_computed_key() {
     let mut test = TestParser::new("{ [key]: value }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Expression(key_id), value, .. } => {
@@ -120,7 +120,7 @@ fn test_parse_statement_position_object_literal_computed_key() {
 fn test_parse_parenthesized_object_literal_shorthand_field() {
     let mut test = TestParser::new("({ value })");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
             assert_eq!(properties.len(), 1);
@@ -138,7 +138,7 @@ fn test_parse_parenthesized_object_literal_shorthand_field() {
 fn test_parse_parenthesized_object_literal_explicit_field_is_not_shorthand() {
     let mut test = TestParser::new("({ value: value })");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
             assert_eq!(properties.len(), 1);
@@ -156,7 +156,7 @@ fn test_parse_parenthesized_object_literal_explicit_field_is_not_shorthand() {
 fn test_parse_parenthesized_object_literal_computed_field_without_value() {
     let mut test = TestParser::new("({ [value] })");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
@@ -172,8 +172,8 @@ fn test_parse_parenthesized_object_literal_computed_field_without_value() {
 fn test_parse_statement_position_block_with_assignment() {
     let mut test = TestParser::new("{ step = step + 1; return base + step; }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { leading_expressions, tail_expression, .. } => {
             assert_eq!(leading_expressions.len(), 2);
@@ -189,8 +189,8 @@ fn test_parse_statement_position_block_with_assignment() {
 fn test_parse_statement_position_block_with_array_literal() {
     let mut test = TestParser::new("{ [] }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { .. } => {
             let expressions = block_expression_ids(parser.tree.get(*block_id));
@@ -208,8 +208,8 @@ fn test_parse_statement_position_block_with_array_literal() {
 fn test_parse_statement_position_computed_method_as_block() {
     let mut test = TestParser::new("{ [key]()\n{} }");
     let mut parser = test.prepare();
-    parser.options.set_in_statement_position(true);
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    parser.flags.set_in_statement_position(true);
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(_) => {});
 }
 
@@ -218,7 +218,7 @@ fn test_parse_statement_position_computed_method_as_block() {
 fn test_parse_anonymous_block_with_do_disambiguation() {
     let mut test = TestParser::new("let x = do { }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
@@ -235,7 +235,7 @@ fn test_parse_anonymous_block_with_do_disambiguation() {
 fn test_parse_object_literal_in_parenthesis() {
     let mut test = TestParser::new("({ x: 1, y })");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
             assert_eq!(properties.len(), 2);
@@ -256,7 +256,7 @@ fn test_parse_object_literal_in_parenthesis() {
 fn test_parse_mixed_index_call_postfix() {
     let mut test = TestParser::new("x?.[f]?.y<T>?.().?");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // x?.[f]?.y<T>?.().?
     // .?
@@ -335,7 +335,7 @@ fn test_parse_empty_parenthesis_tuple() {
 fn test_parse_struct_literal_path() {
     let mut test = TestParser::new("geom.Vector2 { x: 1, y }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(
         parser.tree,
         expr_id,
@@ -363,7 +363,7 @@ fn test_parse_struct_literal_path() {
 /// Parse a struct literal with generic parameters and two fields.
 #[test]
 fn test_parse_struct_literal_path_with_generic_parameters() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         r##"
 geom.Mesh<2, 4> {
     vertices: [1, 2],
@@ -372,7 +372,7 @@ geom.Mesh<2, 4> {
         LanguageType::Destack,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(
         parser.tree,
         expr_id,
@@ -399,12 +399,12 @@ geom.Mesh<2, 4> {
 /// Parse boolean IdentifierName property keys and accessors in JavaScript.
 #[test]
 fn test_parse_object_boolean_identifier_name_keys() {
-    let mut test = TestParser::new_with_options(
+    let mut test = TestParser::new_with_language(
         "{ true: 1, false: 2, get true() {}, set false(value) {} }",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 4);
@@ -441,15 +441,15 @@ fn test_parse_object_boolean_identifier_name_keys() {
 
 #[test]
 fn test_parse_object_literal_with_typed_arrow_value() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_options(
+    let language = LanguageType::TypeScript;
+    let mut test = TestParser::new_with_language(
         r#"{
     reproFunc: (_: any): any => { },
 }"#,
-        options,
+        language,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
@@ -467,10 +467,10 @@ fn test_parse_object_literal_with_typed_arrow_value() {
 /// Comma in parentheses parses as tuple expression.
 #[test]
 fn test_parse_tuple_expression() {
-    let options = LanguageType::Destack;
-    let mut test = TestParser::new_with_options("(a, b, c)", options);
+    let language = LanguageType::Destack;
+    let mut test = TestParser::new_with_language("(a, b, c)", language);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // (a, b, c)
     assert_node!(parser.tree, expr_id, Expression::TupleExpression { elements } => {

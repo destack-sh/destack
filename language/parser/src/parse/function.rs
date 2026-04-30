@@ -188,8 +188,8 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> bool {
-        !self.options.is_in_type()
-            && !self.options.is_in_match_case()
+        !self.flags.is_in_type()
+            && !self.flags.is_in_match_case()
             && !expect_maybe
             && !expect_body
             && *header == DeclarationHeader::default()
@@ -211,22 +211,22 @@ impl Parser {
         body_start: &ParserSpanStart,
     ) -> ParseResult<(LocalNodeId<Expression>, Span)> {
         if self.is_block_start() {
-            let mut options = self
-                .options
+            let mut flags = self
+                .flags
                 .in_statement_position()
                 .in_before_block()
                 .not_in_decorator();
-            options.set_allow_sequence_expression(true);
+            flags.set_allow_sequence_expression(true);
             let block_id =
-                self.with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
+                self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
             let body_span = self.get_span_from(body_start);
             let body = self.tree.insert(Expression::Block(block_id), body_span);
 
             Ok((body, body_span))
         } else {
-            let mut options = self.options.in_before_block().not_in_decorator();
-            options.set_allow_sequence_expression(false);
-            let body = self.eat_expression(options)?;
+            let mut flags = self.flags.in_before_block().not_in_decorator();
+            flags.set_allow_sequence_expression(false);
+            let body = self.eat_expression(flags)?;
             let body_span = self.get_span_from(body_start);
 
             Ok((body, body_span))
@@ -521,18 +521,16 @@ impl Parser {
             let (parameter_type, parameter_type_span) = if has_type_annotation {
                 let type_start = self.span_start();
                 self.eat_token(TokenType::Colon)?;
-                let mut type_options = self
-                    .options
+                let mut type_flags = self
+                    .flags
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type();
-                if self.options.is_in_type_conditional_right() {
-                    type_options = type_options.in_type_conditional_right();
+                if self.flags.is_in_type_conditional_right() {
+                    type_flags = type_flags.in_type_conditional_right();
                 }
-                let parameter_type = self.eat_type_expression_node_or_recover_missing(
-                    type_options,
-                    NodeType::Parameter,
-                )?;
+                let parameter_type = self
+                    .eat_type_expression_node_or_recover_missing(type_flags, NodeType::Parameter)?;
                 let parameter_type_span = self.get_span_from(&type_start);
                 (Some(parameter_type), Some(parameter_type_span))
             } else {
@@ -571,18 +569,18 @@ impl Parser {
             let type_start = self.span_start();
             self.eat_token(TokenType::Colon)?;
 
-            let mut return_type_options = self.options.nested().in_type();
-            if self.options.is_in_type_conditional_right() {
-                return_type_options = return_type_options.in_type_conditional_right();
+            let mut return_type_flags = self.flags.nested().in_type();
+            if self.flags.is_in_type_conditional_right() {
+                return_type_flags = return_type_flags.in_type_conditional_right();
             }
-            if self.options.is_in_static() {
-                return_type_options = return_type_options.in_static();
+            if self.flags.is_in_static() {
+                return_type_flags = return_type_flags.in_static();
             }
-            return_type_options = return_type_options
+            return_type_flags = return_type_flags
                 .in_arrow_return_type()
                 .allow_type_predicate();
             let return_type = self.eat_type_expression_node_or_recover_missing(
-                return_type_options,
+                return_type_flags,
                 NodeType::Declaration,
             )?;
             let return_type_span = self.get_span_from(&type_start);
@@ -641,11 +639,11 @@ impl Parser {
         // dynamic parameters
         let parameter_container_start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
-        let parameter_options = self.options.with_generator(false).with_forbid_yield(false);
+        let parameter_flags = self.flags.with_generator(false).with_forbid_yield(false);
         let parameters = if self.peek_is(TokenType::CloseParenthesis) {
             vec![]
         } else {
-            self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
+            self.with_flags(parameter_flags, |parser| parser.eat_parameters_body())?
         };
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
@@ -658,18 +656,18 @@ impl Parser {
             let type_start = self.span_start();
             self.eat_token(TokenType::Colon)?;
 
-            let mut return_type_options = self.options.nested().in_type();
-            if self.options.is_in_type_conditional_right() {
-                return_type_options = return_type_options.in_type_conditional_right();
+            let mut return_type_flags = self.flags.nested().in_type();
+            if self.flags.is_in_type_conditional_right() {
+                return_type_flags = return_type_flags.in_type_conditional_right();
             }
-            if self.options.is_in_static() {
-                return_type_options = return_type_options.in_static();
+            if self.flags.is_in_static() {
+                return_type_flags = return_type_flags.in_static();
             }
-            return_type_options = return_type_options
+            return_type_flags = return_type_flags
                 .in_arrow_return_type()
                 .allow_type_predicate();
             let return_type = self.eat_type_expression_node_or_recover_missing(
-                return_type_options,
+                return_type_flags,
                 NodeType::Declaration,
             )?;
             let return_type_span = self.get_span_from(&type_start);
@@ -967,7 +965,7 @@ impl Parser {
 
         // declarations in statement position require a name unless default-exported
         if kind == FunctionKind::Function
-            && self.options.is_in_statement_position()
+            && self.flags.is_in_statement_position()
             && name.is_none()
             && header.export != Some(ExportMode::Default)
         {
@@ -981,7 +979,7 @@ impl Parser {
         let (parameters, parameter_container_span) = {
             // regular `(...) => ...` function/lambda
             let has_parenthesized_parameters = kind == FunctionKind::Function
-                || self.options.is_in_type()
+                || self.flags.is_in_type()
                 || self.peek_is(TokenType::OpenParenthesis)
                 || self.next_token_type() == TokenType::OpenParenthesis;
             if has_parenthesized_parameters {
@@ -993,11 +991,11 @@ impl Parser {
                 let parameters = if self.peek_is(TokenType::CloseParenthesis) {
                     vec![]
                 } else {
-                    let parameter_options = self
-                        .options
+                    let parameter_flags = self
+                        .flags
                         .with_generator(is_generator)
                         .with_forbid_yield(is_generator);
-                    self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
+                    self.with_flags(parameter_flags, |parser| parser.eat_parameters_body())?
                 };
                 self.eat_list_close_token_or_recover_missing(
                     TokenType::CloseParenthesis,
@@ -1038,19 +1036,19 @@ impl Parser {
                 self.bump(); // eat colon or arrow
 
                 // return type
-                let mut return_type_options = self.options.nested().in_type();
-                if self.options.is_in_type_conditional_right() {
-                    return_type_options = return_type_options.in_type_conditional_right();
+                let mut return_type_flags = self.flags.nested().in_type();
+                if self.flags.is_in_type_conditional_right() {
+                    return_type_flags = return_type_flags.in_type_conditional_right();
                 }
-                if self.options.is_in_static() {
-                    return_type_options = return_type_options.in_static();
+                if self.flags.is_in_static() {
+                    return_type_flags = return_type_flags.in_static();
                 }
-                return_type_options = return_type_options.allow_type_predicate();
-                if !self.options.is_in_type() {
-                    return_type_options = return_type_options.in_arrow_return_type();
+                return_type_flags = return_type_flags.allow_type_predicate();
+                if !self.flags.is_in_type() {
+                    return_type_flags = return_type_flags.in_arrow_return_type();
                 }
                 let return_type = self.eat_type_expression_node_or_recover_missing(
-                    return_type_options,
+                    return_type_flags,
                     NodeType::Declaration,
                 )?;
                 let return_type_span = self.get_span_from(&type_start);
@@ -1065,7 +1063,7 @@ impl Parser {
                 (Some(return_type), Some(return_type_span), where_clauses)
             }
             // regular function with return type or lambda type
-            else if kind == FunctionKind::Function || self.options.is_in_type() {
+            else if kind == FunctionKind::Function || self.flags.is_in_type() {
                 // return type
                 let has_return_type_marker = self.peek_arrow_is()
                     || self.peek_colon_is()
@@ -1076,16 +1074,16 @@ impl Parser {
                     self.bump(); // eat arrow or colon
 
                     // return type
-                    let mut return_type_options = self.options.nested().in_type().in_before_block();
-                    if self.options.is_in_type_conditional_right() {
-                        return_type_options = return_type_options.in_type_conditional_right();
+                    let mut return_type_flags = self.flags.nested().in_type().in_before_block();
+                    if self.flags.is_in_type_conditional_right() {
+                        return_type_flags = return_type_flags.in_type_conditional_right();
                     }
-                    if self.options.is_in_static() {
-                        return_type_options = return_type_options.in_static();
+                    if self.flags.is_in_static() {
+                        return_type_flags = return_type_flags.in_static();
                     }
-                    return_type_options = return_type_options.allow_type_predicate();
+                    return_type_flags = return_type_flags.allow_type_predicate();
                     let return_type = self.eat_type_expression_node_or_recover_missing(
-                        return_type_options,
+                        return_type_flags,
                         NodeType::Declaration,
                     )?;
                     (Some(return_type), Some(self.get_span_from(&type_start)))
@@ -1121,53 +1119,52 @@ impl Parser {
 
             // function with body
             if kind == FunctionKind::Function && self.peek_is(TokenType::OpenBrace) {
-                let mut options = self
-                    .options
+                let mut flags = self
+                    .flags
                     .in_statement_position()
                     .in_before_block()
                     .not_in_decorator()
                     .with_generator(is_generator);
-                options.set_allow_sequence_expression(true);
-                options.set_forbid_await(options.is_forbid_await() && !is_async);
+                flags.set_allow_sequence_expression(true);
+                flags.set_forbid_await(flags.is_forbid_await() && !is_async);
                 let body_start = self.span_start();
-                let block_id = self
-                    .with_options(options, |parser| parser.eat_block(BlockContext::Expression))?;
+                let block_id =
+                    self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
                 let body_span = self.get_span_from(&body_start);
                 let body = self.tree.insert(Expression::Block(block_id), body_span);
                 (Some(body), Some(body_span))
             }
             // lambda with body
             else if kind == FunctionKind::Lambda
-                && !self.options.is_in_type()
+                && !self.flags.is_in_type()
                 && self.peek_arrow_is()
             {
                 self.eat_arrow()?;
                 let body_start = self.span_start();
                 let body = if self.is_block_start() {
-                    let mut options = self
-                        .options
+                    let mut flags = self
+                        .flags
                         .in_statement_position()
                         .in_before_block()
                         .not_in_decorator()
                         .with_generator(is_generator);
                     // block bodies are delimited, so sequence expressions stay local
-                    options.set_allow_sequence_expression(true);
-                    options.set_forbid_await(options.is_forbid_await() && !is_async);
-                    let block_id = self.with_options(options, |parser| {
-                        parser.eat_block(BlockContext::Expression)
-                    })?;
+                    flags.set_allow_sequence_expression(true);
+                    flags.set_forbid_await(flags.is_forbid_await() && !is_async);
+                    let block_id = self
+                        .with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
                 } else {
-                    let mut options = self
-                        .options
+                    let mut flags = self
+                        .flags
                         .in_before_block()
                         .not_in_decorator()
                         .with_generator(is_generator);
                     // avoid swallowing commas from surrounding contexts
-                    options.set_allow_sequence_expression(false);
-                    options.set_forbid_await(options.is_forbid_await() && !is_async);
-                    self.eat_expression(options)?
+                    flags.set_allow_sequence_expression(false);
+                    flags.set_forbid_await(flags.is_forbid_await() && !is_async);
+                    self.eat_expression(flags)?
                 };
                 let body_span = self.get_span_from(&body_start);
                 (Some(body), Some(body_span))
@@ -1228,7 +1225,7 @@ impl Parser {
         }
 
         // arrow return types only apply in type positions
-        if !self.options.is_in_type() {
+        if !self.flags.is_in_type() {
             return false;
         }
 
@@ -1250,7 +1247,7 @@ mod tests {
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{
-        ParserSettings, TestParser, assert_comment, assert_expression_path, assert_name,
+        ParserOptions, TestParser, assert_comment, assert_expression_path, assert_name,
         assert_node, assert_path, assert_string,
     };
 
@@ -1292,7 +1289,7 @@ mod tests {
 
     #[test]
     fn test_parse_function_missing_close_paren_keeps_following_declaration() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 export function broken( {}
 export function stableLater(): void {}
@@ -1326,7 +1323,7 @@ export function stableLater(): void {}
 
     #[test]
     fn test_parse_function_missing_close_paren_before_following_function_keeps_declaration() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 function broken(
 function stableLater(): void {}
@@ -1360,7 +1357,7 @@ function stableLater(): void {}
 
     #[test]
     fn test_parse_function_missing_close_paren_before_following_const_keeps_statement() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 function broken(
 const value = 1
@@ -1397,7 +1394,7 @@ const value = 1
 
     #[test]
     fn test_parse_function_parameter_named_type_after_newline() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"
 function configure(
     type: string,
@@ -1570,7 +1567,7 @@ function setns(
     fn test_parse_function_type_with_this_parameter() {
         let mut test = TestParser::new("type T = (this: Foo, value: Bar) => Baz");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // type T = (this: Foo, value: Bar) => Baz
         assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -1592,7 +1589,7 @@ function setns(
     #[test]
     fn test_parse_arrow_function_with_this_parameter() {
         let mut test =
-            TestParser::new_with_options("(this: string) => {}", LanguageType::TypeScript);
+            TestParser::new_with_language("(this: string) => {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let start = parser.span_start();
         let function_id = parser
@@ -1640,9 +1637,9 @@ function setns(
     /// Parse parenthesized void return types in arrow functions.
     #[test]
     fn test_parse_function_parenthesized_void_return_type() {
-        let mut test = TestParser::new_with_options("(): (void) => {}", LanguageType::TypeScript);
+        let mut test = TestParser::new_with_language("(): (void) => {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -1659,12 +1656,12 @@ function setns(
     /// Parse default parameters followed by required parameters.
     #[test]
     fn test_parse_function_default_parameter_followed_by_required() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"function func(greeting: string = "Hello", target: string) {}"#,
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.options).unwrap();
+        let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // function func(greeting: string = "Hello", target: string) {}
         assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -1696,7 +1693,7 @@ function setns(
     fn test_parse_function_new_type() {
         let mut test = TestParser::new("new(): $");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
 
         let start = parser.span_start();
         let function_id = parser
@@ -1716,7 +1713,7 @@ function setns(
     fn test_parse_function_new_type_with_generic_arguments() {
         let mut test = TestParser::new("new <T>(x: int32) => T");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
 
         let start = parser.span_start();
         let function_id = parser
@@ -1829,7 +1826,7 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
     fn test_parse_function_abstract_new_type_with_newline() {
         let mut test = TestParser::new("abstract\nnew (): T");
         let mut parser = test.prepare();
-        parser.options.set_in_type(true);
+        parser.flags.set_in_type(true);
 
         let start = parser.span_start();
         let function_id = parser
@@ -1913,7 +1910,7 @@ function h<T>
 
     #[test]
     fn test_parse_function_with_newline_before_return_type_colon() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             r#"function f<T>(value: T)
   : T {
   return value as never
@@ -2086,10 +2083,12 @@ async function* foo() => int32 {
     #[test]
     fn test_parse_function_generator_call_argument_with_bare_yield() {
         // source: function* a() { b.c(yield); }
-        let mut test =
-            TestParser::new_with_options("function* a() { b.c(yield); }", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(
+            "function* a() { b.c(yield); }",
+            LanguageType::JavaScript,
+        );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function* a() { b.c(yield); }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2121,12 +2120,12 @@ async function* foo() => int32 {
     /// Parse anonymous function expression container spans.
     #[test]
     fn test_parse_function_expression_container_spans() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "bar(...items, function() { return 1; });",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // bar(...items, function() { return 1; })
         assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
@@ -2217,10 +2216,12 @@ function main() {
     #[test]
     fn test_parse_function_generator_nested_yield() {
         // source: function *a() { yield yield }
-        let mut test =
-            TestParser::new_with_options("function *a() { yield yield }", LanguageType::JavaScript);
+        let mut test = TestParser::new_with_language(
+            "function *a() { yield yield }",
+            LanguageType::JavaScript,
+        );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function *a() { yield yield }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2251,9 +2252,9 @@ function main() {
     fn test_parse_function_generator_delegate_yield() {
         // source: function *a() { yield *a }
         let mut test =
-            TestParser::new_with_options("function *a() { yield *a }", LanguageType::JavaScript);
+            TestParser::new_with_language("function *a() { yield *a }", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function *a() { yield *a }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2279,12 +2280,12 @@ function main() {
     #[test]
     fn test_parse_function_generator_delegate_nested_yield() {
         // source: function *a() { yield *yield }
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function *a() { yield *yield }",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function *a() { yield *yield }
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2316,9 +2317,9 @@ function main() {
         // source: function *a(){yield
         // *a}
         let mut test =
-            TestParser::new_with_options("function *a(){yield\n*a}", LanguageType::JavaScript);
+            TestParser::new_with_language("function *a(){yield\n*a}", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function *a(){yield
         // *a}
@@ -2350,12 +2351,12 @@ function main() {
     fn test_recover_function_generator_delegate_before_following_const() {
         // source: function *a(){yield*
         // const value = 1}
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function *a(){yield*\nconst value = 1}",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // diagnostics
         test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
@@ -2391,12 +2392,12 @@ function main() {
     #[test]
     fn test_parse_function_generator_yield_in_class_heritage() {
         // source: function* a(){(class extends (yield) {});}
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function* a(){(class extends (yield) {});}",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // function* a(){(class extends (yield) {});}
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2428,12 +2429,12 @@ function main() {
     #[test]
     fn test_parse_function_generator_yield_in_computed_keys() {
         // source: function* a(){(class {[yield](){}})};
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function* a(){(class {[yield](){}})};",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                 assert_eq!(signature.cardinality, FunctionCardinality::Generator);
@@ -2447,12 +2448,12 @@ function main() {
         });
 
         // source: function* a(){({[yield]:a}=1)}
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function* a(){({[yield]:a}=1)}",
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
                 assert_eq!(signature.cardinality, FunctionCardinality::Generator);
@@ -2521,12 +2522,12 @@ function onResolve(
 
     #[test]
     fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -2564,7 +2565,7 @@ function onResolve(
     #[test]
     fn test_parse_lambda_head_boundary_comment_on_function_owner() {
         let mut test =
-            TestParser::new_with_options("(x) /* lambda-head */ => x", LanguageType::TypeScript);
+            TestParser::new_with_language("(x) /* lambda-head */ => x", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let start = parser.span_start();
@@ -2583,10 +2584,10 @@ function onResolve(
     #[test]
     fn test_parse_lambda_body_boundary_comment_on_body_owner() {
         let mut test =
-            TestParser::new_with_options("(x) =>\n// lambda-body\nx", LanguageType::TypeScript);
+            TestParser::new_with_language("(x) =>\n// lambda-body\nx", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         parser.attach_comments();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
@@ -2604,10 +2605,10 @@ function onResolve(
     #[test]
     fn test_parse_empty_parenthesized_lambda_with_comment() {
         let mut test =
-            TestParser::new_with_options("(/* empty */) => {}", LanguageType::TypeScript);
+            TestParser::new_with_language("(/* empty */) => {}", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         parser.attach_comments();
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2623,10 +2624,10 @@ function onResolve(
     #[test]
     fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
         let mut test =
-            TestParser::new_with_options("() => {\n  // code\n}", LanguageType::TypeScript);
+            TestParser::new_with_language("() => {\n  // code\n}", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
         parser.attach_comments();
 
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2646,7 +2647,7 @@ function onResolve(
 
     #[test]
     fn test_parse_function_body_boundary_line_comment_stays_trailing() {
-        let mut test = TestParser::new_with_options(
+        let mut test = TestParser::new_with_language(
             "function f(): void // body\n{}",
             LanguageType::TypeScript,
         );
@@ -2675,17 +2676,17 @@ function onResolve(
     #[test]
     fn test_reject_unparenthesized_arrow_call() {
         // source: () => {}()
-        let mut test = TestParser::new_with_options("() => {}()", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("() => {}()", LanguageType::Destack);
         let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
         // (
         assert_eq!(parser.get_span_str(error.leaf_span()), "(");
 
         // source: a => {}()
-        let mut test = TestParser::new_with_options("a => {}()", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("a => {}()", LanguageType::Destack);
         let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.options).unwrap_err();
+        let error = parser.eat_expression(parser.flags).unwrap_err();
 
         // (
         assert_eq!(parser.get_span_str(error.leaf_span()), "(");
@@ -2695,9 +2696,9 @@ function onResolve(
     #[test]
     fn test_parse_parenthesized_arrow_call() {
         // source: (() => {})()
-        let mut test = TestParser::new_with_options("(() => {})()", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // (() => {})()
         assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
@@ -2715,13 +2716,13 @@ function onResolve(
     #[test]
     fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
         // source: (() => {})()
-        let mut test = TestParser::new_with_options("(() => {})()", LanguageType::Destack);
+        let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
         let mut parser = test.prepare();
-        parser.apply_settings(ParserSettings {
+        parser.apply_options(ParserOptions {
             preserve_parenthesized_wrappers: false,
-            ..ParserSettings::default()
+            ..ParserOptions::default()
         });
-        let expression_id = parser.eat_expression(parser.options).unwrap();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // (() => {})()
         assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
