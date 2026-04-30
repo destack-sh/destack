@@ -243,7 +243,7 @@ impl Resolver {
 
         if self.uses_repository_path_truth(path, ctx) {
             let (repository, revision) = self.source_world(ctx);
-            let metadata = repository.metadata(revision, path).map_err(|error| {
+            let metadata = repository.file_metadata(revision, path).map_err(|error| {
                 ResolveError::RepositoryError {
                     path: path.to_path_buf(),
                     message: error.to_string(),
