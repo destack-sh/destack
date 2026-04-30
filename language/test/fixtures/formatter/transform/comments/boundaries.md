@@ -178,6 +178,50 @@ render(
 );
 ```
 
+### control rvalue collection comments
+
+Comments around control expressions in collection slots keep their attachment.
+
+```ds
+const values = [
+    // selected
+    if (ready) {
+        // ready branch
+        readyValue
+    } else {
+        // pending branch
+        pendingValue
+    },
+    // mapped
+    match (kind) {
+        // primary
+        Primary => primaryValue
+        // fallback
+        _ => fallbackValue
+    }
+]
+```
+
+```ds expected
+const values = [
+    // selected
+    if (ready) {
+        // ready branch
+        readyValue
+    } else {
+        // pending branch
+        pendingValue
+    },
+    // mapped
+    match (kind) {
+        // primary
+        Primary => primaryValue
+        // fallback
+        _ => fallbackValue
+    },
+];
+```
+
 ### break trailing comment
 
 Trailing comments on `break` stay attached to the break statement.

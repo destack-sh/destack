@@ -188,6 +188,32 @@ const envelope = {
 };
 ```
 
+### if parameter default value
+
+Default parameters can use compact if values.
+
+```ds
+function render(view = if (ready) { readyView } else { pendingView }) { use(view) }
+```
+
+```ds expected
+function render(view = if (ready) { readyView } else { pendingView }) {
+    use(view)
+}
+```
+
+### if template value
+
+Compact if values stay inline inside template interpolations.
+
+```ds
+const label = `state: ${if (ready) { readyLabel } else { pendingLabel }}`
+```
+
+```ds expected
+const label = `state: ${if (ready) { readyLabel } else { pendingLabel }}`;
+```
+
 ### if chain receiver value
 
 If values keep required grouping as chain receivers.

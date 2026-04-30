@@ -189,6 +189,42 @@ const values = [
 ];
 ```
 
+### match parameter default value
+
+Default parameters can use expanded match values.
+
+```ds
+function render(view = match (kind) { Primary => primaryView; _ => fallbackView }) { use(view) }
+```
+
+```ds expected
+function render(
+    view = match (kind) {
+        Primary => primaryView
+        _ => fallbackView
+    },
+) {
+    use(view)
+}
+```
+
+### match template value
+
+Expanded match values indent inside template interpolations.
+
+```ds
+const label = `state: ${match (status) { Ready => "ready"; _ => "pending" }}`
+```
+
+```ds expected
+const label = `state: ${
+    match (status) {
+        Ready => "ready"
+        _ => "pending"
+    }
+}`;
+```
+
 ### match logical operand value
 
 Match logical operands preserve required grouping.

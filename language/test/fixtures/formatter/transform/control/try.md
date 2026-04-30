@@ -381,6 +381,75 @@ render(
 );
 ```
 
+### try collection values
+
+Try values keep required grouping in collection and spread positions.
+
+```ds
+const values = [try { readPayload(source) } catch (error) { recoverPayload(error) }, ...(try { readMany(source) } catch (error) { [] })]
+const envelope = { payload: try { readPayload(source) } catch (error) { recoverPayload(error) } }
+```
+
+```ds expected
+const values = [
+    try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+    ...(try {
+        readMany(source)
+    } catch (error) {
+        []
+    }),
+];
+const envelope = {
+    payload: try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+};
+```
+
+### try parameter default value
+
+Default parameters can use expanded try values.
+
+```ds
+function render(payload = try { readPayload(source) } catch (error) { recoverPayload(error) }) { use(payload) }
+```
+
+```ds expected
+function render(
+    payload = try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    },
+) {
+    use(payload)
+}
+```
+
+### try template value
+
+Expanded try values indent inside template interpolations.
+
+```ds
+const label = `payload: ${try { readPayload(source) } catch (error) { recoverPayload(error) }}`
+```
+
+```ds expected
+const label = `payload: ${
+    try {
+        readPayload(source)
+    } catch (error) {
+        recoverPayload(error)
+    }
+}`;
+```
+
 ### try await operand value
 
 Try await operands with catch clauses expand branch blocks.
