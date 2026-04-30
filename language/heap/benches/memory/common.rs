@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    AddressSpace, AllocationLayout, Allocator, DEFAULT_PAGE_BYTES, Heap, HeapLimits, HeapOptions,
+    AddressSpace, AllocationPlan, Allocator, DEFAULT_PAGE_BYTES, Heap, HeapLimits, HeapOptions,
     HeapReference, SharedAllocator, SharedHeap, SharedHeapLimits, SharedHeapReference,
 };
 use destack_mir::ReferenceMap;
@@ -158,20 +158,20 @@ pub(crate) fn shared_reference_array_map() -> ReferenceMap {
 pub(crate) fn allocate_local_object_graph(heap: &mut Heap) -> Vec<HeapReference> {
     let leaf_map = ReferenceMap::None;
     let record_map = local_record_reference_map();
-    let leaf_layout = AllocationLayout::new(LEAF_BYTES, &leaf_map);
-    let record_layout = AllocationLayout::new(RECORD_BYTES, &record_map);
+    let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
+    let record_plan = AllocationPlan::new(RECORD_BYTES, &record_map);
     let mut records = Vec::with_capacity(WORKLOAD_OBJECTS);
 
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = heap
-            .allocate_zeroed(leaf_layout)
+            .allocate_zeroed(leaf_plan)
             .expect("leaf allocation should succeed");
         let mut record = [0u8; RECORD_BYTES];
         write_word(&mut record, 0, leaf.bits());
         write_word(&mut record, REFERENCE_BYTES, index);
 
         let reference = heap
-            .allocate_bytes(record_layout, &record)
+            .allocate_bytes(record_plan, &record)
             .expect("record allocation should succeed");
         records.push(reference);
     }
@@ -186,20 +186,20 @@ pub(crate) fn allocate_shared_object_graph(
 ) -> Vec<SharedHeapReference> {
     let leaf_map = ReferenceMap::None;
     let record_map = shared_record_reference_map();
-    let leaf_layout = AllocationLayout::new(LEAF_BYTES, &leaf_map);
-    let record_layout = AllocationLayout::new(RECORD_BYTES, &record_map);
+    let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
+    let record_plan = AllocationPlan::new(RECORD_BYTES, &record_map);
     let mut records = Vec::with_capacity(WORKLOAD_OBJECTS);
 
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = shared
-            .allocate_zeroed(allocator, leaf_layout)
+            .allocate_zeroed(allocator, leaf_plan)
             .expect("shared leaf allocation should succeed");
         let mut record = [0u8; RECORD_BYTES];
         write_word(&mut record, 0, leaf.bits());
         write_word(&mut record, REFERENCE_BYTES, index);
 
         let reference = shared
-            .allocate_bytes(allocator, record_layout, &record)
+            .allocate_bytes(allocator, record_plan, &record)
             .expect("shared record allocation should succeed");
         records.push(reference);
     }
@@ -211,18 +211,18 @@ pub(crate) fn allocate_shared_object_graph(
 pub(crate) fn allocate_local_reference_array(heap: &mut Heap) -> HeapReference {
     let leaf_map = ReferenceMap::None;
     let array_map = local_reference_array_map();
-    let leaf_layout = AllocationLayout::new(LEAF_BYTES, &leaf_map);
-    let array_layout = AllocationLayout::new(WORKLOAD_OBJECTS * REFERENCE_BYTES, &array_map);
+    let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
+    let array_plan = AllocationPlan::new(WORKLOAD_OBJECTS * REFERENCE_BYTES, &array_map);
     let mut payload = vec![0u8; WORKLOAD_OBJECTS * REFERENCE_BYTES];
 
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = heap
-            .allocate_zeroed(leaf_layout)
+            .allocate_zeroed(leaf_plan)
             .expect("leaf allocation should succeed");
         write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
     }
 
-    heap.allocate_bytes(array_layout, &payload)
+    heap.allocate_bytes(array_plan, &payload)
         .expect("reference array allocation should succeed")
 }
 
@@ -233,19 +233,19 @@ pub(crate) fn allocate_shared_reference_array(
 ) -> SharedHeapReference {
     let leaf_map = ReferenceMap::None;
     let array_map = shared_reference_array_map();
-    let leaf_layout = AllocationLayout::new(LEAF_BYTES, &leaf_map);
-    let array_layout = AllocationLayout::new(WORKLOAD_OBJECTS * REFERENCE_BYTES, &array_map);
+    let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
+    let array_plan = AllocationPlan::new(WORKLOAD_OBJECTS * REFERENCE_BYTES, &array_map);
     let mut payload = vec![0u8; WORKLOAD_OBJECTS * REFERENCE_BYTES];
 
     for index in 0..WORKLOAD_OBJECTS {
         let leaf = shared
-            .allocate_zeroed(allocator, leaf_layout)
+            .allocate_zeroed(allocator, leaf_plan)
             .expect("shared leaf allocation should succeed");
         write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
     }
 
     shared
-        .allocate_bytes(allocator, array_layout, &payload)
+        .allocate_bytes(allocator, array_plan, &payload)
         .expect("shared reference array allocation should succeed")
 }
 
@@ -271,11 +271,11 @@ pub(crate) fn source_bytes() -> Vec<u8> {
 /// Build one local heap with one access-sized payload.
 pub(crate) fn local_access_allocation() -> (Heap, HeapReference) {
     let reference_map = ReferenceMap::None;
-    let layout = AllocationLayout::new(ACCESS_BYTES, &reference_map);
+    let plan = AllocationPlan::new(ACCESS_BYTES, &reference_map);
     let payload = source_bytes();
     let mut heap = local_heap();
     let reference = heap
-        .allocate_bytes(layout, &payload)
+        .allocate_bytes(plan, &payload)
         .expect("access allocation should succeed");
 
     (heap, reference)
@@ -284,12 +284,12 @@ pub(crate) fn local_access_allocation() -> (Heap, HeapReference) {
 /// Build one shared heap with one access-sized payload.
 pub(crate) fn shared_access_allocation() -> (SharedHeap, SharedHeapReference) {
     let reference_map = ReferenceMap::None;
-    let layout = AllocationLayout::new(ACCESS_BYTES, &reference_map);
+    let plan = AllocationPlan::new(ACCESS_BYTES, &reference_map);
     let payload = source_bytes();
     let mut fixture = shared_fixture();
     let reference = fixture
         .heap
-        .allocate_bytes(&mut fixture.allocator, layout, &payload)
+        .allocate_bytes(&mut fixture.allocator, plan, &payload)
         .expect("shared access allocation should succeed");
 
     (fixture.heap, reference)
