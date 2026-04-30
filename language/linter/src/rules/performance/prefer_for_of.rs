@@ -73,7 +73,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     /// Build a visitor for prefer-for-of checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let length_name = ctx.repository.strings.intern("length");
+        let length_name = ctx.string_id("length");
 
         Self {
             ctx,

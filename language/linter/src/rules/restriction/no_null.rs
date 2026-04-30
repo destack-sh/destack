@@ -257,8 +257,8 @@ fn expression_is_object_create(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let object_name = ctx.strings.intern("Object");
-    let create_name = ctx.strings.intern("create");
+    let object_name = ctx.string_id("Object");
+    let create_name = ctx.string_id("create");
 
     // match path calls like Object.create(...)
     if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id)
@@ -288,8 +288,8 @@ fn expression_is_use_ref(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let use_ref_name = ctx.strings.intern("useRef");
-    let react_name = ctx.strings.intern("React");
+    let use_ref_name = ctx.string_id("useRef");
+    let react_name = ctx.string_id("React");
 
     // match path calls like useRef(...) and React.useRef(...)
     if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id) {
@@ -322,7 +322,7 @@ fn expression_is_insert_before(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let insert_before_name = ctx.strings.intern("insertBefore");
+    let insert_before_name = ctx.string_id("insertBefore");
 
     // match path calls like parent.insertBefore(...)
     if let Some(path_segments) = expression_path_segments(ctx.tree, expression_id)

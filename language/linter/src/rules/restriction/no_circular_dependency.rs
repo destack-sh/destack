@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintDiagnostic, LintPackageDirContext, LintRule, declare_lint};
-use destack_artifact::DirResolved;
+use destack_artifact::DirExported;
 use destack_source::{FileType, ModuleId, Span};
 
 declare_lint! {
@@ -101,7 +101,7 @@ fn build_cycle_diagnostic(
 ) -> LintDiagnostic {
     let module = ctx
         .repository_module(module_id)
-        .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"));
+        .unwrap_or_else(|| panic!("missing module for {module_id:?}"));
     let module = module.as_ref();
 
     let mut diagnostic = LintDiagnostic::new(
@@ -131,11 +131,6 @@ fn collect_eligible_modules(ctx: &LintPackageDirContext) -> HashSet<ModuleId> {
         let Some(module) = ctx.repository_module(module_id) else {
             continue;
         };
-        let module = module.as_ref();
-        if !module.is_user() {
-            continue;
-        }
-
         let Some(file) = ctx.repository_file(module.file_id) else {
             continue;
         };
@@ -215,19 +210,13 @@ fn build_adjacency(
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, Vec<ModuleId>> {
     let mut adjacency = HashMap::new();
-    let graph = ctx.module_graph();
-
     let mut module_ids = eligible_modules.iter().copied().collect::<Vec<_>>();
     module_ids.sort_unstable();
 
     for module_id in module_ids {
-        // start with the shared module graph so binding targets stay visible
-        let mut dependencies = graph
-            .as_ref()
-            .map(|graph| graph.dependencies_for(module_id))
-            .unwrap_or_default();
+        let mut dependencies = Vec::new();
 
-        // augment with resolved module edges so binding targets stay visible
+        // collect resolved module edges so binding targets stay visible
         if let Some(resolved) = ctx.resolved_dir(module_id) {
             collect_resolved_module_dependencies(&resolved, &mut dependencies);
         }
@@ -243,9 +232,9 @@ fn build_adjacency(
 }
 
 /// Extend one dependency list with direct resolved module edges.
-fn collect_resolved_module_dependencies(resolved: &DirResolved, dependencies: &mut Vec<ModuleId>) {
+fn collect_resolved_module_dependencies(resolved: &DirExported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
-    for resolution in resolved.imported_modules.values() {
+    for resolution in resolved.import_resolutions.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }

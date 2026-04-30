@@ -72,11 +72,11 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // intern names
-        let location_name = ctx.repository.strings.intern("location");
-        let window_name = ctx.repository.strings.intern("window");
-        let href_name = ctx.repository.strings.intern("href");
-        let assign_name = ctx.repository.strings.intern("assign");
-        let replace_name = ctx.repository.strings.intern("replace");
+        let location_name = ctx.string_id("location");
+        let window_name = ctx.string_id("window");
+        let href_name = ctx.string_id("href");
+        let assign_name = ctx.string_id("assign");
+        let replace_name = ctx.string_id("replace");
 
         // resolve symbols
         let location_symbol = ctx.declared_library_symbol(location_name);
@@ -258,6 +258,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,
+            self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
             &mut self.taint_cache,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{Ast, DirResolved, LibraryEnvironment, ModuleGraph, WellKnownSymbols};
+use destack_artifact::{AmbientEnvironment, Ast, DirExported, WellKnownSymbols};
 use destack_ast::StringId;
 use destack_dir::{self as dir, WellKnownSymbol};
 use destack_source::{File, FileId, ModuleId, PackageId};
@@ -8,6 +8,8 @@ use destack_workspace::{
     LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
 };
 
+use crate::linter::artifact::{read_ambient_environment, read_ast, read_dir_exported};
+use crate::linter::library::is_builtin_library_module;
 use crate::{LintDiagnostic, LintMeta, LintRequirement};
 
 /// Context for AST-level package linting.
@@ -54,7 +56,7 @@ impl LintPackageAstContext {
         &self.options
     }
 
-    /// Return one module snapshot for the active revision when present.
+    /// Return one module for the active revision when present.
     pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.repository
             .module(self.revision, module_id)
@@ -62,14 +64,14 @@ impl LintPackageAstContext {
             .flatten()
     }
 
-    /// Return one file snapshot for the active revision when present.
+    /// Return one source file for the active revision when present.
     pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
         self.repository.file(self.revision, file_id).ok().flatten()
     }
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        self.repository.ast(self.revision, module_id)
+        read_ast(&self.repository, self.revision, module_id)
     }
 
     /// Return all visible module ids in the active package.
@@ -188,7 +190,7 @@ impl LintPackageDirContext {
         &self.options
     }
 
-    /// Return one module snapshot for the active revision when present.
+    /// Return one module for the active revision when present.
     pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.repository
             .module(self.revision, module_id)
@@ -196,7 +198,7 @@ impl LintPackageDirContext {
             .flatten()
     }
 
-    /// Return one package snapshot for the active revision when present.
+    /// Return one package for the active revision when present.
     pub fn repository_package(&self, package_id: PackageId) -> Option<Arc<Package>> {
         self.repository
             .package(self.revision, package_id)
@@ -204,26 +206,19 @@ impl LintPackageDirContext {
             .flatten()
     }
 
-    /// Return one file snapshot for the active revision when present.
+    /// Return one source file for the active revision when present.
     pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
         self.repository.file(self.revision, file_id).ok().flatten()
     }
 
     /// Return one resolved DIR artifact for one revision-scoped module.
-    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirResolved>> {
-        self.repository
-            .dir_resolved(self.revision, module_id, self.profile_id)
-    }
-
-    /// Return the module graph for the active revision and profile.
-    pub fn module_graph(&self) -> Option<Arc<ModuleGraph>> {
-        self.repository.module_graph(self.revision, self.profile_id)
+    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+        read_dir_exported(&self.repository, self.revision, module_id, self.profile_id)
     }
 
     /// Return the library environment for the active revision and profile.
-    pub fn library_environment(&self) -> Option<Arc<LibraryEnvironment>> {
-        self.repository
-            .library_environment(self.revision, self.profile_id)
+    pub fn ambient_environment(&self) -> Option<Arc<AmbientEnvironment>> {
+        read_ambient_environment(&self.repository, self.revision, self.profile_id)
     }
 
     /// Return all visible module ids in the active package.
@@ -244,14 +239,15 @@ impl LintPackageDirContext {
 
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.library_environment()?;
-        let name = self.repository.strings.get(name);
-        environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
+        let environment = self.ambient_environment()?;
+        let key = dir::StaticKey::Name(name);
+
+        environment.declared_symbol_from_key(&key, dir::SymbolSpaceOrder::ValueThenType)
     }
 
     /// Get well-known symbols for the active profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.library_environment()?;
+        let environment = self.ambient_environment()?;
         Some(environment.well_known_symbols())
     }
 
@@ -269,7 +265,7 @@ impl LintPackageDirContext {
                     return false;
                 }
 
-                let name = self.repository.strings.intern(name);
+                let name = StringId::for_text(name);
                 self.get_declared_library_symbol(name).is_some()
             }
             LintRequirement::RequireWellKnownSymbol(symbol) => {
@@ -345,19 +341,13 @@ fn is_lib_available(ctx: &LintPackageDirContext, libs: &[&str]) -> bool {
         return true;
     }
 
-    let builtins = ctx.repository.builtins.as_ref();
-    let Some(environment) = ctx.library_environment() else {
+    let Some(environment) = ctx.ambient_environment() else {
         return false;
     };
 
-    for module_id in &environment.ambient_modules {
-        let Some(lib_name) = builtins.library_name_for_module(*module_id) else {
-            continue;
-        };
-        if libs.contains(&lib_name) {
-            return true;
-        }
-    }
-
-    false
+    environment
+        .ambient_modules
+        .iter()
+        .filter_map(|module_id| ctx.repository_module(*module_id))
+        .any(|module| is_builtin_library_module(module.as_ref(), libs))
 }

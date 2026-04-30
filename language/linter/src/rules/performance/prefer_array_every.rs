@@ -62,8 +62,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-every checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let filter_name = ctx.repository.strings.intern("filter");
-        let length_name = ctx.repository.strings.intern("length");
+        let filter_name = ctx.string_id("filter");
+        let length_name = ctx.string_id("length");
 
         Self {
             ctx,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Repository, Revision};
@@ -59,7 +59,7 @@ impl TaintLabels {
     }
 
     /// Return true when this source set can flow into the sink set.
-    pub fn matches_sink(&self, sink: &Self, repository: &Repository) -> bool {
+    pub fn matches_sink(&self, sink: &Self, strings: &StringPool) -> bool {
         if self.is_empty() || sink.is_empty() {
             return false;
         }
@@ -73,7 +73,7 @@ impl TaintLabels {
                 .labels
                 .iter()
                 .copied()
-                .any(|sink_label| label_matches_glob_pattern(repository, source_label, sink_label))
+                .any(|sink_label| label_matches_glob_pattern(strings, source_label, sink_label))
             {
                 return true;
             }
@@ -83,7 +83,7 @@ impl TaintLabels {
     }
 
     /// Remove labels covered by a sanitizer set.
-    pub fn apply_sanitizer(&mut self, sanitizer: &Self, repository: &Repository) {
+    pub fn apply_sanitizer(&mut self, sanitizer: &Self, strings: &StringPool) {
         if sanitizer.is_empty() {
             return;
         }
@@ -95,7 +95,7 @@ impl TaintLabels {
 
         self.labels.retain(|source_label| {
             !sanitizer.labels.iter().copied().any(|sanitizer_label| {
-                label_matches_glob_pattern(repository, *source_label, sanitizer_label)
+                label_matches_glob_pattern(strings, *source_label, sanitizer_label)
             })
         });
     }
@@ -123,6 +123,8 @@ pub struct TaintAnalysis<'a> {
     module_id: ModuleId,
     /// Active module tree.
     tree: &'a dir::Tree,
+    /// Active module strings.
+    strings: &'a StringPool,
     /// Active module symbols.
     symbols: &'a dir::SymbolTable,
     /// Active module types.
@@ -142,6 +144,7 @@ impl<'a> TaintAnalysis<'a> {
         profile_id: ProfileId,
         module_id: ModuleId,
         tree: &'a dir::Tree,
+        strings: &'a StringPool,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         cache: &'a mut TaintCache,
@@ -153,6 +156,7 @@ impl<'a> TaintAnalysis<'a> {
             profile_id,
             module_id,
             tree,
+            strings,
             symbols,
             types,
             cache,
@@ -422,7 +426,7 @@ impl<'a> TaintAnalysis<'a> {
                     *left,
                     callee_expression,
                 );
-                labels.apply_sanitizer(&sanitizer_labels, self.repository);
+                labels.apply_sanitizer(&sanitizer_labels, self.strings);
             }
             dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
                 // awaits preserve taint
@@ -953,9 +957,9 @@ fn decorator_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>
 }
 
 /// Return true when one source label matches one sink or sanitizer glob pattern.
-fn label_matches_glob_pattern(repository: &Repository, source: StringId, sink: StringId) -> bool {
-    let source_text = repository.strings.get(source);
-    let sink_text = repository.strings.get(sink);
+fn label_matches_glob_pattern(strings: &StringPool, source: StringId, sink: StringId) -> bool {
+    let source_text = strings.get(source);
+    let sink_text = strings.get(sink);
     let source_text = source_text.as_ref();
     let sink_text = sink_text.as_ref();
 

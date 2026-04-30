@@ -32,7 +32,7 @@ impl LintRule for NoDefaultExport {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let default_name = ctx.repository.strings.intern("default");
+        let default_name = ctx.string_id("default");
 
         // check default export dependency items in export and re-export expressions
         for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {
@@ -217,7 +217,7 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Lint one target module in a small module graph and assert there are no compiler errors.
+    /// Lint one target module in a small dependency set and assert there are no compiler errors.
     fn lint_module_with_modules(
         modules: &[(&str, &str)],
         target_path: &str,

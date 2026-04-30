@@ -3,12 +3,12 @@ use std::fmt;
 use std::sync::{Arc, LazyLock};
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ModuleLinted, PackageLinted, WorkspaceLinted,
+    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, ProvideError, ProviderContext,
+    ProviderResult, WorkspaceLinted,
 };
 use destack_source::{DiagnosticCollection, FileId, ModuleId, PackageId};
 use destack_workspace::{
-    ArtifactRequirement, LintPreset, LinterOptions, Profile, ProfileId, ProvideError, Repository,
-    RequirementSet, Revision,
+    LintPreset, LinterOptions, Module, Profile, ProfileId, Repository, Revision,
 };
 
 use crate::{LintDiagnostic, LintLevel, LintRunner};
@@ -87,13 +87,25 @@ impl Linter {
         }
     }
 
-    /// Return one module snapshot for one revision when present.
-    fn repository_module(
+    /// Return one module for one revision when present.
+    fn repository_module(&self, revision: Revision, module_id: ModuleId) -> Option<Arc<Module>> {
+        self.repository.module(revision, module_id).ok().flatten()
+    }
+
+    /// Return the effective profile id for one module.
+    fn module_profile_id(
         &self,
         revision: Revision,
         module_id: ModuleId,
-    ) -> Option<Arc<destack_workspace::Module>> {
-        self.repository.module(revision, module_id).ok().flatten()
+    ) -> Result<ProfileId, LinterError> {
+        let profile = self
+            .repository
+            .module_profile(revision, module_id)
+            .map_err(|error| LinterError::Repository {
+                message: error.to_string(),
+            })?;
+
+        Ok(profile.id())
     }
 
     /// Convert one lint diagnostic to a dedupe key.
@@ -174,7 +186,7 @@ impl Linter {
     }
 
     /// Build the compiler artifact keys required for one module lint.
-    fn module_lint_dependencies(
+    fn module_lint_dependency_keys(
         &self,
         revision: Revision,
         module_id: ModuleId,
@@ -190,21 +202,10 @@ impl Linter {
             return Ok(Vec::new());
         }
 
-        let mut artifact_keys = Vec::new();
-
-        // require the AST product
-        if self.repository.ast(revision, module_id).is_none() {
-            artifact_keys.push(ArtifactKey::ast(module_id));
-        }
-
-        // require the analyzed DIR product
-        if self
-            .repository
-            .dir_analyzed(revision, module_id, profile_id)
-            .is_none()
-        {
-            artifact_keys.push(ArtifactKey::dir_analyzed(module_id, profile_id));
-        }
+        let artifact_keys = vec![
+            ArtifactKey::ast(module_id),
+            ArtifactKey::dir_checked(module_id, profile_id),
+        ];
 
         Ok(artifact_keys)
     }
@@ -219,7 +220,8 @@ impl Linter {
         let profile_id = profile.id();
 
         // validate the required compiler products up front
-        let artifact_keys = self.module_lint_dependencies(revision, module_id, profile_id)?;
+        let dependency_keys = self.module_lint_dependency_keys(revision, module_id, profile_id)?;
+        let artifact_keys = self.missing_artifact_keys(revision, dependency_keys.iter().copied());
         if !artifact_keys.is_empty() {
             return Err(LinterError::Repository {
                 message: format!("lint module dependencies are not ready: {artifact_keys:?}"),
@@ -274,7 +276,9 @@ impl Linter {
         let mut module_ids: Vec<_> = self
             .repository
             .package_module_ids(revision, package_id)
-            .expect("package module ids should load");
+            .map_err(|error| LinterError::Repository {
+                message: error.to_string(),
+            })?;
         module_ids.sort_unstable();
 
         // skip package scoped rules when no code modules remain
@@ -303,12 +307,7 @@ impl Linter {
         // run package scoped DIR rules once per active profile
         let mut profiles = HashSet::new();
         for module_id in &module_ids {
-            let profile_id = self
-                .repository
-                .default_profile_id_for_module(revision, *module_id)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
+            let profile_id = self.module_profile_id(revision, *module_id)?;
             profiles.insert(profile_id);
         }
         for profile_id in profiles {
@@ -343,19 +342,14 @@ impl Linter {
 
         // run workspace scoped DIR rules once per active profile
         let mut profiles = HashSet::new();
-        let module_ids = self
-            .repository
-            .workspace_module_ids(revision)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
-        for module_id in &module_ids {
-            let profile_id = self
-                .repository
-                .default_profile_id_for_module(revision, *module_id)
+        let module_ids =
+            self.repository
+                .module_ids(revision)
                 .map_err(|error| LinterError::Repository {
                     message: error.to_string(),
                 })?;
+        for module_id in &module_ids {
+            let profile_id = self.module_profile_id(revision, *module_id)?;
             profiles.insert(profile_id);
         }
 
@@ -371,227 +365,132 @@ impl Linter {
     /// Provide one lint artifact key.
     pub fn provide(
         &self,
-        revision: Revision,
-        artifact_key: ArtifactKey,
-    ) -> Result<(), ProvideError<LinterError>> {
-        match artifact_key {
+        context: &dyn ProviderContext<Revision = Revision>,
+    ) -> ProviderResult<ArtifactPayload> {
+        match context.key() {
             ArtifactKey::ModuleLinted { module, profile } => {
-                self.realize_module_linted(revision, module, profile)
+                self.provide_module(context, module, profile)
             }
-            ArtifactKey::PackageLinted { package } => {
-                self.realize_package_linted(revision, package)
-            }
-            ArtifactKey::WorkspaceLinted => self.realize_workspace_linted(revision),
-            artifact_key => Err(ProvideError::Failed(LinterError::UnsupportedArtifact {
-                artifact_key,
-            })),
+            ArtifactKey::PackageLinted { package } => self.provide_package(context, package),
+            ArtifactKey::WorkspaceLinted => self.provide_workspace(context),
+            artifact_key => Err(ProvideError::internal(
+                LinterError::UnsupportedArtifact { artifact_key }.to_string(),
+            )),
         }
     }
 
-    /// Realize one module lint artifact.
-    pub fn realize_module_linted(
+    /// Provide one module lint artifact.
+    fn provide_module(
         &self,
-        revision: Revision,
+        context: &dyn ProviderContext<Revision = Revision>,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> Result<(), ProvideError<LinterError>> {
-        let artifact_key = ArtifactKey::module_linted(module_id, profile_id);
-        let version = self.repository.artifact_version(revision, &artifact_key);
+    ) -> ProviderResult<ArtifactPayload> {
+        let revision = context.revision();
+        let dependency_keys = self
+            .module_lint_dependency_keys(revision, module_id, profile_id)
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        if self.repository.artifact_store().contains(&version) {
-            return Ok(());
-        }
-
-        let artifact_keys = self
-            .module_lint_dependencies(revision, module_id, profile_id)
-            .map_err(ProvideError::Failed)?;
-        if !artifact_keys.is_empty() {
-            return Err(ProvideError::Requirements(
-                self.artifact_requirements(revision, artifact_keys),
-            ));
+        for dependency_key in dependency_keys {
+            context
+                .require(dependency_key)
+                .map_err(ProvideError::from)?;
         }
 
         let profile = self
             .repository
-            .profile_for_module_id(revision, module_id, profile_id)
+            .module_profile_by_id(revision, module_id, profile_id)
             .map_err(|error| LinterError::Repository {
                 message: error.to_string(),
             })
-            .map_err(ProvideError::Failed)?
+            .map_err(|error| ProvideError::internal(error.to_string()))?
             .ok_or_else(|| LinterError::Repository {
                 message: format!(
                     "missing profile {profile_id:?} for module {module_id:?} at revision {revision}"
                 ),
             })
-            .map_err(ProvideError::Failed)?;
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
         let diagnostics = self
-            .lint_module(revision, module_id, profile)
-            .map_err(ProvideError::Failed)?;
-        let dependencies = vec![
-            artifact_dependency(
-                self.repository.as_ref(),
-                revision,
-                ArtifactKey::ast(module_id),
-            ),
-            artifact_dependency(
-                self.repository.as_ref(),
-                revision,
-                ArtifactKey::dir_analyzed(module_id, profile_id),
-            ),
-        ];
+            .lint_module(revision, module_id, profile.as_ref().clone())
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        self.repository
-            .artifact_store()
-            .publish_module_linted(version, ModuleLinted);
-        self.repository
-            .artifact_store()
-            .publish_dependencies(&version, dependencies);
-        self.repository
-            .artifact_store()
-            .publish_diagnostics(version, diagnostics);
+        context.diagnostics(diagnostics);
 
-        Ok(())
+        Ok(ArtifactPayload::ModuleLinted(ModuleLinted))
     }
 
-    /// Realize one package lint artifact.
-    pub fn realize_package_linted(
+    /// Provide one package lint artifact.
+    fn provide_package(
         &self,
-        revision: Revision,
+        context: &dyn ProviderContext<Revision = Revision>,
         package_id: PackageId,
-    ) -> Result<(), ProvideError<LinterError>> {
-        let artifact_key = ArtifactKey::package_linted(package_id);
-        let version = self.repository.artifact_version(revision, &artifact_key);
+    ) -> ProviderResult<ArtifactPayload> {
+        let revision = context.revision();
+        let dependency_keys = self
+            .package_lint_dependency_keys(revision, package_id)
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        if self.repository.artifact_store().contains(&version) {
-            return Ok(());
-        }
-
-        let artifact_keys = self
-            .package_lint_dependencies(revision, package_id)
-            .map_err(ProvideError::Failed)?;
-        if !artifact_keys.is_empty() {
-            return Err(ProvideError::Requirements(
-                self.artifact_requirements(revision, artifact_keys),
-            ));
+        for dependency_key in dependency_keys {
+            context
+                .require(dependency_key)
+                .map_err(ProvideError::from)?;
         }
 
         let diagnostics = self
             .lint_package(revision, package_id)
-            .map_err(ProvideError::Failed)?;
-        let dependencies = self
-            .package_lint_dependency_keys(revision, package_id)
-            .map_err(ProvideError::Failed)?
-            .into_iter()
-            .map(|artifact_key| {
-                artifact_dependency(self.repository.as_ref(), revision, artifact_key)
-            })
-            .collect::<Vec<_>>();
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        self.repository
-            .artifact_store()
-            .publish_package_linted(version, PackageLinted);
-        self.repository
-            .artifact_store()
-            .publish_dependencies(&version, dependencies);
-        self.repository
-            .artifact_store()
-            .publish_diagnostics(version, diagnostics);
+        context.diagnostics(diagnostics);
 
-        Ok(())
+        Ok(ArtifactPayload::PackageLinted(PackageLinted))
     }
 
-    /// Realize one workspace lint artifact.
-    pub fn realize_workspace_linted(
+    /// Provide one workspace lint artifact.
+    fn provide_workspace(
         &self,
-        revision: Revision,
-    ) -> Result<(), ProvideError<LinterError>> {
-        let artifact_key = ArtifactKey::workspace_linted();
-        let version = self.repository.artifact_version(revision, &artifact_key);
+        context: &dyn ProviderContext<Revision = Revision>,
+    ) -> ProviderResult<ArtifactPayload> {
+        let revision = context.revision();
+        let dependency_keys = self
+            .workspace_lint_dependency_keys(revision)
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        if self.repository.artifact_store().contains(&version) {
-            return Ok(());
-        }
-
-        let artifact_keys = self
-            .workspace_lint_dependencies(revision)
-            .map_err(ProvideError::Failed)?;
-        if !artifact_keys.is_empty() {
-            return Err(ProvideError::Requirements(
-                self.artifact_requirements(revision, artifact_keys),
-            ));
+        for dependency_key in dependency_keys {
+            context
+                .require(dependency_key)
+                .map_err(ProvideError::from)?;
         }
 
         let diagnostics = self
             .lint_workspace(revision)
-            .map_err(ProvideError::Failed)?;
-        let dependencies = self
-            .workspace_lint_dependency_keys(revision)
-            .map_err(ProvideError::Failed)?
-            .into_iter()
-            .map(|artifact_key| {
-                artifact_dependency(self.repository.as_ref(), revision, artifact_key)
-            })
-            .collect::<Vec<_>>();
+            .map_err(|error| ProvideError::internal(error.to_string()))?;
 
-        self.repository
-            .artifact_store()
-            .publish_workspace_linted(version, WorkspaceLinted);
-        self.repository
-            .artifact_store()
-            .publish_dependencies(&version, dependencies);
-        self.repository
-            .artifact_store()
-            .publish_diagnostics(version, diagnostics);
+        context.diagnostics(diagnostics);
 
-        Ok(())
+        Ok(ArtifactPayload::WorkspaceLinted(WorkspaceLinted))
     }
 
-    /// Build one outer artifact requirement set for the current revision.
-    fn artifact_requirements(
+    /// Return the missing artifact keys from one required key set.
+    fn missing_artifact_keys(
         &self,
         revision: Revision,
-        artifact_keys: Vec<ArtifactKey>,
-    ) -> RequirementSet {
-        let requirements = artifact_keys
-            .into_iter()
-            .map(|artifact_key| {
-                ArtifactRequirement {
-                    version: self.repository.artifact_version(revision, &artifact_key),
-                }
-                .into()
-            })
-            .collect::<Vec<_>>();
-
-        match requirements.len() {
-            0 => RequirementSet::All(Vec::new()),
-            1 => {
-                let requirement = requirements
-                    .into_iter()
-                    .next()
-                    .expect("single artifact requirement should exist");
-                RequirementSet::One(requirement)
-            }
-            _ => RequirementSet::All(requirements),
-        }
-    }
-
-    /// Return the missing dependencies for one package lint artifact.
-    fn package_lint_dependencies(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<Vec<ArtifactKey>, LinterError> {
-        let dependency_keys = self.package_lint_dependency_keys(revision, package_id)?;
+        keys: impl IntoIterator<Item = ArtifactKey>,
+    ) -> Vec<ArtifactKey> {
         let mut artifact_keys = Vec::new();
 
-        for artifact_key in dependency_keys {
-            let version = self.repository.artifact_version(revision, &artifact_key);
-            if !self.repository.artifact_store().contains(&version) {
+        for artifact_key in keys {
+            let Ok(Some(version)) = self.repository.artifact_version(revision, &artifact_key)
+            else {
+                artifact_keys.push(artifact_key);
+                continue;
+            };
+
+            if !self.repository.artifact_store().has(&version) {
                 artifact_keys.push(artifact_key);
             }
         }
 
-        Ok(artifact_keys)
+        artifact_keys
     }
 
     /// Return the dependency keys for one package lint artifact.
@@ -618,31 +517,8 @@ impl Linter {
                 continue;
             }
 
-            let profile_id = self
-                .repository
-                .default_profile_id_for_module(revision, module_id)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
+            let profile_id = self.module_profile_id(revision, module_id)?;
             artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id));
-        }
-
-        Ok(artifact_keys)
-    }
-
-    /// Return the missing dependencies for one workspace lint artifact.
-    fn workspace_lint_dependencies(
-        &self,
-        revision: Revision,
-    ) -> Result<Vec<ArtifactKey>, LinterError> {
-        let dependency_keys = self.workspace_lint_dependency_keys(revision)?;
-        let mut artifact_keys = Vec::new();
-
-        for artifact_key in dependency_keys {
-            let version = self.repository.artifact_version(revision, &artifact_key);
-            if !self.repository.artifact_store().contains(&version) {
-                artifact_keys.push(artifact_key);
-            }
         }
 
         Ok(artifact_keys)
@@ -653,12 +529,12 @@ impl Linter {
         &self,
         revision: Revision,
     ) -> Result<Vec<ArtifactKey>, LinterError> {
-        let mut package_ids = self
-            .repository
-            .workspace_package_ids(revision)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
+        let mut package_ids =
+            self.repository
+                .package_ids(revision)
+                .map_err(|error| LinterError::Repository {
+                    message: error.to_string(),
+                })?;
         package_ids.sort_unstable();
 
         Ok(package_ids
@@ -666,15 +542,4 @@ impl Linter {
             .map(ArtifactKey::package_linted)
             .collect())
     }
-}
-
-/// Build one exact artifact dependency from one key.
-fn artifact_dependency(
-    repository: &Repository,
-    revision: Revision,
-    artifact_key: ArtifactKey,
-) -> ArtifactDependency {
-    let version = repository.artifact_version(revision, &artifact_key);
-
-    ArtifactDependency { version }
 }

@@ -94,16 +94,8 @@ impl LintRule for NoArgumentsOrderMismatch {
             let Some(Some(second_parameter_name)) = parameter_names.get(second_index) else {
                 continue;
             };
-            let first_parameter_name_text = ctx
-                .repository
-                .strings
-                .get(*first_parameter_name)
-                .to_string();
-            let second_parameter_name_text = ctx
-                .repository
-                .strings
-                .get(*second_parameter_name)
-                .to_string();
+            let first_parameter_name_text = ctx.strings.get(*first_parameter_name).to_string();
+            let second_parameter_name_text = ctx.strings.get(*second_parameter_name).to_string();
 
             let first_argument_span = ctx.get_span(argument_ids[first_index]);
             let second_argument_span = ctx.get_span(argument_ids[second_index]);
@@ -358,7 +350,7 @@ fn parameter_names_for_symbol(
         return declaration_parameter_names(ctx.tree, declaration_id.local_id);
     }
 
-    let module_dir = ctx.analyzed_dir(declaration_id.module_id)?;
+    let module_dir = ctx.declared_dir(declaration_id.module_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 

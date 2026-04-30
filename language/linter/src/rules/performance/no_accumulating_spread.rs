@@ -75,9 +75,9 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
-        let reduce_name = ctx.repository.strings.intern("reduce");
-        let reduce_right_name = ctx.repository.strings.intern("reduceRight");
-        let assign_name = ctx.repository.strings.intern("assign");
+        let reduce_name = ctx.string_id("reduce");
+        let reduce_right_name = ctx.string_id("reduceRight");
+        let assign_name = ctx.string_id("assign");
 
         Self {
             ctx,

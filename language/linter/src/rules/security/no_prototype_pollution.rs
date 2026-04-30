@@ -57,8 +57,8 @@ struct NoPrototypePollutionVisitor<'a, 'b> {
 impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let prototype_name = ctx.repository.strings.intern("prototype");
-        let proto_name = ctx.repository.strings.intern("__proto__");
+        let prototype_name = ctx.string_id("prototype");
+        let proto_name = ctx.string_id("__proto__");
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
 
         Self {

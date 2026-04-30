@@ -1,5 +1,7 @@
+pub(crate) mod artifact;
 mod ast;
 mod dir;
+mod library;
 mod linter;
 mod package;
 mod rule;

@@ -68,11 +68,11 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
     /// Build a visitor for no-object-spread-in-reduce checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let reduce_name = ctx.repository.strings.intern("reduce");
-        let reduce_right_name = ctx.repository.strings.intern("reduceRight");
-        let object_name = ctx.repository.strings.intern("Object");
+        let reduce_name = ctx.string_id("reduce");
+        let reduce_right_name = ctx.string_id("reduceRight");
+        let object_name = ctx.string_id("Object");
         let object_symbol = ctx.get_declared_library_symbol(object_name);
-        let assign_name = ctx.repository.strings.intern("assign");
+        let assign_name = ctx.string_id("assign");
 
         Self {
             ctx,

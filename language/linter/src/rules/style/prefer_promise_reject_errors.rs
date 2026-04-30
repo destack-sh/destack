@@ -68,9 +68,9 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     /// Build a visitor for Promise rejection checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
-            reject_name: ctx.repository.strings.intern("reject"),
-            ok_name: ctx.repository.strings.intern("ok"),
-            err_name: ctx.repository.strings.intern("err"),
+            reject_name: ctx.string_id("reject"),
+            ok_name: ctx.string_id("ok"),
+            err_name: ctx.string_id("err"),
             promise_symbol: ctx.well_known_symbol(WellKnownSymbol::Promise),
             error_symbol: ctx.get_language_symbol(LanguageSymbol::Error),
             result_symbol: ctx.get_language_symbol(LanguageSymbol::Result),

@@ -34,7 +34,7 @@ impl LintRule for NoControlRegex {
     /// Check module AST nodes for regex patterns containing control characters.
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let regexp_name = ctx.strings.intern("RegExp");
+        let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // walk expression nodes

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirAnalyzed, DirResolved, LanguageEnvironment, LibraryEnvironment, Loader,
-    ModuleEdgeRelation, ModuleGraph, WellKnownSymbols,
+    AmbientEnvironment, Ast, DirChecked, DirDeclared, DirExported, LanguageEnvironment,
+    WellKnownSymbols,
 };
-use destack_ast::StringId;
+use destack_ast::{StringId, StringPool};
 use destack_builtin::LanguageSymbol;
 use destack_dir::WellKnownSymbol;
 use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
@@ -14,6 +14,11 @@ use destack_workspace::{
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
+use crate::linter::artifact::{
+    read_ambient_environment, read_ast, read_dir_checked, read_dir_declared, read_dir_exported,
+    read_language_environment,
+};
+use crate::linter::library::is_builtin_library_module;
 use crate::{
     ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDiagnostic, LintDirAnalysisCache, LintMeta,
     LintRequirement,
@@ -55,6 +60,8 @@ pub struct LintModuleDirContext<'a> {
     pub ast: &'a ast::Tree,
     /// The DIR tree.
     pub tree: &'a dir::Tree,
+    /// The DIR string pool.
+    pub strings: &'a StringPool,
     /// The symbol table.
     pub symbols: &'a dir::SymbolTable,
     /// The type table.
@@ -70,18 +77,10 @@ pub struct LintModuleDirContext<'a> {
     pub default_symbol: dir::LocalSymbolId,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
     pub namespace_exports: Vec<dir::ModuleTarget>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
-    pub imported_modules: IndexMap<
-        (
-            Option<ModuleId>,
-            StringId,
-            ModuleEdgeRelation,
-            Option<Loader>,
-        ),
-        dir::ModuleResolution,
-    >,
+    /// Resolved import specifiers to module targets.
+    pub import_resolutions: IndexMap<dir::ImportResolutionKey, dir::ModuleResolution>,
     /// Exported symbols by key (space, name).
-    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
+    pub export_by_symbol_key: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 
     /// Linter configuration.
     pub options: &'a LinterOptions,
@@ -115,6 +114,7 @@ impl<'a> LintModuleDirContext<'a> {
         file: Arc<File>,
         ast: &'a ast::Tree,
         tree: &'a dir::Tree,
+        strings: &'a StringPool,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         roots: Vec<dir::LocalNodeId<dir::Expression>>,
@@ -122,16 +122,8 @@ impl<'a> LintModuleDirContext<'a> {
         namespace_scope: dir::LocalScopeId,
         default_symbol: dir::LocalSymbolId,
         namespace_exports: Vec<dir::ModuleTarget>,
-        imported_modules: IndexMap<
-            (
-                Option<ModuleId>,
-                StringId,
-                ModuleEdgeRelation,
-                Option<Loader>,
-            ),
-            dir::ModuleResolution,
-        >,
-        exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
+        import_resolutions: IndexMap<dir::ImportResolutionKey, dir::ModuleResolution>,
+        export_by_symbol_key: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
         options: &'a LinterOptions,
         include_fixes: bool,
     ) -> Self {
@@ -146,6 +138,7 @@ impl<'a> LintModuleDirContext<'a> {
             file,
             ast,
             tree,
+            strings,
             symbols,
             types,
             roots,
@@ -153,8 +146,8 @@ impl<'a> LintModuleDirContext<'a> {
             namespace_scope,
             default_symbol,
             namespace_exports,
-            imported_modules,
-            exported_symbols,
+            import_resolutions,
+            export_by_symbol_key,
             options,
             include_fixes,
             analysis: LintDirAnalysisCache::default(),
@@ -172,7 +165,12 @@ impl<'a> LintModuleDirContext<'a> {
         self.module.id
     }
 
-    /// Return one module snapshot for the active revision when present.
+    /// Return the stable string id for one static text.
+    pub fn string_id(&self, text: &str) -> StringId {
+        StringId::for_text(text)
+    }
+
+    /// Return one module for the active revision when present.
     pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.repository
             .module(self.revision, module_id)
@@ -180,7 +178,7 @@ impl<'a> LintModuleDirContext<'a> {
             .flatten()
     }
 
-    /// Return one package snapshot for the active revision when present.
+    /// Return one package for the active revision when present.
     pub fn repository_package(&self, package_id: PackageId) -> Option<Arc<Package>> {
         self.repository
             .package(self.revision, package_id)
@@ -188,49 +186,45 @@ impl<'a> LintModuleDirContext<'a> {
             .flatten()
     }
 
-    /// Return one file snapshot for the active revision when present.
+    /// Return one source file for the active revision when present.
     pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
         self.repository.file(self.revision, file_id).ok().flatten()
     }
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        self.repository.ast(self.revision, module_id)
+        read_ast(&self.repository, self.revision, module_id)
     }
 
-    /// Return one analyzed DIR artifact for one revision-scoped module.
-    pub fn analyzed_dir(&self, module_id: ModuleId) -> Option<Arc<DirAnalyzed>> {
-        self.repository
-            .dir_analyzed(self.revision, module_id, self.profile_id)
+    /// Return one checked DIR artifact for one revision-scoped module.
+    pub fn analyzed_dir(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+        read_dir_checked(&self.repository, self.revision, module_id, self.profile_id)
+    }
+
+    /// Return one declared DIR artifact for one revision-scoped module.
+    pub fn declared_dir(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
+        read_dir_declared(&self.repository, self.revision, module_id, self.profile_id)
     }
 
     /// Return one resolved DIR artifact for one revision-scoped module.
-    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirResolved>> {
-        self.repository
-            .dir_resolved(self.revision, module_id, self.profile_id)
-    }
-
-    /// Return the module graph for the active revision and profile.
-    pub fn module_graph(&self) -> Option<Arc<ModuleGraph>> {
-        self.repository.module_graph(self.revision, self.profile_id)
+    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+        read_dir_exported(&self.repository, self.revision, module_id, self.profile_id)
     }
 
     /// Return the language environment for the active revision and profile.
     pub fn language_environment(&self) -> Option<Arc<LanguageEnvironment>> {
-        self.repository
-            .language_environment(self.revision, self.profile_id)
+        read_language_environment(&self.repository, self.revision, self.profile_id)
     }
 
     /// Return the library environment for the active revision and profile.
-    pub fn library_environment(&self) -> Option<Arc<LibraryEnvironment>> {
-        self.repository
-            .library_environment(self.revision, self.profile_id)
+    pub fn ambient_environment(&self) -> Option<Arc<AmbientEnvironment>> {
+        read_ambient_environment(&self.repository, self.revision, self.profile_id)
     }
 
     /// Return all visible module ids for the active revision.
     pub fn workspace_module_ids(&self) -> Vec<ModuleId> {
         self.repository
-            .workspace_module_ids(self.revision)
+            .module_ids(self.revision)
             .unwrap_or_default()
     }
 
@@ -286,22 +280,21 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a cached declared library symbol for the module profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.library_environment()?;
-        let name = self.repository.strings.get(name);
-        environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
+        let environment = self.ambient_environment()?;
+        let key = dir::StaticKey::Name(name);
+
+        environment.declared_symbol_from_key(&key, dir::SymbolSpaceOrder::ValueThenType)
     }
 
     /// Get a declared library symbol from the cache, panicking if not found.
     pub fn declared_library_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
-        self.get_declared_library_symbol(name).unwrap_or_else(|| {
-            let name = self.repository.strings.get(name);
-            panic!("declared library symbol '{}' not available", name.as_ref())
-        })
+        self.get_declared_library_symbol(name)
+            .unwrap_or_else(|| panic!("declared library symbol {name} not available"))
     }
 
     /// Get well-known symbols for the module profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.library_environment()?;
+        let environment = self.ambient_environment()?;
         Some(environment.well_known_symbols())
     }
 
@@ -349,7 +342,7 @@ impl<'a> LintModuleDirContext<'a> {
                 if !self.is_lib_available(libs) {
                     return false;
                 }
-                let name = self.repository.strings.intern(name);
+                let name = self.string_id(name);
                 self.get_declared_library_symbol(name).is_some()
             }
             LintRequirement::RequireWellKnownSymbol(symbol) => {
@@ -363,21 +356,15 @@ impl<'a> LintModuleDirContext<'a> {
         if libs.is_empty() {
             return true;
         }
-        let builtins = self.repository.builtins.as_ref();
-        let Some(environment) = self.library_environment() else {
+        let Some(environment) = self.ambient_environment() else {
             return false;
         };
 
-        for module_id in &environment.ambient_modules {
-            let Some(lib_name) = builtins.library_name_for_module(*module_id) else {
-                continue;
-            };
-            if libs.contains(&lib_name) {
-                return true;
-            }
-        }
-
-        false
+        environment
+            .ambient_modules
+            .iter()
+            .filter_map(|module_id| self.repository_module(*module_id))
+            .any(|module| is_builtin_library_module(module.as_ref(), libs))
     }
 
     /// Check if a rule is supported.
@@ -510,7 +497,7 @@ impl<'a> LintModuleDirContext<'a> {
             return None;
         }
 
-        let name = self.repository.strings.get(path.segments[0]);
+        let name = self.strings.get(path.segments[0]);
         let (severity, is_forbidden) = match name.as_ref() {
             "allow" => (LintSeverity::Off, false),
             "warn" => (LintSeverity::Warning, false),
@@ -535,7 +522,7 @@ impl<'a> LintModuleDirContext<'a> {
         };
 
         // match against lint ID or code
-        let specifier = self.repository.strings.get(*string_id);
+        let specifier = self.strings.get(*string_id);
         if specifier.as_ref() == meta.id || specifier.as_ref() == meta.code {
             Some(LintSeverityOverride {
                 severity,
@@ -604,7 +591,7 @@ impl<'a> LintModuleDirContext<'a> {
         // resolve configured globals
         let mut qualifiers = Vec::new();
         for name in GLOBAL_QUALIFIER_SYMBOLS {
-            let name_id = self.repository.strings.intern(name);
+            let name_id = self.string_id(name);
             if let Some(symbol) = self.get_declared_library_symbol(name_id) {
                 qualifiers.push(symbol);
             }

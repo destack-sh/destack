@@ -140,9 +140,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
                     .map(|deprecated| deprecated.message)
             },
         )
-        .map(|message_id| {
-            message_id.map(|message_id| self.ctx.repository.strings.get(message_id).to_string())
-        })
+        .map(|message_id| message_id.map(|message_id| self.ctx.strings.get(message_id).to_string()))
     }
 }
 

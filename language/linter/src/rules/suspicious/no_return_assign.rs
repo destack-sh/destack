@@ -158,7 +158,7 @@ fn unique_binding_name(
     assignment_id: ast::LocalNodeId<ast::Expression>,
     base_name: &str,
 ) -> String {
-    let base_name_id = ctx.strings.intern(base_name);
+    let base_name_id = ctx.string_id(base_name);
     if !expression_subtree_mentions_identifier_name(ctx.tree, assignment_id, base_name_id) {
         return base_name.to_string();
     }
@@ -166,7 +166,7 @@ fn unique_binding_name(
     let mut index = 1_u32;
     loop {
         let candidate = format!("{base_name}{index}");
-        let candidate_id = ctx.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         if !expression_subtree_mentions_identifier_name(ctx.tree, assignment_id, candidate_id) {
             return candidate;
         }

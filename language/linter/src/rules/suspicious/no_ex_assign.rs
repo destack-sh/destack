@@ -216,7 +216,7 @@ fn unique_catch_alias_name(
     catch_name: &str,
 ) -> String {
     let base_name = format!("{catch_name}Reassigned");
-    let base_name_id = ctx.strings.intern(&base_name);
+    let base_name_id = ctx.string_id(&base_name);
     if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, base_name_id) {
         return base_name;
     }
@@ -224,7 +224,7 @@ fn unique_catch_alias_name(
     let mut suffix = 2_u32;
     loop {
         let candidate = format!("{base_name}{suffix}");
-        let candidate_id = ctx.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, candidate_id)
         {
             return candidate;

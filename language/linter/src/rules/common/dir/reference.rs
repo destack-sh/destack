@@ -410,7 +410,7 @@ pub fn member_receiver_text(
     member_name: StringId,
     is_private: bool,
 ) -> Option<String> {
-    let member_name = ctx.repository.strings.get(member_name);
+    let member_name = ctx.strings.get(member_name);
     let suffix = if is_private {
         format!(".#{}", member_name.as_ref())
     } else {

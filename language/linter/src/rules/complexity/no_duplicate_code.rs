@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
 use destack_ast as ast;
+use destack_core::StableHasher;
 use destack_source::{FileType, ModuleId, Span};
 
 use crate::rules::common::{
@@ -380,7 +381,7 @@ fn build_block_prefilter_key(
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> BlockPrefilterKey {
     let block = tree.get(block_id);
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     for expression_id in block.iter_expressions() {
         let expression = tree.get(expression_id);
         std::mem::discriminant(expression).hash(&mut hasher);

@@ -64,8 +64,8 @@ struct ExponentiationVisitor<'a, 'b> {
 impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     /// Build a visitor for prefer-exponentiation-operator checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let math_name = ctx.repository.strings.intern("Math");
-        let pow_name = ctx.repository.strings.intern("pow");
+        let math_name = ctx.string_id("Math");
+        let pow_name = ctx.string_id("pow");
         let math_symbol = ctx.declared_library_symbol(math_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 

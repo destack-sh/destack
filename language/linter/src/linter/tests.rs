@@ -5,21 +5,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactKey, EmitFormat, EnvironmentStamp, MemoryCacheStore, Platform, ProfileFlags,
-    ProfileKey, Runtime,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
+    ArtifactProvider, ArtifactVersion, Ast, EmitFormat, MemoryCacheStore, Platform, ProfileFlags,
+    ProfileKey, ProvideError, ProviderContext, RequireError, Runtime,
 };
+use destack_ast as ast;
 use destack_ast::NodeParentIndex;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
+use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
+use destack_session::open_repository_from_fs;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
-    FileSystem, FileType, LanguageType, ModuleId, OverlayFileSystem, PhysicalFileSystem, Uri,
-    print_diff,
+    FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, PackageId,
+    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
 };
 use destack_workspace::{
-    AmbientSnapshot, Change, Edit as RepositoryEdit, LintCategory, LintSeverity, LinterOptions,
+    Edit as RepositoryEdit, HostEnvironment, LintCategory, LintSeverity, LinterOptions, Module,
     Profile, Ref, Repository, Revision,
 };
 use parking_lot::Mutex;
@@ -36,6 +40,291 @@ static TEST_CACHE_STORE: LazyLock<Arc<MemoryCacheStore>> =
 /// Process wide per lib-set warmers for prelude profile setup.
 static PRELUDE_WARMERS: LazyLock<Mutex<HashMap<Vec<String>, Arc<Once>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// One linter test compiler provider attempt.
+#[derive(Debug)]
+struct TestProviderContext {
+    /// The repository that owns the pinned revision.
+    repository: Arc<Repository>,
+    /// The pinned revision for this attempt.
+    revision: Revision,
+    /// The artifact key being built.
+    artifact_key: ArtifactKey,
+    /// The exact dependencies read by this attempt.
+    dependencies: Mutex<Vec<ArtifactDependency>>,
+    /// The diagnostics produced by this attempt.
+    diagnostics: Mutex<DiagnosticCollection>,
+}
+
+impl TestProviderContext {
+    /// Create one linter test compiler provider attempt.
+    fn new(repository: Arc<Repository>, revision: Revision, artifact_key: ArtifactKey) -> Self {
+        Self {
+            repository,
+            revision,
+            artifact_key,
+            dependencies: Mutex::new(Vec::new()),
+            diagnostics: Mutex::new(DiagnosticCollection::new()),
+        }
+    }
+
+    /// Publish the recorded payload as one exact artifact record.
+    fn publish(&self, payload: ArtifactPayload) {
+        let dependencies = self.dependencies.lock().clone();
+        let diagnostics = self.diagnostics.lock().clone();
+        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
+
+        self.repository
+            .complete_artifact(self.revision, version, payload, dependencies, diagnostics)
+            .expect("linter test provider should record artifact version");
+    }
+
+    /// Fail the test attempt.
+    fn fail(&self, failure: ArtifactFailure) {
+        let dependencies = self.dependencies.lock().clone();
+        let diagnostics = self.diagnostics.lock().clone();
+        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
+
+        self.repository
+            .fail_artifact(self.revision, version, dependencies, diagnostics, failure)
+            .expect("linter test provider should record failed artifact version");
+    }
+}
+
+/// Seed one source-derived artifact for linter compiler tests.
+fn provide_source_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
+    match context.key() {
+        ArtifactKey::Ast { module } => provide_ast(compiler, module, context),
+        ArtifactKey::Data { module } => {
+            panic!("data artifact reached linter test source provider for {module:?}")
+        }
+        artifact_key => {
+            panic!("non source artifact reached linter test source provider: {artifact_key:?}")
+        }
+    }
+}
+
+/// Seed one AST artifact from source.
+fn provide_ast(
+    compiler: &Compiler,
+    module_id: ModuleId,
+    context: &TestProviderContext,
+) -> ArtifactPayload {
+    let module = compiler
+        .repository
+        .module(context.revision(), module_id)
+        .unwrap_or_else(|error| panic!("failed to load source module: {error}"))
+        .unwrap_or_else(|| panic!("missing source module for {module_id:?}"));
+    let file = source_file(compiler, context.revision(), module.file_id, context);
+    let ast = match module.loader {
+        Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
+            if matches!(file.ty, FileType::Html | FileType::Css) {
+                anchor_ast(module_id, file.as_ref())
+            } else {
+                parse_code_ast(compiler, file.clone(), module.package_id, context)
+            }
+        }
+        Loader::Json
+        | Loader::Toml
+        | Loader::Yaml
+        | Loader::Text
+        | Loader::Base64
+        | Loader::Binary
+        | Loader::File => anchor_ast(module_id, file.as_ref()),
+    };
+
+    ArtifactPayload::Ast(ast)
+}
+
+/// Load one source file and record its exact content dependency.
+fn source_file(
+    compiler: &Compiler,
+    revision: Revision,
+    file_id: FileId,
+    context: &TestProviderContext,
+) -> Arc<File> {
+    let content_id = compiler
+        .repository
+        .file_content_id(revision, file_id)
+        .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
+        .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
+    let file = compiler
+        .repository
+        .file(revision, file_id)
+        .unwrap_or_else(|error| panic!("failed to load source file: {error}"))
+        .unwrap_or_else(|| panic!("missing source file for {file_id:?}"));
+
+    context.dependency(ArtifactDependency::file_content(file_id, content_id));
+
+    file
+}
+
+/// Build one stable anchor AST for non-code source.
+fn anchor_ast(_module_id: ModuleId, file: &File) -> Ast {
+    let mut tree = ast::Tree::new();
+    let anchor_expression = insert_anchor_expression(&mut tree, file.id);
+
+    Ast::from_tree(
+        tree,
+        Vec::new(),
+        StringPool::new(),
+        Vec::new(),
+        Vec::new(),
+        anchor_expression,
+    )
+}
+
+/// Parse one code module into AST.
+fn parse_code_ast(
+    compiler: &Compiler,
+    file: Arc<File>,
+    package_id: PackageId,
+    context: &TestProviderContext,
+) -> Ast {
+    let language_type = language_type_for_code_file(compiler, file.ty, package_id, context);
+    let mut parser =
+        Parser::lex_file_with_settings(file.clone(), language_type, ParserSettings::default());
+    let expressions = parser.parse();
+    context.diagnostics(parser.diagnostics.collect());
+
+    let (tokens, side_tokens) = parser.take_tokens();
+    let strings = StringPool::from_local(parser.strings);
+    let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
+
+    Ast::from_tree(
+        parser.tree,
+        expressions,
+        strings,
+        tokens,
+        side_tokens,
+        anchor_expression,
+    )
+}
+
+/// Insert one synthetic AST anchor expression at the start of a file.
+fn insert_anchor_expression(
+    tree: &mut ast::Tree,
+    file_id: FileId,
+) -> ast::LocalNodeId<ast::Expression> {
+    let span = destack_source::Span::empty(file_id);
+
+    tree.insert(
+        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
+        span,
+    )
+}
+
+/// Resolve parser language type for one code file.
+fn language_type_for_code_file(
+    compiler: &Compiler,
+    file_type: FileType,
+    package_id: PackageId,
+    context: &TestProviderContext,
+) -> LanguageType {
+    assert!(
+        file_type.is_code(),
+        "non-code file type reached code parser: {file_type:?}",
+    );
+
+    if file_type != FileType::JavaScript {
+        return LanguageType::try_from(file_type)
+            .unwrap_or_else(|_| panic!("code file type has no parser language: {file_type:?}"));
+    }
+
+    let Some(package) = compiler
+        .repository
+        .package(context.revision(), package_id)
+        .unwrap_or_else(|error| panic!("failed to load source package: {error}"))
+    else {
+        return LanguageType::JavaScript;
+    };
+    if let Some(file_id) = package.destack_file_id {
+        let content_id = compiler
+            .repository
+            .file_content_id(context.revision(), file_id)
+            .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
+            .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
+        context.dependency(ArtifactDependency::file_content(file_id, content_id));
+    }
+
+    let package_options = compiler
+        .repository
+        .package_options(context.revision(), package_id)
+        .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
+    if package_options.is_some_and(|options| options.compiler.js_as_jsx) {
+        return LanguageType::JavaScriptXml;
+    }
+
+    LanguageType::JavaScript
+}
+
+impl ProviderContext for TestProviderContext {
+    type Revision = Revision;
+
+    /// Return the pinned repository revision for this attempt.
+    fn revision(&self) -> Revision {
+        self.revision
+    }
+
+    /// Return the artifact key being built.
+    fn key(&self) -> ArtifactKey {
+        self.artifact_key
+    }
+
+    /// Require one artifact and return its exact version when ready.
+    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, RequireError> {
+        if key == self.artifact_key {
+            return Err(RequireError::Failed { key });
+        }
+
+        let Some(version) = self
+            .repository
+            .artifact_version(self.revision, &key)
+            .expect("linter test provider should read artifact version")
+        else {
+            return Err(RequireError::blocked(key));
+        };
+
+        match self.repository.artifact_store().outcome(&version) {
+            Some(ArtifactOutcome::Ok) => {}
+            Some(ArtifactOutcome::Failed(_)) => {
+                let mut dependencies = self.dependencies.lock();
+                let dependency = ArtifactDependency::artifact(version);
+                if !dependencies.iter().any(|existing| *existing == dependency) {
+                    dependencies.push(dependency);
+                }
+
+                return Err(RequireError::Failed { key });
+            }
+            None => return Err(RequireError::blocked(key)),
+        }
+
+        let mut dependencies = self.dependencies.lock();
+        let dependency = ArtifactDependency::artifact(version);
+        if !dependencies.iter().any(|existing| *existing == dependency) {
+            dependencies.push(dependency);
+        }
+
+        Ok(version)
+    }
+
+    /// Record one exact dependency read by this attempt.
+    fn dependency(&self, dependency: ArtifactDependency) {
+        let mut dependencies = self.dependencies.lock();
+        if !dependencies.iter().any(|existing| existing == &dependency) {
+            dependencies.push(dependency);
+        }
+    }
+
+    /// Record diagnostics produced by this attempt.
+    fn diagnostics(&self, diagnostics: DiagnosticCollection) {
+        if diagnostics.is_empty() {
+            return;
+        }
+
+        self.diagnostics.lock().merge_from(&diagnostics);
+    }
+}
 
 /// Test wrapper for linting.
 #[allow(unused)]
@@ -86,7 +375,7 @@ fn default_test_libs() -> Vec<String> {
 fn extend_libs_from_requirements(libs: &mut Vec<String>, requirements: &[LintRequirement]) {
     for requirement in requirements {
         if let LintRequirement::RequireLibSymbol(_, rule_libs) = requirement {
-            // choose a single lib per requirement: this avoids conflicting ambient sets
+            // choose a single lib per requirement: this avoids conflicting environment sets
             let Some(lib_name) = rule_libs.first().copied() else {
                 continue;
             };
@@ -144,7 +433,7 @@ impl TestProgram {
     fn package_id(&self) -> destack_source::PackageId {
         let mut package_ids = self
             .repository
-            .workspace_package_ids(self.current_revision())
+            .package_ids(self.current_revision())
             .expect("workspace package ids should load");
         package_ids.sort_unstable();
 
@@ -153,45 +442,48 @@ impl TestProgram {
             .expect("linter tests should have one active package")
     }
 
-    /// Return one module snapshot for the current revision.
-    pub(crate) fn repository_module(&self, module_id: ModuleId) -> Arc<destack_workspace::Module> {
+    /// Return one module for the current revision.
+    pub(crate) fn repository_module(&self, module_id: ModuleId) -> Arc<Module> {
         self.repository
             .module(self.current_revision(), module_id)
             .ok()
             .flatten()
-            .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"))
+            .unwrap_or_else(|| panic!("missing module for {module_id:?}"))
     }
 
-    /// Return one file snapshot for the current revision.
+    /// Return one source file for the current revision.
     pub(crate) fn repository_file(&self, file_id: FileId) -> Arc<File> {
         self.repository
             .file(self.current_revision(), file_id)
             .ok()
             .flatten()
-            .unwrap_or_else(|| panic!("missing file snapshot for {file_id:?}"))
+            .unwrap_or_else(|| panic!("missing file for {file_id:?}"))
     }
 
-    /// Publish one source change to the current workspace revision.
-    fn apply_change(&self, change: Change) {
+    /// Publish repository edits to the current workspace revision.
+    fn apply_edits<I>(&self, edits: I)
+    where
+        I: IntoIterator<Item = RepositoryEdit>,
+    {
         self.repository
-            .apply(&self.current_reference(), change)
-            .expect("failed to apply linter test change");
+            .apply_to_ref(&self.current_reference(), edits)
+            .expect("failed to apply linter test edits");
     }
 
     /// Create a new test repository with the given rules and options.
     fn new(
         rules: Vec<BoxedLintRule>,
-        inject_prelude: bool,
+        _inject_prelude: bool,
         explicit_libs: Option<Vec<String>>,
     ) -> Self {
         let cwd = current_dir().unwrap();
         let fs = Arc::new(OverlayFileSystem::with_inner(Arc::new(
             PhysicalFileSystem::new(),
         )));
-        let ambient = AmbientSnapshot::capture_process();
+        let environment = HostEnvironment::capture_process();
 
         let repository = Arc::new(
-            Repository::open_root_from_fs(cwd.clone(), fs.clone(), ambient.clone())
+            open_repository_from_fs(cwd.clone(), fs.clone(), environment.clone())
                 .expect("failed to import repository from linter test file system")
                 .with_cache(TEST_CACHE_STORE.clone()),
         );
@@ -208,23 +500,17 @@ impl TestProgram {
             None,
             None,
             libs,
+            Vec::new(),
             false,
             false,
             false,
-            EnvironmentStamp::from_env_all(),
+            environment.key_all(),
             ProfileFlags::default(),
         );
-        let profile = Profile::from_key(profile_key, &ambient.environment);
+        let profile = Profile::from_key(profile_key, &environment);
 
-        // compiler / runner
-        let compiler = Arc::new(Compiler::new(
-            repository.clone(),
-            CompilerOptions {
-                workers: 1,
-                inject_prelude,
-                ..Default::default()
-            },
-        ));
+        // compiler and runner
+        let compiler = Arc::new(Compiler::new(repository.clone()));
         let runner = LintRunner::new(rules);
 
         Self {
@@ -299,7 +585,7 @@ impl TestProgram {
         let overlay_path = self.repository.workspace_root().join(path);
         self.fs.set_overlay(&overlay_path, content.to_string());
 
-        self.apply_change(Change::single(RepositoryEdit::set_text(path, content)));
+        self.apply_edits([RepositoryEdit::set_text(path, content)]);
     }
 
     /// Set one root target config with explicit entry paths.
@@ -337,14 +623,17 @@ impl TestProgram {
     pub(crate) fn import_module(&self, module: ModuleId) {
         self.pending_artifact_keys
             .lock()
-            .push(ArtifactKey::DirBase { module });
+            .push(ArtifactKey::DirDeclared {
+                module,
+                profile: self.profile_id(),
+            });
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
         self.pending_artifact_keys
             .lock()
-            .push(ArtifactKey::DirResolved {
+            .push(ArtifactKey::DirExported {
                 module,
                 profile: self.profile_id(),
             });
@@ -352,29 +641,13 @@ impl TestProgram {
 
     /// Resolve the language environment for the current profile.
     pub(crate) fn resolve_language_environment(&self) {
-        self.compiler
-            .provide(
-                self.current_revision(),
-                ArtifactKey::language_environment(self.profile_id()),
-            )
-            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
-
-        // publish diagnostics from this compiler operation into the test harness
-        self.compiler.flush_diagnostics();
+        self.provide_compiler_artifacts(&[ArtifactKey::language_environment(self.profile_id())]);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
-        self.compiler
-            .provide(
-                self.current_revision(),
-                ArtifactKey::library_environment(self.profile_id()),
-            )
-            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
-
-        // publish diagnostics from this compiler operation into the test harness
-        self.compiler.flush_diagnostics();
+        self.provide_compiler_artifacts(&[ArtifactKey::ambient_environment(self.profile_id())]);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
@@ -395,7 +668,7 @@ impl TestProgram {
     pub(crate) fn analyze_module(&self, module: ModuleId) {
         self.pending_artifact_keys
             .lock()
-            .push(ArtifactKey::DirAnalyzed {
+            .push(ArtifactKey::DirChecked {
                 module,
                 profile: self.profile_id(),
             });
@@ -408,17 +681,61 @@ impl TestProgram {
             std::mem::take(&mut *pending_artifact_keys)
         };
 
-        for artifact_key in artifact_keys {
-            self.compiler
-                .provide(self.current_revision(), artifact_key)
-                .unwrap_or_else(|error| {
-                    panic!("failed to provide linter test artifact: {error:?}")
-                });
-        }
-
-        // publish diagnostics from this compiler run into the test harness
-        self.compiler.flush_diagnostics();
+        self.provide_compiler_artifacts(&artifact_keys);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
+    }
+
+    /// Provide compiler artifacts through the session scheduler.
+    fn provide_compiler_artifacts(&self, artifact_keys: &[ArtifactKey]) {
+        let revision = self.current_revision();
+        let mut pending_artifact_keys = artifact_keys.to_vec();
+
+        while let Some(artifact_key) = pending_artifact_keys.pop() {
+            if let Some(version) = self
+                .repository
+                .artifact_version(revision, &artifact_key)
+                .expect("linter test provider should read artifact version")
+                && self.repository.artifact_store().outcome(&version).is_some()
+            {
+                continue;
+            }
+
+            let context = Arc::new(TestProviderContext::new(
+                self.repository.clone(),
+                revision,
+                artifact_key,
+            ));
+
+            match artifact_key.provider() {
+                ArtifactProvider::Source => {
+                    let payload = provide_source_artifact(self.compiler.as_ref(), context.as_ref());
+                    context.publish(payload);
+
+                    continue;
+                }
+                ArtifactProvider::Compiler | ArtifactProvider::Linter => {}
+            }
+
+            match self.compiler.provide(context.as_ref()) {
+                Ok(payload) => context.publish(payload),
+                Err(ProvideError::Blocked { keys }) => {
+                    pending_artifact_keys.push(artifact_key);
+                    pending_artifact_keys.extend(keys);
+                }
+                Err(ProvideError::RequirementFailed { key }) => {
+                    context.fail(ArtifactFailure::requirement(key));
+                }
+                Err(ProvideError::Corrupt { version }) => {
+                    panic!(
+                        "failed to provide linter test artifact {artifact_key:?}: corrupt artifact {version:?}"
+                    );
+                }
+                Err(ProvideError::Failed { failure }) => context.fail(failure),
+                Err(ProvideError::Internal { message }) => {
+                    panic!("failed to provide linter test artifact {artifact_key:?}: {message}");
+                }
+            }
+        }
     }
 
     /// Replace the latest compiler diagnostics for this test harness.
@@ -438,17 +755,29 @@ impl TestProgram {
         let revision = self.current_revision();
         let module_ids = self
             .repository
-            .workspace_module_ids(revision)
+            .module_ids(revision)
             .unwrap_or_else(|error| panic!("failed to read workspace modules: {error}"));
+        let profile_id = self.profile_id();
         let mut diagnostics = DiagnosticCollection::new();
 
-        // current workspace families
+        // current workspace artifacts
         for module_id in module_ids {
-            diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
-                revision,
-                module_id,
-                self.profile_id(),
-            ));
+            let artifact_keys = [
+                ArtifactKey::ast(module_id),
+                ArtifactKey::dir_declared(module_id, profile_id),
+                ArtifactKey::dir_exported(module_id, profile_id),
+                ArtifactKey::dir_checked(module_id, profile_id),
+            ];
+
+            for artifact_key in artifact_keys {
+                let artifact_diagnostics = self
+                    .repository
+                    .artifact_diagnostics(revision, &artifact_key)
+                    .unwrap_or_else(|error| {
+                        panic!("failed to read diagnostics for {artifact_key:?}: {error}")
+                    });
+                diagnostics.merge_from(&artifact_diagnostics);
+            }
         }
 
         diagnostics
@@ -699,8 +1028,12 @@ impl TestProgram {
         if let Some(highest) = highest
             && highest >= min_severity
         {
-            self.repository
-                .print_diagnostics(self.current_revision(), &diagnostics, 120);
+            let revision = self.current_revision();
+            print_diagnostics(
+                &|file_id| self.repository.file(revision, file_id).ok().flatten(),
+                &diagnostics,
+                PrintOptions::new().with_line_width(120),
+            );
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
                 "repository has {} unexpected {severity_name}s",
@@ -747,13 +1080,13 @@ impl<'a> LintResult<'a> {
         }
     }
 
-    /// Return one file snapshot for one diagnostic file id.
+    /// Return one source file for one diagnostic file id.
     fn repository_file(&self, file_id: FileId) -> Arc<File> {
         self.repository
             .file(self.revision, file_id)
             .ok()
             .flatten()
-            .unwrap_or_else(|| panic!("missing file snapshot for {file_id:?}"))
+            .unwrap_or_else(|| panic!("missing file for {file_id:?}"))
     }
 
     /// Get the diagnostics.
@@ -767,8 +1100,11 @@ impl<'a> LintResult<'a> {
         for d in diagnostics {
             collection.insert(d.clone().into_diagnostic());
         }
-        self.repository
-            .print_diagnostics(self.revision, &collection, 120);
+        print_diagnostics(
+            &|file_id| self.repository.file(self.revision, file_id).ok().flatten(),
+            &collection,
+            PrintOptions::new().with_line_width(120),
+        );
     }
 
     /// Assert diagnostics contain a lint with the given rule id.

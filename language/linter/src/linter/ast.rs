@@ -5,6 +5,7 @@ use destack_ast::{self as ast, Argument, Decorator, Expression, ScalarLiteral, S
 use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revision};
 
+use crate::linter::artifact::read_ast;
 use crate::rules::common::expression_path_segments;
 use crate::{
     ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse, LintRequirement,
@@ -111,7 +112,12 @@ impl<'a> LintAstContext<'a> {
         self.module.id
     }
 
-    /// Return one module snapshot for the active revision when present.
+    /// Return the stable string id for one static text.
+    pub fn string_id(&self, text: &str) -> ast::StringId {
+        ast::StringId::for_text(text)
+    }
+
+    /// Return one module for the active revision when present.
     pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.repository
             .module(self.revision, module_id)
@@ -119,14 +125,14 @@ impl<'a> LintAstContext<'a> {
             .flatten()
     }
 
-    /// Return one file snapshot for the active revision when present.
+    /// Return one source file for the active revision when present.
     pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
         self.repository.file(self.revision, file_id).ok().flatten()
     }
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        self.repository.ast(self.revision, module_id)
+        read_ast(&self.repository, self.revision, module_id)
     }
 
     /// Return the linter options.

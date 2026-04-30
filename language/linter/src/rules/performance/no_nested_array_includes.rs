@@ -64,9 +64,9 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
     /// Build a visitor for no-nested-array-includes checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let includes_name = ctx.repository.strings.intern("includes");
-        let index_of_name = ctx.repository.strings.intern("indexOf");
-        let last_index_of_name = ctx.repository.strings.intern("lastIndexOf");
+        let includes_name = ctx.string_id("includes");
+        let index_of_name = ctx.string_id("indexOf");
+        let last_index_of_name = ctx.string_id("lastIndexOf");
 
         Self {
             ctx,

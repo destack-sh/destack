@@ -65,9 +65,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-startswith checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
-        let index_of_name = ctx.repository.strings.intern("indexOf");
-        let starts_with_name = ctx.repository.strings.intern("startsWith");
-        let test_name = ctx.repository.strings.intern("test");
+        let index_of_name = ctx.string_id("indexOf");
+        let starts_with_name = ctx.string_id("startsWith");
+        let test_name = ctx.string_id("test");
 
         Self {
             ctx,
@@ -352,7 +352,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let receiver_text = strip_dot_member_suffix(member_text, "indexOf")?;
         let prefix_span = self.ctx.get_span(starts_with_match.prefix_id);
         let prefix_text = self.ctx.get_span_text(prefix_span);
-        let method_name = self.ctx.repository.strings.get(self.starts_with_name);
+        let method_name = self.ctx.strings.get(self.starts_with_name);
         let replacement = format!("{receiver_text}.{}({prefix_text})", method_name.as_ref());
 
         // replace the full comparison expression
@@ -391,9 +391,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     ) -> Option<String> {
         let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
 
-        let pattern = self.ctx.repository.strings.get(pattern_id);
+        let pattern = self.ctx.strings.get(pattern_id);
         let flags = flags_id
-            .map(|flags_id| self.ctx.repository.strings.get(flags_id).to_string())
+            .map(|flags_id| self.ctx.strings.get(flags_id).to_string())
             .unwrap_or_default();
         regex_prefix_literal(pattern.as_ref(), &flags)
     }
@@ -412,7 +412,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         }
 
         let quoted_prefix = single_quoted_string_literal(prefix_text);
-        let method_name = self.ctx.repository.strings.get(self.starts_with_name);
+        let method_name = self.ctx.strings.get(self.starts_with_name);
         let replacement = format!(
             "({argument_text}).{}({quoted_prefix})",
             method_name.as_ref()

@@ -1,39 +1,15 @@
 use std::fmt::Write as _;
 
-/// FNV-1a offset basis.
-const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
-/// FNV-1a prime.
-const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+use destack_core::{StableHasher, stable_hash_bytes as core_stable_hash_bytes};
 
-/// Hash raw bytes with FNV-1a.
+/// Hash raw bytes with the shared stable hash.
 pub fn stable_hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hash = FNV_OFFSET_BASIS;
-    for byte in bytes {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-
-    hash
+    core_stable_hash_bytes(bytes)
 }
 
-/// Hash a key and value pair with a separator.
+/// Hash a key and value pair with length framing.
 pub fn stable_hash_key_value(key: &[u8], value: &[u8]) -> u64 {
-    let mut hash = FNV_OFFSET_BASIS;
-
-    for byte in key {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-
-    hash ^= 0xff;
-    hash = hash.wrapping_mul(FNV_PRIME);
-
-    for byte in value {
-        hash ^= *byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-
-    hash
+    destack_core::stable_hash_key_value(key, value)
 }
 
 /// Hash a token key and string value.
@@ -49,27 +25,24 @@ pub fn stable_hash_token_hashed_value(key: &str, value_hash: u64) -> u64 {
 /// Hash a debug value without allocating a formatted string.
 pub fn stable_hash_debug<T: std::fmt::Debug>(value: &T) -> u64 {
     struct DebugHasher {
-        hash: u64,
+        hasher: StableHasher,
     }
 
     impl DebugHasher {
         fn new() -> Self {
             Self {
-                hash: FNV_OFFSET_BASIS,
+                hasher: StableHasher::new(),
             }
         }
 
         fn finish(self) -> u64 {
-            self.hash
+            self.hasher.finish_u64()
         }
     }
 
     impl std::fmt::Write for DebugHasher {
         fn write_str(&mut self, s: &str) -> std::fmt::Result {
-            for byte in s.as_bytes() {
-                self.hash ^= *byte as u64;
-                self.hash = self.hash.wrapping_mul(FNV_PRIME);
-            }
+            self.hasher.update(s.as_bytes());
 
             Ok(())
         }

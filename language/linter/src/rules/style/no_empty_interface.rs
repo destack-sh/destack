@@ -143,7 +143,7 @@ fn no_empty_interface_single_extends_fix(
         )
         .unwrap_or_else(|| ctx.ast.get_span(parent.expression));
     let parent_text = ctx.get_span_text(parent_span);
-    let interface_name = ctx.repository.strings.get(interface_name_id);
+    let interface_name = ctx.strings.get(interface_name_id);
     let generic_text = generic_parameters_text(ctx, &declaration.generic_parameters);
     let replacement = format!(
         "type {}{generic_text} = {parent_text}",

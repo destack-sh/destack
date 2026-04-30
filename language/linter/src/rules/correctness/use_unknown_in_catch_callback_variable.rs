@@ -40,8 +40,8 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
     /// Check module DIR nodes for Promise rejection callback parameter types.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let catch_name = ctx.repository.strings.intern("catch");
-        let then_name = ctx.repository.strings.intern("then");
+        let catch_name = ctx.string_id("catch");
+        let then_name = ctx.string_id("then");
         let promise_symbol = ctx
             .well_known_symbols()
             .get_type_symbol(WellKnownSymbol::Promise)
@@ -306,7 +306,10 @@ fn callback_declaration_uses_any_parameter(
     ctx: &LintModuleDirContext<'_>,
     declaration_id: dir::GlobalNodeIdAny,
 ) -> bool {
-    let Some(module_dir) = ctx.analyzed_dir(declaration_id.module_id) else {
+    let Some(declared_dir) = ctx.declared_dir(declaration_id.module_id) else {
+        return false;
+    };
+    let Some(checked_dir) = ctx.analyzed_dir(declaration_id.module_id) else {
         return false;
     };
     let Some(ast) = ctx.module_ast(declaration_id.module_id) else {
@@ -314,15 +317,15 @@ fn callback_declaration_uses_any_parameter(
     };
 
     let Some(parameter_id) =
-        first_callback_parameter_in_declaration(&module_dir.tree, declaration_id.local_id)
+        first_callback_parameter_in_declaration(&declared_dir.tree, declaration_id.local_id)
     else {
         return false;
     };
 
     parameter_uses_explicit_any(
         &ast.tree,
-        &module_dir.tree,
-        &module_dir.types,
+        &declared_dir.tree,
+        &checked_dir.types,
         declaration_id.module_id,
         parameter_id,
     )

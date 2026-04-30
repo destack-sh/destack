@@ -88,7 +88,7 @@ impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
         // check if the iterator may be array-like
         if !is_array_like_iteration_type(
             self.ctx.types,
-            &self.ctx.repository.strings,
+            self.ctx.strings,
             type_id,
             Some(self.array_symbol),
         ) {

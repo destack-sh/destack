@@ -72,13 +72,10 @@ struct NoProcessExitVisitor<'a, 'b> {
 impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     /// Build a visitor for no-process-exit checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let process_name = ctx.repository.strings.intern("process");
+        let process_name = ctx.string_id("process");
         let process_symbol = ctx.declared_library_symbol(process_name);
-        let exit_name = ctx.repository.strings.intern("exit");
-        let event_handler_names = [
-            ctx.repository.strings.intern("on"),
-            ctx.repository.strings.intern("once"),
-        ];
+        let exit_name = ctx.string_id("exit");
+        let event_handler_names = [ctx.string_id("on"), ctx.string_id("once")];
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

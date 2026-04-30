@@ -256,7 +256,7 @@ fn restricted_name_replacement(
     name: &str,
 ) -> Option<String> {
     let base_name = format!("{name}Local");
-    let base_name_id = ctx.strings.intern(&base_name);
+    let base_name_id = ctx.string_id(&base_name);
     if !scope_mentions_identifier_name(ctx, scope_root, base_name_id) {
         return Some(base_name);
     }
@@ -264,7 +264,7 @@ fn restricted_name_replacement(
     let mut suffix = 2_u32;
     loop {
         let candidate = format!("{name}Local{suffix}");
-        let candidate_id = ctx.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         if !scope_mentions_identifier_name(ctx, scope_root, candidate_id) {
             return Some(candidate);
         }

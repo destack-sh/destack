@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use std::collections::HashSet;
 
-use destack_artifact::ModuleGraph;
+use destack_artifact::DirExported;
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::{
     EntryResolutionMode, EntrySource, TargetDiscovery, TargetDiscoveryOptions,
@@ -43,11 +43,6 @@ impl LintRule for NoUnusedModules {
             return;
         }
 
-        // resolve the module graph for the active profile
-        let Some(graph) = ctx.module_graph() else {
-            return;
-        };
-
         // collect user code modules eligible for this rule
         let eligible_modules = collect_eligible_modules(ctx);
         if eligible_modules.is_empty() {
@@ -65,18 +60,18 @@ impl LintRule for NoUnusedModules {
                 continue;
             }
 
-            let has_user_dependents = graph
-                .dependents_for(module_id)
-                .into_iter()
-                .filter(|dependent| eligible_modules.contains(dependent))
-                .any(|dependent| dependent != module_id);
+            let has_user_dependents = eligible_modules.iter().copied().any(|dependent| {
+                dependent != module_id
+                    && module_dependencies(ctx, dependent)
+                        .into_iter()
+                        .any(|dependency| dependency == module_id)
+            });
             if has_user_dependents {
                 continue;
             }
 
             unused_module_ids.push(module_id);
         }
-        drop(graph);
 
         if unused_module_ids.is_empty() {
             return;
@@ -119,7 +114,7 @@ impl NoUnusedModules {
     /// Collect eligible modules reachable from one target entry root.
     fn collect_reachable_entry_modules(
         &self,
-        graph: &ModuleGraph,
+        ctx: &LintWorkspaceDirContext,
         entry_module_id: ModuleId,
         eligible_modules: &HashSet<ModuleId>,
         entry_modules: &mut HashSet<ModuleId>,
@@ -127,7 +122,7 @@ impl NoUnusedModules {
         let mut pending = vec![entry_module_id];
         let mut visited = HashSet::new();
 
-        // walk the shared module graph from the target entry
+        // walk resolved dependencies from the target entry
         while let Some(module_id) = pending.pop() {
             if !visited.insert(module_id) {
                 continue;
@@ -137,7 +132,7 @@ impl NoUnusedModules {
                 entry_modules.insert(module_id);
             }
 
-            for dependency in graph.dependencies_for(module_id) {
+            for dependency in module_dependencies(ctx, module_id) {
                 pending.push(dependency);
             }
         }
@@ -153,14 +148,6 @@ fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> 
         let Some(module) = ctx.repository_module(module_id) else {
             continue;
         };
-        let module = module.as_ref();
-        if ctx.repository.is_synthetic_root_module(module.id) {
-            continue;
-        }
-        if !module.is_user() {
-            continue;
-        }
-
         let Some(file) = ctx.repository_file(module.file_id) else {
             continue;
         };
@@ -180,20 +167,14 @@ fn collect_profile_target_entry_modules(
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashSet<ModuleId> {
     let mut entry_modules = HashSet::new();
-    let Some(graph) = ctx.module_graph() else {
-        return entry_modules;
-    };
 
     // inspect package targets for entry roots
     for package_id in ctx.workspace_package_ids() {
         let Some(package) = ctx.repository_package(package_id) else {
             continue;
         };
-        let package = package.as_ref();
-        let package_path = package.path.clone();
-
         for (target_id, target) in &package.targets {
-            if target.synthetic || target.discovery != TargetDiscovery::Entry {
+            if target.discovery != TargetDiscovery::Entry {
                 continue;
             }
 
@@ -202,14 +183,9 @@ fn collect_profile_target_entry_modules(
                 entry_resolution: EntryResolutionMode::RepositoryRelative,
                 manifest_entry_targets: &[],
             };
-            let discovered_modules = ctx.repository.entry_module_ids(
-                ctx.revision,
-                package.id,
-                &package_path,
-                target,
-                target_id,
-                &options,
-            );
+            let discovered_modules =
+                ctx.repository
+                    .target_module_ids(ctx.revision, *target_id, &options);
             let Ok(discovered_modules) = discovered_modules else {
                 continue;
             };
@@ -217,7 +193,7 @@ fn collect_profile_target_entry_modules(
             // walk from every target entry so document roots keep reachable code alive
             for module_id in discovered_modules {
                 NoUnusedModules.collect_reachable_entry_modules(
-                    graph.as_ref(),
+                    ctx,
                     module_id,
                     eligible_modules,
                     &mut entry_modules,
@@ -248,9 +224,43 @@ fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> boo
     };
 
     // keep any module with named exports, export assignment, or namespace exports
-    !dir.exported_symbols.is_empty()
+    !dir.export_by_symbol_key.is_empty()
         || dir.export_assignment.is_some()
         || !dir.namespace_exports.is_empty()
+}
+
+/// Return direct resolved dependencies for one module.
+fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
+    let Some(resolved) = ctx.resolved_dir(module_id) else {
+        return Vec::new();
+    };
+
+    resolved_module_dependencies(&resolved)
+}
+
+/// Return direct resolved dependencies from one exported DIR.
+fn resolved_module_dependencies(resolved: &DirExported) -> Vec<ModuleId> {
+    let mut dependencies = Vec::new();
+
+    // collect import edges for both value and type space
+    for resolution in resolved.import_resolutions.values() {
+        if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
+            dependencies.push(module_id);
+        }
+
+        if let Some(module_id) = resolution.ty.and_then(|target| target.module_id()) {
+            dependencies.push(module_id);
+        }
+    }
+
+    // collect namespace re export edges
+    for export in resolved.namespace_exports.iter() {
+        if let Some(module_id) = export.module_id.module_id() {
+            dependencies.push(module_id);
+        }
+    }
+
+    dependencies
 }
 
 /// Return the file name for deterministic sorting.

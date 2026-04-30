@@ -65,7 +65,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
     /// Build a visitor for no-extra-boolean-cast checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let boolean_symbol = ctx.well_known_symbol(WellKnownSymbol::Boolean);
-        let boolean_name = ctx.repository.strings.intern("Boolean");
+        let boolean_name = ctx.string_id("Boolean");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

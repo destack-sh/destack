@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use destack_ast as ast;
+use destack_core::StableHasher;
 
 use crate::LintAstContext;
 use crate::rules::common::{
@@ -98,7 +99,7 @@ fn expression_coarse_key(
     let expression = ctx.tree.get(expression_id);
     let expression = unwrap_expression(ctx, expression);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
     if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
@@ -175,7 +176,7 @@ fn expression_structural_key(
     let expression = ctx.tree.get(expression_id);
     let expression = unwrap_expression(ctx, expression);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
     if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
@@ -277,7 +278,7 @@ fn expression_structural_key(
 /// Hash one assignment pattern shape into the running hasher.
 fn hash_assign_pattern_kind(
     ctx: &LintAstContext<'_>,
-    hasher: &mut std::collections::hash_map::DefaultHasher,
+    hasher: &mut StableHasher,
     assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
 ) {
     let assign_pattern = ctx.tree.get(assign_pattern_id);
@@ -300,7 +301,7 @@ fn hash_assign_pattern_kind(
 /// Build a coarse prefilter key for one block.
 fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> u64 {
     let block = ctx.tree.get(block_id);
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = StableHasher::new();
     block.len().hash(&mut hasher);
 
     for expression_id in block.iter_expressions() {
@@ -313,7 +314,7 @@ fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast:
 /// Hash one normalized expression kind.
 fn hash_expression_kind(
     ctx: &LintAstContext<'_>,
-    hasher: &mut std::collections::hash_map::DefaultHasher,
+    hasher: &mut StableHasher,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
     let expression = ctx.tree.get(expression_id);
@@ -324,7 +325,7 @@ fn hash_expression_kind(
 /// Hash one argument shape.
 fn hash_argument_shape(
     ctx: &LintAstContext<'_>,
-    hasher: &mut std::collections::hash_map::DefaultHasher,
+    hasher: &mut StableHasher,
     argument_id: ast::LocalNodeId<ast::Argument>,
 ) {
     let argument = ctx.tree.get(argument_id);
@@ -349,7 +350,7 @@ fn hash_argument_shape(
 /// Hash one if condition shape.
 fn hash_if_condition_shape(
     ctx: &LintAstContext<'_>,
-    hasher: &mut std::collections::hash_map::DefaultHasher,
+    hasher: &mut StableHasher,
     condition: &ast::IfCondition,
 ) {
     std::mem::discriminant(condition).hash(hasher);
@@ -370,10 +371,7 @@ fn hash_if_condition_shape(
 }
 
 /// Hash a debug value into the provided hasher.
-fn hash_debug_into(
-    hasher: &mut std::collections::hash_map::DefaultHasher,
-    value: &impl std::fmt::Debug,
-) {
+fn hash_debug_into(hasher: &mut StableHasher, value: &impl std::fmt::Debug) {
     stable_hash_debug(value).hash(hasher);
 }
 

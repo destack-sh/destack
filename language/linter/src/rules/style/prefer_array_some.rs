@@ -104,13 +104,13 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-some checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let filter_name = ctx.repository.strings.intern("filter");
-        let find_index_name = ctx.repository.strings.intern("findIndex");
-        let find_last_index_name = ctx.repository.strings.intern("findLastIndex");
-        let find_name = ctx.repository.strings.intern("find");
-        let find_last_name = ctx.repository.strings.intern("findLast");
-        let some_name = ctx.repository.strings.intern("some");
-        let length_name = ctx.repository.strings.intern("length");
+        let filter_name = ctx.string_id("filter");
+        let find_index_name = ctx.string_id("findIndex");
+        let find_last_index_name = ctx.string_id("findLastIndex");
+        let find_name = ctx.string_id("find");
+        let find_last_name = ctx.string_id("findLast");
+        let some_name = ctx.string_id("some");
+        let length_name = ctx.string_id("length");
 
         Self {
             ctx,
@@ -330,7 +330,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
-        let some_name = self.ctx.repository.strings.get(self.some_name);
+        let some_name = self.ctx.strings.get(self.some_name);
         let some_call = format!("{receiver_text}.{}({arguments_text})", some_name.as_ref());
         let replacement = match match_info.check {
             ArraySomeCheck::AnyMatch => some_call,

@@ -61,7 +61,7 @@ struct NoRegexInLoopVisitor<'a, 'b> {
 impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
     /// Build a visitor for no-regex-in-loop checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let regexp_name = ctx.repository.strings.intern("RegExp");
+        let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 

@@ -93,7 +93,7 @@ impl LintRule for PreferConst {
                     .symbols
                     .get_symbol(symbol_id.local_id)
                     .name()
-                    .map(|name| ctx.repository.strings.get(name).to_string())
+                    .map(|name| ctx.strings.get(name).to_string())
                     .unwrap_or_else(|| "binding".to_string());
                 let mut diagnostic = LintDiagnostic::new(
                     PREFER_CONST.id,
