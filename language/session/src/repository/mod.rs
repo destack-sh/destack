@@ -1,9 +1,9 @@
-mod filesystem;
-mod open;
-mod path;
+mod artifact;
+mod ast;
+mod data;
+mod fs;
 mod root;
+mod source;
 mod update;
 
-pub(crate) use open::OpenFileOverlay;
-pub use path::*;
 pub use root::*;

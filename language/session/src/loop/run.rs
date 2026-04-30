@@ -1,7 +1,19 @@
 use parking_lot::Mutex;
 
 use super::task::SessionTask;
-use crate::{SessionError, SessionRunId};
+use crate::SessionError;
+
+/// Id for one session run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct SessionRunId(pub u32);
+
+impl std::fmt::Display for SessionRunId {
+    /// Format this run id for progress output.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "#{}", self.0)
+    }
+}
 
 /// One top-level artifact executor run.
 #[derive(Debug)]

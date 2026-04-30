@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey, ProviderContext};
+use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPayload, ProviderContext};
 use destack_source::{File, FileId};
 use destack_workspace::Revision;
 
-use super::context::SessionContext;
-use crate::{Session, SessionError};
+use crate::SessionError;
+use crate::session::{SessionContext, SessionState};
 
-impl Session {
+impl SessionState {
     /// Provide one source-derived artifact for a fixed revision.
-    pub(crate) fn provide_source(&self, context: &SessionContext) -> Result<(), SessionError> {
+    pub(crate) fn provide_source(
+        &self,
+        context: &SessionContext,
+    ) -> Result<ArtifactPayload, SessionError> {
         match context.key() {
             ArtifactKey::Ast { module } => self.provide_ast(module, context),
             ArtifactKey::Data { module } => self.provide_data(module, context),

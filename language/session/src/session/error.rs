@@ -37,15 +37,6 @@ pub enum SessionError {
         /// The missing module id.
         module_id: ModuleId,
     },
-    /// The incoming open-file version is not newer than the tracked version.
-    StaleOpenFileVersion {
-        /// The tracked file path.
-        path: PathBuf,
-        /// The incoming client version.
-        incoming: i32,
-        /// The current tracked client version.
-        current: i32,
-    },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
     /// Internal session failure.
@@ -72,17 +63,6 @@ impl std::fmt::Display for SessionError {
             }
             SessionError::ModuleIdNotTracked { module_id } => {
                 write!(formatter, "module id not tracked: {module_id:?}")
-            }
-            SessionError::StaleOpenFileVersion {
-                path,
-                incoming,
-                current,
-            } => {
-                write!(
-                    formatter,
-                    "stale open file version for {}: incoming {incoming}, current {current}",
-                    path.display()
-                )
             }
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")

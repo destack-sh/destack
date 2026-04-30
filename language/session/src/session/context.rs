@@ -1,8 +1,8 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactVersion, ProvideError, ProviderContext, ProviderResult, RequireError,
+    ArtifactVersion, ProviderContext, RequireError,
 };
 use destack_source::DiagnosticCollection;
 use destack_workspace::{Repository, Revision};
@@ -15,32 +15,25 @@ use crate::SessionError;
 pub(crate) struct SessionContext {
     /// The repository that owns the pinned revision.
     repository: Arc<Repository>,
-    /// The pinned revision for this attempt.
+    /// The (pinned) revision for this attempt.
     revision: Revision,
     /// The artifact key being built.
-    artifact_key: ArtifactKey,
+    key: ArtifactKey,
     /// The exact dependencies read by this attempt.
     dependencies: Mutex<Vec<ArtifactDependency>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
-    /// The typed payload produced by this attempt.
-    payload: OnceLock<ArtifactPayload>,
 }
 
 impl SessionContext {
     /// Create one provider attempt context.
-    pub(crate) fn new(
-        repository: Arc<Repository>,
-        revision: Revision,
-        artifact_key: ArtifactKey,
-    ) -> Self {
+    pub(crate) fn new(repository: Arc<Repository>, revision: Revision, key: ArtifactKey) -> Self {
         Self {
             repository,
             revision,
-            artifact_key,
+            key,
             dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
-            payload: OnceLock::new(),
         }
     }
 
@@ -51,7 +44,7 @@ impl SessionContext {
 
     /// Return the artifact key being built.
     pub(crate) fn key(&self) -> ArtifactKey {
-        self.artifact_key
+        self.key
     }
 
     /// Return the exact dependencies read by this attempt.
@@ -65,45 +58,21 @@ impl SessionContext {
     }
 
     /// Complete this attempt with its ready payload.
-    pub(crate) fn complete_ready(&self) -> Result<ArtifactVersion, SessionError> {
+    pub(crate) fn complete_ready(
+        &self,
+        payload: ArtifactPayload,
+    ) -> Result<ArtifactVersion, SessionError> {
         let dependencies = self.dependencies();
         let diagnostics = self.diagnostic_collection();
+        let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
-        // ready artifacts must have exactly one payload
-        let Some(payload) = self.payload.get().cloned() else {
-            return Err(SessionError::Internal {
-                detail: format!(
-                    "provider completed without recording an artifact payload: {:?}",
-                    self.artifact_key
-                ),
-            });
-        };
-
-        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
-
-        // store the artifact image before binding it to the revision
-        self.repository
-            .artifact_store()
-            .publish(version, payload, dependencies, diagnostics);
-        self.repository
-            .record_artifact_version(self.revision, version)?;
-
-        Ok(version)
-    }
-
-    /// Complete this attempt with diagnostics and no payload.
-    pub(crate) fn complete_diagnosed(&self) -> Result<ArtifactVersion, SessionError> {
-        let dependencies = self.dependencies();
-        let diagnostics = self.diagnostic_collection();
-
-        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
-
-        // store the artifact image before binding it to the revision
-        self.repository
-            .artifact_store()
-            .publish_diagnosed(version, dependencies, diagnostics);
-        self.repository
-            .record_artifact_version(self.revision, version)?;
+        self.repository.publish_artifact(
+            self.revision,
+            version,
+            payload,
+            dependencies,
+            diagnostics,
+        )?;
 
         Ok(version)
     }
@@ -116,17 +85,15 @@ impl SessionContext {
         let dependencies = self.dependencies();
         let diagnostics = self.diagnostic_collection();
 
-        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
+        let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
-        // store the artifact image before binding it to the revision
-        self.repository.artifact_store().publish_failed(
+        self.repository.fail_artifact(
+            self.revision,
             version,
             dependencies,
             diagnostics,
             failure,
-        );
-        self.repository
-            .record_artifact_version(self.revision, version)?;
+        )?;
 
         Ok(version)
     }
@@ -156,7 +123,7 @@ impl ProviderContext for SessionContext {
     /// Require one artifact and return its exact version when ready.
     fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, RequireError> {
         // can't require self
-        if key == self.artifact_key {
+        if key == self.key {
             return Err(RequireError::Failed { key });
         }
 
@@ -165,8 +132,8 @@ impl ProviderContext for SessionContext {
         };
 
         match self.repository.artifact_store().outcome(&version) {
-            Some(ArtifactOutcome::Ready) => {}
-            Some(ArtifactOutcome::Diagnosed | ArtifactOutcome::Failed(_)) => {
+            Some(ArtifactOutcome::Ok) => {}
+            Some(ArtifactOutcome::Failed(_)) => {
                 self.add_dependency(ArtifactDependency::artifact(version));
 
                 return Err(RequireError::Failed { key });
@@ -191,17 +158,5 @@ impl ProviderContext for SessionContext {
         }
 
         self.diagnostics.lock().merge_from(&diagnostics);
-    }
-
-    /// Set the typed payload produced by this attempt.
-    fn payload(&self, payload: ArtifactPayload) -> ProviderResult<()> {
-        if self.payload.set(payload).is_err() {
-            return Err(ProvideError::internal(format!(
-                "provider produced multiple payloads for {:?}",
-                self.artifact_key
-            )));
-        }
-
-        Ok(())
     }
 }
