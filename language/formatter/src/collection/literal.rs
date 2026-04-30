@@ -349,6 +349,9 @@ fn template_argument_should_indent_fit_layout(
             | Expression::PrivateMember { .. }
             | Expression::Index { .. }
             | Expression::If { .. }
+            | Expression::Match { .. }
+            | Expression::Try { .. }
+            | Expression::Comptime { .. }
             | Expression::Binary { .. }
             | Expression::Identifier { .. }
             | Expression::QualifiedReference { .. }
