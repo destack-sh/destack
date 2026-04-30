@@ -75,6 +75,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
+                let plan = fixture.allocator.resolve_plan(plan);
                 let start = Instant::now();
 
                 for _ in 0..SMALL_ALLOCATIONS {
@@ -99,6 +100,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
+                let plan = fixture.allocator.resolve_plan(plan);
                 let start = Instant::now();
 
                 for _ in 0..SMALL_ALLOCATIONS {
@@ -171,6 +173,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
+                let large_plan = fixture.allocator.resolve_plan(large_plan);
                 let start = Instant::now();
 
                 for _ in 0..LARGE_ALLOCATIONS {
@@ -195,6 +198,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
             for _ in 0..iterations {
                 let mut fixture = shared_fixture();
+                let large_plan = fixture.allocator.resolve_plan(large_plan);
                 let start = Instant::now();
 
                 for _ in 0..LARGE_ALLOCATIONS {
@@ -294,8 +298,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan =
-                            plan.with_small_span_class(fixture.allocator.small_span_class(plan));
+                        let plan = fixture.allocator.resolve_plan(plan);
                         let start = Instant::now();
 
                         for _ in 0..MATRIX_ALLOCATIONS {
@@ -327,8 +330,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 
                     for _ in 0..iterations {
                         let mut fixture = shared_fixture();
-                        let plan =
-                            plan.with_small_span_class(fixture.allocator.small_span_class(plan));
+                        let plan = fixture.allocator.resolve_plan(plan);
                         let start = Instant::now();
 
                         for _ in 0..MATRIX_ALLOCATIONS {
@@ -386,6 +388,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
 
                                 scope.spawn(move || {
                                     let mut allocator = shared.allocator();
+                                    let plan = allocator.resolve_plan(plan);
                                     barrier.wait();
 
                                     for _ in 0..PARALLEL_ALLOCATIONS_PER_WORKER {

@@ -188,6 +188,8 @@ pub(crate) fn allocate_shared_object_graph(
     let record_map = shared_record_reference_map();
     let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
     let record_plan = AllocationPlan::new(RECORD_BYTES, &record_map);
+    let leaf_plan = allocator.resolve_plan(leaf_plan);
+    let record_plan = allocator.resolve_plan(record_plan);
     let mut records = Vec::with_capacity(WORKLOAD_OBJECTS);
 
     for index in 0..WORKLOAD_OBJECTS {
@@ -235,6 +237,8 @@ pub(crate) fn allocate_shared_reference_array(
     let array_map = shared_reference_array_map();
     let leaf_plan = AllocationPlan::new(LEAF_BYTES, &leaf_map);
     let array_plan = AllocationPlan::new(WORKLOAD_OBJECTS * REFERENCE_BYTES, &array_map);
+    let leaf_plan = allocator.resolve_plan(leaf_plan);
+    let array_plan = allocator.resolve_plan(array_plan);
     let mut payload = vec![0u8; WORKLOAD_OBJECTS * REFERENCE_BYTES];
 
     for index in 0..WORKLOAD_OBJECTS {
