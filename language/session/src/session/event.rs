@@ -1,15 +1,6 @@
 use destack_artifact::ArtifactKey;
 
-/// Id for one session run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(transparent)]
-pub struct SessionRunId(pub u32);
-
-impl std::fmt::Display for SessionRunId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "#{}", self.0)
-    }
-}
+use crate::r#loop::SessionRunId;
 
 /// Event emitted by the session while providing artifacts.
 #[derive(Debug, Clone)]

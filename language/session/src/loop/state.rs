@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
+use super::run::{SessionRun, SessionRunId};
 use super::task::SessionTask;
 use crate::SessionError;
 
@@ -16,13 +18,29 @@ pub(super) struct SessionLoopState {
     pub(super) waiting_tasks: HashMap<SessionTask, HashSet<SessionTask>>,
     /// Reverse edges from dependency task to blocked tasks.
     dependents: HashMap<SessionTask, HashSet<SessionTask>>,
-    /// Workers currently driving artifact tasks.
-    pub(super) active_workers: usize,
+    /// Run that first requested each tracked task.
+    pub(super) task_runs: HashMap<SessionTask, SessionRunId>,
+    /// Active runs waiting on root tasks.
+    pub(super) runs: HashMap<SessionRunId, Arc<SessionRun>>,
+    /// Whether workers should stop after current work.
+    pub(super) is_shutdown: bool,
 }
 
 impl SessionLoopState {
+    /// Register one active run.
+    pub(super) fn insert_run(&mut self, run: Arc<SessionRun>) {
+        self.runs.insert(run.id(), run);
+    }
+
+    /// Remove one active run.
+    pub(super) fn remove_run(&mut self, run_id: SessionRunId) {
+        self.runs.remove(&run_id);
+        self.task_runs
+            .retain(|_, task_run_id| *task_run_id != run_id);
+    }
+
     /// Enqueue one task when it is not already tracked.
-    pub(super) fn enqueue(&mut self, task: SessionTask) {
+    pub(super) fn enqueue(&mut self, task: SessionTask, run_id: SessionRunId) {
         // avoid duplicate queue entries
         if self.queued_task_set.contains(&task)
             || self.running_tasks.contains(&task)
@@ -32,6 +50,7 @@ impl SessionLoopState {
         }
 
         // add ready task
+        self.task_runs.insert(task, run_id);
         self.queued_task_set.insert(task);
         self.queued_tasks.push_back(task);
     }
@@ -40,6 +59,7 @@ impl SessionLoopState {
     pub(super) fn block(
         &mut self,
         task: SessionTask,
+        run_id: SessionRunId,
         dependency_tasks: Vec<SessionTask>,
     ) -> Result<(), SessionError> {
         // this task is no longer running while it waits
@@ -47,7 +67,7 @@ impl SessionLoopState {
 
         // all dependencies finished before wait edges were needed
         if dependency_tasks.is_empty() {
-            self.enqueue(task);
+            self.enqueue(task, run_id);
 
             return Ok(());
         }
@@ -75,7 +95,7 @@ impl SessionLoopState {
                 .entry(dependency_task)
                 .or_default()
                 .insert(task);
-            self.enqueue(dependency_task);
+            self.enqueue(dependency_task, run_id);
         }
 
         Ok(())
@@ -85,6 +105,7 @@ impl SessionLoopState {
     pub(super) fn finish(&mut self, task: SessionTask) {
         // terminal tasks leave the running set
         self.running_tasks.remove(&task);
+        self.task_runs.remove(&task);
 
         // no tasks are waiting on this task
         let Some(dependents) = self.dependents.remove(&task) else {
@@ -101,8 +122,12 @@ impl SessionLoopState {
 
             // requeue dependents after the final dependency completes
             if dependencies.is_empty() {
+                let Some(run_id) = self.task_runs.get(&dependent).copied() else {
+                    continue;
+                };
+
                 self.waiting_tasks.remove(&dependent);
-                self.enqueue(dependent);
+                self.enqueue(dependent, run_id);
             }
         }
     }

@@ -1,39 +1,27 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_source::{Diagnostic, FileContent, FileId, Uri};
+use destack_source::{FileContent, FileId, Uri};
 use destack_workspace::{
     ConfigOverride, Edit, Ref, Repository, Revision, apply_config_overrides_to_json,
     parse_jsonc_text,
 };
 use serde_json::{Map, Value};
 
-use crate::session::{FileChange, file_update_image_from_file};
+use crate::session::FileChange;
 use crate::{FileChangeKind, FileMutation, FileUpdate, Session, SessionChange, SessionError};
 
 impl Session {
-    /// Set one open file to its current editor text.
+    /// Set one open file to its current overlay text.
     pub fn update_open_file(
         &self,
         reference: &Ref,
         path: &Path,
         uri: Uri,
-        version: i32,
         text: String,
     ) -> Result<SessionChange, SessionError> {
         let _mutation_guard = self.enter_mutation();
-
-        // reject stale editor updates at the session boundary
-        if let Some((_, current_version)) = self.open_file_identity(path)
-            && version <= current_version
-        {
-            return Err(SessionError::StaleOpenFileVersion {
-                path: path.to_path_buf(),
-                incoming: version,
-                current: current_version,
-            });
-        }
 
         let update = FileMutation::Text {
             content: text.clone(),
@@ -41,17 +29,10 @@ impl Session {
         let before = self.revision(reference)?;
         let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
 
-        self.track_open_file(path, uri.clone(), version);
-        self.set_overlay_for_path(path, text);
+        self.track_open_file(path, uri.clone());
+        self.set_open_file_text(path, text);
 
-        self.advance(
-            reference,
-            before,
-            after,
-            file_changes,
-            HashMap::new(),
-            Some(&uri),
-        )
+        self.finish_change(reference, before, after, file_changes, Some(&uri))
     }
 
     /// Save one open file to explicit saved text.
@@ -63,29 +44,27 @@ impl Session {
     ) -> Result<SessionChange, SessionError> {
         let _mutation_guard = self.enter_mutation();
 
-        // preserve tracked editor identity for still open files
-        let tracked_open_file = self.open_file_identity(path);
+        // preserve open file state for still open files
+        let tracked_open_file = self.tracked_open_file(path);
         let update = FileMutation::Text {
             content: text.clone(),
         };
         let before = self.revision(reference)?;
         let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
 
-        if let Some((uri, version)) = tracked_open_file {
-            self.track_open_file(path, uri.clone(), version);
-            self.set_overlay_for_path(path, text);
+        if let Some(open_file) = tracked_open_file {
+            self.set_open_file_text(path, text);
 
-            return self.advance(
+            return self.finish_change(
                 reference,
                 before,
                 after,
                 file_changes,
-                HashMap::new(),
-                Some(&uri),
+                Some(&open_file.uri),
             );
         }
 
-        self.advance(reference, before, after, file_changes, HashMap::new(), None)
+        self.finish_change(reference, before, after, file_changes, None)
     }
 
     /// Close one open file and restore filesystem backed source truth.
@@ -96,7 +75,7 @@ impl Session {
     ) -> Result<SessionChange, SessionError> {
         let _mutation_guard = self.enter_mutation();
 
-        let Some((uri, version)) = self.open_file_identity(path) else {
+        let Some(open_file) = self.tracked_open_file(path) else {
             let revision = self.revision(reference)?;
 
             return Ok(SessionChange {
@@ -117,16 +96,16 @@ impl Session {
                 })?;
 
         let _removed_open_file = self.untrack_open_file(path);
-        self.remove_overlay_for_path(path);
+        self.remove_open_file_text(path);
 
         // restore the filesystem backed update
-        let update = match self.file_mutation_for_path(path) {
+        let update = match self.read_file_from_fs(path) {
             Ok(update) => update,
             Err(error) if error.kind() == ErrorKind::NotFound => FileMutation::Removed,
             Err(error) => {
-                self.track_open_file(path, uri.clone(), version);
+                self.track_open_file(path, open_file.uri.clone());
                 if let Some(text) = tracked_text.clone() {
-                    self.set_overlay_for_path(path, text);
+                    self.set_open_file_text(path, text);
                 }
 
                 return Err(SessionError::ReadPathFailed {
@@ -144,23 +123,16 @@ impl Session {
         let (after, file_changes) = match self.apply_file_update_locked(before, path, update) {
             Ok(update) => update,
             Err(error) => {
-                self.track_open_file(path, uri.clone(), version);
+                self.track_open_file(path, open_file.uri.clone());
                 if let Some(text) = tracked_text {
-                    self.set_overlay_for_path(path, text);
+                    self.set_open_file_text(path, text);
                 }
 
                 return Err(error);
             }
         };
 
-        self.advance(
-            reference,
-            before,
-            after,
-            file_changes,
-            HashMap::new(),
-            Some(&uri),
-        )
+        self.finish_change(reference, before, after, file_changes, Some(&open_file.uri))
     }
 
     /// Apply one explicit file mutation through one ref.
@@ -174,11 +146,11 @@ impl Session {
         let before = self.revision(reference)?;
         let (after, file_changes) = self.apply_file_update_locked(before, path, update)?;
 
-        self.advance(reference, before, after, file_changes, HashMap::new(), None)
+        self.finish_change(reference, before, after, file_changes, None)
     }
 
     /// Build one file change after one file update.
-    pub(super) fn file_change(
+    pub(crate) fn file_change(
         &self,
         repository: &Repository,
         revision: Revision,
@@ -197,7 +169,7 @@ impl Session {
     }
 
     /// Apply one file update to one staged revision.
-    pub(super) fn apply_file_update_to_revision(
+    pub(crate) fn apply_file_update_to_revision(
         &self,
         repository: &Repository,
         revision: Revision,
@@ -218,7 +190,7 @@ impl Session {
     }
 
     /// Apply staged repository edits directly.
-    pub(super) fn apply_edits<I>(
+    pub(crate) fn apply_edits<I>(
         &self,
         repository: &Repository,
         revision: Revision,
@@ -242,7 +214,7 @@ impl Session {
         let repository = self.repository();
         let file_id = repository.file_id_for_workspace_path(path);
         let is_module_update =
-            !matches!(&update, FileMutation::Removed) && self.is_scannable_module_path(path);
+            !matches!(&update, FileMutation::Removed) && self.is_import_module_path(path);
 
         // apply the explicit file edit
         let mut revision =
@@ -253,13 +225,12 @@ impl Session {
 
         // load newly visible module files after the edit lands
         if is_module_update && module_id.is_none() {
-            let (next_revision, _) =
-                self.load_module_revision(revision, path).map_err(|error| {
-                    SessionError::UpdatePathFailed {
-                        path: path.to_path_buf(),
-                        detail: format!("failed to load session module: {error}"),
-                    }
-                })?;
+            let (next_revision, _) = self.import_module_file(revision, path).map_err(|error| {
+                SessionError::UpdatePathFailed {
+                    path: path.to_path_buf(),
+                    detail: format!("failed to import session module: {error}"),
+                }
+            })?;
             revision = next_revision;
         }
 
@@ -269,17 +240,16 @@ impl Session {
         Ok((revision, file_changes))
     }
 
-    /// Advance one ref and build its visible file update payload.
-    pub(super) fn advance(
+    /// Finish one session change by setting the ref and building file updates.
+    pub(crate) fn finish_change(
         &self,
         reference: &Ref,
         before: Revision,
         after: Revision,
         file_changes: Vec<FileChange>,
-        mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>>,
         preferred_uri: Option<&Uri>,
     ) -> Result<SessionChange, SessionError> {
-        self.commit_revision(reference, after)?;
+        self.set_ref(reference, after)?;
 
         let mut files = Vec::new();
 
@@ -292,32 +262,25 @@ impl Session {
                 .ok_or(SessionError::FileIdNotTracked {
                     file_id: file_change.file_id,
                 })?;
-            let file = file_update_image_from_file(&file);
-            let diagnostics = diagnostics_by_file
-                .remove(&file_change.file_id)
-                .unwrap_or_default();
 
-            // prefer live editor identity for diagnostic publishing
-            let open_file_identity = file
+            // prefer live open file uri for diagnostic publishing
+            let open_file = file
                 .path
                 .as_ref()
-                .and_then(|path| self.open_file_identity(path));
-            let diagnostic_uri = open_file_identity
+                .and_then(|path| self.tracked_open_file(path));
+            let uri = open_file
                 .as_ref()
-                .map(|(uri, _)| uri.clone())
+                .map(|file| file.uri.clone())
                 .or_else(|| preferred_uri.cloned())
                 .or_else(|| file.path.as_ref().map(Uri::from_file_path))
                 .unwrap_or_else(|| file.uri.clone());
-            let diagnostic_version = open_file_identity.as_ref().map(|(_, version)| *version);
 
             files.push(FileUpdate {
                 module_id: file_change.module_id,
                 file_id: file_change.file_id,
-                diagnostic_uri,
-                diagnostic_version,
+                uri,
                 file,
                 kind: file_change.kind,
-                diagnostics,
             });
         }
 
@@ -390,14 +353,7 @@ impl Session {
             }
         }
 
-        self.advance(
-            reference,
-            before,
-            revision,
-            file_changes,
-            HashMap::new(),
-            None,
-        )
+        self.finish_change(reference, before, revision, file_changes, None)
     }
 
     /// Collect visible workspace config paths for the current revision.

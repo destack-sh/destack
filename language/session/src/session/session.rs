@@ -1,44 +1,30 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_source::{File, FileId, ModuleId, OverlayFileSystem, Uri};
 use destack_workspace::{Ref, Repository, Revision};
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::SessionError;
 use crate::r#loop::SessionLoop;
-use crate::repository::{OpenFileOverlay, canonical_path_or_original};
 
-use super::{FileUpdate, SessionEvent, SessionEventHandler, SessionRunId};
+use super::{FileUpdate, OpenFile, SessionEventHandler, SessionState};
 
-/// One live line of work over one repository workspace root.
+/// Live source root backed by one default moving ref.
 pub struct Session {
-    /// Root path for this workspace.
+    /// Root path for source files owned by this session.
     pub(super) root: PathBuf,
     /// Working directory for this live session.
     pub(super) cwd: PathBuf,
-    /// Repository that owns this workspace root.
-    pub(super) repository: Arc<Repository>,
-    /// Moving repository ref for this workspace root.
+    /// Shared session state for providers and workers.
+    pub(crate) state: Arc<SessionState>,
+    /// Default moving repository ref for this source root.
     pub(super) head: Ref,
-    /// Open file identities and overlay text for this root.
-    pub(super) open_file_overlay: OpenFileOverlay,
-    /// Compiler for this root.
-    pub(super) compiler: Arc<Compiler>,
-    /// Linter for this root.
-    pub(super) linter: Arc<Linter>,
     /// Artifact executor for this live session.
     pub(crate) r#loop: Arc<SessionLoop>,
-    /// Serialize semantic access per root.
-    pub(super) mutation_lock: RwLock<()>,
-    /// Optional outer session event handler.
-    pub(super) event_handler: Option<SessionEventHandler>,
-    /// Monotonic ids for session runs.
-    pub(super) next_session_run_id: AtomicU32,
 }
 
 impl std::fmt::Debug for Session {
@@ -48,13 +34,9 @@ impl std::fmt::Debug for Session {
             .debug_struct("Session")
             .field("root", &self.root)
             .field("cwd", &self.cwd)
-            .field("repository", &self.repository)
+            .field("state", &self.state)
             .field("head", &self.head)
-            .field("open_file_overlay", &self.open_file_overlay)
-            .field("compiler", &self.compiler)
-            .field("linter", &self.linter)
             .field("loop", &self.r#loop)
-            .field("event_handler", &self.event_handler.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -88,7 +70,7 @@ impl Session {
         ))
     }
 
-    /// Create a new live session for one workspace root.
+    /// Create a new live session for one source root.
     pub fn new(
         root: PathBuf,
         cwd: PathBuf,
@@ -99,24 +81,25 @@ impl Session {
         linter: Arc<Linter>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
+        let worker_limit = compiler.options.workers as usize;
+        let state = Arc::new(SessionState::new(
+            repository,
+            compiler,
+            linter,
+            overlay_fs,
+            event_handler,
+        ));
+
         Self {
             root,
             cwd,
-            repository,
+            state: state.clone(),
             head,
-            open_file_overlay: OpenFileOverlay::new(overlay_fs),
-            r#loop: Arc::new(SessionLoop::with_worker_limit(
-                compiler.options.workers as usize,
-            )),
-            compiler,
-            linter,
-            mutation_lock: RwLock::new(()),
-            event_handler,
-            next_session_run_id: AtomicU32::new(1),
+            r#loop: SessionLoop::with_worker_limit(state, worker_limit),
         }
     }
 
-    /// Return the workspace root for this session.
+    /// Return the source root for this session.
     pub fn root(&self) -> &Path {
         &self.root
     }
@@ -128,17 +111,17 @@ impl Session {
 
     /// Enter a coherent read section for this session.
     pub fn enter_query(&self) -> RwLockReadGuard<'_, ()> {
-        self.mutation_lock.read()
+        self.state.enter_query()
     }
 
     /// Enter a mutation section for this session.
     pub fn enter_mutation(&self) -> RwLockWriteGuard<'_, ()> {
-        self.mutation_lock.write()
+        self.state.enter_mutation()
     }
 
     /// Return the repository for this session.
     pub fn repository(&self) -> Arc<Repository> {
-        self.repository.clone()
+        self.state.repository()
     }
 
     /// Return the default session ref.
@@ -148,42 +131,30 @@ impl Session {
 
     /// Return the revision currently bound to one ref.
     pub fn revision(&self, reference: &Ref) -> Result<Revision, SessionError> {
-        self.repository
+        self.state
+            .repository()
             .current(reference)
             .map_err(SessionError::from)
     }
 
     /// Return the compiler for this session.
     pub fn compiler(&self) -> Arc<Compiler> {
-        self.compiler.clone()
+        self.state.compiler()
     }
 
     /// Return the linter for this session.
     pub fn linter(&self) -> Arc<Linter> {
-        self.linter.clone()
+        self.state.linter()
     }
 
-    /// Emit one outer session event when a handler is installed.
-    pub(crate) fn emit_event(&self, event: SessionEvent) {
-        if let Some(handler) = &self.event_handler {
-            handler(event);
-        }
-    }
-
-    /// Allocate the next session run id.
-    pub(crate) fn next_session_run_id(&self) -> SessionRunId {
-        let run_id = self.next_session_run_id.fetch_add(1, Ordering::Relaxed);
-
-        SessionRunId(run_id)
-    }
-
-    /// Commit one staged semantic revision to one ref.
-    pub(crate) fn commit_revision(
+    /// Set one ref to an existing revision.
+    pub(crate) fn set_ref(
         &self,
         reference: &Ref,
         revision: Revision,
     ) -> Result<Revision, SessionError> {
-        self.repository
+        self.state
+            .repository()
             .set_ref(reference, revision)
             .map_err(SessionError::from)
     }
@@ -194,10 +165,10 @@ impl Session {
         revision: Revision,
         path: &Path,
     ) -> Result<Option<FileId>, SessionError> {
-        let file_id = self.repository.file_id_for_workspace_path(path);
+        let repository = self.repository();
+        let file_id = repository.file_id_for_workspace_path(path);
 
-        let file = self
-            .repository
+        let file = repository
             .file(revision, file_id)
             .map_err(SessionError::from)?;
 
@@ -223,7 +194,7 @@ impl Session {
             return Ok(None);
         };
         let file = self
-            .repository
+            .repository()
             .file(revision, file_id)
             .map_err(SessionError::from)?
             .ok_or(SessionError::FileIdNotTracked { file_id })?;
@@ -238,7 +209,7 @@ impl Session {
         file_id: FileId,
     ) -> Result<Arc<File>, SessionError> {
         let file = self
-            .repository
+            .repository()
             .file(revision, file_id)
             .map_err(SessionError::from)?
             .ok_or(SessionError::FileIdNotTracked { file_id })?;
@@ -247,76 +218,61 @@ impl Session {
     }
 
     /// Track one open file by path.
-    pub(crate) fn track_open_file(&self, path: &Path, uri: Uri, version: i32) {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay
-            .track_open_file(path.as_path(), uri, version);
+    pub(crate) fn track_open_file(&self, path: &Path, uri: Uri) {
+        self.state.overlay().track_file(path, uri);
     }
 
-    /// Set one overlay projection when available.
-    pub(crate) fn set_overlay_for_path(&self, path: &Path, text: String) {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay
-            .set_overlay_for_path(path.as_path(), text);
+    /// Set overlay text for one open file when available.
+    pub(crate) fn set_open_file_text(&self, path: &Path, text: String) {
+        self.state.overlay().set_file_text(path, text);
     }
 
-    /// Remove one overlay projection when available.
-    pub(crate) fn remove_overlay_for_path(&self, path: &Path) {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay
-            .remove_overlay_for_path(path.as_path());
+    /// Remove overlay text for one open file when available.
+    pub(crate) fn remove_open_file_text(&self, path: &Path) {
+        self.state.overlay().remove_file_text(path);
     }
 
     /// Return true when a path is tracked as one open file.
     pub fn contains_open_file(&self, path: &Path) -> bool {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay.contains_open_file(path.as_path())
+        self.state.overlay().contains_file(path)
     }
 
-    /// Return one open file identity for a path.
-    pub(crate) fn open_file_identity(&self, path: &Path) -> Option<(Uri, i32)> {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay.open_file_identity(path.as_path())
+    /// Return one open file for a path.
+    pub(crate) fn tracked_open_file(&self, path: &Path) -> Option<OpenFile> {
+        self.state.overlay().file(path)
     }
 
     /// Return one tracked open file for a path.
-    pub fn open_file(&self, path: &Path) -> io::Result<Option<(Uri, i32, String)>> {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay.open_file(path.as_path())
+    pub fn open_file(&self, path: &Path) -> io::Result<Option<(Uri, String)>> {
+        self.state.overlay().open_file(path)
     }
 
     /// Return tracked overlay text for one open file when available.
     pub(crate) fn open_file_text(&self, path: &Path) -> io::Result<Option<String>> {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay.open_file_text(path.as_path())
+        self.state.overlay().file_text(path)
     }
 
     /// Return the tracked open files keyed by path.
-    pub fn open_file_identities(&self) -> Vec<(PathBuf, Uri, i32)> {
-        self.open_file_overlay.open_file_identities()
+    pub fn open_files(&self) -> Vec<(PathBuf, Uri)> {
+        self.state.overlay().files()
     }
 
     /// Stop tracking one open file and return its last known state.
-    pub(crate) fn untrack_open_file(&self, path: &Path) -> Option<(Uri, i32)> {
-        let path = canonical_path_or_original(path);
-
-        self.open_file_overlay.untrack_open_file(path.as_path())
+    pub(crate) fn untrack_open_file(&self, path: &Path) -> Option<OpenFile> {
+        self.state.overlay().untrack_file(path)
     }
 
-    /// Load one module path into one ref when needed.
-    pub fn load_module(&self, reference: &Ref, path: &Path) -> Result<ModuleId, SessionError> {
+    /// Import one filesystem module path into one ref when needed.
+    pub fn load_module_from_fs(
+        &self,
+        reference: &Ref,
+        path: &Path,
+    ) -> Result<ModuleId, SessionError> {
         let _mutation_guard = self.enter_mutation();
         let revision = self.revision(reference)?;
-        let (revision, module_id) = self.load_module_revision(revision, path)?;
+        let (revision, module_id) = self.import_module_file(revision, path)?;
 
-        self.commit_revision(reference, revision)?;
+        self.set_ref(reference, revision)?;
 
         Ok(module_id)
     }

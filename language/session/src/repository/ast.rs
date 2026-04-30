@@ -6,16 +6,16 @@ use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, Span};
 
-use super::context::SessionContext;
-use crate::{Session, SessionError};
+use crate::SessionError;
+use crate::session::{SessionContext, SessionState};
 
-impl Session {
+impl SessionState {
     /// Provide one AST artifact from source.
-    pub(super) fn provide_ast(
+    pub(crate) fn provide_ast(
         &self,
         module_id: ModuleId,
         context: &SessionContext,
-    ) -> Result<(), SessionError> {
+    ) -> Result<ArtifactPayload, SessionError> {
         let revision = context.revision();
         let module = self
             .repository()
@@ -27,24 +27,18 @@ impl Session {
         let ast = if module.loader.is_code() && file.ty.is_code() {
             self.parse_code_ast(file.clone(), module.package_id, context)?
         } else {
-            self.anchor_ast(file.as_ref())
+            self.empty_ast(file.as_ref())
         };
 
-        context
-            .payload(ArtifactPayload::Ast(ast))
-            .map_err(|error| SessionError::Internal {
-                detail: error.to_string(),
-            })?;
-
-        Ok(())
+        Ok(ArtifactPayload::Ast(ast))
     }
 
-    /// Build one stable anchor AST for non-code source.
-    fn anchor_ast(&self, file: &File) -> Ast {
+    /// Build one empty AST for non-code source.
+    fn empty_ast(&self, file: &File) -> Ast {
         let mut tree = ast::Tree::new();
         let span = Span::empty(file.id);
-        let anchor_expression = tree.insert(
-            ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
+        let root_expression = tree.insert(
+            ast::Expression::ScalarLiteral(ast::ScalarLiteral::Null),
             span,
         );
 
@@ -54,7 +48,7 @@ impl Session {
             StringPool::new(),
             Vec::new(),
             Vec::new(),
-            anchor_expression,
+            root_expression,
         )
     }
 
@@ -65,7 +59,17 @@ impl Session {
         package_id: PackageId,
         context: &SessionContext,
     ) -> Result<Ast, SessionError> {
-        let language_type = self.source_language(file.ty, package_id, context)?;
+        let language_type =
+            LanguageType::from_file_type(file.ty).ok_or(SessionError::Internal {
+                detail: format!("file type has no parser language: {:?}", file.ty),
+            })?;
+        let language_type = if file.ty == FileType::JavaScript
+            && self.package_parses_js_as_jsx(package_id, context)?
+        {
+            LanguageType::JavaScriptXml
+        } else {
+            language_type
+        };
 
         // configure parser from session compiler options
         let mut parser = Parser::lex_file_with_settings(
@@ -88,7 +92,7 @@ impl Session {
         let (tokens, side_tokens) = parser.take_tokens();
         let strings = StringPool::from_local(parser.strings);
         let span = Span::empty(file.id);
-        let anchor_expression = parser.tree.insert(
+        let root_expression = parser.tree.insert(
             ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
             span,
         );
@@ -98,32 +102,21 @@ impl Session {
             strings,
             tokens,
             side_tokens,
-            anchor_expression,
+            root_expression,
         );
 
         Ok(ast)
     }
 
-    /// Resolve the parser language for one source file type.
-    fn source_language(
+    /// Return whether one package parses JavaScript files as JSX.
+    fn package_parses_js_as_jsx(
         &self,
-        file_type: FileType,
         package_id: PackageId,
         context: &SessionContext,
-    ) -> Result<LanguageType, SessionError> {
-        let language_type =
-            LanguageType::from_file_type(file_type).ok_or(SessionError::Internal {
-                detail: format!("file type has no parser language: {file_type:?}"),
-            })?;
-
-        // only plain js can be promoted to jsx by package config
-        if file_type != FileType::JavaScript {
-            return Ok(language_type);
-        }
-
+    ) -> Result<bool, SessionError> {
         // record the package config dependency that controls js-as-jsx
         let Some(package) = self.repository().package(context.revision(), package_id)? else {
-            return Ok(language_type);
+            return Ok(false);
         };
         if let Some(file_id) = package.destack_file_id {
             let content_id = self
@@ -137,10 +130,7 @@ impl Session {
         let package_options = self
             .repository()
             .package_options(context.revision(), package_id)?;
-        if package_options.is_some_and(|options| options.compiler.js_as_jsx) {
-            return Ok(LanguageType::JavaScriptXml);
-        }
 
-        Ok(language_type)
+        Ok(package_options.is_some_and(|options| options.compiler.js_as_jsx))
     }
 }
