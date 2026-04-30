@@ -60,7 +60,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Build a visitor for no-array-unshift-loop checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let unshift_name = ctx.repository.strings.intern("unshift");
+        let unshift_name = ctx.string_id("unshift");
 
         Self {
             ctx,

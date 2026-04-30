@@ -38,7 +38,7 @@ impl LintRule for NoThrowInResultFunction {
         let meta = self.meta();
 
         // intern "Result" name for return type expression checks
-        let result_name = ctx.repository.strings.intern("Result");
+        let result_name = ctx.string_id("Result");
 
         // collect declaration functions with Result return type
         let mut callables: Vec<_> = ctx

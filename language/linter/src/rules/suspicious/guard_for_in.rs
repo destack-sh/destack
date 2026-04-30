@@ -81,11 +81,11 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let global_qualifiers = ctx.global_qualifier_symbols();
-        let object_name = ctx.repository.strings.intern("Object");
-        let has_own_name = ctx.repository.strings.intern("hasOwn");
-        let prototype_name = ctx.repository.strings.intern("prototype");
-        let has_own_property_name = ctx.repository.strings.intern("hasOwnProperty");
-        let call_name = ctx.repository.strings.intern("call");
+        let object_name = ctx.string_id("Object");
+        let has_own_name = ctx.string_id("hasOwn");
+        let prototype_name = ctx.string_id("prototype");
+        let has_own_property_name = ctx.string_id("hasOwnProperty");
+        let call_name = ctx.string_id("call");
 
         Self {
             ctx,
@@ -455,7 +455,7 @@ fn for_in_binding_name(
     };
 
     let (name_id, _) = pattern_binding_name_and_symbol(ctx.tree, pattern_id)?;
-    Some(ctx.repository.strings.get(name_id).to_string())
+    Some(ctx.strings.get(name_id).to_string())
 }
 
 /// Build an unsafe fix that wraps the body with Object.hasOwn guard.

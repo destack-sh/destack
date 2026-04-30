@@ -279,12 +279,12 @@ fn parameter_requires_usage(
 
 /// Return true when the parameter name is `this`.
 fn is_this_parameter_name(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -> bool {
-    ctx.repository.strings.get(name) == "this"
+    ctx.strings.get(name) == "this"
 }
 
 /// Return true when the parameter name should be ignored by configuration.
 fn parameter_name_is_ignored(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -> bool {
-    let text = ctx.repository.strings.get(name);
+    let text = ctx.strings.get(name);
     if text == "_" {
         return true;
     }

@@ -134,7 +134,7 @@ fn no_parameter_reassignment_fix(
     // resolve the parameter symbol name
     let symbol = ctx.symbols.get_symbol(target_symbol.local_id);
     let symbol_name_id = symbol.name()?;
-    let symbol_name = ctx.repository.strings.get(symbol_name_id).to_string();
+    let symbol_name = ctx.strings.get(symbol_name_id).to_string();
 
     // resolve non-empty replacement text from the right side
     let right_text = ctx.get_span_text(ctx.get_span(*right)).trim().to_string();

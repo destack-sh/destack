@@ -56,7 +56,7 @@ struct FloatEqualityVisitor<'a, 'b> {
 impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
     /// Build a visitor for float equality checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let signum_name = ctx.repository.strings.intern("signum");
+        let signum_name = ctx.string_id("signum");
         Self {
             ctx,
             meta,

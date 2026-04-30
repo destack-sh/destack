@@ -366,7 +366,7 @@ fn bind_call_shape(
     call_left_id: dir::LocalNodeId<dir::Expression>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<BindCallShape> {
-    let bind_name = ctx.repository.strings.intern("bind");
+    let bind_name = ctx.string_id("bind");
     let call_left_id = expression_unwrap_parenthesized(ctx.tree, call_left_id);
     let call_left = ctx.tree.get(call_left_id);
 
@@ -428,9 +428,9 @@ fn callback_body_usage(
         return CallbackBodyUsage::default();
     };
 
-    let arguments_name = ctx.repository.strings.intern("arguments");
-    let new_name = ctx.repository.strings.intern("new");
-    let target_name = ctx.repository.strings.intern("target");
+    let arguments_name = ctx.string_id("arguments");
+    let new_name = ctx.string_id("new");
+    let target_name = ctx.string_id("target");
     let ignore_arguments_reference =
         signature_declares_value_name(ctx.tree, ctx.symbols, signature, arguments_name);
 

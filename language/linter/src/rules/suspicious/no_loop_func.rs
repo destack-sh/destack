@@ -119,7 +119,7 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
             .filter_map(|symbol_id| {
                 let symbol = self.ctx.symbols.get_symbol(*symbol_id);
                 let symbol_name_id = symbol.name()?;
-                Some(self.ctx.repository.strings.get(symbol_name_id).to_string())
+                Some(self.ctx.strings.get(symbol_name_id).to_string())
             })
             .collect();
         captured_names.sort();

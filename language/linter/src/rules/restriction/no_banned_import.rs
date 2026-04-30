@@ -70,7 +70,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
             .filter(|pattern| !pattern.is_empty())
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
-        let require_name = ctx.repository.strings.intern("require");
+        let require_name = ctx.string_id("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
@@ -120,7 +120,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         let Some(specifier_id) = specifier_id else {
             return;
         };
-        let specifier_text = self.ctx.repository.strings.get(specifier_id).to_string();
+        let specifier_text = self.ctx.strings.get(specifier_id).to_string();
 
         // match specifier or resolved target identity against restricted patterns
         let Some(matched_target) = matching_target(
@@ -277,7 +277,7 @@ fn matching_target(
             }
         }
         dir::ModuleTarget::Binding(binding_specifier) => {
-            let binding_text = ctx.repository.strings.get(binding_specifier);
+            let binding_text = ctx.strings.get(binding_specifier);
             if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,
@@ -287,7 +287,7 @@ fn matching_target(
             }
         }
         dir::ModuleTarget::External(specifier) => {
-            let binding_text = ctx.repository.strings.get(specifier);
+            let binding_text = ctx.strings.get(specifier);
             if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,

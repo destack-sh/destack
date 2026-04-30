@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_artifact::ModuleGraph;
+use destack_artifact::DirExported;
 use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
@@ -49,11 +49,6 @@ impl LintRule for NoLayerViolation {
             return;
         }
 
-        // resolve module graph for this profile
-        let Some(graph) = ctx.module_graph() else {
-            return;
-        };
-
         // collect eligible user modules and their component assignments
         let descriptors = collect_module_descriptors(ctx, &module_boundaries);
         if descriptors.is_empty() {
@@ -67,9 +62,8 @@ impl LintRule for NoLayerViolation {
             rule_severity,
             &descriptors,
             &descriptor_index,
-            &graph,
+            ctx,
         );
-        drop(graph);
 
         // report forbidden dependency edges
         for diagnostic in forbidden_dependency_diagnostics {
@@ -108,14 +102,6 @@ fn collect_module_descriptors(
         let Some(module) = ctx.repository_module(module_id) else {
             continue;
         };
-        let module = module.as_ref();
-        if ctx.repository.is_synthetic_root_module(module.id) {
-            continue;
-        }
-        if !module.is_user() {
-            continue;
-        }
-
         let Some(file) = ctx.repository_file(module.file_id) else {
             continue;
         };
@@ -163,7 +149,7 @@ fn collect_forbidden_dependency_diagnostics(
     rule_severity: LintSeverity,
     descriptors: &[ModuleDescriptor],
     descriptor_index: &HashMap<ModuleId, usize>,
-    graph: &ModuleGraph,
+    ctx: &LintWorkspaceDirContext,
 ) -> Vec<LintDiagnostic> {
     let mut diagnostics = Vec::new();
 
@@ -173,8 +159,7 @@ fn collect_forbidden_dependency_diagnostics(
             continue;
         };
 
-        let mut dependencies = graph
-            .dependencies_for(source.module_id)
+        let mut dependencies = module_dependencies(ctx, source.module_id)
             .into_iter()
             .filter_map(|dependency_id| descriptor_index.get(&dependency_id).copied())
             .collect::<Vec<_>>();
@@ -231,6 +216,40 @@ fn collect_forbidden_dependency_diagnostics(
     }
 
     diagnostics
+}
+
+/// Return direct resolved dependencies for one module.
+fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
+    let Some(resolved) = ctx.resolved_dir(module_id) else {
+        return Vec::new();
+    };
+
+    resolved_module_dependencies(&resolved)
+}
+
+/// Return direct resolved dependencies from one exported DIR.
+fn resolved_module_dependencies(resolved: &DirExported) -> Vec<ModuleId> {
+    let mut dependencies = Vec::new();
+
+    // collect import edges for both value and type space
+    for resolution in resolved.import_resolutions.values() {
+        if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
+            dependencies.push(module_id);
+        }
+
+        if let Some(module_id) = resolution.ty.and_then(|target| target.module_id()) {
+            dependencies.push(module_id);
+        }
+    }
+
+    // collect namespace re export edges
+    for export in resolved.namespace_exports.iter() {
+        if let Some(module_id) = export.module_id.module_id() {
+            dependencies.push(module_id);
+        }
+    }
+
+    dependencies
 }
 
 /// Report modules that do not match any configured component.

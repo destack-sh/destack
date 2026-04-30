@@ -77,7 +77,7 @@ struct PreferArrayLiteralVisitor<'a, 'b> {
 impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-literal checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let push_name = ctx.repository.strings.intern("push");
+        let push_name = ctx.string_id("push");
 
         Self {
             ctx,

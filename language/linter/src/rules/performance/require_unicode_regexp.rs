@@ -37,7 +37,7 @@ impl LintRule for RequireUnicodeRegexp {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let regexp_name = ctx.strings.intern("RegExp");
+        let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
         let required_flag = ctx.options.performance.require_unicode_regexp_require_flag;
         let required_flag_char = required_flag.as_char();

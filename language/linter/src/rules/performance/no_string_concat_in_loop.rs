@@ -257,7 +257,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         // track whether the template references the assignment target
         let mut has_target_reference = false;
         let mut has_other_content = strings.iter().any(|segment| {
-            let segment_text = self.ctx.repository.strings.get(*segment);
+            let segment_text = self.ctx.strings.get(*segment);
             !segment_text.is_empty()
         });
 

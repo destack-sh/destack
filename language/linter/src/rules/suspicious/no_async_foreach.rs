@@ -62,7 +62,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
     /// Build a visitor for async forEach checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let foreach_name = ctx.repository.strings.intern("forEach");
+        let foreach_name = ctx.string_id("forEach");
 
         Self {
             ctx,
@@ -249,7 +249,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         }
 
         // rewrite to an async-friendly for-of loop
-        let parameter_name = self.ctx.repository.strings.get(*name).to_string();
+        let parameter_name = self.ctx.strings.get(*name).to_string();
         let member_text = self.ctx.get_span_text(self.ctx.get_span(*left));
         let receiver_text = strip_dot_member_suffix(member_text, "forEach")?;
         let body_text = self.ctx.get_span_text(self.ctx.get_span(body_id));

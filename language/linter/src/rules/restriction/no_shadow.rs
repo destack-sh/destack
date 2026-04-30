@@ -121,7 +121,11 @@ fn should_skip_due_to_redeclaration_policy(
 /// Return true when compiler local-redeclaration errors are enforced for this module.
 fn compiler_redeclaration_errors_enabled(ctx: &LintModuleDirContext<'_>) -> bool {
     // JS/TS modes always enforce ecmascript redeclaration checks
-    if !ctx.module.language_type.is_destack() {
+    if !ctx
+        .module
+        .language_type
+        .is_some_and(|language_type| language_type.is_destack())
+    {
         return true;
     }
 
@@ -212,7 +216,7 @@ fn find_shadowed_ancestor<'a>(
 /// Return the user-facing symbol name text.
 fn symbol_name_text(ctx: &LintModuleDirContext<'_>, symbol: &dir::Symbol) -> Option<String> {
     let name = symbol.name()?;
-    Some(ctx.repository.strings.get(name).to_string())
+    Some(ctx.strings.get(name).to_string())
 }
 
 /// Resolve severity and span for the symbol primary declaration.

@@ -39,9 +39,9 @@ impl LintRule for UnboundMethod {
     /// Check module DIR nodes for unbound method references.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let bind_name = ctx.repository.strings.intern("bind");
-        let call_name = ctx.repository.strings.intern("call");
-        let apply_name = ctx.repository.strings.intern("apply");
+        let bind_name = ctx.string_id("bind");
+        let call_name = ctx.string_id("call");
+        let apply_name = ctx.string_id("apply");
 
         // resolve visitor
         let mut visitor = UnboundMethodVisitor::new(ctx, meta, bind_name, call_name, apply_name);
@@ -379,7 +379,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect member declarations and reject static methods
         if primary_declaration.local_id.ty == dir::NodeType::Member {
-            let Some(module_dir) = self.ctx.analyzed_dir(primary_declaration.module_id) else {
+            let Some(module_dir) = self.ctx.declared_dir(primary_declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let member = module_dir
@@ -394,7 +394,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if primary_declaration.local_id.ty == dir::NodeType::Property {
-            let Some(module_dir) = self.ctx.analyzed_dir(primary_declaration.module_id) else {
+            let Some(module_dir) = self.ctx.declared_dir(primary_declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let property = module_dir

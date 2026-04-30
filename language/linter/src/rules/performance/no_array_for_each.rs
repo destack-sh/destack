@@ -60,7 +60,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
     /// Build a visitor for no-array-for-each checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let for_each_name = ctx.repository.strings.intern("forEach");
+        let for_each_name = ctx.string_id("forEach");
 
         Self {
             ctx,
@@ -195,7 +195,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // choose one loop binding name from the callback parameter symbol
-        let parameter_name = self.ctx.repository.strings.get(*name).to_string();
+        let parameter_name = self.ctx.strings.get(*name).to_string();
         let binding_name = self.for_of_binding_name(statement_id, &parameter_name)?;
 
         // rewrite callback parameter references inside the body
@@ -227,7 +227,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         // resolve the lexical scope where the new for-of binding will land
         let (_, scope, mark) = self.ctx.symbols.get_scope(statement_id, self.ctx.tree);
         let is_name_taken = |candidate: &str| {
-            let candidate_id = self.ctx.repository.strings.intern(candidate);
+            let candidate_id = self.ctx.string_id(candidate);
             let candidate_key = dir::StaticKey::Name(candidate_id);
             self.ctx
                 .symbols

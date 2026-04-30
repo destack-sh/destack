@@ -39,9 +39,9 @@ impl LintRule for NoBaseToString {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         // resolve lint metadata and well known names
         let meta = self.meta();
-        let to_string_name = ctx.repository.strings.intern("toString");
-        let to_locale_string_name = ctx.repository.strings.intern("toLocaleString");
-        let join_name = ctx.repository.strings.intern("join");
+        let to_string_name = ctx.string_id("toString");
+        let to_locale_string_name = ctx.string_id("toLocaleString");
+        let join_name = ctx.string_id("join");
         let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
 
         // walk module expressions

@@ -50,7 +50,7 @@ impl LintRule for PreferTuple {
         // only applies to Destack files
         if !matches!(
             ctx.module.language_type,
-            LanguageType::Destack | LanguageType::DestackDeclaration
+            Some(LanguageType::Destack | LanguageType::DestackDeclaration)
         ) {
             return;
         }

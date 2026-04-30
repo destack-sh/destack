@@ -103,7 +103,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
 
         // load the declaration module tree for cross module struct constructors
-        let module_dir = self.ctx.analyzed_dir(declaration_id.module_id)?;
+        let module_dir = self.ctx.declared_dir(declaration_id.module_id)?;
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());
@@ -156,7 +156,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
                 return None;
             };
 
-            let field_name_text = self.ctx.repository.strings.get(field_name);
+            let field_name_text = self.ctx.strings.get(field_name);
             let value_span = self.ctx.get_span(*value);
             let value_text = self.ctx.get_span_text(value_span);
             field_initializers.push(format!("{}: {value_text}", field_name_text.as_ref()));

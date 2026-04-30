@@ -68,9 +68,9 @@ struct NoJsonCloneVisitor<'a, 'b> {
 impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
     /// Build a visitor for no-json-clone checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let json_name = ctx.repository.strings.intern("JSON");
-        let parse_name = ctx.repository.strings.intern("parse");
-        let stringify_name = ctx.repository.strings.intern("stringify");
+        let json_name = ctx.string_id("JSON");
+        let parse_name = ctx.string_id("parse");
+        let stringify_name = ctx.string_id("stringify");
         let json_symbol = ctx.declared_library_symbol(json_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 

@@ -91,7 +91,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         }
 
         for string_id in strings {
-            let text = self.ctx.repository.strings.get(*string_id);
+            let text = self.ctx.strings.get(*string_id);
             if !text.is_empty() {
                 return None;
             }

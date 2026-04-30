@@ -7,6 +7,7 @@ use destack_workspace::{
     Revision, Workspace,
 };
 
+use crate::linter::artifact::{read_ast, read_dir_checked, read_dir_declared, read_dir_exported};
 use crate::{
     BoxedLintRule, LintAstContext, LintDiagnostic, LintLevel, LintModuleDirContext,
     LintPackageAstContext, LintPackageDirContext, LintScope, LintWorkspaceAstContext,
@@ -221,7 +222,7 @@ impl LintRunner {
         &self.rules
     }
 
-    /// Return one module snapshot for one revision when present.
+    /// Return one module for one revision when present.
     fn repository_module(
         repository: &Repository,
         revision: Revision,
@@ -230,7 +231,7 @@ impl LintRunner {
         repository.module(revision, module_id).ok().flatten()
     }
 
-    /// Return one file snapshot for one revision when present.
+    /// Return one source file for one revision when present.
     fn repository_file(
         repository: &Repository,
         revision: Revision,
@@ -239,7 +240,7 @@ impl LintRunner {
         repository.file(revision, file_id).ok().flatten()
     }
 
-    /// Return one package snapshot for one revision when present.
+    /// Return one package for one revision when present.
     fn repository_package(
         repository: &Repository,
         revision: Revision,
@@ -248,7 +249,7 @@ impl LintRunner {
         repository.package(revision, package_id).ok().flatten()
     }
 
-    /// Return the active workspace view for one revision when present.
+    /// Return workspace metadata for one revision when present.
     fn repository_workspace(repository: &Repository, revision: Revision) -> Option<Arc<Workspace>> {
         repository.workspace(revision).ok()
     }
@@ -319,8 +320,7 @@ impl LintRunner {
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         let module = module.as_ref();
-        let ast = repository
-            .ast(revision, module.id)
+        let ast = read_ast(&repository, revision, module.id)
             .expect("lint AST pass requires committed AST artifact");
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
@@ -386,19 +386,18 @@ impl LintRunner {
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.as_ref();
-        let ast = repository
-            .ast(revision, module.id)
+        let ast = read_ast(&repository, revision, module.id)
             .expect("lint DIR pass requires committed AST artifact");
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
             return Vec::new();
         };
-        let dir = repository
-            .dir_analyzed(revision, module.id, profile.id())
-            .expect("lint DIR pass requires committed analyzed DIR artifact");
-        let resolved = repository
-            .dir_resolved(revision, module.id, profile.id())
-            .expect("lint DIR pass requires committed resolved DIR artifact");
+        let declared = read_dir_declared(&repository, revision, module.id, profile.id())
+            .expect("lint DIR pass requires committed declared DIR artifact");
+        let checked = read_dir_checked(&repository, revision, module.id, profile.id())
+            .expect("lint DIR pass requires committed checked DIR artifact");
+        let resolved = read_dir_exported(&repository, revision, module.id, profile.id())
+            .expect("lint DIR pass requires committed exported DIR artifact");
 
         let mut ctx = LintModuleDirContext::new(
             repository,
@@ -407,20 +406,21 @@ impl LintRunner {
             profile,
             file,
             &ast.tree,
-            &dir.tree,
-            &dir.symbols,
-            &dir.types,
-            dir.roots.as_ref().clone(),
-            dir.namespace_symbol,
-            dir.namespace_scope,
-            dir.default_symbol,
+            &declared.tree,
+            &declared.strings,
+            &declared.symbols,
+            &checked.types,
+            declared.roots.clone(),
+            declared.namespace_symbol,
+            declared.namespace_scope,
+            declared.default_symbol,
             resolved
                 .namespace_exports
                 .iter()
                 .map(|export| export.module_id)
                 .collect(),
-            resolved.imported_modules.as_ref().clone(),
-            resolved.exported_symbols.as_ref().clone(),
+            resolved.import_resolutions.clone(),
+            resolved.export_by_symbol_key.clone(),
             options,
             self.compute_fixes,
         );
@@ -503,21 +503,21 @@ impl LintRunner {
         let mut diagnostics = Vec::new();
         let mut performance = LintPerformanceReport::default();
         for module_id in repository
-            .workspace_module_ids(revision)
+            .module_ids(revision)
             .expect("workspace module ids should load")
         {
             let Some(module) = Self::repository_module(repository.as_ref(), revision, module_id)
             else {
                 continue;
             };
-            let Ok(profile) = repository.default_profile_for_module(revision, module.id) else {
+            let Ok(profile) = repository.module_profile(revision, module.id) else {
                 continue;
             };
             let report = self.lint_module_profiled(
                 repository.clone(),
                 revision,
                 module,
-                profile,
+                profile.as_ref().clone(),
                 options,
                 level,
             );

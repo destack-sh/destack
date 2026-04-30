@@ -80,8 +80,8 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-map checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let for_each_name = ctx.repository.strings.intern("forEach");
-        let push_name = ctx.repository.strings.intern("push");
+        let for_each_name = ctx.string_id("forEach");
+        let push_name = ctx.string_id("push");
 
         Self {
             ctx,
@@ -361,7 +361,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             .ctx
             .get_span_text(self.ctx.get_span(pattern.pushed_value_id))
             .to_string();
-        let parameter_name = self.ctx.repository.strings.get(pattern.parameter_name);
+        let parameter_name = self.ctx.strings.get(pattern.parameter_name);
         let replacement = format!(
             "{receiver}.map(({parameter}) => ({value}))",
             receiver = receiver_text,

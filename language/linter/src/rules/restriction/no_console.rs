@@ -65,7 +65,7 @@ struct NoConsoleVisitor<'a, 'b> {
 impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     /// Build a visitor for no-console checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let console_name = ctx.repository.strings.intern("console");
+        let console_name = ctx.string_id("console");
         let console_symbol = ctx.declared_library_symbol(console_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
         let allowed_methods = ctx
@@ -73,7 +73,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
             .restriction
             .allowed_console_methods
             .iter()
-            .map(|name| ctx.repository.strings.intern(name))
+            .map(|name| ctx.string_id(name))
             .collect();
 
         Self {

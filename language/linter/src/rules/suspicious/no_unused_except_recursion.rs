@@ -160,7 +160,7 @@ fn recursion_parameter_replacement_name(
 ) -> Option<String> {
     let symbol = ctx.symbols.get_symbol(symbol_id);
     let symbol_name_id = symbol.name()?;
-    let symbol_name = ctx.repository.strings.get(symbol_name_id).to_string();
+    let symbol_name = ctx.strings.get(symbol_name_id).to_string();
 
     let base_name = if symbol_name.starts_with('_') {
         format!("{symbol_name}Recursive")
@@ -175,7 +175,7 @@ fn recursion_parameter_replacement_name(
     let mut candidate = base_name.clone();
     let mut suffix = 2_u32;
     loop {
-        let candidate_id = ctx.repository.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         if !scope_subtree_contains_name(ctx, scope_id, candidate_id) {
             return Some(candidate);
         }

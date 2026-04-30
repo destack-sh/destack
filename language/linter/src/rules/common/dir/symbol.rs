@@ -3,6 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Repository, Revision};
 
+use crate::linter::artifact::{read_dir_checked, read_dir_declared};
+
 /// Symbol type id tied to the module that owns its type table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SymbolValueTypeId {
@@ -181,7 +183,7 @@ pub fn symbol_for(
         return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let dir = repository.dir_analyzed(revision, symbol_id.module_id, profile_id)?;
+    let dir = read_dir_declared(repository, revision, symbol_id.module_id, profile_id)?;
     Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
@@ -465,7 +467,7 @@ pub fn symbol_value_type_id_for(
         });
     }
 
-    let dir = repository.dir_analyzed(revision, symbol_id.module_id, profile_id)?;
+    let dir = read_dir_checked(repository, revision, symbol_id.module_id, profile_id)?;
     let type_id = dir.types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
@@ -498,7 +500,7 @@ pub fn symbol_value_type_map_for<T>(
         return Some(map(local_types, symbol_type_id.type_id));
     }
 
-    let dir = repository.dir_analyzed(revision, symbol_type_id.module_id, profile_id)?;
+    let dir = read_dir_checked(repository, revision, symbol_type_id.module_id, profile_id)?;
     Some(map(&dir.types, symbol_type_id.type_id))
 }
 

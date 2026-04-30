@@ -82,7 +82,7 @@ impl<'a, 'b> NoRelativeParentImportsVisitor<'a, 'b> {
         };
 
         // resolve target text
-        let target_text = self.ctx.repository.strings.get(target_id).to_string();
+        let target_text = self.ctx.strings.get(target_id).to_string();
         if !is_relative_parent_specifier(target_text.as_ref()) {
             return;
         }

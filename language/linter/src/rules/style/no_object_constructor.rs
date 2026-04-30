@@ -63,7 +63,7 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     /// Build a visitor for object constructor checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
-        let object_name = ctx.repository.strings.intern("Object");
+        let object_name = ctx.string_id("Object");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

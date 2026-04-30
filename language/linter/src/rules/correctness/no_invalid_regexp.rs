@@ -36,7 +36,7 @@ impl LintRule for NoInvalidRegexp {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let regexp_name = ctx.strings.intern("RegExp");
+        let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // inspect candidate expressions
@@ -177,8 +177,8 @@ fn unknown_flags_pattern_error_message(
         return None;
     }
 
-    let unicode_flags = ctx.strings.intern("u");
-    let unicode_sets_flags = ctx.strings.intern("v");
+    let unicode_flags = ctx.string_id("u");
+    let unicode_sets_flags = ctx.string_id("v");
 
     let default_parse = ctx.regex_parse_with_flags(pattern_id, None);
     let unicode_parse = ctx.regex_parse_with_flags(pattern_id, Some(unicode_flags));

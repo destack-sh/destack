@@ -63,8 +63,8 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
     /// Build a visitor for array sort checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let sort_name = ctx.repository.strings.intern("sort");
-        let to_sorted_name = ctx.repository.strings.intern("toSorted");
+        let sort_name = ctx.string_id("sort");
+        let to_sorted_name = ctx.string_id("toSorted");
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
 
         Self {

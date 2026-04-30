@@ -63,8 +63,8 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     /// Build a visitor for prefer-numeric-literals checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let number_symbol = ctx.well_known_symbol(WellKnownSymbol::Number);
-        let parse_int_name = ctx.repository.strings.intern("parseInt");
-        let number_name = ctx.repository.strings.intern("Number");
+        let parse_int_name = ctx.string_id("parseInt");
+        let number_name = ctx.string_id("Number");
         let global_qualifiers = ctx.global_qualifier_symbols();
         Self {
             ctx,
@@ -197,7 +197,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         }
 
         // only fix when the full string maps to one literal value with no partial parse behavior
-        let value = self.ctx.repository.strings.get(string_value);
+        let value = self.ctx.strings.get(string_value);
         let replacement = preferred_numeric_literal(value.as_ref(), radix, prefix)?;
 
         // replace the full parseInt expression

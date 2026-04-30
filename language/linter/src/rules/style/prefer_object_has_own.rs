@@ -79,11 +79,11 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
     /// Build a visitor for prefer-object-has-own checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
-        let object_name = ctx.repository.strings.intern("Object");
-        let prototype_name = ctx.repository.strings.intern("prototype");
-        let has_own_property_name = ctx.repository.strings.intern("hasOwnProperty");
-        let call_name = ctx.repository.strings.intern("call");
-        let apply_name = ctx.repository.strings.intern("apply");
+        let object_name = ctx.string_id("Object");
+        let prototype_name = ctx.string_id("prototype");
+        let has_own_property_name = ctx.string_id("hasOwnProperty");
+        let call_name = ctx.string_id("call");
+        let apply_name = ctx.string_id("apply");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

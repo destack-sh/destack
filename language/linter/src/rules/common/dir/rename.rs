@@ -19,7 +19,7 @@ pub fn rename_local_symbol_fix(
 
     let symbol = ctx.symbols.get_symbol(symbol_id);
     let symbol_name = symbol.name()?;
-    let current_name = ctx.repository.strings.get(symbol_name);
+    let current_name = ctx.strings.get(symbol_name);
     if replacement_name == current_name.as_ref() {
         return None;
     }
@@ -57,7 +57,7 @@ pub fn fresh_name_in_symbol_scope(
     let mut suffix = 2usize;
 
     loop {
-        let candidate_id = ctx.repository.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         let candidate_key = dir::StaticKey::Name(candidate_id);
         let is_taken = ctx
             .symbols
@@ -97,7 +97,7 @@ pub fn fresh_name_in_symbol_scope_for_rename(
     let mut suffix_length = 1usize;
 
     loop {
-        let candidate_id = ctx.repository.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         let candidate_key = dir::StaticKey::Name(candidate_id);
         let declaration_symbol = visible_symbol_for_key(
             ctx,
@@ -170,7 +170,7 @@ pub fn fresh_name_in_expression_scope(
     let mut suffix_index = 2usize;
 
     loop {
-        let candidate_id = ctx.repository.strings.intern(&candidate);
+        let candidate_id = ctx.string_id(&candidate);
         let candidate_key = dir::StaticKey::Name(candidate_id);
         let is_taken = ctx
             .symbols

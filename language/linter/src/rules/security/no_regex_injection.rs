@@ -62,7 +62,7 @@ struct NoRegexInjectionVisitor<'a, 'b> {
 impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let regexp_name = ctx.repository.strings.intern("RegExp");
+        let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
@@ -183,6 +183,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,
+            self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
             &mut self.taint_cache,
