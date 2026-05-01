@@ -1,3 +1,6 @@
+mod access;
+mod allocation;
+mod constant;
 mod function;
 mod instruction;
 mod layout;
@@ -7,6 +10,9 @@ mod range;
 mod transfer;
 mod value;
 
+pub(crate) use access::*;
+pub(crate) use allocation::*;
+pub(crate) use constant::*;
 pub(crate) use function::*;
 pub(crate) use instruction::*;
 pub(crate) use layout::*;

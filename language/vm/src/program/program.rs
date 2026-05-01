@@ -5,7 +5,7 @@ use destack_core::ImmutableStringPool;
 use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
-use super::layout::{Layout, build_layouts};
+use super::layout::{Layout, build_layouts, callable_object_layout};
 use super::{CallTarget, Function, FunctionTable};
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
@@ -76,7 +76,22 @@ pub struct Program {
 impl Program {
     /// Build one program from one MIR tree and immutable string pool.
     pub fn new(tree: mir::Tree, strings: ImmutableStringPool) -> Result<Self> {
-        ProgramBuilder::new(tree, strings).build()
+        Self::with_heap_options(
+            tree,
+            strings,
+            heap::HeapOptions::local(),
+            heap::HeapOptions::shared(),
+        )
+    }
+
+    /// Build one program for concrete heap allocation geometry.
+    pub(crate) fn with_heap_options(
+        tree: mir::Tree,
+        strings: ImmutableStringPool,
+        heap_options: heap::HeapOptions,
+        shared_heap_options: heap::HeapOptions,
+    ) -> Result<Self> {
+        ProgramBuilder::new(tree, strings, heap_options, shared_heap_options).build()
     }
 
     /// Convert one program function id into one MIR function id.
@@ -220,19 +235,17 @@ impl Program {
         &self.layouts
     }
 
-    /// Return the heap allocation facts for one layout id.
-    pub(crate) fn allocation_layout(
-        &self,
-        layout_id: LayoutId,
-    ) -> Result<heap::AllocationLayout<'_>> {
+    /// Return the resolved heap allocation plan for one layout id.
+    pub(crate) fn allocation_plan(&self, layout_id: LayoutId) -> Result<heap::AllocationPlan<'_>> {
         let Some(layout) = self.layouts.layouts.get(layout_id.index()) else {
             return Err(Error::InvariantViolation {
                 context: format!("missing allocation layout {layout_id:?}"),
             });
         };
 
-        Ok(heap::AllocationLayout::new(
+        Ok(heap::AllocationPlan::new(
             layout.size as usize,
+            layout.alignment as usize,
             &layout.reference_map,
         ))
     }
@@ -313,14 +326,14 @@ impl Program {
         };
         let instruction = self.tree.get(instruction_id);
 
-        // recover the call destination when the resumed instruction follows a call
+        // read the call destination when the resumed instruction follows a call
         match instruction {
             mir::Instruction::Call { destination, .. }
             | mir::Instruction::CallVirtual { destination, .. }
             | mir::Instruction::CallInterface { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. } => (*destination)
                 .map(|value| {
-                    value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                    value.value().ok_or_else(|| Error::MissingRepresentation {
                         context: "call destination".to_string(),
                     })
                 })
@@ -439,23 +452,62 @@ fn scalar_initializer_bytes(
             Ok(bytes.clone())
         }
         mir::GlobalInitializer::Scalar(constant) => {
-            if byte_len > Word::BYTE_LEN {
-                return Err(Error::TypeMismatch {
-                    expected: format!("at most {} scalar bytes", Word::BYTE_LEN),
-                    actual: format!("{byte_len} scalar bytes"),
-                });
-            }
+            let bytes = constant_scalar_bytes(constant, byte_len)?;
 
-            let value = Word::from(constant);
-            let bytes = value.to_byte_array();
-
-            Ok(bytes[..byte_len].to_vec())
+            Ok(bytes)
         }
         mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
             expected: "scalar initializer".to_string(),
             actual: format!("{ty:?}"),
         }),
     }
+}
+
+/// Encode one scalar initializer as bytes.
+fn constant_scalar_bytes(constant: &mir::Constant, byte_len: usize) -> Result<Vec<u8>> {
+    let mut bytes = vec![0; byte_len];
+
+    match constant {
+        mir::Constant::Null => {}
+        mir::Constant::Boolean { value } => {
+            bytes[0] = u8::from(*value);
+        }
+        mir::Constant::Int {
+            value,
+            is_signed: true,
+            ..
+        } => {
+            let source = value.to_le_bytes();
+            let copied = source.len().min(byte_len);
+            bytes[..copied].copy_from_slice(&source[..copied]);
+
+            if *value < 0 && byte_len > source.len() {
+                bytes[source.len()..].fill(0xff);
+            }
+        }
+        mir::Constant::Int { value, .. } => {
+            let source = (*value as u128).to_le_bytes();
+            let copied = source.len().min(byte_len);
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        }
+        mir::Constant::UInt { value, .. } => {
+            let source = value.to_le_bytes();
+            let copied = source.len().min(byte_len);
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        }
+        mir::Constant::Float { bits, .. } => {
+            let source = bits.to_le_bytes();
+            let copied = source.len().min(byte_len);
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        }
+        mir::Constant::Char { value } => {
+            let source = (*value as u32).to_le_bytes();
+            let copied = source.len().min(byte_len);
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        }
+    }
+
+    Ok(bytes)
 }
 
 /// Validate one zero initializer against the declared type.
@@ -605,6 +657,8 @@ fn initializer_ranges(
 
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
+    heap_options: heap::HeapOptions,
+    shared_heap_options: heap::HeapOptions,
     tree: mir::Tree,
     strings: ImmutableStringPool,
     frame_layouts: Vec<engine::FrameLayout>,
@@ -626,8 +680,15 @@ struct ProgramBuilder {
 
 impl ProgramBuilder {
     /// Create one program builder.
-    fn new(tree: mir::Tree, strings: ImmutableStringPool) -> Self {
+    fn new(
+        tree: mir::Tree,
+        strings: ImmutableStringPool,
+        heap_options: heap::HeapOptions,
+        shared_heap_options: heap::HeapOptions,
+    ) -> Self {
         Self {
+            heap_options,
+            shared_heap_options,
             tree,
             strings,
             frame_layouts: Vec::new(),
@@ -649,12 +710,7 @@ impl ProgramBuilder {
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
         let statics = self.build_statics(&type_layouts)?;
-        let functions = self.build_functions(
-            &function_ids,
-            &target_by_id,
-            &type_layouts,
-            &layout_id_by_type,
-        )?;
+        let functions = self.build_functions(&function_ids, &target_by_id, &type_layouts)?;
         let functions = FunctionTable::new(functions, target_by_id);
 
         Ok(Program {
@@ -712,7 +768,7 @@ impl ProgramBuilder {
                 })
                 .collect::<Vec<_>>();
             let Some(ty) = self.tree.get(global).ty.ty() else {
-                return Err(Error::ConcreteMirRequired {
+                return Err(Error::MissingRepresentation {
                     context: "dispatch table global type".to_string(),
                 });
             };
@@ -729,7 +785,7 @@ impl ProgramBuilder {
             }
 
             let Some(ty) = global.ty.ty() else {
-                return Err(Error::ConcreteMirRequired {
+                return Err(Error::MissingRepresentation {
                     context: "global type".to_string(),
                 });
             };
@@ -852,7 +908,9 @@ impl ProgramBuilder {
                     context: format!("missing program layout for heap type {type_id:?}"),
                 })?;
             let module_layout = match self.tree.get(*type_id) {
-                mir::Type::Callable { .. } => self.build_callable_layout(),
+                mir::Type::Callable { .. } => {
+                    callable_object_layout(self.tree.pointer_bytes() as usize).table_layout()
+                }
                 _ => mir::Layout {
                     kind: LayoutKind::Struct,
                     size: layout.byte_len as u32,
@@ -873,22 +931,6 @@ impl ProgramBuilder {
         }
 
         Ok(table)
-    }
-
-    /// Build the layout for one boxed callable payload.
-    fn build_callable_layout(&self) -> mir::Layout {
-        let pointer_bytes = self.tree.pointer_bytes();
-
-        mir::Layout {
-            kind: LayoutKind::Callable,
-            size: (pointer_bytes * 2) as u32,
-            alignment: pointer_bytes as u32,
-            reference_map: ReferenceMap::Reference {
-                local_offsets: vec![pointer_bytes as u32].into_boxed_slice(),
-                shared_offsets: Vec::new().into_boxed_slice(),
-            },
-            fields: Vec::new(),
-        }
     }
 
     /// Build the lowered function order and callable target map.
@@ -931,7 +973,6 @@ impl ProgramBuilder {
         function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
 
@@ -939,8 +980,7 @@ impl ProgramBuilder {
 
         // build one lowered function at a time
         for function_id in function_ids {
-            let function =
-                self.build_function(*function_id, &call_targets, layouts, layout_id_by_type)?;
+            let function = self.build_function(*function_id, &call_targets, layouts)?;
             functions.push(function);
         }
 
@@ -953,7 +993,6 @@ impl ProgramBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
         let value_types = analyze_value_types(function);
@@ -973,10 +1012,11 @@ impl ProgramBuilder {
             &exceptional_call_resume_points,
             call_targets,
             layouts,
-            layout_id_by_type,
+            &self.heap_options,
+            &self.shared_heap_options,
             &value_types,
         )?
-        .ok_or_else(|| Error::ConcreteMirRequired {
+        .ok_or_else(|| Error::MissingRepresentation {
             context: format!("program function {function_id:?}"),
         })?;
 
@@ -1038,9 +1078,11 @@ impl ProgramBuilder {
         let mut locals = Vec::with_capacity(function.locals.len());
         for local_id in &function.locals {
             let local = self.tree.get(*local_id);
-            let local_type = (local.ty).ty().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "frame local type".to_string(),
-            })?;
+            let local_type = (local.ty)
+                .ty()
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "frame local type".to_string(),
+                })?;
             let region = self.frame_region(
                 engine::FrameRegionId(region_id),
                 layouts,
@@ -1053,7 +1095,7 @@ impl ProgramBuilder {
 
         let environment = (function.environment)
             .map(|ty| {
-                ty.ty().ok_or_else(|| Error::ConcreteMirRequired {
+                ty.ty().ok_or_else(|| Error::MissingRepresentation {
                     context: "environment".to_string(),
                 })
             })
@@ -1086,15 +1128,18 @@ impl ProgramBuilder {
         ty: mir::LocalNodeId<mir::Type>,
         byte_len: &mut usize,
     ) -> Result<engine::FrameRegion> {
-        let layout = layouts.get(&ty).ok_or_else(|| Error::ConcreteMirRequired {
-            context: "frame region layout".to_string(),
-        })?;
-        let region_alignment = if layout.is_scalar() {
+        let layout = layouts
+            .get(&ty)
+            .ok_or_else(|| Error::MissingRepresentation {
+                context: "frame region layout".to_string(),
+            })?;
+        let is_word = layout.is_word();
+        let region_alignment = if is_word {
             layout.alignment().max(Word::BYTE_LEN)
         } else {
             layout.alignment()
         };
-        let region_len = if layout.is_scalar() {
+        let region_len = if is_word {
             layout.byte_len.max(Word::BYTE_LEN)
         } else {
             layout.byte_len
@@ -1111,7 +1156,7 @@ impl ProgramBuilder {
             offset: u32::try_from(offset).map_err(|_| Error::InvalidInstruction)?,
             byte_len: u32::try_from(region_len).map_err(|_| Error::InvalidInstruction)?,
             alignment: u16::try_from(region_alignment).map_err(|_| Error::InvalidInstruction)?,
-            is_word: layout.is_scalar(),
+            is_word,
             ty: engine::TypeId(ty.id),
         })
     }
@@ -1140,7 +1185,7 @@ impl ProgramBuilder {
                     mir::Terminator::Yield { resume, .. } => Some((
                         (resume.block)
                             .block()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "yield resume target".to_string(),
                             })?,
                         resume
@@ -1149,7 +1194,7 @@ impl ProgramBuilder {
                             .map(|argument| {
                                 (*argument)
                                     .value()
-                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                    .ok_or_else(|| Error::MissingRepresentation {
                                         context: "yield resume argument".to_string(),
                                     })
                             })
@@ -1201,7 +1246,7 @@ impl ProgramBuilder {
                         ..
                     } => Some((
                         (normal_target.block).block().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
+                            Error::MissingRepresentation {
                                 context: "invoke normal target".to_string(),
                             }
                         })?,
@@ -1211,13 +1256,13 @@ impl ProgramBuilder {
                             .map(|argument| {
                                 (*argument)
                                     .value()
-                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                    .ok_or_else(|| Error::MissingRepresentation {
                                         context: "invoke normal argument".to_string(),
                                     })
                             })
                             .collect::<Result<Vec<_>>>()?,
                         (unwind_target.block).block().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
+                            Error::MissingRepresentation {
                                 context: "invoke unwind target".to_string(),
                             }
                         })?,
@@ -1227,7 +1272,7 @@ impl ProgramBuilder {
                             .map(|argument| {
                                 (*argument)
                                     .value()
-                                    .ok_or_else(|| Error::ConcreteMirRequired {
+                                    .ok_or_else(|| Error::MissingRepresentation {
                                         context: "invoke unwind argument".to_string(),
                                     })
                             })
@@ -1288,7 +1333,7 @@ impl ProgramBuilder {
                 .map(|parameter| {
                     (parameter.value)
                         .value()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "resume parameter".to_string(),
                         })
                 })
@@ -1321,7 +1366,7 @@ impl ProgramBuilder {
                 let destination =
                     (parameter.value)
                         .value()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "resume parameter".to_string(),
                         })?;
 
@@ -1451,7 +1496,7 @@ impl ProgramBuilder {
             .map(|parameter| {
                 (parameter.value)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "resume block parameter".to_string(),
                     })
             })
@@ -1459,19 +1504,14 @@ impl ProgramBuilder {
         let mut values: HashSet<mir::Value> =
             live_in.difference(&parameter_values).copied().collect();
 
+        // resume copies are the source bytes for resumed block parameters
         for copy in &resume_transfer.copies {
-            let destination = frame_layout
-                .value_for_region(copy.destination)
-                .ok_or(Error::InvalidInstruction)?;
             let source = frame_layout
                 .value_for_region(copy.source)
                 .ok_or(Error::InvalidInstruction)?;
-            let destination = mir::Value::new(destination.0);
             let source = mir::Value::new(source.0);
 
-            if live_in.contains(&destination) {
-                values.insert(source);
-            }
+            values.insert(source);
         }
 
         Ok(values)

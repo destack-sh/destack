@@ -1,11 +1,13 @@
 use std::fmt;
 
-use destack_mir::LayoutId;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::{ReferenceMeta, Word};
 
-use super::{ArgumentRange, CallTarget, MoveRange, Opcode, PointerClass, SwitchCase};
+use super::{
+    AllocationLayout, ArgumentRange, CallTarget, ConstValue, ElementAccess, FieldAccess, MoveRange,
+    Opcode, PointeeAccess, PointerClass, SliceElementAccess, SwitchCase,
+};
 
 /// One decoded program instruction.
 #[derive(Clone)]
@@ -19,84 +21,9 @@ pub(crate) struct Instruction {
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instruction")
+            .field("opcode", &self.opcode)
             .field("operands", &self.operands)
             .finish()
-    }
-}
-
-/// Constant word stored in lowered instructions.
-#[derive(Clone, Debug)]
-pub(crate) enum ConstValue {
-    /// Pre-decoded constant value.
-    Word(Word),
-}
-
-/// One compiled field access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FieldAccess {
-    /// The runtime pointer class.
-    pub pointer_class: PointerClass,
-    /// The field value type.
-    pub value_type: mir::LocalNodeId<mir::Type>,
-    /// The byte offset of the field value.
-    pub byte_offset: usize,
-    /// The byte width of the field value.
-    pub byte_len: usize,
-    /// Whether the field value decodes as one scalar.
-    pub is_scalar: bool,
-}
-
-/// One compiled element access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ElementAccess {
-    /// The runtime pointer class.
-    pub pointer_class: PointerClass,
-    /// The element value type.
-    pub value_type: mir::LocalNodeId<mir::Type>,
-    /// The byte stride between adjacent elements.
-    pub byte_stride: usize,
-    /// The byte width of the element value.
-    pub byte_len: usize,
-    /// Whether the element value decodes as one scalar.
-    pub is_scalar: bool,
-}
-
-/// One compiled pointer pointee access.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PointeeAccess {
-    /// The runtime pointer class.
-    pub pointer_class: PointerClass,
-    /// The pointee value type.
-    pub value_type: mir::LocalNodeId<mir::Type>,
-    /// The byte offset from the pointer base.
-    pub byte_offset: usize,
-    /// The byte width of the pointee value.
-    pub byte_len: usize,
-    /// Whether the pointee value decodes as one scalar.
-    pub is_scalar: bool,
-}
-
-impl From<FieldAccess> for PointeeAccess {
-    fn from(field: FieldAccess) -> Self {
-        Self {
-            pointer_class: field.pointer_class,
-            value_type: field.value_type,
-            byte_offset: field.byte_offset,
-            byte_len: field.byte_len,
-            is_scalar: field.is_scalar,
-        }
-    }
-}
-
-impl From<ElementAccess> for PointeeAccess {
-    fn from(element: ElementAccess) -> Self {
-        Self {
-            pointer_class: element.pointer_class,
-            value_type: element.value_type,
-            byte_offset: 0,
-            byte_len: element.byte_len,
-            is_scalar: element.is_scalar,
-        }
     }
 }
 
@@ -295,7 +222,29 @@ pub(crate) enum Operands {
     Store {
         pointer: mir::Value,
         value: mir::Value,
-        reference: ReferenceMeta,
+        access: PointeeAccess,
+    },
+
+    /// Copy a byte range between frame values.
+    Copy {
+        destination: mir::Value,
+        destination_offset: usize,
+        source: mir::Value,
+        source_offset: usize,
+        byte_len: usize,
+    },
+
+    /// Copy from an address into a frame value.
+    CopyFromAddress {
+        destination: mir::Value,
+        address: mir::Value,
+        access: PointeeAccess,
+    },
+
+    /// Copy from a frame value into an address.
+    CopyToAddress {
+        address: mir::Value,
+        source: mir::Value,
         access: PointeeAccess,
     },
 
@@ -304,8 +253,8 @@ pub(crate) enum Operands {
         dest: mir::Value,
         base: mir::Value,
         index: u32,
-        field_count: Option<u32>,
-        field: Option<FieldAccess>,
+        field_count: u32,
+        field: FieldAccess,
     },
 
     /// Get struct or tuple field address.
@@ -314,8 +263,8 @@ pub(crate) enum Operands {
         base: mir::Value,
         index: u32,
         reference: ReferenceMeta,
-        field_count: Option<u32>,
-        field: Option<FieldAccess>,
+        field_count: u32,
+        field: FieldAccess,
     },
 
     /// Load a field through field address plus load.
@@ -323,8 +272,8 @@ pub(crate) enum Operands {
         dest: mir::Value,
         base: mir::Value,
         index: u32,
-        field_count: Option<u32>,
-        field: Option<FieldAccess>,
+        field_count: u32,
+        field: FieldAccess,
     },
 
     /// Store a field through field address plus store.
@@ -333,8 +282,8 @@ pub(crate) enum Operands {
         index: u32,
         value: mir::Value,
         reference: ReferenceMeta,
-        field_count: Option<u32>,
-        field: Option<FieldAccess>,
+        field_count: u32,
+        field: FieldAccess,
     },
 
     /// Get array element.
@@ -342,8 +291,17 @@ pub(crate) enum Operands {
         dest: mir::Value,
         array: mir::Value,
         index: mir::Value,
-        array_length: Option<u64>,
-        element: Option<ElementAccess>,
+        array_length: u64,
+        element: ElementAccess,
+    },
+
+    /// Copy an array element into a frame value.
+    ElementCopy {
+        destination: mir::Value,
+        array: mir::Value,
+        index: mir::Value,
+        array_length: u64,
+        element: ElementAccess,
     },
 
     /// Get array element address.
@@ -352,8 +310,17 @@ pub(crate) enum Operands {
         array: mir::Value,
         index: mir::Value,
         reference: ReferenceMeta,
-        array_length: Option<u64>,
-        element: Option<ElementAccess>,
+        array_length: u64,
+        element: ElementAccess,
+    },
+
+    /// Get slice element address.
+    SliceElementAddr {
+        dest: mir::Value,
+        slice: mir::Value,
+        index: mir::Value,
+        reference: ReferenceMeta,
+        access: SliceElementAccess,
     },
 
     /// Load an element through element address plus load.
@@ -361,8 +328,8 @@ pub(crate) enum Operands {
         dest: mir::Value,
         array: mir::Value,
         index: mir::Value,
-        array_length: Option<u64>,
-        element: Option<ElementAccess>,
+        array_length: u64,
+        element: ElementAccess,
     },
 
     /// Broadcast a scalar to all vector elements.
@@ -650,31 +617,37 @@ pub(crate) enum Operands {
         index: mir::Value,
         value: mir::Value,
         reference: ReferenceMeta,
-        array_length: Option<u64>,
-        element: Option<ElementAccess>,
+        array_length: u64,
+        element: ElementAccess,
+    },
+
+    /// Copy a frame value into an array element.
+    ElementWrite {
+        array: mir::Value,
+        index: mir::Value,
+        value: mir::Value,
+        array_length: u64,
+        element: ElementAccess,
     },
 
     /// Allocate a managed heap value.
     New {
         dest: mir::Value,
-        reference: ReferenceMeta,
-        layout_id: LayoutId,
+        pointer_class: PointerClass,
+        allocation: AllocationLayout,
     },
 
     /// Allocate a heap array.
     NewSlice {
         dest: mir::Value,
         length: mir::Value,
-        element_layout_id: LayoutId,
+        pointer_class: PointerClass,
+        element: AllocationLayout,
         element_alignment: usize,
     },
 
     /// Allocate raw memory.
-    RawAlloc {
-        dest: mir::Value,
-        reference: ReferenceMeta,
-        byte_len: usize,
-    },
+    RawAlloc { dest: mir::Value, byte_len: usize },
 
     /// Free raw memory.
     RawFree { pointer: mir::Value },
@@ -746,8 +719,17 @@ pub(crate) enum Operands {
     /// Atomic fence.
     AtomicFence,
 
-    /// Synchronization barrier.
-    Barrier,
+    /// Managed barrier write.
+    BarrierWrite {
+        /// The managed object whose reference range changed.
+        object: mir::Value,
+        /// The byte offset of the changed reference range.
+        offset: mir::Value,
+        /// The changed byte length.
+        byte_len: mir::Value,
+        /// The managed heap class for the object reference.
+        pointer_class: PointerClass,
+    },
 
     /// Return from function.
     Return { value: mir::Value },
@@ -813,7 +795,7 @@ pub(crate) enum Operands {
     /// Switch via dense jump table.
     SwitchTable {
         value: mir::Value,
-        min: i64,
+        min: i128,
         table: Box<[SwitchCase]>,
         default_target: u32,
         default_moves: MoveRange,
