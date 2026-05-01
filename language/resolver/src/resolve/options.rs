@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 /// The options controlling resolver behavior.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
-pub struct ResolveOptions {
+pub struct ResolverOptions {
     /// The working directory used for environment dependent lookups.
     pub cwd: Option<PathBuf>,
 
@@ -70,7 +70,7 @@ pub struct ResolveOptions {
     pub yarn_pnp: bool,
 }
 
-impl Default for ResolveOptions {
+impl Default for ResolverOptions {
     fn default() -> Self {
         Self {
             cwd: None,
@@ -107,28 +107,25 @@ impl Default for ResolveOptions {
     }
 }
 
-impl ResolveOptions {
-    /// Create default options for one working directory with workspace linker policy.
-    pub fn default_for_workspace(
-        cwd: PathBuf,
-        workspace_options: Option<&WorkspaceOptions>,
-    ) -> Self {
+impl ResolverOptions {
+    /// Create default options using workspace linker policy.
+    pub fn workspace_defaults(cwd: PathBuf, workspace_options: Option<&WorkspaceOptions>) -> Self {
         let node_linker = workspace_options
             .map(|workspace_options| workspace_options.package.compiler.node_linker)
             .unwrap_or_default();
 
-        Self::default_for_cwd_with_node_linker(cwd, node_linker)
+        Self::cwd_defaults_with_node_linker(cwd, node_linker)
     }
 
-    /// Create default options for one working directory with automatic linker detection.
+    /// Create default options with automatic linker detection.
     /// Use this when workspace config is not available yet.
-    pub fn default_for_cwd(cwd: PathBuf) -> Self {
-        Self::default_for_cwd_with_node_linker(cwd, NodeLinker::Auto)
+    pub fn cwd_defaults(cwd: PathBuf) -> Self {
+        Self::cwd_defaults_with_node_linker(cwd, NodeLinker::Auto)
     }
 
-    /// Create default options for one working directory with explicit linker policy.
-    pub fn default_for_cwd_with_node_linker(cwd: PathBuf, node_linker: NodeLinker) -> Self {
-        let yarn_pnp = Self::yarn_pnp_for_node_linker(node_linker, cwd.as_path());
+    /// Create default options with explicit linker policy.
+    pub fn cwd_defaults_with_node_linker(cwd: PathBuf, node_linker: NodeLinker) -> Self {
+        let yarn_pnp = Self::yarn_pnp_enabled(node_linker, cwd.as_path());
 
         Self {
             cwd: Some(cwd),
@@ -137,26 +134,26 @@ impl ResolveOptions {
         }
     }
 
-    /// Apply one node linker policy to these resolve options.
-    pub fn apply_node_linker_for_cwd(&mut self, node_linker: NodeLinker, cwd: &Path) {
+    /// Set one node linker policy on these resolve options.
+    pub fn set_node_linker(&mut self, node_linker: NodeLinker, cwd: &Path) {
         if self.cwd.is_none() {
             self.cwd = Some(cwd.to_path_buf());
         }
 
-        self.yarn_pnp = Self::yarn_pnp_for_node_linker(node_linker, cwd);
+        self.yarn_pnp = Self::yarn_pnp_enabled(node_linker, cwd);
     }
 
-    /// Resolve yarn pnp state from one node linker policy.
-    pub fn yarn_pnp_for_node_linker(node_linker: NodeLinker, cwd: &Path) -> bool {
+    /// Return whether one node linker policy enables Yarn PnP.
+    pub fn yarn_pnp_enabled(node_linker: NodeLinker, cwd: &Path) -> bool {
         match node_linker {
-            NodeLinker::Auto => Self::detect_yarn_pnp_for_cwd(cwd),
+            NodeLinker::Auto => Self::detect_yarn_pnp(cwd),
             NodeLinker::NodeModules => false,
             NodeLinker::Pnp => true,
         }
     }
 
     /// Detect whether Yarn Plug'n'Play should be enabled for one working directory.
-    pub fn detect_yarn_pnp_for_cwd(cwd: &Path) -> bool {
+    pub fn detect_yarn_pnp(cwd: &Path) -> bool {
         // find a pnp manifest from cwd up to the root
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -174,149 +171,9 @@ impl ResolveOptions {
             false
         }
     }
-
-    /// Create blank resolve options.
-    pub fn blank() -> Self {
-        Self {
-            cwd: None,
-            tsconfig: None,
-            alias: vec![],
-            conditions: vec![],
-            resolve_package_json_exports: true,
-            resolve_package_json_imports: true,
-            enforce_extension: EnforceExtension::Disabled,
-            extension_alias: IndexMap::new(),
-            extensions: vec![],
-            fallback: vec![],
-            is_fully_specified: false,
-            main_files: vec![],
-            modules: vec![],
-            resolve_to_context: false,
-            prefer_relative: false,
-            prefer_absolute: false,
-            restrictions: vec![],
-            roots: vec![],
-            canonicalize_symlinks: true,
-            yarn_pnp: false,
-        }
-    }
-
-    /// Set the current working directory.
-    pub fn with_cwd(mut self, cwd: PathBuf) -> Self {
-        self.cwd = Some(cwd);
-        self
-    }
-
-    /// Set the TypeScript configuration file.
-    pub fn with_tsconfig(mut self, tsconfig: TypeScriptOptionsDiscovery) -> Self {
-        self.tsconfig = Some(tsconfig);
-        self
-    }
-
-    /// Set the aliases.
-    pub fn with_alias(mut self, alias: Alias) -> Self {
-        self.alias = alias;
-        self
-    }
-
-    /// Set the conditions.
-    pub fn with_conditions(mut self, conditions: Vec<String>) -> Self {
-        self.conditions = conditions;
-        self
-    }
-
-    /// Set package json exports resolution.
-    pub fn with_resolve_package_json_exports(mut self, value: bool) -> Self {
-        self.resolve_package_json_exports = value;
-        self
-    }
-
-    /// Set package json imports resolution.
-    pub fn with_resolve_package_json_imports(mut self, value: bool) -> Self {
-        self.resolve_package_json_imports = value;
-        self
-    }
-
-    /// Set the enforce extension.
-    pub fn with_enforce_extension(mut self, enforce_extension: EnforceExtension) -> Self {
-        self.enforce_extension = enforce_extension;
-        self
-    }
-
-    /// Set the extension aliases.
-    pub fn with_extension_alias(mut self, extension_alias: IndexMap<String, Vec<String>>) -> Self {
-        self.extension_alias = extension_alias;
-        self
-    }
-
-    /// Set the extensions.
-    pub fn with_extensions(mut self, extensions: Vec<String>) -> Self {
-        self.extensions = extensions;
-        self
-    }
-
-    /// Set whether incoming requests are fully specified.
-    pub fn with_is_fully_specified(mut self, is_fully_specified: bool) -> Self {
-        self.is_fully_specified = is_fully_specified;
-        self
-    }
-
-    /// Set the main files.
-    pub fn with_main_files(mut self, main_files: Vec<String>) -> Self {
-        self.main_files = main_files;
-        self
-    }
-
-    /// Set the modules.
-    pub fn with_modules(mut self, modules: Vec<String>) -> Self {
-        self.modules = modules;
-        self
-    }
-
-    /// Set the resolve to context.
-    pub fn with_resolve_to_context(mut self, resolve_to_context: bool) -> Self {
-        self.resolve_to_context = resolve_to_context;
-        self
-    }
-
-    /// Set the prefer relative.
-    pub fn with_prefer_relative(mut self, prefer_relative: bool) -> Self {
-        self.prefer_relative = prefer_relative;
-        self
-    }
-
-    /// Set the prefer absolute.
-    pub fn with_prefer_absolute(mut self, prefer_absolute: bool) -> Self {
-        self.prefer_absolute = prefer_absolute;
-        self
-    }
-
-    /// Set the restrictions.
-    pub fn with_restrictions(mut self, restrictions: Vec<Restriction>) -> Self {
-        self.restrictions = restrictions;
-        self
-    }
-
-    /// Set the roots.
-    pub fn with_roots(mut self, roots: Vec<PathBuf>) -> Self {
-        self.roots = roots;
-        self
-    }
-
-    /// Set the canonicalize symlinks.
-    pub fn with_canonicalize_symlinks(mut self, canonicalize_symlinks: bool) -> Self {
-        self.canonicalize_symlinks = canonicalize_symlinks;
-        self
-    }
-
-    /// Set yarn pnp resolution.
-    pub fn with_yarn_pnp(mut self, yarn_pnp: bool) -> Self {
-        self.yarn_pnp = yarn_pnp;
-        self
-    }
 }
 
-impl fmt::Display for ResolveOptions {
+impl fmt::Display for ResolverOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(tsconfig) = &self.tsconfig {
             write!(f, "tsconfig:{tsconfig:?},")?;
@@ -455,7 +312,7 @@ impl CachePolicy {
 /// The TypeScript configuration discovery policy.
 #[derive(Debug, Clone)]
 pub enum TypeScriptOptionsDiscovery {
-    /// Discover the configuration automatically from the issuer path.
+    /// Discover the configuration automatically from the base path.
     Automatic,
     /// Use one explicit configuration location.
     Manual(TypeScriptOptionsLocation),
@@ -485,28 +342,31 @@ pub enum TypeScriptOptionsReferences {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::ResolveOptions;
+    use super::ResolverOptions;
     use destack_workspace::NodeLinker;
 
-    /// Apply node modules policy and disable yarn pnp.
+    /// Set node modules policy and disable yarn pnp.
     #[test]
-    fn test_apply_node_linker_for_cwd_sets_node_modules_policy() {
-        let mut options = ResolveOptions::default().with_yarn_pnp(true);
+    fn test_set_node_linker_sets_node_modules_policy() {
+        let mut options = ResolverOptions {
+            yarn_pnp: true,
+            ..ResolverOptions::default()
+        };
         let cwd = Path::new("/workspace");
 
-        options.apply_node_linker_for_cwd(NodeLinker::NodeModules, cwd);
+        options.set_node_linker(NodeLinker::NodeModules, cwd);
 
         assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
         assert!(!options.yarn_pnp);
     }
 
-    /// Apply pnp policy and keep yarn pnp enabled.
+    /// Set pnp policy and keep yarn pnp enabled.
     #[test]
-    fn test_apply_node_linker_for_cwd_sets_pnp_policy() {
-        let mut options = ResolveOptions::default();
+    fn test_set_node_linker_sets_pnp_policy() {
+        let mut options = ResolverOptions::default();
         let cwd = Path::new("/workspace");
 
-        options.apply_node_linker_for_cwd(NodeLinker::Pnp, cwd);
+        options.set_node_linker(NodeLinker::Pnp, cwd);
 
         assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
         assert!(options.yarn_pnp);

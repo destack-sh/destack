@@ -7,8 +7,9 @@ use destack_source::{File, FileId, FileType, PathExt, Uri};
 use destack_workspace::{TsConfigDeclaration, TsConfigProjectReferences};
 
 use crate::{
-    CachePolicy, Resolution, ResolveContext, ResolveError, ResolveOptions, ResolveOrigin,
-    ResolveState, Resolver, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    CachePolicy, Resolution, Resolver, ResolverBase, ResolverContext, ResolverError,
+    ResolverOptions, ResolverResult, ResolverSearch, TypeScriptOptionsDiscovery,
+    TypeScriptOptionsReferences,
 };
 
 /// The query local cache key for one tsconfig declaration shape.
@@ -42,7 +43,7 @@ impl Resolver {
     pub(crate) fn find_loaded_reference_tsconfig(
         &self,
         reference_path: &Path,
-        ctx: &ResolveContext,
+        ctx: &ResolverContext,
     ) -> Option<TsConfigDeclaration> {
         if let Some(tsconfig) =
             ctx.tsconfig_for_path(reference_path, true, &TypeScriptOptionsReferences::Disabled)
@@ -72,9 +73,9 @@ impl Resolver {
         is_root: bool,
         path: &Path,
         references: &TypeScriptOptionsReferences,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolverContext,
         cache_policy: CachePolicy,
-    ) -> Result<TsConfigDeclaration, ResolveError> {
+    ) -> ResolverResult<TsConfigDeclaration> {
         let tsconfig_path = self.materialize_tsconfig_path(path, ctx)?;
         let tsconfig_key = TsConfigKey::new(&tsconfig_path, is_root, references);
 
@@ -86,21 +87,23 @@ impl Resolver {
         }
 
         // parse the root config entry
-        let (repository, revision) = self.source_world(ctx);
+        let (repository, revision) = self.repository_revision(ctx);
         let mut tsconfig = if tsconfig_path.starts_with(repository.workspace_root())
             && let Some(tsconfig) = repository
                 .tsconfig_declaration_for_file(revision, repository.file_id(&tsconfig_path))
-                .map_err(|error| ResolveError::RepositoryError {
+                .map_err(|error| ResolverError::RepositoryError {
                     path: tsconfig_path.to_path_buf(),
                     message: error.to_string(),
                 })? {
-            tsconfig.as_ref().clone()
+            let tsconfig = tsconfig.as_ref().clone();
+            self.track_file_dependency(&tsconfig.path, ctx)?;
+            tsconfig
         } else {
             self.read_tsconfig_into(is_root, &tsconfig_path, ctx)?
         };
         // reject circular extends chains
         if ctx.is_extended_tsconfig(&tsconfig.path) {
-            return Err(ResolveError::TsConfigCircular {
+            return Err(ResolverError::TsConfigCircular {
                 paths: ctx.extended_tsconfig_paths_with(tsconfig.path.to_path_buf()),
             });
         }
@@ -110,7 +113,7 @@ impl Resolver {
             .json
             .extends()
             .map(|specifier| {
-                self.get_extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier, ctx)
+                self.extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier, ctx)
             })
             .collect::<Result<Vec<_>, _>>()?;
         if !extended_tsconfig_paths.is_empty() {
@@ -127,7 +130,7 @@ impl Resolver {
                     tsconfig.extend_from(&extended_tsconfig);
                 }
 
-                Result::Ok::<(), ResolveError>(())
+                Ok(())
             })?;
         }
 
@@ -164,7 +167,7 @@ impl Resolver {
 
             // reject self references
             if referenced_tsconfig.path == current_path {
-                return Err(ResolveError::TsConfigSelfReference {
+                return Err(ResolverError::TsConfigSelfReference {
                     path: referenced_tsconfig.path.to_path_buf(),
                 });
             }
@@ -172,7 +175,7 @@ impl Resolver {
 
         // build the final config after inheritance and reference shaping
         tsconfig.build();
-        ctx.remember_tsconfig(tsconfig_key, tsconfig.clone());
+        ctx.cache_tsconfig(tsconfig_key, tsconfig.clone());
 
         Ok(tsconfig)
     }
@@ -182,18 +185,18 @@ impl Resolver {
         &self,
         is_root: bool,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<TsConfigDeclaration, ResolveError> {
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<TsConfigDeclaration> {
         // read the config file from disk
         let content = match self.read_path_to_string(path, ctx) {
             Ok(content) => content,
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                return Err(ResolveError::TsConfigNotFound {
+                return Err(ResolverError::TsConfigNotFound {
                     path: path.to_path_buf(),
                 });
             }
             Err(error) => {
-                return Err(ResolveError::IoError {
+                return Err(ResolverError::IoError {
                     path: path.to_path_buf(),
                     kind: error.kind(),
                 });
@@ -214,19 +217,19 @@ impl Resolver {
         let file = Arc::new(file);
 
         // parse the local file as tsconfig
-        TsConfigDeclaration::parse(is_root, &file).map_err(|_| ResolveError::TsConfigInvalid {
+        TsConfigDeclaration::parse(is_root, &file).map_err(|_| ResolverError::TsConfigInvalid {
             path: path.to_path_buf(),
         })
     }
-    /// Apply tsconfig `paths` substitutions for one specifier.
-    pub(crate) fn apply_tsconfig_paths(
+    /// Resolve through tsconfig `paths` substitutions.
+    pub(crate) fn resolve_tsconfig_paths(
         &self,
-        origin: ResolveOrigin,
+        base: ResolverBase<'_>,
         path: &Path,
         specifier: &str,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // skip tsconfig path rewrites inside module directories
         if Self::is_inside_modules(path) {
             return Ok(None);
@@ -247,7 +250,7 @@ impl Resolver {
                 self.find_effective_tsconfig(ctx, &root_tsconfig, path)
             }
             Some(TypeScriptOptionsDiscovery::Automatic) => {
-                let Some(tsconfig) = self.find_applicable_tsconfig(origin, path, ctx)? else {
+                let Some(tsconfig) = self.find_applicable_tsconfig(base, path, ctx)? else {
                     return Ok(None);
                 };
 
@@ -260,7 +263,7 @@ impl Resolver {
             self.find_loaded_reference_tsconfig(reference_path, ctx)
         });
         for resolved in paths {
-            if let Some(resolution) = self.probe_path(&resolved, ".", state.clone(), ctx)? {
+            if let Some(resolution) = self.probe_path(&resolved, ".", search.clone(), ctx)? {
                 return Ok(Some(resolution));
             }
         }
@@ -269,16 +272,16 @@ impl Resolver {
     }
 
     /// Resolve the path of one extended tsconfig file.
-    fn get_extended_tsconfig_path(
+    fn extended_tsconfig_path(
         &self,
         directory: &Path,
         tsconfig: &TsConfigDeclaration,
         specifier: &str,
-        ctx: &mut ResolveContext,
-    ) -> Result<PathBuf, ResolveError> {
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<PathBuf> {
         match specifier.as_bytes().first() {
             // empty specifier
-            None => Err(ResolveError::InvalidSpecifier {
+            None => Err(ResolverError::InvalidSpecifier {
                 specifier: specifier.to_string(),
                 message: None,
             }),
@@ -292,23 +295,23 @@ impl Resolver {
             // package specifier
             _ => {
                 // resolve package specifiers with a tsconfig specific resolver shape
-                self.with_options(ResolveOptions {
+                self.with_options(ResolverOptions {
                     cwd: self.options.cwd.clone(),
                     tsconfig: None,
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig".into()],
                     yarn_pnp: self.options.yarn_pnp,
-                    ..ResolveOptions::default()
+                    ..ResolverOptions::default()
                 })
                 .resolve_package_or_modules(
                     directory,
                     specifier,
-                    ResolveState::new(&self.options),
+                    ResolverSearch::root(&self.options),
                     ctx,
                 )
-                .map(|resolution| resolution.path)
+                .map(Resolution::into_path_buf)
                 .map_err(|error| match error {
-                    ResolveError::NotFound { .. } => ResolveError::TsConfigNotFound {
+                    ResolverError::NotFound { .. } => ResolverError::TsConfigNotFound {
                         path: PathBuf::from(specifier),
                     },
                     _ => error,
@@ -321,8 +324,8 @@ impl Resolver {
     pub(crate) fn materialize_tsconfig_path(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<PathBuf, ResolveError> {
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<PathBuf> {
         match self.path_metadata(path, ctx)? {
             // keep explicit files as-is
             Some(metadata) if metadata.is_file => Ok(path.to_path_buf()),
@@ -342,10 +345,10 @@ impl Resolver {
     /// Find the effective tsconfig for one path.
     pub(crate) fn find_applicable_tsconfig(
         &self,
-        origin: ResolveOrigin,
+        base: ResolverBase<'_>,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<TsConfigDeclaration>, ResolveError> {
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<TsConfigDeclaration>> {
         // skip ineligible paths before touching caches
         if Self::is_inside_modules(path) {
             return Ok(None);
@@ -356,25 +359,25 @@ impl Resolver {
         }
 
         // prefer cached result if available
-        if let Some(tsconfig) = ctx.effective_tsconfig(origin, path)
+        if let Some(tsconfig) = ctx.effective_tsconfig(base, path)
             && let Some(tsconfig) = tsconfig.as_ref().and_then(|key| ctx.tsconfig(key))
         {
             return Ok(Some(tsconfig));
         }
 
         // prefer repository backed tsconfig discovery within the active workspace
-        let (repository, revision) = self.source_world(ctx);
+        let (repository, revision) = self.repository_revision(ctx);
         if path.starts_with(repository.workspace_root()) {
             let tsconfig = match repository
                 .tsconfig_file_id_for_path(revision, path)
-                .map_err(|error| ResolveError::RepositoryError {
+                .map_err(|error| ResolverError::RepositoryError {
                     path: path.to_path_buf(),
                     message: error.to_string(),
                 })? {
                 Some(file_id) => {
                     let declaration = repository
                         .tsconfig_declaration_for_file(revision, file_id)
-                        .map_err(|error| ResolveError::RepositoryError {
+                        .map_err(|error| ResolverError::RepositoryError {
                             path: path.to_path_buf(),
                             message: error.to_string(),
                         })?
@@ -407,16 +410,16 @@ impl Resolver {
             if let Some(tsconfig) = tsconfig.as_ref()
                 && let Some(key) = key.clone()
             {
-                ctx.remember_tsconfig(key, tsconfig.clone());
+                ctx.cache_tsconfig(key, tsconfig.clone());
             }
 
-            ctx.remember_effective_tsconfig(origin, path, key);
+            ctx.cache_effective_tsconfig(base, path, key);
             return Ok(tsconfig);
         }
 
         // find the nearest config first, then select the effective project
-        let Some(nearest_tsconfig) = self.find_nearest_tsconfig(origin, path, ctx)? else {
-            ctx.remember_effective_tsconfig(origin, path, None);
+        let Some(nearest_tsconfig) = self.find_nearest_tsconfig(base, path, ctx)? else {
+            ctx.cache_effective_tsconfig(base, path, None);
             return Ok(None);
         };
 
@@ -426,8 +429,8 @@ impl Resolver {
             true,
             &TypeScriptOptionsReferences::Automatic,
         );
-        ctx.remember_tsconfig(key.clone(), tsconfig.clone());
-        ctx.remember_effective_tsconfig(origin, path, Some(key));
+        ctx.cache_tsconfig(key.clone(), tsconfig.clone());
+        ctx.cache_effective_tsconfig(base, path, Some(key));
 
         Ok(Some(tsconfig))
     }
@@ -435,11 +438,11 @@ impl Resolver {
     /// Find the nearest tsconfig by traversing parent directories.
     fn find_nearest_tsconfig(
         &self,
-        origin: ResolveOrigin,
+        base: ResolverBase<'_>,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<TsConfigDeclaration>, ResolveError> {
-        let search_start = self.tsconfig_search_start(origin, path);
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<TsConfigDeclaration>> {
+        let search_start = self.tsconfig_search_start(base, path)?;
         if let Some(tsconfig) = ctx.nearest_tsconfig(&search_start)
             && let Some(tsconfig) = tsconfig.as_ref().and_then(|key| ctx.tsconfig(key))
         {
@@ -450,7 +453,7 @@ impl Resolver {
         let mut current = Some(search_start);
         while let Some(directory) = current {
             let tsconfig_path = directory.join("tsconfig.json");
-            if self.is_file(&tsconfig_path, ctx) {
+            if self.is_file(&tsconfig_path, ctx)? {
                 let tsconfig = self.read_tsconfig(
                     true,
                     &tsconfig_path,
@@ -465,7 +468,7 @@ impl Resolver {
                 );
 
                 for visited_path in visited_paths {
-                    ctx.remember_nearest_tsconfig(&visited_path, Some(key.clone()));
+                    ctx.cache_nearest_tsconfig(&visited_path, Some(key.clone()));
                 }
 
                 return Ok(Some(tsconfig));
@@ -481,7 +484,7 @@ impl Resolver {
         }
 
         for visited_path in visited_paths {
-            ctx.remember_nearest_tsconfig(&visited_path, None);
+            ctx.cache_nearest_tsconfig(&visited_path, None);
         }
 
         Ok(None)
@@ -490,7 +493,7 @@ impl Resolver {
     /// Find the effective tsconfig for one path from a root config.
     pub(crate) fn find_effective_tsconfig(
         &self,
-        ctx: &ResolveContext,
+        ctx: &ResolverContext,
         tsconfig: &TsConfigDeclaration,
         path: &Path,
     ) -> TsConfigDeclaration {
@@ -502,7 +505,7 @@ impl Resolver {
     /// Find the first referenced tsconfig that actually applies to the path.
     fn find_effective_tsconfig_recursive(
         &self,
-        ctx: &ResolveContext,
+        ctx: &ResolverContext,
         tsconfig: &TsConfigDeclaration,
         path: &Path,
         visited: &mut HashSet<PathBuf>,
@@ -534,12 +537,18 @@ impl Resolver {
     }
 
     /// Choose the starting directory for tsconfig ancestor lookup.
-    fn tsconfig_search_start(&self, origin: ResolveOrigin, path: &Path) -> PathBuf {
-        match origin {
-            ResolveOrigin::File => path
-                .parent()
-                .map_or_else(|| path.to_path_buf(), Path::to_path_buf),
-            ResolveOrigin::Directory => path.to_path_buf(),
+    fn tsconfig_search_start(
+        &self,
+        base: ResolverBase<'_>,
+        path: &Path,
+    ) -> ResolverResult<PathBuf> {
+        match base {
+            ResolverBase::File(_) => path.parent().map(Path::to_path_buf).ok_or_else(|| {
+                ResolverError::ExpectedFilePath {
+                    path: path.to_path_buf(),
+                }
+            }),
+            ResolverBase::Directory(_) => Ok(path.to_path_buf()),
         }
     }
 }

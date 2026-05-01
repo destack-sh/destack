@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{ResolveError, ResolveOptions, Resolver};
+use crate::{Resolver, ResolverError, ResolverOptions};
 
 /// Normalize one path for cross-platform substring assertions.
 fn normalized(path: &Path) -> String {
@@ -25,12 +25,12 @@ fn test_resolve_pnp_basic() {
         "missing PnP manifest fixture, run `just install-resolver`"
     );
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let is_even = resolver
@@ -73,11 +73,11 @@ fn test_resolve_pnp_basic() {
 #[test]
 fn test_resolve_pnp_linked_folder() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver
@@ -90,11 +90,11 @@ fn test_resolve_pnp_linked_folder() {
 #[test]
 fn test_resolve_pnp_disabled() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     assert_eq!(
         resolver.resolve_test_directory(&fixture, "is-even"),
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "is-even".to_string(),
         })
     );
@@ -104,15 +104,15 @@ fn test_resolve_pnp_disabled() {
 #[test]
 fn test_resolve_pnp_missing_manifest_reports_error() {
     let fixture = super::fixture_root().join("misc");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     assert_eq!(
         resolver.resolve_test_directory(&fixture, "is-even"),
-        Err(ResolveError::FailedToFindYarnPnpManifest { cwd: fixture })
+        Err(ResolverError::FailedToFindYarnPnpManifest { cwd: fixture })
     );
 }
 
@@ -120,10 +120,10 @@ fn test_resolve_pnp_missing_manifest_reports_error() {
 #[test]
 fn test_resolve_pnp_npm_protocol_alias() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let custom_minimist = resolver
@@ -153,10 +153,10 @@ fn test_resolve_pnp_npm_protocol_alias() {
 #[test]
 fn test_resolve_pnp_package_deep_link() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver
@@ -173,15 +173,15 @@ fn test_resolve_pnp_package_deep_link() {
 #[test]
 fn test_resolve_pnp_preserves_resolver_errors() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let result = resolver.resolve_test_directory(&fixture, "this-package-does-not-exist");
     assert!(
-        matches!(result, Err(ResolveError::YarnPnpError { .. })),
+        matches!(result, Err(ResolverError::YarnPnpError { .. })),
         "expected one Yarn PnP error, got {result:?}"
     );
 }
@@ -190,10 +190,10 @@ fn test_resolve_pnp_preserves_resolver_errors() {
 #[test]
 fn test_resolve_pnp_nested_package_json() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver
@@ -217,22 +217,22 @@ fn test_resolve_pnp_nested_package_json() {
 #[cfg(target_endian = "little")]
 fn test_resolve_pnp_global_cache() {
     let fixture = super::fixture_root().join("global-pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let source_map_support_path = resolver
         .resolve_test_directory(&fixture, "source-map-support")
         .map(|resolution| resolution.full_path())
         .expect("expected source-map-support to resolve from global PnP cache");
-    let issuer_directory = source_map_support_path
+    let base_directory = source_map_support_path
         .parent()
         .expect("expected source-map-support path to have a parent directory");
 
     let source_map_path = resolver
-        .resolve_test_directory(issuer_directory, "source-map")
+        .resolve_test_directory(base_directory, "source-map")
         .map(|resolution| resolution.full_path())
         .expect("expected source-map to resolve from global PnP cache");
     let normalized = normalized(&source_map_path);
@@ -259,10 +259,10 @@ fn test_resolve_pnp_global_cache() {
 #[test]
 fn test_resolve_tsconfig_extends_with_pnp() {
     let fixture = super::fixture_root().join("pnp");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let tsconfig = resolver
@@ -281,13 +281,13 @@ fn test_resolve_tsconfig_extends_with_pnp() {
 #[test]
 fn test_resolve_pnp_from_non_pnp_base_with_options() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions::default());
-    let resolver = base_resolver.with_options(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions::default());
+    let resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver
@@ -301,17 +301,17 @@ fn test_resolve_pnp_from_non_pnp_base_with_options() {
 #[test]
 fn test_resolve_pnp_with_options_keeps_enabled_mode() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let resolver = base_resolver.with_options(ResolveOptions {
+    let resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into(), ".json".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver
@@ -325,19 +325,19 @@ fn test_resolve_pnp_with_options_keeps_enabled_mode() {
 #[test]
 fn test_resolve_pnp_after_cloning_when_mode_unchanged() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let cloned_resolver = base_resolver.with_options(ResolveOptions {
+    let cloned_resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into(), ".json".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = cloned_resolver
@@ -351,18 +351,18 @@ fn test_resolve_pnp_after_cloning_when_mode_unchanged() {
 #[test]
 fn test_resolve_pnp_after_toggling_on() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: false,
         extensions: vec![".js".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let cloned_resolver = base_resolver.with_options(ResolveOptions {
+    let cloned_resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = cloned_resolver
@@ -376,21 +376,21 @@ fn test_resolve_pnp_after_toggling_on() {
 #[test]
 fn test_resolve_pnp_with_options_can_disable_mode() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let resolver = base_resolver.with_options(ResolveOptions {
+    let resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: false,
         extensions: vec![".js".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     assert_eq!(
         resolver.resolve_test_directory(&fixture, "is-even"),
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "is-even".to_string(),
         })
     );
@@ -400,23 +400,23 @@ fn test_resolve_pnp_with_options_can_disable_mode() {
 #[test]
 fn test_resolve_pnp_after_toggling_off() {
     let fixture = super::fixture_root().join("pnp");
-    let base_resolver = Resolver::for_tests(ResolveOptions {
+    let base_resolver = Resolver::for_tests(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: true,
         extensions: vec![".js".into()],
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let cloned_resolver = base_resolver.with_options(ResolveOptions {
+    let cloned_resolver = base_resolver.with_options(ResolverOptions {
         cwd: Some(fixture.clone()),
         yarn_pnp: false,
         extensions: vec![".js".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     assert_eq!(
         cloned_resolver.resolve_test_directory(&fixture, "is-even"),
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "is-even".to_string(),
         })
     );

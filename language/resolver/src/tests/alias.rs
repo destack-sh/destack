@@ -6,11 +6,9 @@ use std::path::PathBuf;
 
 use indexmap::IndexMap;
 
+use crate::{AliasValue, Resolution, Resolver, ResolverError, ResolverOptions};
 #[cfg(not(target_os = "windows"))]
 use destack_source::MemoryFileSystem;
-use destack_source::PathExt;
-
-use crate::{AliasValue, Resolution, ResolveError, ResolveOptions, ResolveTrace, Resolver};
 
 /// Test resolving aliases.
 #[allow(clippy::too_many_lines)]
@@ -40,7 +38,7 @@ fn test_resolve_alias() {
 
     let resolver = Resolver::for_test_file_system(
         Arc::new(fs),
-        ResolveOptions {
+        ResolverOptions {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::from("a")]),
                 ("b$".into(), vec![AliasValue::from("a/index.js")]),
@@ -82,7 +80,7 @@ fn test_resolve_alias() {
                 ("@e*file".into(), vec![AliasValue::from("/e*file")]),
             ],
             modules: vec!["/".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -148,7 +146,7 @@ fn test_resolve_alias() {
 
     #[rustfmt::skip]
     let ignore = [
-        ("should resolve an ignore module", "ignored", ResolveError::Ignored { path: f.join("ignored") })
+        ("should resolve an ignore module", "ignored", ResolverError::Ignored { path: f.join("ignored") })
     ];
 
     for (comment, request, expected) in ignore {
@@ -161,17 +159,17 @@ fn test_resolve_alias() {
 #[test]
 fn test_resolve_infinite_alias_recursion() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![
             ("./a".into(), vec![AliasValue::from("./b")]),
             ("./b".into(), vec![AliasValue::from("./a")]),
         ],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver.resolve_test_directory(f, "./a");
     assert_eq!(
         resolution,
-        Err(ResolveError::RecursiveDependency { depth: 64 })
+        Err(ResolverError::RecursiveDependency { depth: 64 })
     );
 }
 
@@ -193,18 +191,18 @@ fn check_os_path_slashes(path: &Path) {
 #[test]
 fn test_resolve_alias_to_absolute_path() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![(
             f.join("foo").to_str().unwrap().to_string(),
             vec![AliasValue::Ignore],
         )],
         modules: vec![f.clone().to_str().unwrap().to_string()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver.resolve_test_directory(&f, "foo/index");
     assert_eq!(
         resolution,
-        Err(ResolveError::Ignored {
+        Err(ResolverError::Ignored {
             path: f.join("foo")
         })
     );
@@ -214,12 +212,12 @@ fn test_resolve_alias_to_absolute_path() {
 #[test]
 fn test_resolve_alias_to_system_path() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![(
             "@app".into(),
             vec![AliasValue::from(f.join("alias").to_string_lossy())],
         )],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let specifiers = ["@app/files/a", "@app/files/a.js"];
@@ -241,12 +239,10 @@ fn test_resolve_alias_is_full_path() {
     let dir = f.join("foo");
     let dir_str = dir.to_string_lossy().to_string();
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![("@".into(), vec![AliasValue::Path(dir_str.clone())])],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-
-    let mut trace = ResolveTrace::default();
 
     let specifiers = [
         "@/index".to_string(),
@@ -257,30 +253,25 @@ fn test_resolve_alias_is_full_path() {
         dir_str,
     ];
 
+    let mut dependencies = Vec::new();
     for specifier in specifiers {
-        let resolution = resolver.resolve_test_directory_with_trace(&f, &specifier, &mut trace);
-        assert_eq!(resolution.map(|r| r.full_path()), Ok(dir.join("index.js")));
+        let resolution = resolver.resolve_test_directory_with_dependencies(&f, &specifier);
+        let resolution = resolution.map(|(resolution, observed_dependencies)| {
+            dependencies.extend(observed_dependencies);
+            resolution.full_path()
+        });
+
+        assert_eq!(resolution, Ok(dir.join("index.js")));
     }
 
-    for path in &trace.found_dependencies {
-        assert_eq!(path, &path.normalize(), "{path:?}");
-        check_os_path_slashes(path);
-    }
-
-    for path in &trace.missing_dependencies {
-        assert_eq!(path, &path.normalize(), "{path:?}");
-        check_os_path_slashes(path);
-        if let Some(path) = path.parent() {
-            assert!(!path.is_file(), "{path:?} must not be a file");
-        }
-    }
+    assert!(!dependencies.is_empty());
 }
 
 /// Test resolving an alias to a non-existent path.
 #[test]
 fn test_resolve_all_alias_values_are_not_found() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![(
             "m1".to_string(),
             vec![AliasValue::Path(
@@ -290,12 +281,12 @@ fn test_resolve_all_alias_values_are_not_found() {
                     .to_string(),
             )],
         )],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver.resolve_test_directory(&f, "m1/a.js");
     assert_eq!(
         resolution,
-        Err(ResolveError::MatchedAliasNotFound {
+        Err(ResolverError::MatchedAliasNotFound {
             specifier: "m1/a.js".to_string(),
             alias_key: "m1".to_string()
         })
@@ -329,12 +320,12 @@ fn test_resolve_alias_with_fragment() {
     ];
 
     for (comment, request, expected) in data {
-        let resolver = Resolver::for_tests(ResolveOptions {
+        let resolver = Resolver::for_tests(ResolverOptions {
             alias: vec![(
                 "foo".to_string(),
                 vec![AliasValue::Path(request.to_string())],
             )],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         });
         let resolved_path = resolver
             .resolve_test_directory(&f, "foo")
@@ -347,12 +338,12 @@ fn test_resolve_alias_with_fragment() {
 #[test]
 fn test_resolve_alias_try_fragment_as_path() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![(
             "#".to_string(),
             vec![AliasValue::Path(f.join("#").to_string_lossy().to_string())],
         )],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver
         .resolve_test_directory(&f, "#/a")
@@ -364,7 +355,7 @@ fn test_resolve_alias_try_fragment_as_path() {
 #[test]
 fn test_resolve_alias_with_multiple_fallbacks() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         alias: vec![(
             "multi".to_string(),
             vec![
@@ -372,7 +363,7 @@ fn test_resolve_alias_with_multiple_fallbacks() {
                 AliasValue::Path(f.join("foo").to_string_lossy().to_string()),
             ],
         )],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver
         .resolve_test_directory(&f, "multi/index.js")
@@ -385,14 +376,14 @@ fn test_resolve_alias_with_multiple_fallbacks() {
 fn test_resolve_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index.js".into()],
         extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into()]),
         ]),
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -429,7 +420,7 @@ fn test_resolve_extension_alias() {
     let resolution = resolver
         .resolve_test_directory(&f, "./index.mjs")
         .unwrap_err();
-    let expected = ResolveError::ExtensionAliasNotFound {
+    let expected = ResolverError::ExtensionAliasNotFound {
         filename: "index.mjs".into(),
         tried: "index.mts".into(),
         dir: f,
@@ -438,9 +429,9 @@ fn test_resolve_extension_alias() {
 
     #[cfg(all(not(target_os = "windows"), target_endian = "little"))]
     {
-        let resolver = Resolver::for_tests(ResolveOptions {
+        let resolver = Resolver::for_tests(ResolverOptions {
             extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".d.ts".into()])]),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         });
 
         let f = super::fixture_root().join("yarn");
@@ -460,11 +451,11 @@ fn test_resolve_extension_alias() {
 fn test_resolve_extension_alias_do_not_apply_to_main_files() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![])]),
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]

@@ -4,7 +4,7 @@ use destack_source::ModuleSpecifier;
 
 /// One parsed specifier path for a resolve query.
 #[derive(Debug, Clone)]
-pub(crate) struct ResolvePath {
+pub(crate) struct ResolverSpecifier {
     /// The specifier path without any query or fragment.
     pub(crate) path: String,
     /// The query suffix, including the leading `?`.
@@ -15,7 +15,7 @@ pub(crate) struct ResolvePath {
 
 /// The coarse specifier class used to select one resolution path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ResolvePathKind {
+pub(crate) enum ResolverSpecifierKind {
     /// One absolute filesystem path request.
     Absolute,
     /// One relative filesystem path request.
@@ -26,8 +26,8 @@ pub(crate) enum ResolvePathKind {
     Bare,
 }
 
-impl ResolvePath {
-    /// Parse one raw specifier into path, query, and fragment parts.
+impl ResolverSpecifier {
+    /// Parse one raw specifier into path, query, and fragment.
     pub(crate) fn parse(specifier: &str) -> Self {
         let parsed = ModuleSpecifier::parse(specifier);
 
@@ -50,14 +50,14 @@ impl ResolvePath {
     }
 
     /// Classify one specifier path without query or fragment.
-    pub(crate) fn kind_for(specifier: &str) -> ResolvePathKind {
+    pub(crate) fn kind_for(specifier: &str) -> ResolverSpecifierKind {
         match Path::new(specifier).components().next() {
-            Some(Component::RootDir | Component::Prefix(_)) => ResolvePathKind::Absolute,
-            Some(Component::CurDir | Component::ParentDir) => ResolvePathKind::Relative,
+            Some(Component::RootDir | Component::Prefix(_)) => ResolverSpecifierKind::Absolute,
+            Some(Component::CurDir | Component::ParentDir) => ResolverSpecifierKind::Relative,
             Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
-                ResolvePathKind::PackageImport
+                ResolverSpecifierKind::PackageImport
             }
-            _ => ResolvePathKind::Bare,
+            _ => ResolverSpecifierKind::Bare,
         }
     }
 }

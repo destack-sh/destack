@@ -6,7 +6,8 @@ use destack_source::PathExt;
 use destack_workspace::PackageDeclaration;
 
 use crate::{
-    CachePolicy, Resolution, ResolveContext, ResolveError, ResolvePath, ResolveState, Resolver,
+    CachePolicy, Resolution, Resolver, ResolverContext, ResolverError, ResolverResult,
+    ResolverSearch, ResolverSpecifier,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -27,14 +28,14 @@ impl Resolver {
         target: &'a str,
         pattern_match: Option<&'a str>,
         package_url: &Path,
-    ) -> Result<Cow<'a, str>, ResolveError> {
+    ) -> ResolverResult<Cow<'a, str>> {
         if let Some(pattern_match) = pattern_match {
             if !target_key.contains('*') && !target.contains('*') {
                 // enhanced resolve supports trailing slash patterns here
                 if target_key.ends_with('/') && target.ends_with('/') {
                     Ok(Cow::Owned(format!("{target}{pattern_match}")))
                 } else {
-                    Err(ResolveError::InvalidPackageConfigDirectory {
+                    Err(ResolverError::InvalidPackageConfigDirectory {
                         path: package_url.join("package.json"),
                     })
                 }
@@ -51,27 +52,23 @@ impl Resolver {
         &self,
         specifier: &str,
         target: Resolution,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
-        let Resolution {
-            path,
-            query,
-            fragment,
-        } = target;
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
+        let (path, query, fragment) = target.into_components();
 
-        let probed = self.probe_esm_target(specifier, &path, state, ctx)?;
-        Ok(probed.map(|resolved| resolved.override_parts(query, fragment)))
+        let probed = self.probe_esm_target(specifier, &path, search, ctx)?;
+        Ok(probed.map(|resolved| resolved.override_suffixes(query, fragment)))
     }
 
-    /// Apply one package import request through `package.json#imports`.
-    pub(crate) fn apply_package_import(
+    /// Resolve one package import request through `package.json#imports`.
+    pub(crate) fn resolve_package_import(
         &self,
         path: &Path,
         specifier: &str,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // return early when package imports are disabled
         if !self.options.resolve_package_json_imports {
             return Ok(None);
@@ -88,9 +85,9 @@ impl Resolver {
         // resolve package imports when present
         if let Some(ref declaration) = package.package_declaration
             && let Some(resolved) =
-                self.package_imports_resolve(specifier, declaration, state.clone(), ctx)?
+                self.resolve_package_imports_field(specifier, declaration, search.clone(), ctx)?
         {
-            return self.finalize_package_target(specifier, resolved, state, ctx);
+            return self.finalize_package_target(specifier, resolved, search, ctx);
         }
         Ok(None)
     }
@@ -101,9 +98,9 @@ impl Resolver {
         specifier: &str,
         subpath: &str,
         path: &Path,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // load the package manifest
         let Some(package_id) = self.read_package(path, ctx, CachePolicy::UseCache)? else {
             return Ok(None);
@@ -115,28 +112,28 @@ impl Resolver {
         // resolve package exports when present
         if let Some(ref declaration) = package.package_declaration
             && let Some(exports) = declaration.manifest.exports.as_ref()
-            && let Some(resolved) = self.package_exports_resolve(
+            && let Some(resolved) = self.resolve_package_exports_field(
                 path,
                 &format!(".{subpath}"),
                 exports,
-                state.clone(),
+                search.clone(),
                 ctx,
             )?
         {
-            return self.finalize_package_target(specifier, resolved, state, ctx);
+            return self.finalize_package_target(specifier, resolved, search, ctx);
         }
 
         Ok(None)
     }
 
-    /// Apply package self reference resolution.
-    pub(crate) fn apply_package_self_reference(
+    /// Resolve one package self reference.
+    pub(crate) fn resolve_package_self_reference(
         &self,
         path: &Path,
         specifier: &str,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // find the closest package scope
         let Some(package_id) = self.find_package_scope(path, ctx)? else {
             return Ok(None);
@@ -162,21 +159,21 @@ impl Resolver {
                 declaration
                     .path
                     .parent()
-                    .ok_or_else(|| ResolveError::InvalidPackageJson {
+                    .ok_or_else(|| ResolverError::InvalidPackageJson {
                         path: declaration.path.clone(),
                     })?;
             let package_url = package_url.to_path_buf();
 
             if let Some(exports) = declaration.manifest.exports.as_ref()
-                && let Some(resolved) = self.package_exports_resolve(
+                && let Some(resolved) = self.resolve_package_exports_field(
                     &package_url,
                     &format!(".{subpath}"),
                     exports,
-                    state.clone(),
+                    search.clone(),
                     ctx,
                 )?
             {
-                return self.finalize_package_target(specifier, resolved, state.clone(), ctx);
+                return self.finalize_package_target(specifier, resolved, search.clone(), ctx);
             }
 
             // resolve the package types entry for type conditions
@@ -189,8 +186,8 @@ impl Resolver {
                 && let Some(types_field) = declaration.manifest.types.as_deref()
             {
                 let types_path = package_url.normalize_with(types_field);
-                if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
-                    return self.probe_esm_target(specifier, &types_path, state.clone(), ctx);
+                if self.is_file(&types_path, ctx)? && self.check_restrictions(&types_path) {
+                    return self.probe_esm_target(specifier, &types_path, search.clone(), ctx);
                 }
             }
 
@@ -198,11 +195,11 @@ impl Resolver {
         }
 
         // fall back to the browser field
-        self.apply_browser(
+        self.resolve_browser_field(
             &browser_field_path,
             Some(specifier),
             declaration,
-            state,
+            search,
             ctx,
         )
     }
@@ -212,40 +209,28 @@ impl Resolver {
         &self,
         specifier: &str,
         path: &Path,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // non compliant esm can still resolve to a directory
-        if let Some(resolved) = self.probe_path(path, "", state, ctx)? {
+        if let Some(resolved) = self.probe_path(path, "", search, ctx)? {
             Ok(Some(resolved))
         } else {
-            Err(ResolveError::NotFound {
+            Err(ResolverError::NotFound {
                 specifier: specifier.to_string(),
             })
         }
     }
 
-    /// Resolve a bare package specifier by searching module directories.
-    pub(crate) fn resolve_package_target(
-        &self,
-        path: &Path,
-        specifier: &str,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
-        self.resolve_package_or_modules(path, specifier, state, ctx)
-            .map(Some)
-    }
-
     /// Resolve a subpath against a package's exports field.
-    pub(crate) fn package_exports_resolve(
+    pub(crate) fn resolve_package_exports_field(
         &self,
         package_url: &Path,
         subpath: &str,
         exports: &serde_json::Value,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // return early when exports resolution is disabled
         if !self.options.resolve_package_json_exports {
             return Ok(None);
@@ -263,7 +248,7 @@ impl Resolver {
                 has_dot = has_dot || starts_with_dot_or_hash;
                 without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
-                    return Err(ResolveError::InvalidPackageJson {
+                    return Err(ResolverError::InvalidPackageJson {
                         path: package_url.join("package.json"),
                     });
                 }
@@ -276,30 +261,29 @@ impl Resolver {
                 serde_json::Value::String(_) | serde_json::Value::Array(_) => {
                     Some(Cow::Borrowed(exports))
                 }
-                serde_json::Value::Object(map) => map.get(".").map_or_else(
-                    || {
-                        if map
-                            .keys()
-                            .any(|key| key.starts_with("./") || key.starts_with('#'))
-                        {
-                            None
-                        } else {
-                            Some(Cow::Borrowed(exports))
-                        }
-                    },
-                    |entry| Some(Cow::Borrowed(entry)),
-                ),
+                serde_json::Value::Object(map) => {
+                    if let Some(entry) = map.get(".") {
+                        Some(Cow::Borrowed(entry))
+                    } else if map
+                        .keys()
+                        .any(|key| key.starts_with("./") || key.starts_with('#'))
+                    {
+                        None
+                    } else {
+                        Some(Cow::Borrowed(exports))
+                    }
+                }
                 _ => None,
             };
             if let Some(main_export) = main_export {
-                let resolved = self.package_target_resolve(
+                let resolved = self.resolve_package_target_value(
                     package_url,
                     ".",
                     main_export.as_ref(),
                     None,
                     false,
                     conditions,
-                    state.clone(),
+                    search.clone(),
                     ctx,
                 )?;
                 if let Some(path) = resolved {
@@ -310,13 +294,13 @@ impl Resolver {
 
         // resolve a subpath export
         if let Some(exports) = exports.as_object()
-            && let Some(resolved) = self.package_match_resolve(
+            && let Some(resolved) = self.resolve_package_map(
                 subpath,
                 exports,
                 package_url,
                 false,
                 conditions,
-                state,
+                search,
                 ctx,
             )?
         {
@@ -324,7 +308,7 @@ impl Resolver {
         }
 
         // report a missing package export
-        Err(ResolveError::PackagePathNotExported {
+        Err(ResolverError::PackagePathNotExported {
             subpath: subpath.to_string(),
             package_path: package_url.to_path_buf(),
             package_json_path: package_url.join("package.json"),
@@ -333,13 +317,13 @@ impl Resolver {
     }
 
     /// Resolve an imports specifier against package.json imports field.
-    fn package_imports_resolve(
+    fn resolve_package_imports_field(
         &self,
         specifier: &str,
         package_declaration: &PackageDeclaration,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
         // return early when imports are not configured
@@ -349,25 +333,25 @@ impl Resolver {
 
         // reject invalid `#` specifiers
         if specifier == "#" || specifier.starts_with("#/") {
-            return Err(ResolveError::InvalidModuleSpecifier {
+            return Err(ResolverError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
                 package_path: package_declaration.path.to_path_buf(),
             });
         }
 
         // resolve the imports mapping
-        if let Some(resolved) = self.package_match_resolve(
+        if let Some(resolved) = self.resolve_package_map(
             specifier,
             imports,
             &package_declaration.directory,
             true,
             &self.options.conditions,
-            state,
+            search,
             ctx,
         )? {
             Ok(Some(resolved))
         } else {
-            Err(ResolveError::PackageImportNotDefined {
+            Err(ResolverError::PackageImportNotDefined {
                 specifier: specifier.to_string(),
                 package_path: package_declaration.path.to_path_buf(),
             })
@@ -375,16 +359,16 @@ impl Resolver {
     }
 
     /// Resolve a key against an imports or exports mapping object.
-    pub(crate) fn package_match_resolve(
+    pub(crate) fn resolve_package_map(
         &self,
         match_key: &str,
         match_obj: &serde_json::Map<String, serde_json::Value>,
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // directory style requests never match here
         if match_key.ends_with('/') {
             return Ok(None);
@@ -394,14 +378,14 @@ impl Resolver {
         if !match_key.contains('*')
             && let Some(target) = match_obj.get(match_key)
         {
-            return self.package_target_resolve(
+            return self.resolve_package_target_value(
                 package_url,
                 match_key,
                 target,
                 None,
                 is_imports,
                 conditions,
-                state,
+                search,
                 ctx,
             );
         }
@@ -447,14 +431,14 @@ impl Resolver {
 
         // resolve the best matching key
         if let Some(best_target) = best_target {
-            return self.package_target_resolve(
+            return self.resolve_package_target_value(
                 package_url,
                 best_key,
                 best_target,
                 Some(best_match),
                 is_imports,
                 conditions,
-                state,
+                search,
                 ctx,
             );
         }
@@ -463,7 +447,7 @@ impl Resolver {
     }
 
     /// Resolve a package target value (string, object, or array) to a path.
-    fn package_target_resolve(
+    fn resolve_package_target_value(
         &self,
         package_url: &Path,
         target_key: &str,
@@ -471,20 +455,20 @@ impl Resolver {
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // resolve string targets
         if let Some(target) = target.as_str() {
-            // parse query and fragment parts
-            let parsed = ResolvePath::parse(target);
+            // parse query and fragment
+            let parsed = ResolverSpecifier::parse(target);
             let target = parsed.path.as_str();
 
             // handle package style targets
             if !target.starts_with("./") {
                 // reject invalid package targets
                 if !is_imports || target.starts_with("../") || target.starts_with('/') {
-                    return Err(ResolveError::InvalidPackageTarget {
+                    return Err(ResolverError::InvalidPackageTarget {
                         target: (*target).to_string(),
                         name: target_key.to_string(),
                         package_path: package_url.join("package.json"),
@@ -493,9 +477,11 @@ impl Resolver {
                 // resolve the target as another package request
                 let target =
                     Self::normalize_string_target(target_key, target, pattern_match, package_url)?;
-                let resolved = self.resolve_package_target(package_url, &target, state, ctx)?;
+                let resolved = self
+                    .resolve_package_or_modules(package_url, &target, search, ctx)
+                    .map(Some)?;
                 return Ok(resolved.map(|resolved| {
-                    resolved.override_parts(parsed.query.clone(), parsed.fragment.clone())
+                    resolved.override_suffixes(parsed.query.clone(), parsed.fragment.clone())
                 }));
             }
             // handle relative package targets
@@ -503,14 +489,14 @@ impl Resolver {
                 let target =
                     Self::normalize_string_target(target_key, target, pattern_match, package_url)?;
                 if Self::is_path_invalid_exports_target(Path::new(target.as_ref())) {
-                    return Err(ResolveError::InvalidPackageTarget {
+                    return Err(ResolverError::InvalidPackageTarget {
                         target: target.to_string(),
                         name: target_key.to_string(),
                         package_path: package_url.join("package.json"),
                     });
                 }
                 let resolved_path = package_url.normalize_with(target.as_ref());
-                return Ok(Some(Resolution::with_parts(
+                return Ok(Some(Resolution::new(
                     resolved_path,
                     parsed.query.clone(),
                     parsed.fragment.clone(),
@@ -521,14 +507,14 @@ impl Resolver {
         else if let Some(target) = target.as_object() {
             for (key, target_value) in target.iter() {
                 if key == "default" || conditions.iter().any(|condition| condition == key) {
-                    let resolved = self.package_target_resolve(
+                    let resolved = self.resolve_package_target_value(
                         package_url,
                         target_key,
                         target_value,
                         pattern_match,
                         is_imports,
                         conditions,
-                        state.clone(),
+                        search.clone(),
                         ctx,
                     );
                     if let Some(path) = resolved? {
@@ -541,7 +527,7 @@ impl Resolver {
         // resolve array fallback targets
         else if let Some(targets) = target.as_array() {
             if targets.is_empty() {
-                return Err(ResolveError::PackagePathNotExported {
+                return Err(ResolverError::PackagePathNotExported {
                     subpath: pattern_match.unwrap_or(".").to_string(),
                     package_path: package_url.to_path_buf(),
                     package_json_path: package_url.join("package.json"),
@@ -549,14 +535,14 @@ impl Resolver {
                 });
             }
             for target_value in targets {
-                let resolved = self.package_target_resolve(
+                let resolved = self.resolve_package_target_value(
                     package_url,
                     target_key,
                     target_value,
                     pattern_match,
                     is_imports,
                     conditions,
-                    state.clone(),
+                    search.clone(),
                     ctx,
                 );
 

@@ -3,7 +3,7 @@ use destack_source::MemoryFileSystem;
 use indexmap::IndexMap;
 
 use super::{fixture, fixture_root};
-use crate::{AliasValue, Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{AliasValue, Resolution, Resolver, ResolverError, ResolverOptions};
 
 /// Test resolving a simple module.
 #[test]
@@ -11,7 +11,7 @@ fn test_resolve_simple() {
     let dirname = fixture_root();
     let f = dirname.join("enhanced_resolve/test");
 
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     let data = [
         ("direct", f.clone(), "../lib/index"),
@@ -33,7 +33,7 @@ fn test_resolve_simple() {
 fn test_resolve_dashed_name() {
     let f = fixture();
 
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     let data = [
         (f.clone(), "dash", f.join("node_modules/dash/index.js")),
@@ -76,7 +76,7 @@ fn test_resolve_dashed_name() {
 #[test]
 fn test_resolve_enhanced_resolve() {
     let f = fixture();
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
 
     #[rustfmt::skip]
@@ -133,7 +133,7 @@ fn test_resolve_enhanced_resolve() {
 #[test]
 fn test_resolve_issue238() {
     let f = fixture().join("issue-238");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".jsx".into(), ".ts".into(), ".tsx".into()],
         modules: vec![
             "src/a".into(),
@@ -141,7 +141,7 @@ fn test_resolve_issue238() {
             "src/common".into(),
             "node_modules".into(),
         ],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolved_path = resolver
         .resolve_test_directory(f.join("src/common"), "config/myObjectFile")
@@ -157,9 +157,9 @@ fn test_resolve_issue238() {
 fn test_resolve_prefer_relative() {
     let f = fixture();
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         prefer_relative: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -179,9 +179,9 @@ fn test_resolve_prefer_relative() {
 #[test]
 fn test_resolve_directory() {
     let f = fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         resolve_to_context: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -204,11 +204,11 @@ fn test_resolve_directory() {
 #[test]
 fn test_resolve_hash_as_module() {
     let f = fixture();
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
     let resolution = resolver.resolve_test_directory(f, "#a");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "#a".into()
         })
     );
@@ -217,7 +217,7 @@ fn test_resolve_hash_as_module() {
 #[test]
 fn test_resolve_edge_cases() {
     let f = fixture();
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     #[rustfmt::skip]
     let data = [(
@@ -240,7 +240,7 @@ fn test_resolve_edge_cases() {
 fn test_resolve_dot_spelled_out() {
     let f = fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
     let foo_index = foo_dir.join("index.js");
 
     #[rustfmt::skip]
@@ -255,9 +255,9 @@ fn test_resolve_dot_spelled_out() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         main_files: vec![],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     #[rustfmt::skip]
     let data = [
@@ -265,13 +265,13 @@ fn test_resolve_dot_spelled_out() {
             "dot dir",
             foo_dir.clone(),
             ".",
-            ResolveError::NotFound { specifier: ".".into() },
+            ResolverError::NotFound { specifier: ".".into() },
         ),
         (
             "dot dir slash",
             foo_dir,
             "./",
-            ResolveError::NotFound { specifier: "./".into() },
+            ResolverError::NotFound { specifier: "./".into() },
         ),
     ];
     for (comment, path, request, expected) in data {
@@ -290,7 +290,7 @@ fn test_resolve_abnormal_relative() {
 
     let base = f.join("foo/bar/baz");
 
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     #[rustfmt::skip]
     let data = [
@@ -325,7 +325,7 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve_test_directory(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound {
+            Err(ResolverError::NotFound {
                 specifier: request.into()
             }),
             "{comment} {request}"
@@ -351,7 +351,7 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve_test_directory(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound {
+            Err(ResolverError::NotFound {
                 specifier: request.into()
             }),
             "{comment} {request}"
@@ -365,7 +365,7 @@ fn test_resolve_chinese() {
     let dir = fixture_root();
     let specifier = "./misc/中文/中文.js";
     let resolution =
-        Resolver::for_tests(ResolveOptions::default()).resolve_test_directory(&dir, specifier);
+        Resolver::for_tests(ResolverOptions::default()).resolve_test_directory(&dir, specifier);
     assert_eq!(
         resolution.map(Resolution::into_path_buf),
         Ok(dir.join("misc/中文/中文.js"))
@@ -384,7 +384,7 @@ fn test_resolve_styled_components() {
         );
     let specifier = "styled-components";
 
-    let options = ResolveOptions::default();
+    let options = ResolverOptions::default();
     let resolution = Resolver::for_tests(options).resolve_test_directory(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
@@ -414,7 +414,7 @@ fn test_resolve_pnpm_symlinked_longfilename() {
         "fixture path must keep long store directory names"
     );
 
-    let resolution = Resolver::for_tests(ResolveOptions::default())
+    let resolution = Resolver::for_tests(ResolverOptions::default())
         .resolve_test_directory(&path, package_name)
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(module_path));
@@ -428,7 +428,7 @@ fn test_resolve_pnpm_workspace_linked_package() {
     let specifier = "@monorepo/lib/package.json";
     let expected = root.join("packages/lib/package.json");
 
-    let resolution = Resolver::for_tests(ResolveOptions::default())
+    let resolution = Resolver::for_tests(ResolverOptions::default())
         .resolve_test_directory(&app_path, specifier)
         .map(|r| r.full_path());
     assert_eq!(resolution, Ok(expected));
@@ -444,7 +444,7 @@ fn test_resolve_pnpm_workspace_transitive_dependency() {
         "missing pnpm workspace symlink fixture directory"
     );
 
-    let resolution = Resolver::for_tests(ResolveOptions::default())
+    let resolution = Resolver::for_tests(ResolverOptions::default())
         .resolve_test_directory(&symlinked_package_path, "react")
         .map(|r| r.full_path())
         .expect("expected react to resolve from pnpm workspace package");
@@ -468,16 +468,16 @@ fn test_resolve_axios() {
     let module_path = path.join("node_modules/.pnpm/axios@1.8.4/node_modules/axios");
     let specifier = "axios";
 
-    let options = ResolveOptions::default();
+    let options = ResolverOptions::default();
     let resolution = Resolver::for_tests(options).resolve_test_directory(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("index.js"))
     );
 
-    let options = ResolveOptions {
+    let options = ResolverOptions {
         conditions: vec!["browser".into(), "require".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     };
     let resolution = Resolver::for_tests(options).resolve_test_directory(&path, specifier);
     assert_eq!(
@@ -485,9 +485,9 @@ fn test_resolve_axios() {
         Ok(module_path.join("dist/browser/axios.cjs"))
     );
 
-    let options = ResolveOptions {
+    let options = ResolverOptions {
         conditions: vec!["node".into(), "require".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     };
     let resolution = Resolver::for_tests(options).resolve_test_directory(&path, specifier);
     assert_eq!(
@@ -502,15 +502,15 @@ fn test_resolve_postcss() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
     let module_path = path.join("node_modules/postcss");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         canonicalize_symlinks: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver.resolve_test_directory(&module_path, "path");
     assert_eq!(
         resolution,
-        Err(ResolveError::Ignored {
+        Err(ResolverError::Ignored {
             path: module_path.clone()
         })
     );
@@ -518,7 +518,7 @@ fn test_resolve_postcss() {
     let resolution = resolver.resolve_test_directory(&module_path, "./lib/terminal-highlight");
     assert_eq!(
         resolution,
-        Err(ResolveError::Ignored {
+        Err(ResolverError::Ignored {
             path: module_path.join("lib/terminal-highlight")
         })
     );
@@ -533,18 +533,18 @@ fn test_resolve_ipaddr_js() {
         path.join("node_modules/.pnpm/ipaddr.js@2.2.0/node_modules/ipaddr.js/lib/ipaddr.js");
 
     let resolvers = [
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )]),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             extensions: vec![".ts".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
-        Resolver::for_tests(ResolveOptions::default()),
+        Resolver::for_tests(ResolverOptions::default()),
     ];
 
     for resolver in resolvers {
@@ -564,17 +564,17 @@ fn test_resolve_decimal_js() {
         path.join("node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )]),
             conditions: vec!["import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             conditions: vec!["import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
     ];
 
@@ -590,22 +590,22 @@ fn test_resolve_decimal_js() {
 #[test]
 fn test_resolve_decimal_js_from_mathjs() {
     let dir = fixture_root();
-    let path = dir.join("pnpm/node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm");
+    let path = dir.join("pnpm/node_modules/.pnpm/mathjs@14.4.0/node_modules/mathjs/lib/esm");
     let module_path =
         dir.join("pnpm/node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )]),
             conditions: vec!["import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
-        Resolver::for_tests(ResolveOptions {
+        Resolver::for_tests(ResolverOptions {
             conditions: vec!["import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         }),
     ];
 
@@ -622,9 +622,9 @@ fn test_resolve_decimal_js_from_mathjs() {
 fn test_resolve_minimatch() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         conditions: vec!["import".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver.resolve_test_directory(&path, "minimatch").unwrap();
     assert_eq!(
@@ -634,9 +634,9 @@ fn test_resolve_minimatch() {
         )
     );
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         conditions: vec!["require".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
     let resolution = resolver.resolve_test_directory(&path, "minimatch").unwrap();
     assert_eq!(
@@ -652,13 +652,13 @@ fn test_resolve_minimatch() {
 fn test_resolve_nested_symlinks() {
     let dir = fixture_root().join("nested-symlink");
     assert_eq!(
-        Resolver::for_tests(ResolveOptions::default())
+        Resolver::for_tests(ResolverOptions::default())
             .resolve_test_directory(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
             .map(Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
     );
     assert_eq!(
-        Resolver::for_tests(ResolveOptions::default())
+        Resolver::for_tests(ResolverOptions::default())
             .resolve_test_directory(&dir, "./apps/tooling/typescript-config/index.js")
             .map(Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
@@ -670,7 +670,7 @@ fn test_resolve_nested_symlinks() {
 fn test_resolve_package_json_with_bom() {
     let dir = fixture_root().join("misc");
     assert_eq!(
-        Resolver::for_tests(ResolveOptions::default())
+        Resolver::for_tests(ResolverOptions::default())
             .resolve_test_directory(&dir, "./package-json-with-bom")
             .map(Resolution::into_path_buf),
         Ok(dir.join("package-json-with-bom/index.js"))
@@ -687,7 +687,7 @@ fn test_resolve_normalized_on_windows() {
     let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_string_lossy();
     let normalized_absolute = absolute_str.replace('\\', "/");
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     let resolution = resolver
         .resolve_test_directory(&f, &normalized_absolute)
@@ -718,7 +718,7 @@ fn test_resolve_file_protocol() {
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
     let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
 
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     let resolution = resolver
         .resolve_test_directory(&f, file_protocol_path.as_str())
@@ -726,7 +726,7 @@ fn test_resolve_file_protocol() {
     let resolved_path = resolution.as_ref().map(Resolution::full_path);
     assert_eq!(resolved_path, Some(f.join("main1.js")));
 
-    let resolve_error = ResolveError::NotFound {
+    let resolve_error = ResolverError::NotFound {
         specifier: "\\\\.\\main.js".into(),
     };
 
@@ -741,7 +741,7 @@ fn test_resolve_file_protocol() {
 #[test]
 fn test_resolve_scoped_packages() {
     let f = fixture().join("scoped");
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
 
     #[rustfmt::skip]
     let pass = [
@@ -767,14 +767,14 @@ fn test_resolve_scoped_packages() {
 fn test_resolve_roots() {
     let f = super::fixture();
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         alias: vec![("foo".into(), vec![AliasValue::from("/fixtures")])],
         roots: vec![
             fixture_root().join("enhanced_resolve").join("test"),
             f.clone(),
         ],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -795,7 +795,7 @@ fn test_resolve_roots() {
 
     #[rustfmt::skip]
     let fail = [
-        ("should not work with relative path", "fixtures/b.js", ResolveError::NotFound { specifier: "fixtures/b.js".into() })
+        ("should not work with relative path", "fixtures/b.js", ResolverError::NotFound { specifier: "fixtures/b.js".into() })
     ];
 
     for (comment, request, expected) in fail {
@@ -807,7 +807,7 @@ fn test_resolve_roots() {
 #[test]
 fn test_prefer_absolute() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         alias: vec![("foo".into(), vec![AliasValue::from("/fixtures")])],
         roots: vec![
@@ -815,7 +815,7 @@ fn test_prefer_absolute() {
             f.clone(),
         ],
         prefer_absolute: true,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -836,7 +836,7 @@ fn test_roots_fall_through() {
     let f = super::fixture();
     let absolute_path = f.join("roots_fall_through/index.js");
     let specifier = absolute_path.to_string_lossy();
-    let mut options = ResolveOptions::default();
+    let mut options = ResolverOptions::default();
     options.roots.push(f.clone());
     let resolution = Resolver::for_tests(options).resolve_test_directory(&f, &specifier);
     assert_eq!(resolution.map(Resolution::into_path_buf), Ok(absolute_path));
@@ -853,9 +853,9 @@ fn test_should_resolve_slash() {
     ];
 
     for (comment, roots, directory, expected) in pass {
-        let resolver = Resolver::for_tests(ResolveOptions {
+        let resolver = Resolver::for_tests(ResolverOptions {
             roots: roots.clone(),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         });
         let resolved_path = resolver
             .resolve_test_directory(directory, "/")
@@ -870,14 +870,14 @@ fn test_should_resolve_slash() {
     ];
 
     for (comment, roots, directory) in fail {
-        let resolver = Resolver::for_tests(ResolveOptions {
+        let resolver = Resolver::for_tests(ResolverOptions {
             roots: roots.clone(),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         });
         let resolution = resolver.resolve_test_directory(directory, "/");
         assert_eq!(
             resolution,
-            Err(ResolveError::NotFound {
+            Err(ResolverError::NotFound {
                 specifier: "/".into()
             }),
             "{comment} {roots:?}"
@@ -912,13 +912,13 @@ fn test_resolve_fully_specified_paths() {
 
     let resolver = Resolver::for_test_file_system(
         fs.clone(),
-        ResolveOptions {
+        ResolverOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
             is_fully_specified: true,
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -979,14 +979,14 @@ fn test_resolve_fully_specified_paths() {
 
     let resolver = Resolver::for_test_file_system(
         fs.clone(),
-        ResolveOptions {
+        ResolverOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
             is_fully_specified: true,
             resolve_to_context: true,
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1041,12 +1041,12 @@ fn test_resolve_self_package_name_without_exports_is_not_resolved_in_node_strict
         ("/repo/src/main.js", ""),
         ("/repo/src/feature.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "pkg");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pkg".into()
         })
     );
@@ -1067,7 +1067,7 @@ fn test_resolve_self_package_name_and_subpath_with_exports() {
         ("/repo/src/feature.js", ""),
         ("/repo/src/importer.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let root_resolution = resolver
         .resolve_test_directory("/repo/src", "pkg")
@@ -1097,12 +1097,12 @@ fn test_resolve_self_package_subpath_without_exports_is_not_resolved_in_node_str
         ("/repo/lib/util.js", ""),
         ("/repo/src/feature.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "pkg/lib/util.js");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pkg/lib/util.js".into()
         })
     );
@@ -1119,7 +1119,7 @@ fn test_resolve_does_not_decode_percent_encoded_relative_traversal() {
         ("/repo/src/importer.js", ""),
         ("/repo/src/%2e%2e/secret.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "./%2e%2e/secret.js");
     assert_eq!(
@@ -1142,12 +1142,12 @@ fn test_resolve_does_not_decode_percent_encoded_package_slash() {
         ("/repo/node_modules/@scope/pkg/index.js", ""),
         ("/repo/src/importer.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "@scope%2fpkg");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "@scope%2fpkg".into()
         }),
     );
@@ -1167,12 +1167,12 @@ fn test_resolve_self_package_name_with_exports_does_not_fallback_to_main() {
         ("/repo/src/main.js", ""),
         ("/repo/src/feature.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "pkg");
     assert!(matches!(
         resolution,
-        Err(ResolveError::PackagePathNotExported { .. })
+        Err(ResolverError::PackagePathNotExported { .. })
     ));
 }
 
@@ -1201,9 +1201,9 @@ fn test_resolve_types_condition_prefers_types_package_fallback() {
 
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["types".into(), "import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1243,9 +1243,9 @@ fn test_resolve_types_condition_prefers_scoped_types_package_fallback() {
 
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["types".into(), "import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1277,9 +1277,9 @@ fn test_resolve_types_condition_falls_back_to_runtime_package_without_types_pack
 
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["types".into(), "import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1314,9 +1314,9 @@ fn test_resolve_exports_conditions_follow_object_key_order() {
 
     let resolver = Resolver::for_test_file_system(
         fs.clone(),
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["types".into(), "import".into(), "require".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
     let resolution = resolver
@@ -1331,9 +1331,9 @@ fn test_resolve_exports_conditions_follow_object_key_order() {
 
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["types".into(), "import".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
     let resolution = resolver
@@ -1359,21 +1359,21 @@ fn test_resolve_fully_specified_with_extension_alias_query_fragment() {
     ]));
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             is_fully_specified: true,
             extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
     let resolution = resolver.resolve_test_directory("/repo/src", "./entry.js?raw#module");
     assert_eq!(
         resolution,
-        Ok(Resolution {
-            path: std::path::PathBuf::from("/repo/src/entry.ts"),
-            query: Some("?raw".into()),
-            fragment: Some("#module".into()),
-        }),
+        Ok(Resolution::new(
+            std::path::PathBuf::from("/repo/src/entry.ts"),
+            Some("?raw".into()),
+            Some("#module".into()),
+        )),
     );
 }
 
@@ -1391,7 +1391,7 @@ fn test_resolve_exports_array_fallback_continues_on_invalid_target() {
         ),
         ("/repo/node_modules/pkg/good.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver
         .resolve_test_directory("/repo/src", "pkg")
@@ -1416,16 +1416,16 @@ fn test_resolve_exports_target_query_fragment_override_request_query_fragment() 
         ),
         ("/repo/node_modules/pkg/entry.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let resolution = resolver.resolve_test_directory("/repo/src", "pkg?from_request#from_request");
     assert_eq!(
         resolution,
-        Ok(Resolution {
-            path: std::path::PathBuf::from("/repo/node_modules/pkg/entry.js"),
-            query: Some("?from_exports".into()),
-            fragment: Some("#from_exports".into()),
-        }),
+        Ok(Resolution::new(
+            std::path::PathBuf::from("/repo/node_modules/pkg/entry.js"),
+            Some("?from_exports".into()),
+            Some("#from_exports".into()),
+        )),
     );
 }
 
@@ -1448,9 +1448,9 @@ fn test_resolve_exports_nested_conditions_follow_key_order() {
     ]));
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             conditions: vec!["import".into(), "types".into()],
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1484,7 +1484,7 @@ fn test_resolve_self_reference_uses_nearest_package_scope() {
         ("/repo/packages/inner/src/importer.js", ""),
         ("/repo/packages/inner/src/inner.js", ""),
     ]));
-    let resolver = Resolver::for_test_file_system(fs, ResolveOptions::default());
+    let resolver = Resolver::for_test_file_system(fs, ResolverOptions::default());
 
     let inner_resolution = resolver
         .resolve_test_directory("/repo/packages/inner/src", "inner")
@@ -1499,7 +1499,7 @@ fn test_resolve_self_reference_uses_nearest_package_scope() {
     let root_resolution = resolver.resolve_test_directory("/repo/packages/inner/src", "rootpkg");
     assert_eq!(
         root_resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "rootpkg".into()
         }),
     );
@@ -1517,11 +1517,11 @@ fn test_resolve_fully_specified_with_enforce_extension_and_extension_alias() {
     ]));
     let resolver = Resolver::for_test_file_system(
         fs,
-        ResolveOptions {
+        ResolverOptions {
             is_fully_specified: true,
             enforce_extension: crate::EnforceExtension::Enabled,
             extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
-            ..ResolveOptions::default()
+            ..ResolverOptions::default()
         },
     );
 
@@ -1534,7 +1534,7 @@ fn test_resolve_fully_specified_with_enforce_extension_and_extension_alias() {
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
-    use crate::{ResolveOptions, Resolver};
+    use crate::{Resolver, ResolverOptions};
     use destack_source::MemoryFileSystem;
 
     #[test]
@@ -1544,7 +1544,7 @@ mod windows {
 
         let f = Path::new("/");
         let fs = MemoryFileSystem::from_files(&[]);
-        let resolver = Resolver::for_test_file_system(Arc::new(fs), ResolveOptions::default());
+        let resolver = Resolver::for_test_file_system(Arc::new(fs), ResolverOptions::default());
         let resolved_path = resolver.resolve_test_directory(f, "package");
         assert!(resolved_path.is_err());
     }

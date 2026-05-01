@@ -4,7 +4,7 @@ use destack_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{Resolution, Resolver, ResolverError, ResolverOptions};
 
 /// Test simple imports field resolution.
 #[test]
@@ -12,11 +12,11 @@ fn test_imports_field_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         conditions: vec!["webpack".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -38,14 +38,14 @@ fn test_imports_field_simple() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
-    // Note added:
+    // added cases:
     // * should resolve absolute path as an imports field target
-    // * should log the correct info
+    // * should log the correct details
 
     #[rustfmt::skip]
     let fail = [
-        ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget { target: "../b.js".to_string(), name: "#b".to_string(), package_path: f.join("package.json") }),
-        ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined { specifier: "#a".to_string(), package_path: f.join("package.json") }),
+        ("should disallow resolve out of package scope", f.clone(), "#b", ResolverError::InvalidPackageTarget { target: "../b.js".to_string(), name: "#b".to_string(), package_path: f.join("package.json") }),
+        ("should resolve package #2", f.clone(), "#a", ResolverError::PackageImportNotDefined { specifier: "#a".to_string(), package_path: f.join("package.json") }),
     ];
 
     for (comment, path, request, error) in fail {
@@ -59,16 +59,16 @@ fn test_imports_field_simple() {
 fn test_imports_field_disabled_returns_not_found() {
     let f = super::fixture().join("imports-field");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         resolve_package_json_imports: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver.resolve_test_directory(&f, "#imports-field");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "#imports-field".into()
         })
     );
@@ -880,21 +880,22 @@ fn test_imports_field_cases() {
     ];
 
     for case in test_cases {
+        let package_url = Path::new(".");
         let resolver = Resolver::for_test_file_system(
             Arc::new(MemoryFileSystem::default()),
-            ResolveOptions::default(),
+            ResolverOptions::default(),
         );
-        let resolved_path = resolver.package_match_resolve(
+        let resolved_path = resolver.resolve_package_map(
             case.request,
             &case.imports,
-            Path::new(""),
+            package_url,
             true,
             &case
                 .conditions
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
-            crate::ResolveState::new(&resolver.options),
+            crate::ResolverSearch::root(resolver.options()),
             &mut super::test_resolve_context(),
         );
         if let Some(expect) = case.expect {
@@ -909,7 +910,9 @@ fn test_imports_field_cases() {
                 for expect in expect {
                     assert_eq!(
                         resolved_path,
-                        Ok(Some(Resolution::path_only(Path::new(expect).normalize()))),
+                        Ok(Some(Resolution::path_only(
+                            package_url.normalize_with(expect)
+                        ))),
                         "{}",
                         &case.name
                     );

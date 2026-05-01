@@ -7,7 +7,8 @@ use destack_source::{File, FileId, FileType, PackageId, PathExt, Uri};
 use destack_workspace::{DestackDeclaration, Package, PackageDeclaration, PackageKind};
 
 use crate::{
-    CachePolicy, PackageScope, Resolution, ResolveContext, ResolveError, ResolveState, Resolver,
+    CachePolicy, PackageScope, Resolution, Resolver, ResolverContext, ResolverError,
+    ResolverResult, ResolverSearch,
 };
 
 impl Resolver {
@@ -15,9 +16,9 @@ impl Resolver {
     pub(crate) fn read_package(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolverContext,
         cache_policy: CachePolicy,
-    ) -> Result<Option<PackageId>, ResolveError> {
+    ) -> ResolverResult<Option<PackageId>> {
         // prefer revision backed package truth inside the workspace
         if let Some(package_id) = self.find_repository_package_scope(path, ctx)? {
             return Ok(Some(package_id));
@@ -32,22 +33,19 @@ impl Resolver {
             && let Some(package) = ctx.package(package_id)
         {
             if let Some(ref declaration) = package.package_declaration {
-                ctx.track_found_dependency(&declaration.path);
+                self.track_file_dependency(&declaration.path, ctx)?;
             }
             if package.package.destack_file_id.is_some() {
-                ctx.track_found_dependency(&destack_config_path);
+                self.track_file_dependency(&destack_config_path, ctx)?;
             }
             return Ok(Some(package_id));
         }
 
         // read destack config when present so destack only packages still form package scopes
-        let destack_config = match self.read_destack_with_context(path, ctx, cache_policy) {
-            Ok(config) => {
-                ctx.track_found_dependency(&config.path);
-                Some(config)
-            }
-            Err(ResolveError::DestackNotFound { .. }) => {
-                ctx.track_missing_dependency(&destack_config_path);
+        let destack_config = match self.read_destack(path, ctx, cache_policy) {
+            Ok(config) => Some(config),
+            Err(ResolverError::DestackNotFound { .. }) => {
+                let _metadata = self.path_metadata(&destack_config_path, ctx)?;
                 None
             }
             Err(error) => return Err(error),
@@ -60,7 +58,7 @@ impl Resolver {
                 let file_id = FileId::from_logical_path(&package_json_path);
                 let (name, uri) = Uri::from_path_with_name(&package_json_path);
                 let content =
-                    String::from_utf8(bytes).map_err(|_| ResolveError::InvalidPackageJson {
+                    String::from_utf8(bytes).map_err(|_| ResolverError::InvalidPackageJson {
                         path: package_json_path.clone(),
                     })?;
                 let file = File::from_text(
@@ -73,13 +71,12 @@ impl Resolver {
                 );
                 let file = Arc::new(file);
 
-                ctx.track_found_dependency(&package_json_path);
-                PackageDeclaration::parse(&file).map_err(|_| ResolveError::InvalidPackageJson {
+                PackageDeclaration::parse(&file).map_err(|_| ResolverError::InvalidPackageJson {
                     path: package_json_path.clone(),
                 })?
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                ctx.track_missing_dependency(&package_json_path);
+                let _metadata = self.path_metadata(&package_json_path, ctx)?;
 
                 if destack_config.is_none() {
                     return Ok(None);
@@ -90,7 +87,7 @@ impl Resolver {
                 return self.insert_package_scope(ctx, None, destack_config);
             }
             Err(error) => {
-                return Err(ResolveError::IoError {
+                return Err(ResolverError::IoError {
                     path: package_json_path.clone(),
                     kind: error.kind(),
                 });
@@ -104,25 +101,28 @@ impl Resolver {
     pub(crate) fn find_package_scope(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PackageId>, ResolveError> {
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<PackageId>> {
         if let Some(package_id) = ctx.package_scope(path) {
             return Ok(package_id);
         }
 
         // prefer repository backed package discovery within the active workspace
         if let Some(package_id) = self.find_repository_package_scope(path, ctx)? {
-            ctx.remember_package_scope(path, Some(package_id));
+            ctx.cache_package_scope(path, Some(package_id));
             return Ok(Some(package_id));
         }
 
         // start from the querying path, but lift to a directory if needed
         let mut visited_paths = vec![path.to_path_buf()];
-        let mut current_directory = if self.is_directory(path, ctx) {
+        let mut current_directory = if self.is_directory(path, ctx)? {
             path.to_path_buf()
         } else {
             path.parent()
-                .map_or_else(|| path.to_path_buf(), Path::to_path_buf)
+                .map(Path::to_path_buf)
+                .ok_or_else(|| ResolverError::ExpectedFilePath {
+                    path: path.to_path_buf(),
+                })?
         };
         if visited_paths.last() != Some(&current_directory) {
             visited_paths.push(current_directory.clone());
@@ -134,7 +134,7 @@ impl Resolver {
                 self.read_package(&current_directory, ctx, CachePolicy::UseCache)?
             {
                 for visited_path in visited_paths {
-                    ctx.remember_package_scope(&visited_path, Some(package_id));
+                    ctx.cache_package_scope(&visited_path, Some(package_id));
                 }
                 return Ok(Some(package_id));
             }
@@ -149,7 +149,7 @@ impl Resolver {
 
         // cache the miss for every visited path
         for visited_path in visited_paths {
-            ctx.remember_package_scope(&visited_path, None);
+            ctx.cache_package_scope(&visited_path, None);
         }
         Ok(None)
     }
@@ -158,9 +158,9 @@ impl Resolver {
     pub(crate) fn resolve_package_directory(
         &self,
         path: &Path,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // load the package manifest for this directory
         let Some(package_id) = self.read_package(path, ctx, CachePolicy::UseCache)? else {
             return Ok(None);
@@ -175,7 +175,7 @@ impl Resolver {
         // try the legacy main field first
         if let Some(main_field) = declaration.manifest.main.as_deref()
             && let Some(resolved) =
-                self.resolve_package_main_field(path, main_field, state.clone(), ctx)?
+                self.resolve_package_main_field(path, main_field, search.clone(), ctx)?
         {
             return Ok(Some(resolved));
         }
@@ -183,8 +183,8 @@ impl Resolver {
         // then fall back to the root exports target
         if let Some(exports) = declaration.manifest.exports.as_ref()
             && let Some(target) =
-                self.package_exports_resolve(path, ".", exports, state.clone(), ctx)?
-            && let Some(resolved) = self.finalize_package_target(".", target, state, ctx)?
+                self.resolve_package_exports_field(path, ".", exports, search.clone(), ctx)?
+            && let Some(resolved) = self.finalize_package_target(".", target, search, ctx)?
         {
             return Ok(Some(resolved));
         }
@@ -197,9 +197,9 @@ impl Resolver {
         &self,
         package_path: &Path,
         main_field: &str,
-        state: ResolveState,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<Resolution>, ResolveError> {
+        search: ResolverSearch,
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<Resolution>> {
         // normalize bare main entries into relative package paths
         let main_field: Cow<'_, str> =
             if main_field.starts_with("./") || main_field.starts_with("../") {
@@ -212,7 +212,7 @@ impl Resolver {
         let main_path = package_path.normalize_with(main_field.as_ref());
 
         // prefer a direct file target before index probing
-        if let Some(resolved) = self.probe_file(&main_path, state.clone(), ctx)? {
+        if let Some(resolved) = self.probe_file(&main_path, search.clone(), ctx)? {
             return Ok(Some(resolved));
         }
 
@@ -221,7 +221,7 @@ impl Resolver {
             return Ok(None);
         }
 
-        self.probe_directory_index(&main_path, state, ctx)
+        self.probe_directory_index(&main_path, search, ctx)
     }
 }
 
@@ -231,9 +231,9 @@ impl Resolver {
     fn find_repository_package_scope(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PackageId>, ResolveError> {
-        let (repository, revision) = self.source_world(ctx);
+        ctx: &mut ResolverContext,
+    ) -> ResolverResult<Option<PackageId>> {
+        let (repository, revision) = self.repository_revision(ctx);
 
         if !path.starts_with(repository.workspace_root()) {
             return Ok(None);
@@ -241,7 +241,7 @@ impl Resolver {
 
         let package = repository
             .nearest_package(revision, path)
-            .map_err(|error| ResolveError::RepositoryError {
+            .map_err(|error| ResolverError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })?;
@@ -250,38 +250,34 @@ impl Resolver {
         };
         let package_declaration = repository
             .package_declaration_for_package(revision, package.as_ref())
-            .map_err(|error| ResolveError::RepositoryError {
+            .map_err(|error| ResolverError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })?
             .map(|declaration| declaration.as_ref().clone());
         let destack_declaration = repository
             .destack_declaration_for_package(revision, package.as_ref())
-            .map_err(|error| ResolveError::RepositoryError {
+            .map_err(|error| ResolverError::RepositoryError {
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })?
             .map(|declaration| declaration.as_ref().clone());
 
         if let Some(declaration) = package_declaration.as_ref() {
-            ctx.track_found_dependency(&declaration.path);
+            self.track_file_dependency(&declaration.path, ctx)?;
         }
         if let Some(declaration) = destack_declaration.as_ref() {
-            ctx.track_found_dependency(&declaration.path);
+            self.track_file_dependency(&declaration.path, ctx)?;
         }
 
-        let package_id = self.insert_package_scope_from_parts(
-            ctx,
-            package.as_ref().clone(),
-            package_declaration,
-        )?;
+        let package_id = self.insert_package(ctx, package.as_ref().clone(), package_declaration)?;
 
         if package_id.is_some()
             && destack_declaration.is_none()
             && let Some(package_path) = package.path.as_ref()
         {
             let destack_path = package_path.join("destack.json");
-            ctx.track_missing_dependency(&destack_path);
+            let _metadata = self.path_metadata(&destack_path, ctx)?;
         }
 
         Ok(package_id)
@@ -290,10 +286,10 @@ impl Resolver {
     /// Insert or refresh one request local package entry.
     fn insert_package_scope(
         &self,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolverContext,
         package_declaration: Option<PackageDeclaration>,
         destack_declaration: Option<DestackDeclaration>,
-    ) -> Result<Option<PackageId>, ResolveError> {
+    ) -> ResolverResult<Option<PackageId>> {
         let package_directory = package_declaration
             .as_ref()
             .map(|declaration| declaration.directory.clone())
@@ -330,23 +326,23 @@ impl Resolver {
             targets: Default::default(),
         };
 
-        self.insert_package_scope_from_parts(ctx, package, package_declaration)
+        self.insert_package(ctx, package, package_declaration)
     }
 
-    /// Insert one request local package scope from explicit parts.
-    fn insert_package_scope_from_parts(
+    /// Insert one request local package entry.
+    fn insert_package(
         &self,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolverContext,
         package: Package,
         package_declaration: Option<PackageDeclaration>,
-    ) -> Result<Option<PackageId>, ResolveError> {
+    ) -> ResolverResult<Option<PackageId>> {
         let package_id = package.id;
         let entry = PackageScope {
             package,
             package_declaration,
         };
 
-        ctx.remember_package(entry);
+        ctx.cache_package(entry);
 
         Ok(Some(package_id))
     }
