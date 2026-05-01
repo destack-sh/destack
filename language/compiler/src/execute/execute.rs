@@ -213,12 +213,12 @@ impl Compiler {
                 message: format!("{error}"),
             })?;
 
-            isolate.initialize_statics(&mut statics).map_err(|error| {
-                ExecuteError::FailedExecution {
+            isolate
+                .initialize(&heap, &shared, &mut statics)
+                .map_err(|error| ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
-                }
-            })?;
+                })?;
             let output = isolate
                 .run_function(&mut statics, &mut heap, &mut shared, function_id, &[])
                 .map_err(|error| ExecuteError::FailedExecution {
