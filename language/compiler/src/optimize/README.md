@@ -241,7 +241,7 @@ Optimizations for memory allocation and access patterns.
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias, memory-ssa | Remove stores that are overwritten before being read |
 | `memcpy-opt` | MemcpyOpt | function | O2 | | alias, memory-ssa, constant-propagation | Simplify and merge memcpy, memmove, and memset operations |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
-| `gc-write-barrier-elide` | WriteBarrierElide | function | O2 | | alias, effect, escape | Remove redundant GC write barriers |
+| `gc-barrier-write-elide` | BarrierWriteElide | function | O2 | | alias, effect, escape | Remove redundant GC barrier writes |
 | `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, exception-flow, block-freq | Hoist loads speculatively when safe |
 
 ### Loop (L)

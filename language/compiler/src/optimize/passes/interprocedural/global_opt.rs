@@ -491,10 +491,7 @@ fn global_addr_base(
 fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
     matches!(
         intrinsic,
-        mir::Intrinsic::Memcpy
-            | mir::Intrinsic::Memmove
-            | mir::Intrinsic::Memset
-            | mir::Intrinsic::WriteBarrier
+        mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove | mir::Intrinsic::Memset
     )
 }
 

@@ -1435,7 +1435,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::AtomicCompareExchange { .. }
         | mir::Instruction::AtomicRmw { .. }
         | mir::Instruction::AtomicFence { .. }
-        | mir::Instruction::Barrier { .. } => INLINE_COST_MEMORY,
+        | mir::Instruction::BarrierWrite { .. } => INLINE_COST_MEMORY,
         mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::FieldSet { .. }
