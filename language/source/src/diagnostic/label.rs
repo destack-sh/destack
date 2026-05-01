@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{LabeledSpan, Span};
+use crate::{FileContentId, LabeledSpan, Span};
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DiagnosticLabel {
+    /// The exact file content containing the span.
+    pub content: FileContentId,
     /// The concrete source span.
     pub span: Span,
     /// The optional label shown on the span.
@@ -13,16 +15,18 @@ pub struct DiagnosticLabel {
 
 impl DiagnosticLabel {
     /// Create a source label.
-    pub fn new(span: Span) -> Self {
+    pub fn new(content: FileContentId, span: Span) -> Self {
         Self {
+            content,
             span,
             message: None,
         }
     }
 
     /// Create a source label with one message.
-    pub fn message(span: Span, message: impl Into<String>) -> Self {
+    pub fn message(content: FileContentId, span: Span, message: impl Into<String>) -> Self {
         Self {
+            content,
             span,
             message: Some(message.into()),
         }
@@ -52,6 +56,20 @@ impl DiagnosticNote {
     }
 }
 
+impl From<String> for DiagnosticNote {
+    /// Build one diagnostic note from a message.
+    fn from(message: String) -> Self {
+        Self::new(message)
+    }
+}
+
+impl From<&str> for DiagnosticNote {
+    /// Build one diagnostic note from a message.
+    fn from(message: &str) -> Self {
+        Self::new(message)
+    }
+}
+
 /// Guidance for fixing or avoiding a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DiagnosticHelp {
@@ -65,5 +83,19 @@ impl DiagnosticHelp {
         Self {
             message: message.into(),
         }
+    }
+}
+
+impl From<String> for DiagnosticHelp {
+    /// Build one diagnostic help from a message.
+    fn from(message: String) -> Self {
+        Self::new(message)
+    }
+}
+
+impl From<&str> for DiagnosticHelp {
+    /// Build one diagnostic help from a message.
+    fn from(message: &str) -> Self {
+        Self::new(message)
     }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSeverity, DiagnosticSuggestion,
-    DiagnosticTag, Span,
+    DiagnosticTag,
 };
 
 /// A final renderable diagnostic.
@@ -72,43 +72,33 @@ impl Diagnostic {
         &self.primary
     }
 
-    /// Return the primary source span.
-    pub fn primary_span(&self) -> Span {
-        self.primary.span
-    }
-
     /// Add one source label.
     pub fn label(mut self, label: DiagnosticLabel) -> Self {
         self.labels.push(label);
-
         self
     }
 
     /// Add one note.
-    pub fn note(mut self, message: impl Into<String>) -> Self {
-        self.notes.push(DiagnosticNote::new(message));
-
+    pub fn note(mut self, note: impl Into<DiagnosticNote>) -> Self {
+        self.notes.push(note.into());
         self
     }
 
     /// Add one help message.
-    pub fn help(mut self, message: impl Into<String>) -> Self {
-        self.helps.push(DiagnosticHelp::new(message));
-
+    pub fn help(mut self, help: impl Into<DiagnosticHelp>) -> Self {
+        self.helps.push(help.into());
         self
     }
 
     /// Add one suggestion.
     pub fn suggestion(mut self, suggestion: DiagnosticSuggestion) -> Self {
         self.suggestions.push(suggestion);
-
         self
     }
 
     /// Add one semantic tag.
     pub fn tag(mut self, tag: DiagnosticTag) -> Self {
         self.tags.push(tag);
-
         self
     }
 
