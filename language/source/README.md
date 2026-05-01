@@ -31,14 +31,15 @@ struct Diagnostic {
     code: string,                          // e.g., "E001", "W017"
     severity: DiagnosticSeverity,          // Error, Warning, Note
     message: string,
-    primarySpan: LabeledSpan,              // main source location
-    secondarySpans: LabeledSpan[] | null,
-    suggestions: Suggestion[] | null,      // fix-it hints
+    primary: DiagnosticLabel,              // main source location
+    labels: DiagnosticLabel[],             // additional source locations
+    notes: DiagnosticNote[],
+    helps: DiagnosticHelp[],
+    suggestions: DiagnosticSuggestion[],   // fix-it hints
 }
 ```
 
-Diagnostics support labeled spans (with messages), secondary locations, and auto-fix suggestions.
-Severity can be remapped via `DiagnosticOptions` (e.g., treat specific warnings as errors).
+Diagnostics support labeled spans, notes, help messages, and auto-fix suggestions.
 
 ### Files
 

@@ -62,7 +62,7 @@ impl Edit {
 ///
 /// Groups multiple edits together for efficient application.
 /// Edits should be non-overlapping and are typically sorted by position.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileEdit {
     /// The file to edit.
     pub file: FileId,
@@ -126,7 +126,7 @@ impl FileEdit {
 /// Edits across multiple files.
 ///
 /// Used for refactoring operations that touch multiple files (like rename).
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct BatchEdit {
     /// Per-file edits.
     pub files: Vec<FileEdit>,
