@@ -1,7 +1,10 @@
 mod card;
-mod collect;
+mod live;
+mod major;
+mod minor;
 mod pin;
 mod promotion;
+mod shared;
 
 pub(crate) use card::*;
 pub(crate) use pin::*;

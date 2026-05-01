@@ -65,17 +65,16 @@ impl PinSet {
         self.counts.keys().copied()
     }
 
-    /// Rewrite every pinned reference through one promotion map.
-    pub(crate) fn rewrite(&mut self, references: &BTreeMap<HeapReference, HeapReference>) {
-        if references.is_empty() {
-            return;
-        }
-
+    /// Rewrite every pinned reference through one relocation lookup.
+    pub(crate) fn rewrite_with(
+        &mut self,
+        mut rewrite: impl FnMut(HeapReference) -> HeapResult<Option<HeapReference>>,
+    ) -> HeapResult<()> {
         let previous_counts = std::mem::take(&mut self.counts);
         let mut next_counts: BTreeMap<HeapReference, NonZeroUsize> = BTreeMap::new();
 
         for (reference, count) in previous_counts {
-            let reference = references.get(&reference).copied().unwrap_or(reference);
+            let reference = rewrite(reference)?.unwrap_or(reference);
 
             if let Some(previous_count) = next_counts.get_mut(&reference) {
                 let merged_count = previous_count.get() + count.get();
@@ -92,6 +91,8 @@ impl PinSet {
         }
 
         self.counts = next_counts;
+
+        Ok(())
     }
 }
 

@@ -32,7 +32,7 @@ impl RootSlot<'_> {
 }
 
 /// Mutable heap roots for one collection safepoint.
-pub trait HeapRoots {
+pub trait RootSet {
     /// The root visitor error type.
     type Error: From<HeapError>;
 
@@ -43,7 +43,7 @@ pub trait HeapRoots {
     ) -> Result<(), Self::Error>;
 }
 
-impl<F, E> HeapRoots for F
+impl<F, E> RootSet for F
 where
     F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
     E: From<HeapError>,
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl HeapRoots for [HeapReference] {
+impl RootSet for [HeapReference] {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -73,7 +73,7 @@ impl HeapRoots for [HeapReference] {
     }
 }
 
-impl HeapRoots for Vec<HeapReference> {
+impl RootSet for Vec<HeapReference> {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -84,7 +84,7 @@ impl HeapRoots for Vec<HeapReference> {
     }
 }
 
-impl<const N: usize> HeapRoots for [HeapReference; N] {
+impl<const N: usize> RootSet for [HeapReference; N] {
     type Error = HeapError;
 
     fn visit_root_slots(
@@ -95,7 +95,7 @@ impl<const N: usize> HeapRoots for [HeapReference; N] {
     }
 }
 
-impl HeapRoots for () {
+impl RootSet for () {
     type Error = HeapError;
 
     fn visit_root_slots(
