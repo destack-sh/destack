@@ -43,9 +43,9 @@ entry0(value0: ref<int32, raw>):
     );
 }
 
-/// Formats atomic load, store, fence, and barrier operations canonically.
+/// Formats atomic load, store, and fence operations canonically.
 #[test]
-fn test_format_atomic_load_store_fence_and_barrier_family() {
+fn test_format_atomic_load_store_and_fence_family() {
     assert_format(
         r#"
 function atomics(value0: ref<int32, raw>): int32 {
@@ -53,7 +53,6 @@ entry0(value0: ref<int32, raw>):
     value1: int32 = atomic.load value0, acquire, device, device, [static, makeVisible]
     atomic.store value0, value1, release, device, device, static
     atomic.fence sequentiallyConsistent, device, device, any
-    barrier workgroup, workgroup, any
     return value1
 }
 "#,

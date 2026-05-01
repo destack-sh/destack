@@ -89,9 +89,9 @@ impl Parser {
                     | "dispose"
                     | "dispose.async"
                     | "drop"
+                    | "barrier.write"
                     | "atomic.store"
                     | "atomic.fence"
-                    | "barrier"
                     | "assume"
                     | "tensor.store"
                     | "tensor.fill"
@@ -142,6 +142,18 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Drop { value }
             }
+            "barrier.write" => {
+                let object = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let offset = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let byte_len = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::BarrierWrite {
+                    object,
+                    offset,
+                    byte_len,
+                }
+            }
             "atomic.store" => {
                 let pointer = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
@@ -162,14 +174,6 @@ impl Parser {
                     self.parse_atomic_attributes(false)?;
                 Instruction::AtomicFence {
                     ordering,
-                    scope,
-                    memory_scope,
-                    semantics,
-                }
-            }
-            "barrier" => {
-                let (scope, memory_scope, semantics) = self.parse_barrier_attributes()?;
-                Instruction::Barrier {
                     scope,
                     memory_scope,
                     semantics,
@@ -1843,19 +1847,6 @@ impl Parser {
         let semantics = self.parse_memory_semantics()?;
 
         Ok((ordering, scope, memory_scope, semantics))
-    }
-
-    /// Parse one barrier scope, memory scope, and semantics suffix.
-    fn parse_barrier_attributes(
-        &mut self,
-    ) -> ParseResult<(AtomicScope, MemoryScope, MemorySemantics)> {
-        let scope = self.parse_atomic_scope()?;
-        self.eat_token(TokenType::Comma)?;
-        let memory_scope = self.parse_memory_scope()?;
-        self.eat_token(TokenType::Comma)?;
-        let semantics = self.parse_memory_semantics()?;
-
-        Ok((scope, memory_scope, semantics))
     }
 
     /// Parse one memory ordering like `sequentiallyConsistent`.

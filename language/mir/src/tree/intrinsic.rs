@@ -116,11 +116,6 @@ pub enum Intrinsic {
     /// `(T, T) -> bool`
     RawEq,
 
-    // heap
-    /// Managed heap write barrier.
-    /// `(target, start, len) -> ()`
-    WriteBarrier,
-
     // float math
     /// Square root.
     /// `(T) -> T`
@@ -260,9 +255,6 @@ impl Intrinsic {
             Intrinsic::PointerOffsetFrom => "ptrOffsetFrom",
             Intrinsic::RawEq => "rawEq",
 
-            // garbage collection
-            Intrinsic::WriteBarrier => "writeBarrier",
-
             // float
             Intrinsic::Sqrt => "sqrt",
             Intrinsic::Abs => "abs",
@@ -374,7 +366,6 @@ impl Intrinsic {
                 | Intrinsic::Memcmp
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
-                | Intrinsic::WriteBarrier
         )
     }
 }
@@ -422,7 +413,6 @@ impl FromStr for Intrinsic {
             "space.cast" => Ok(Intrinsic::AddressSpaceCast),
             "ptrOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
             "rawEq" => Ok(Intrinsic::RawEq),
-            "writeBarrier" => Ok(Intrinsic::WriteBarrier),
             "sqrt" => Ok(Intrinsic::Sqrt),
             "abs" => Ok(Intrinsic::Abs),
             "fma" => Ok(Intrinsic::Fma),
@@ -496,9 +486,6 @@ pub enum IntrinsicSignature {
     /// Prefetch hint (no result)
     Prefetch,
 
-    /// Managed write barrier (no result)
-    WriteBarrier { args: u8 },
-
     /// Reflection (comptime only): () -> usize or (T) -> Type
     Reflection { args: u8 },
 
@@ -558,9 +545,6 @@ impl Intrinsic {
             Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicSignature::Transmute,
             Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
-
-            // heap
-            Intrinsic::WriteBarrier => IntrinsicSignature::WriteBarrier { args: 3 },
 
             // float math (unary)
             Intrinsic::Sqrt
@@ -623,7 +607,6 @@ impl Intrinsic {
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
             IntrinsicSignature::Prefetch => 1,
-            IntrinsicSignature::WriteBarrier { args } => args,
             IntrinsicSignature::Reflection { args } => args,
             IntrinsicSignature::Control { args } => args,
             IntrinsicSignature::BranchHint { args } => args,
@@ -644,7 +627,6 @@ impl Intrinsic {
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
             IntrinsicSignature::Prefetch => false,
-            IntrinsicSignature::WriteBarrier { .. } => false,
             IntrinsicSignature::Reflection { .. } => true,
             IntrinsicSignature::Control { .. } => false,
             IntrinsicSignature::BranchHint { .. } => true,

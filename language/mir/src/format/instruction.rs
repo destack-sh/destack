@@ -319,6 +319,25 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
 
+            Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => write!(
+                f,
+                [
+                    token("barrier.write"),
+                    space(),
+                    object,
+                    token(","),
+                    space(),
+                    offset,
+                    token(","),
+                    space(),
+                    byte_len
+                ]
+            ),
+
             Instruction::Assume { condition } => {
                 write!(f, [token("assume"), space(), condition])
             }
@@ -1507,15 +1526,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_atomic_fence_suffix(*ordering, *scope, *memory_scope, *semantics, f)
             }
 
-            Instruction::Barrier {
-                scope,
-                memory_scope,
-                semantics,
-            } => {
-                write!(f, [token("barrier"), space()])?;
-                format_barrier_suffix(*scope, *memory_scope, *semantics, f)
-            }
-
             Instruction::Intrinsic {
                 destination,
                 intrinsic,
@@ -1958,19 +1968,6 @@ fn format_atomic_fence_suffix<'a>(
 ) -> FormatResult<()> {
     write!(f, [space(), token(ordering.to_str())])?;
     write!(f, [token(","), space(), token(scope.to_str())])?;
-    write!(f, [token(","), space(), token(memory_scope.to_str())])?;
-    write!(f, [token(","), space()])?;
-    format_memory_semantics(semantics, f)
-}
-
-/// Format one barrier scope, memory scope, and semantics suffix.
-fn format_barrier_suffix<'a>(
-    scope: AtomicScope,
-    memory_scope: MemoryScope,
-    semantics: MemorySemantics,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [token(scope.to_str())])?;
     write!(f, [token(","), space(), token(memory_scope.to_str())])?;
     write!(f, [token(","), space()])?;
     format_memory_semantics(semantics, f)

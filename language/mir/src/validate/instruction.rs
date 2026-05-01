@@ -1705,7 +1705,51 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::AtomicFence { .. } | Instruction::Barrier { .. } => {}
+            Instruction::AtomicFence { .. } => {}
+            Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => {
+                // resolve operand types
+                let object_type =
+                    self.value_type_or_error(function, *object, anchor, "barrier.write object")?;
+                let offset_type =
+                    self.value_type_or_error(function, *offset, anchor, "barrier.write offset")?;
+                let byte_len_type = self.value_type_or_error(
+                    function,
+                    *byte_len,
+                    anchor,
+                    "barrier.write byte length",
+                )?;
+
+                // require a managed heap object
+                let (kind, _mutability, _pointee, _is_nullable) = self.reference_type(
+                    object_type,
+                    anchor,
+                    "barrier.write object must be a managed reference",
+                )?;
+
+                if !matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "barrier.write object must be managed or owned".to_string(),
+                        anchor,
+                    });
+                }
+
+                // require byte counts
+                self.expect_integer_like_type(
+                    offset_type,
+                    anchor,
+                    "barrier.write offset must be an integer type",
+                )?;
+
+                self.expect_integer_like_type(
+                    byte_len_type,
+                    anchor,
+                    "barrier.write byte length must be an integer type",
+                )?;
+            }
             Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -1720,7 +1764,7 @@ impl<'a> Validator<'a> {
                     "field.get destination",
                 )?;
 
-                let field_type = self.field_type_for_projection_target(
+                let field_type = self.field_type_for_aggregate(
                     aggregate_type,
                     *index as usize,
                     anchor,
@@ -1758,7 +1802,7 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                let field_type = self.field_type_for_projection_target(
+                let field_type = self.field_type_for_aggregate(
                     aggregate_type,
                     *index as usize,
                     anchor,
@@ -1787,7 +1831,7 @@ impl<'a> Validator<'a> {
                     anchor,
                     "field.address aggregate",
                 )?;
-                self.field_type_for_projection_target(
+                self.field_type_for_address_base(
                     aggregate_type,
                     *index as usize,
                     anchor,
@@ -1886,7 +1930,7 @@ impl<'a> Validator<'a> {
                 let index_type =
                     self.value_type_or_error(function, *index, anchor, "element.address index")?;
                 let element_type =
-                    self.element_type_for_array(array_type, anchor, "element.address")?;
+                    self.element_type_for_address_base(array_type, anchor, "element.address")?;
                 self.validate_reference_result_type(
                     result_type,
                     Some(element_type),
@@ -2132,15 +2176,15 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
-    /// Resolve one projected field type from a concrete projection target.
-    fn field_type_for_projection_target(
+    /// Resolve one projected field type from a value aggregate.
+    fn field_type_for_aggregate(
         &self,
-        target_type: LocalNodeId<Type>,
+        aggregate_type: LocalNodeId<Type>,
         index: usize,
         anchor: ValidateAnchor,
         operation: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
-        match self.tree.get(target_type) {
+        match self.tree.get(aggregate_type) {
             Type::Struct { fields, .. } => {
                 let Some(field_id) = fields.get(index) else {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -2182,31 +2226,6 @@ impl<'a> Validator<'a> {
                 message: format!("{operation} does not support callable"),
                 anchor,
             }),
-            Type::Reference { pointee, .. } => {
-                let Some(pointee_type) = self.concrete_type_reference(*pointee) else {
-                    return Err(self.metadata_error(
-                        anchor,
-                        format!("{operation} pointee type is not concrete"),
-                    ));
-                };
-                let pointee = self.tree.get(pointee_type);
-
-                match pointee {
-                    Type::Struct { .. } | Type::Tuple { .. } => self
-                        .field_type_for_projection_target(pointee_type, index, anchor, operation),
-                    Type::Callable { .. } => Err(ValidateError::MetadataInvariantViolation {
-                        message: format!("{operation} does not support callable"),
-                        anchor,
-                    }),
-                    _ if index == 0 => Ok(pointee_type),
-                    _ => Err(ValidateError::MetadataInvariantViolation {
-                        message: format!(
-                            "{operation} field index {index} out of bounds for scalar pointee"
-                        ),
-                        anchor,
-                    }),
-                }
-            }
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} expects a struct or tuple aggregate"),
                 anchor,
@@ -2214,22 +2233,30 @@ impl<'a> Validator<'a> {
         }
     }
 
-    /// Resolve the element type for an indexed value.
-    fn element_type_for_array(
+    /// Resolve one projected field type from an addressable aggregate base.
+    fn field_type_for_address_base(
         &self,
-        array_type: LocalNodeId<Type>,
+        base_type: LocalNodeId<Type>,
+        index: usize,
         anchor: ValidateAnchor,
         operation: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
-        match self.array_element_type(array_type) {
-            Some(element_type) => Ok(element_type),
-            _ => Err(ValidateError::MetadataInvariantViolation {
-                message: format!("{operation} expects an array aggregate"),
-                anchor,
-            }),
+        match self.tree.get(base_type) {
+            Type::Reference { pointee, .. } => {
+                let Some(pointee_type) = self.concrete_type_reference(*pointee) else {
+                    return Err(self.metadata_error(
+                        anchor,
+                        format!("{operation} pointee type is not concrete"),
+                    ));
+                };
+
+                self.field_type_for_address_base(pointee_type, index, anchor, operation)
+            }
+            _ => self.field_type_for_aggregate(base_type, index, anchor, operation),
         }
     }
 
+    /// Resolve the element type for an indexed value.
     /// Resolve the element type for a fixed array aggregate.
     fn fixed_element_type_for_array(
         &self,
@@ -2246,8 +2273,24 @@ impl<'a> Validator<'a> {
         }
     }
 
-    /// Resolve one projected element type if the type supports indexing.
-    fn array_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
+    /// Resolve one projected element type from an addressable indexed base.
+    fn element_type_for_address_base(
+        &self,
+        base_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        match self.address_base_element_type(base_type) {
+            Some(element_type) => Ok(element_type),
+            _ => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} expects an indexed aggregate or reference"),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve one projected element type if the base supports addressing.
+    fn address_base_element_type(&self, type_id: LocalNodeId<Type>) -> Option<LocalNodeId<Type>> {
         match self.tree.get(type_id) {
             Type::Array { element, .. } | Type::Slice { element, .. } => {
                 self.concrete_type_reference(*element)

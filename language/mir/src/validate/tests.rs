@@ -1053,6 +1053,26 @@ b0(v0: Pair):
     );
 }
 
+/// Reject field gets on references.
+#[test]
+fn test_reject_field_get_with_reference() {
+    let source = r#"type Box {
+    x: int32;
+}
+
+function bad(v0: ref<Box, managed>): int32 {
+b0(v0: ref<Box, managed>):
+    v1: int32 = field.get v0, 0
+    return v1
+}"#;
+
+    let error = assert_validate_error(source);
+    assert_eq!(
+        error.message,
+        "metadata invariant violation: field.get expects a struct or tuple aggregate"
+    );
+}
+
 /// Reject pointer to integer casts for non raw references.
 #[test]
 fn test_reject_ptr_to_int_for_managed_reference() {

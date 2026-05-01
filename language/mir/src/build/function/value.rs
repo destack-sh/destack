@@ -444,17 +444,17 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Publish one execution and memory synchronization barrier.
-    pub fn barrier(
+    /// Record a managed reference write for the collector.
+    pub fn barrier_write(
         &mut self,
-        scope: AtomicScope,
-        memory_scope: MemoryScope,
-        semantics: MemorySemantics,
+        object: impl Into<ValueReference>,
+        offset: impl Into<ValueReference>,
+        byte_len: impl Into<ValueReference>,
     ) {
-        self.insert_instruction(Instruction::Barrier {
-            scope,
-            memory_scope,
-            semantics,
+        self.insert_instruction(Instruction::BarrierWrite {
+            object: object.into(),
+            offset: offset.into(),
+            byte_len: byte_len.into(),
         });
     }
 }
