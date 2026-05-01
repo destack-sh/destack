@@ -207,7 +207,11 @@ pub(super) fn heap_pointee_type_for_value_repr(
     match value_repr_map.get(value) {
         Some(ValueRepr::Pointer {
             pointee,
-            pointer_class: PointerClass::Heap | PointerClass::SharedHeap,
+            pointer_class:
+                PointerClass::Heap
+                | PointerClass::SharedHeap
+                | PointerClass::HeapAddress
+                | PointerClass::SharedHeapAddress,
             ..
         }) => Some(pointee),
         _ => None,
@@ -244,15 +248,41 @@ pub(super) fn heap_pointee_type_for_value(
 
     match tree.get(ty) {
         mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+            kind:
+                kind @ (mir::ReferenceKind::Managed
+                | mir::ReferenceKind::Owned
+                | mir::ReferenceKind::Borrowed),
+            address_space,
             pointee,
             ..
-        } => pointee.ty(),
+        } if matches!(
+            pointer_class_from_reference(address_space.clone(), *kind),
+            PointerClass::Heap
+                | PointerClass::SharedHeap
+                | PointerClass::HeapAddress
+                | PointerClass::SharedHeapAddress
+        ) =>
+        {
+            pointee.ty()
+        }
         mir::Type::TensorView {
-            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+            kind:
+                kind @ (mir::ReferenceKind::Managed
+                | mir::ReferenceKind::Owned
+                | mir::ReferenceKind::Borrowed),
+            address_space,
             element,
             ..
-        } => element.ty(),
+        } if matches!(
+            pointer_class_from_reference(address_space.clone(), *kind),
+            PointerClass::Heap
+                | PointerClass::SharedHeap
+                | PointerClass::HeapAddress
+                | PointerClass::SharedHeapAddress
+        ) =>
+        {
+            element.ty()
+        }
         _ => None,
     }
 }
@@ -807,7 +837,7 @@ fn infer_instruction_repr(
         | mir::Instruction::Store { .. }
         | mir::Instruction::AtomicStore { .. }
         | mir::Instruction::AtomicFence { .. }
-        | mir::Instruction::Barrier { .. }
+        | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Dispose { .. }
         | mir::Instruction::AsyncDispose { .. }
@@ -835,11 +865,11 @@ fn infer_intrinsic_repr(
             signed: true,
         }),
         mir::IntrinsicResultType::Isize => Some(ValueRepr::Int {
-            width: usize::BITS as u8,
+            width: usize::BITS as u16,
             signed: true,
         }),
         mir::IntrinsicResultType::Usize => Some(ValueRepr::Int {
-            width: usize::BITS as u8,
+            width: usize::BITS as u16,
             signed: false,
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
@@ -873,7 +903,9 @@ fn repr_from_constant(constant: &mir::Constant) -> ValueRepr {
             width: *width,
             signed: false,
         },
-        mir::Constant::Float { width, .. } => ValueRepr::Float { width: *width },
+        mir::Constant::Float { width, .. } => ValueRepr::Float {
+            width: *width as u16,
+        },
         mir::Constant::Char { .. } => ValueRepr::Char,
     }
 }

@@ -1,157 +1,17 @@
 use destack_mir as mir;
 
-use crate::Word;
-
 use crate::program::{Instruction, Opcode, Operands, pack_optional_value};
 use crate::{Error, Result};
 
-use super::access::{interface_table_field_for_receiver, virtual_table_field_for_receiver};
+use super::access::{interface_table_field, virtual_table_field};
 use super::lower::BlockLowerer;
-use super::opcode::{
-    select_branch_opcode, select_compare_branch_const_opcode, select_compare_branch_opcode,
-    select_switch_opcode, select_switch_table_opcode, swap_compare_operator,
-};
+use super::opcode::{select_branch_opcode, select_switch_opcode, select_switch_table_opcode};
 use super::pool::Pool;
 use super::repr::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_repr, pointer_class_for_value,
 };
 
 impl<'a> BlockLowerer<'a> {
-    /// Try to fuse compare + branch into a single instruction.
-    pub(super) fn try_fuse_compare_branch(
-        &self,
-        block: &mir::Block,
-        instructions: &mut Vec<Instruction>,
-        pool: &mut Pool,
-    ) -> Option<Instruction> {
-        let terminator = self.tree.get(block.terminator);
-        let mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } = terminator
-        else {
-            return None;
-        };
-        let condition = condition.value()?;
-        let then_target_block = then_target.block.block()?;
-        let else_target_block = else_target.block.block()?;
-        let then_arguments = then_target
-            .arguments
-            .iter()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?;
-        let else_arguments = else_target
-            .arguments
-            .iter()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?;
-
-        if self.value_use_count(condition) != Some(1) {
-            return None;
-        }
-
-        let last_inst_id = block.instructions.last()?;
-        let last_inst = self.tree.get(*last_inst_id);
-
-        let mir::Instruction::Binary {
-            destination,
-            operator,
-            left,
-            right,
-        } = last_inst
-        else {
-            return None;
-        };
-
-        if !operator.is_comparison() {
-            return None;
-        }
-
-        let destination = destination.value()?;
-        let left = left.value()?;
-        let right = right.value()?;
-        if destination != condition {
-            return None;
-        }
-
-        let mut const_value = None;
-        let mut left_value = left;
-        let mut operator = *operator;
-        let mut pop_const = false;
-        if let Some(prev_inst_id) = block
-            .instructions
-            .get(block.instructions.len().saturating_sub(2))
-        {
-            let prev_inst = self.tree.get(*prev_inst_id);
-            if let mir::Instruction::Const { destination, value } = prev_inst {
-                let destination = destination.value()?;
-                let uses = self.value_use_count(destination);
-                if uses == Some(1) {
-                    if destination == right {
-                        const_value = Some(Word::from(value));
-                        pop_const = true;
-                    } else if destination == left {
-                        const_value = Some(Word::from(value));
-                        left_value = right;
-                        operator = swap_compare_operator(operator);
-                        pop_const = true;
-                    }
-                }
-            }
-        }
-
-        instructions.pop();
-        if pop_const {
-            instructions.pop();
-        }
-
-        let then_index = self.block_index_by_id[&then_target_block];
-        let else_index = self.block_index_by_id[&else_target_block];
-        let then_parameters = self
-            .block_parameter
-            .get(then_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
-        let else_parameters = self
-            .block_parameter
-            .get(else_index)
-            .map(|params| params.as_slice())
-            .unwrap_or_default();
-        let then_moves = pool.move_range(then_parameters, &then_arguments);
-        let else_moves = pool.move_range(else_parameters, &else_arguments);
-
-        if let Some(right_const) = const_value {
-            let opcode = select_compare_branch_const_opcode(operator);
-            return Some(Instruction {
-                opcode,
-                operands: Operands::CompareAndBranchConst {
-                    left: left_value,
-                    right_const,
-                    operator,
-                    then_target: then_index as u32,
-                    then_moves,
-                    else_target: else_index as u32,
-                    else_moves,
-                },
-            });
-        }
-
-        let opcode = select_compare_branch_opcode(operator);
-        Some(Instruction {
-            opcode,
-            operands: Operands::CompareAndBranch {
-                left,
-                right,
-                operator,
-                then_target: then_index as u32,
-                then_moves,
-                else_target: else_index as u32,
-                else_moves,
-            },
-        })
-    }
-
     /// Convert a MIR terminator to lowered interpreter form.
     pub(super) fn lower_terminator(
         &self,
@@ -160,7 +20,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         Ok(match term {
             mir::Terminator::Error => {
-                return Err(Error::ConcreteMirRequired {
+                return Err(Error::MissingRepresentation {
                     context: "terminator".to_string(),
                 });
             }
@@ -170,7 +30,7 @@ impl<'a> BlockLowerer<'a> {
                     value: pack_optional_value(
                         (*value)
                             .map(|value| {
-                                value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                value.value().ok_or_else(|| Error::MissingRepresentation {
                                     context: "return value".to_string(),
                                 })
                             })
@@ -183,7 +43,7 @@ impl<'a> BlockLowerer<'a> {
                 let target_block =
                     (target.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "jump target".to_string(),
                         })?;
                 let arguments = target
@@ -192,7 +52,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "jump argument".to_string(),
                             })
                     })
@@ -219,21 +79,22 @@ impl<'a> BlockLowerer<'a> {
                 then_target,
                 else_target,
             } => {
-                let condition = (*condition)
-                    .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
-                        context: "branch condition".to_string(),
-                    })?;
+                let condition =
+                    (*condition)
+                        .value()
+                        .ok_or_else(|| Error::MissingRepresentation {
+                            context: "branch condition".to_string(),
+                        })?;
                 let then_target_block =
                     (then_target.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "branch then target".to_string(),
                         })?;
                 let else_target_block =
                     (else_target.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "branch else target".to_string(),
                         })?;
                 let then_arguments = then_target
@@ -242,7 +103,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "branch then argument".to_string(),
                             })
                     })
@@ -253,7 +114,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "branch else argument".to_string(),
                             })
                     })
@@ -293,13 +154,13 @@ impl<'a> BlockLowerer<'a> {
                 let success_block =
                     (success.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "check success target".to_string(),
                         })?;
                 let failure_block =
                     (failure.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "check failure target".to_string(),
                         })?;
                 let success_arguments = success
@@ -308,7 +169,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "check success argument".to_string(),
                             })
                     })
@@ -319,7 +180,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "check failure argument".to_string(),
                             })
                     })
@@ -356,13 +217,15 @@ impl<'a> BlockLowerer<'a> {
                 cases,
                 default,
             } => {
-                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "switch value".to_string(),
-                })?;
+                let value = (*value)
+                    .value()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "switch value".to_string(),
+                    })?;
                 let default_block =
                     (default.block)
                         .block()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "switch default target".to_string(),
                         })?;
                 let default_arguments = default
@@ -371,7 +234,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::ConcreteMirRequired {
+                            .ok_or_else(|| Error::MissingRepresentation {
                                 context: "switch default argument".to_string(),
                             })
                     })
@@ -384,13 +247,20 @@ impl<'a> BlockLowerer<'a> {
                     .unwrap_or_default();
                 let default_moves = pool.edge_move_plan(default_parameters, &default_arguments);
 
-                if let Some((min_value, table_range)) = pool.switch_table_range(
-                    &self.block_index_by_id,
-                    &self.block_parameter,
-                    cases,
-                    default_index as u32,
-                    default_moves,
-                )? {
+                let is_word = self
+                    .value_type_for_value(value)
+                    .ok()
+                    .and_then(|ty| self.layout_for_type(ty).ok())
+                    .is_some_and(|layout| layout.is_word());
+                if is_word
+                    && let Some((min_value, table_range)) = pool.switch_table_range(
+                        &self.block_index_by_id,
+                        &self.block_parameter,
+                        cases,
+                        default_index as u32,
+                        default_moves,
+                    )?
+                {
                     Instruction {
                         opcode: select_switch_table_opcode(self.value_repr_map(), value),
                         operands: Operands::SwitchTable {
@@ -426,7 +296,7 @@ impl<'a> BlockLowerer<'a> {
                     payload: pack_optional_value(
                         (*payload)
                             .map(|value| {
-                                value.value().ok_or_else(|| Error::ConcreteMirRequired {
+                                value.value().ok_or_else(|| Error::MissingRepresentation {
                                     context: "trap payload".to_string(),
                                 })
                             })
@@ -441,9 +311,11 @@ impl<'a> BlockLowerer<'a> {
             },
 
             mir::Terminator::Yield { value, .. } => {
-                let value = (*value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "yield value".to_string(),
-                })?;
+                let value = (*value)
+                    .value()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "yield value".to_string(),
+                    })?;
                 let resume_point = self
                     .yield_resume_points
                     .get(&self.block_id())
@@ -469,7 +341,7 @@ impl<'a> BlockLowerer<'a> {
                 opcode: Opcode::Throw,
                 operands: Operands::Throw {
                     value: pack_optional_value(Some((*value).value().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "throw value".to_string(),
                         }
                     })?)),
@@ -480,7 +352,7 @@ impl<'a> BlockLowerer<'a> {
                 let function =
                     (*function)
                         .function()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "invoke callee".to_string(),
                         })?;
                 let args = pool.argument_reference_range(&call.arguments, "invoke argument")?;
@@ -509,7 +381,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::InvokeIndirect { callee, call, .. } => {
                 let callee = (*callee)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "invoke indirect callee".to_string(),
                     })?;
                 let arguments =
@@ -543,7 +415,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let receiver = (*receiver)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "invoke virtual receiver".to_string(),
                     })?;
                 let arguments =
@@ -562,7 +434,8 @@ impl<'a> BlockLowerer<'a> {
                     opcode: Opcode::CallVirtualBranch,
                     operands: Operands::CallVirtualBranch {
                         receiver,
-                        table_field: virtual_table_field_for_receiver(
+                        table_field: virtual_table_field(
+                            self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
                             pointer_class_for_value(self.value_repr_map(), receiver),
@@ -583,7 +456,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let receiver = (*receiver)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "invoke interface receiver".to_string(),
                     })?;
                 let arguments =
@@ -602,7 +475,8 @@ impl<'a> BlockLowerer<'a> {
                     opcode: Opcode::CallInterfaceBranch,
                     operands: Operands::CallInterfaceBranch {
                         receiver,
-                        table_field: interface_table_field_for_receiver(
+                        table_field: interface_table_field(
+                            self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
                             pointer_class_for_value(self.value_repr_map(), receiver),
@@ -619,7 +493,7 @@ impl<'a> BlockLowerer<'a> {
                 let function =
                     (*function)
                         .function()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "tail call callee".to_string(),
                         })?;
                 if function == self.function_id {
@@ -640,7 +514,7 @@ impl<'a> BlockLowerer<'a> {
                         .map(|argument| {
                             (*argument)
                                 .value()
-                                .ok_or_else(|| Error::ConcreteMirRequired {
+                                .ok_or_else(|| Error::MissingRepresentation {
                                     context: "tail call argument".to_string(),
                                 })
                         })
@@ -662,7 +536,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 let callee = (*callee)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "tail indirect callee".to_string(),
                     })?;
                 let args =
@@ -684,7 +558,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let receiver = (*receiver)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "tail virtual receiver".to_string(),
                     })?;
                 let args =
@@ -693,7 +567,8 @@ impl<'a> BlockLowerer<'a> {
                     opcode: Opcode::TailCallVirtual,
                     operands: Operands::TailCallVirtual {
                         receiver,
-                        table_field: virtual_table_field_for_receiver(
+                        table_field: virtual_table_field(
+                            self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
                             pointer_class_for_value(self.value_repr_map(), receiver),
@@ -712,7 +587,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let receiver = (*receiver)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "tail interface receiver".to_string(),
                     })?;
                 let args =
@@ -721,7 +596,8 @@ impl<'a> BlockLowerer<'a> {
                     opcode: Opcode::TailCallInterface,
                     operands: Operands::TailCallInterface {
                         receiver,
-                        table_field: interface_table_field_for_receiver(
+                        table_field: interface_table_field(
+                            self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
                             pointer_class_for_value(self.value_repr_map(), receiver),

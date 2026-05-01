@@ -32,8 +32,8 @@ impl Pool {
         }
     }
 
-    /// Return the finished pool parts.
-    pub(super) fn into_parts(self) -> (Vec<mir::Value>, Vec<MovePair>) {
+    /// Finish the pool.
+    pub(super) fn finish(self) -> (Vec<mir::Value>, Vec<MovePair>) {
         (self.argument, self.move_pair)
     }
 
@@ -42,7 +42,7 @@ impl Pool {
         argument_range(&mut self.argument, arguments)
     }
 
-    /// Return one argument range from recoverable MIR references.
+    /// Return one argument range from MIR value references.
     pub(super) fn argument_reference_range(
         &mut self,
         arguments: &[mir::ValueReference],
@@ -53,7 +53,7 @@ impl Pool {
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: context.to_string(),
                     })
             })
@@ -107,7 +107,7 @@ impl Pool {
         cases: &[mir::SwitchCase],
         default_target: u32,
         default_moves: MoveRange,
-    ) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
+    ) -> Result<Option<(i128, Box<[SwitchCase]>)>> {
         switch_table_range(
             &mut self.move_pair,
             block_index_map,
@@ -121,7 +121,7 @@ impl Pool {
 
 /// Return one argument range from the pool.
 fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> ArgumentRange {
-    // fast path: no arguments
+    // empty argument range
     if arguments.is_empty() {
         return ArgumentRange::empty();
     }
@@ -164,7 +164,7 @@ fn move_range(
     parameters: &[mir::Value],
     arguments: &[mir::Value],
 ) -> MoveRange {
-    // fast path: no parameters
+    // empty move range
     if parameters.is_empty() {
         return MoveRange::empty();
     }
@@ -218,7 +218,7 @@ fn parameter_move_range(
     parameters: &[mir::Parameter],
     arguments: &[mir::Value],
 ) -> Result<MoveRange> {
-    // fast path: no parameters
+    // empty move range
     if parameters.is_empty() {
         return Ok(MoveRange::empty());
     }
@@ -241,7 +241,7 @@ fn parameter_move_range(
     for (index, param) in parameters.iter().enumerate() {
         let parameter = (param.value)
             .value()
-            .ok_or_else(|| Error::ConcreteMirRequired {
+            .ok_or_else(|| Error::MissingRepresentation {
                 context: "function parameter value".to_string(),
             })?;
         let src = move_source(arguments, index);
@@ -295,7 +295,7 @@ fn switch_case_range(
     for case in cases {
         let target = (case.target.block)
             .block()
-            .ok_or_else(|| Error::ConcreteMirRequired {
+            .ok_or_else(|| Error::MissingRepresentation {
                 context: "switch case target".to_string(),
             })?;
         let target_index = block_index_map[&target];
@@ -310,7 +310,7 @@ fn switch_case_range(
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "switch case argument".to_string(),
                     })
             })
@@ -319,7 +319,7 @@ fn switch_case_range(
         lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
-                .ok_or_else(|| Error::ConcreteMirRequired {
+                .ok_or_else(|| Error::MissingRepresentation {
                     context: "switch case value".to_string(),
                 })?,
             target: target_index as u32,
@@ -338,7 +338,7 @@ fn switch_table_range(
     cases: &[mir::SwitchCase],
     default_target: u32,
     default_moves: MoveRange,
-) -> Result<Option<(i64, Box<[SwitchCase]>)>> {
+) -> Result<Option<(i128, Box<[SwitchCase]>)>> {
     // bail if there are no cases
     if cases.is_empty() {
         return Ok(None);
@@ -347,14 +347,14 @@ fn switch_table_range(
     // compute min and max case values
     let mut min_value = (cases[0].value)
         .integer()
-        .ok_or_else(|| Error::ConcreteMirRequired {
+        .ok_or_else(|| Error::MissingRepresentation {
             context: "switch table min value".to_string(),
         })?;
     let mut max_value = min_value;
     for case in cases {
         let value = (case.value)
             .integer()
-            .ok_or_else(|| Error::ConcreteMirRequired {
+            .ok_or_else(|| Error::MissingRepresentation {
                 context: "switch table case value".to_string(),
             })?;
         min_value = min_value.min(value);
@@ -362,7 +362,7 @@ fn switch_table_range(
     }
 
     // compute range length with overflow protection
-    let range_len = i128::from(max_value) - i128::from(min_value) + 1;
+    let range_len = max_value - min_value + 1;
     if range_len <= 0 {
         return Ok(None);
     }
@@ -381,7 +381,7 @@ fn switch_table_range(
 
     // seed with default targets
     for offset in 0..range_len {
-        let value = min_value + offset as i64;
+        let value = min_value + offset as i128;
         table.push(SwitchCase {
             value,
             target: default_target,
@@ -393,12 +393,12 @@ fn switch_table_range(
     for case in cases {
         let case_value = (case.value)
             .integer()
-            .ok_or_else(|| Error::ConcreteMirRequired {
+            .ok_or_else(|| Error::MissingRepresentation {
                 context: "switch table case value".to_string(),
             })?;
         let target = (case.target.block)
             .block()
-            .ok_or_else(|| Error::ConcreteMirRequired {
+            .ok_or_else(|| Error::MissingRepresentation {
                 context: "switch table target".to_string(),
             })?;
         let target_index = block_index_map[&target];
@@ -413,7 +413,7 @@ fn switch_table_range(
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "switch table argument".to_string(),
                     })
             })
