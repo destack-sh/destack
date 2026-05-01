@@ -11,8 +11,6 @@ pub enum SharedGcPhase {
     Mark,
     /// Shared sweeping is active.
     Sweep,
-    /// The stored phase byte is invalid.
-    Invalid,
 }
 
 impl SharedGcPhase {
@@ -22,7 +20,6 @@ impl SharedGcPhase {
             Self::Idle => 0,
             Self::Mark => 1,
             Self::Sweep => 2,
-            Self::Invalid => u8::MAX,
         }
     }
 
@@ -32,7 +29,11 @@ impl SharedGcPhase {
             0 => Self::Idle,
             1 => Self::Mark,
             2 => Self::Sweep,
-            _ => Self::Invalid,
+            _ => {
+                debug_assert!(false, "invalid shared gc phase byte");
+
+                Self::Idle
+            }
         }
     }
 }

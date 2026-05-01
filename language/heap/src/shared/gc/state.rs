@@ -51,6 +51,8 @@ impl SharedTraceQueue {
         if stealers.len() <= worker_index {
             stealers.resize_with(worker_index + 1, || None);
         }
+
+        // publish the stealing handle for other workers
         stealers[worker_index] = Some(stealer);
 
         SharedGcWorker {
@@ -61,12 +63,14 @@ impl SharedTraceQueue {
 
     /// Push one pending trace work item.
     pub(crate) fn push(&self, worker: Option<&SharedGcWorker>, work: SharedTraceWork) {
+        // null large references are not trace work
         if let SharedTraceWork::Large { reference, .. } = work
             && reference.is_null()
         {
             return;
         }
 
+        // worker-local work is preferred for cache locality
         if let Some(worker) = worker {
             worker.local.push(work);
 
@@ -84,12 +88,15 @@ impl SharedTraceQueue {
     ) -> Vec<SharedTraceWork> {
         let mut batch = Vec::with_capacity(batch_len);
 
+        // local queue
         if let Some(worker) = worker {
             self.pop_from_worker(worker, batch_len, &mut batch);
         }
 
+        // global queue
         self.pop_from_global(worker, batch_len, &mut batch);
 
+        // other workers
         if batch.len() < batch_len {
             self.steal_from_workers(worker, batch_len, &mut batch);
         }
@@ -99,10 +106,12 @@ impl SharedTraceQueue {
 
     /// Return whether every queue is currently empty.
     pub(crate) fn is_empty(&self) -> bool {
+        // global queue
         if !self.global.is_empty() {
             return false;
         }
 
+        // worker queues
         let stealers = self.stealers.lock().clone();
         for stealer in stealers.into_iter().flatten() {
             if !stealer.is_empty() {
@@ -115,8 +124,10 @@ impl SharedTraceQueue {
 
     /// Clear every pending work item.
     pub(crate) fn clear(&self) {
+        // global queue
         self.drain_global();
 
+        // worker queues
         let stealers = self.stealers_snapshot();
         for stealer in stealers {
             self.drain_stealer(&stealer);
@@ -130,6 +141,7 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
+        // drain the local worker queue first
         while batch.len() < batch_len {
             let Some(work) = worker.local.pop() else {
                 break;
@@ -146,12 +158,14 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
+        // no local worker means direct global steals
         let Some(worker) = worker else {
             self.steal_from_global(batch_len, batch);
 
             return;
         };
 
+        // batch global work through the local deque
         while batch.len() < batch_len {
             let steal = self.global.steal_batch_and_pop(&worker.local);
             match steal {
@@ -164,6 +178,7 @@ impl SharedTraceQueue {
 
     /// Pop global work without a local worker.
     fn steal_from_global(&self, batch_len: usize, batch: &mut Vec<SharedTraceWork>) {
+        // direct global steals
         while batch.len() < batch_len {
             match self.global.steal() {
                 Steal::Success(work) => batch.push(work),
@@ -175,6 +190,7 @@ impl SharedTraceQueue {
 
     /// Drain global work.
     fn drain_global(&self) {
+        // consume until empty
         loop {
             match self.global.steal() {
                 Steal::Success(_) | Steal::Retry => continue,
@@ -185,6 +201,7 @@ impl SharedTraceQueue {
 
     /// Drain one worker through its public stealer.
     fn drain_stealer(&self, stealer: &Stealer<SharedTraceWork>) {
+        // consume until empty
         loop {
             match stealer.steal() {
                 Steal::Success(_) | Steal::Retry => continue,
@@ -200,6 +217,7 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
+        // snapshot avoids holding the registry lock while stealing
         let stealers = self.stealers_snapshot();
         for (worker_index, stealer) in stealers.into_iter().enumerate() {
             if local_worker.is_some_and(|local_worker| local_worker.index == worker_index) {
@@ -222,6 +240,7 @@ impl SharedTraceQueue {
         batch_len: usize,
         batch: &mut Vec<SharedTraceWork>,
     ) {
+        // no local worker means direct steals
         let Some(local_worker) = local_worker else {
             while batch.len() < batch_len {
                 match stealer.steal() {
@@ -234,6 +253,7 @@ impl SharedTraceQueue {
             return;
         };
 
+        // batch stolen work through the local worker deque
         while batch.len() < batch_len {
             let steal = stealer.steal_batch_and_pop(&local_worker.local);
 
@@ -264,7 +284,7 @@ pub(crate) struct SharedGcState {
     pub(crate) trace_queue: SharedTraceQueue,
     /// The current shared collection phase.
     phase: AtomicU8,
-    /// Whether shared mark publication is temporarily closed for termination.
+    /// Whether shared mark publication is closed for termination.
     mark_closing: AtomicU8,
     /// The number of shared mark publications currently in flight.
     pub(crate) mark_publishers: AtomicUsize,
@@ -287,11 +307,13 @@ impl SharedGcState {
     }
 
     /// Return the current shared collection phase.
+    #[inline(always)]
     pub(crate) fn phase(&self) -> SharedGcPhase {
         SharedGcPhase::from_bits(self.phase.load(Ordering::Acquire))
     }
 
     /// Set the current shared collection phase.
+    #[inline(always)]
     pub(crate) fn set_phase(&self, phase: SharedGcPhase) {
         self.phase.store(phase.bits(), Ordering::Release);
     }
@@ -313,6 +335,7 @@ impl SharedGcState {
 
     /// Return whether the active shared mark phase is fully drained.
     pub(crate) fn mark_drained(&self) -> bool {
+        // read all termination counters
         let is_queue_empty = self.trace_queue.is_empty();
         let inflight = self.mark_inflight.load(Ordering::Acquire);
         let publishers = self.mark_publishers.load(Ordering::Acquire);
@@ -322,12 +345,14 @@ impl SharedGcState {
 
     /// Begin one shared mark publication and return its lifetime guard.
     pub(crate) fn begin_mark_publication(&self) -> Option<SharedMarkPublication<'_>> {
+        // reject inactive or terminating mark cycles
         if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
             return None;
         }
 
         self.mark_publishers.fetch_add(1, Ordering::AcqRel);
 
+        // close the race with mark termination
         if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
             self.mark_publishers.fetch_sub(1, Ordering::AcqRel);
 

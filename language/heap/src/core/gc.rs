@@ -103,7 +103,10 @@ impl GcPacer {
     /// Derive pacing targets from the last completed live heap size.
     pub fn set_live_bytes(&mut self, options: GcOptions, live_bytes: u64) {
         // heap goal
-        let min_bytes = options.minimum_heap_bytes.unwrap_or(0);
+        let mut min_bytes = 0;
+        if let Some(bytes) = options.minimum_heap_bytes {
+            min_bytes = bytes;
+        }
         let growth = live_bytes * u64::from(options.growth_percent) / 100;
         let mut goal_bytes = (live_bytes + growth).max(min_bytes);
 

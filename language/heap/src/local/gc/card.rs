@@ -44,14 +44,13 @@ impl CardSet {
         self.dirty.clear_all();
     }
 
-    /// Visit each dirty card range.
-    pub(crate) fn visit_dirty_ranges(&self, mut callback: impl FnMut(usize, usize)) {
-        // walk each contiguous dirty card run in order
-        self.dirty.visit_set_ranges(|start_card, card_count| {
+    /// Return each dirty byte range.
+    pub(crate) fn dirty_ranges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
+        self.dirty.set_ranges().map(|(start_card, card_count)| {
             let start = start_card * self.card_bytes;
             let end = ((start_card + card_count) * self.card_bytes).min(self.byte_len);
 
-            callback(start, end - start);
-        });
+            (start, end - start)
+        })
     }
 }

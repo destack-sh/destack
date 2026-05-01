@@ -17,7 +17,7 @@ fn test_shared_heap(
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(0),
-            minimum_budget_bytes: crate::DEFAULT_GC_MINIMUM_BUDGET_BYTES,
+            minimum_work_bytes: crate::DEFAULT_GC_MINIMUM_WORK_BYTES,
         },
         ..HeapOptions::shared()
     };
@@ -39,19 +39,9 @@ fn test_shared_heap(
     (heap, allocator, layouts)
 }
 
-/// Return the full bytes expected from one shared managed allocation slot.
-fn expected_heap_bytes(
-    shared: &SharedHeap,
-    reference: SharedHeapReference,
-    payload: &[u8],
-) -> Vec<u8> {
-    let byte_len = shared
-        .heap_byte_len(reference)
-        .expect("shared heap byte length should exist");
-    let mut expected = vec![0; byte_len];
-    expected[..payload.len()].copy_from_slice(payload);
-
-    expected
+/// Publish worker-local shared allocations before a direct heap collection.
+fn flush_shared_allocator(shared: &SharedHeap, allocator: &mut SharedAllocator) {
+    shared.flush_allocator(allocator);
 }
 
 /// Reject one zero-size shared managed heap allocation.
@@ -61,10 +51,50 @@ fn test_allocate_shared_rejects_zero_size_layout() {
     let layout = &layout_ids[0];
 
     let error = shared
-        .allocate(&mut allocator, layout.allocation(), Payload::Bytes(&[]))
+        .allocate(
+            &mut allocator,
+            &shared.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[]),
+        )
         .expect_err("shared heap allocation should reject zero-size layouts");
 
     assert_eq!(error, HeapError::ZeroSizeAllocation);
+}
+
+/// Publish shared worker-run allocations before flushing the allocator.
+#[test]
+fn test_allocate_shared_zeroed_worker_run_is_live_before_flush() {
+    let (shared, mut allocator, layout_ids) = test_shared_heap(&[(8, ReferenceMap::empty())]);
+    let layout = shared.allocation_layout(layout_ids[0].allocation());
+
+    let first = shared
+        .allocate_zeroed(&mut allocator, &layout)
+        .expect("first shared allocation should succeed");
+    let second = shared
+        .allocate_zeroed(&mut allocator, &layout)
+        .expect("second shared allocation should succeed");
+
+    assert!(shared.is_heap_live(first));
+    assert!(shared.is_heap_live(second));
+    assert_eq!(shared.heap_allocation_count(), 2);
+}
+
+/// Publish byte-initialized shared worker-run allocations before flushing the allocator.
+#[test]
+fn test_allocate_shared_bytes_worker_run_is_live_before_flush() {
+    let (shared, mut allocator, layout_ids) = test_shared_heap(&[(8, ReferenceMap::empty())]);
+    let layout = shared.allocation_layout(layout_ids[0].allocation());
+
+    let first = shared
+        .allocate_bytes(&mut allocator, &layout, &[1, 2, 3, 4, 5, 6, 7, 8])
+        .expect("first shared allocation should succeed");
+    let second = shared
+        .allocate_bytes(&mut allocator, &layout, &[8, 7, 6, 5, 4, 3, 2, 1])
+        .expect("second shared allocation should succeed");
+
+    assert!(shared.is_heap_live(first));
+    assert!(shared.is_heap_live(second));
+    assert_eq!(shared.heap_allocation_count(), 2);
 }
 
 /// Free unreachable shared heap allocations and record the completed shared GC cycle.
@@ -75,28 +105,32 @@ fn test_collect_shared_frees_unreachable_entries() {
     let reachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
     let unreachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[4, 5, 6]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[reachable])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 1);
-    assert_eq!(
-        shared.read_heap_bytes(reachable),
-        Ok(expected_heap_bytes(&shared, reachable, &[1, 2, 3]))
-    );
     assert!(!shared.is_heap_live(unreachable));
+    let address = shared.heap_base_address() + reachable.offset();
+
+    // inspect the reachable payload directly
+    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+
+    assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0]);
     assert_eq!(shared.gc_state().completed_cycles, 1);
     assert_eq!(shared.gc_state().last_kind, Some(GcKind::Full));
     assert_eq!(shared.gc_state().last_stats, Some(stats));
@@ -127,17 +161,19 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
     let first = shared
         .allocate(
             &mut allocator,
-            full_layout.allocation(),
+            &shared.allocation_layout(full_layout.allocation()),
             Payload::Bytes(&[0xAA; 8]),
         )
         .expect("shared heap allocation should succeed");
     let second = shared
         .allocate(
             &mut allocator,
-            short_layout.allocation(),
+            &shared.allocation_layout(short_layout.allocation()),
             Payload::Bytes(&[0xBB]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     shared
         .collect_full(&[second])
@@ -147,22 +183,25 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
     let reused = shared
         .allocate(
             &mut allocator,
-            short_layout.allocation(),
+            &shared.allocation_layout(short_layout.allocation()),
             Payload::Bytes(&[0xCC]),
         )
         .expect("shared heap allocation should succeed");
 
     assert!(shared.is_heap_live(second));
-    assert_eq!(
-        shared.read_heap_bytes(reused),
-        Ok(vec![0xCC, 0, 0, 0, 0, 0, 0, 0])
-    );
+    assert!(shared.is_heap_live(reused));
+    let address = shared.heap_base_address() + reused.offset();
+
+    // inspect the reused slot payload
+    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+
+    assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
 }
 
 /// Trace shared child references through one shared heap payload.
 #[test]
 fn test_collect_shared_keeps_reachable_children() {
-    let reference_map = ReferenceMap::Reference {
+    let reference_map = ReferenceMap::Direct {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![0].into_boxed_slice(),
     };
@@ -173,33 +212,38 @@ fn test_collect_shared_keeps_reachable_children() {
     let child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC1, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
     let parent = shared
         .allocate(
             &mut allocator,
-            parent_layout.allocation(),
+            &shared.allocation_layout(parent_layout.allocation()),
             Payload::Bytes(&child.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[parent])
         .expect("shared collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
-    assert_eq!(
-        shared.read_heap_bytes(child),
-        Ok(expected_heap_bytes(&shared, child, &[0xC1, 0x1D]))
-    );
+    assert!(shared.is_heap_live(child));
+    let address = shared.heap_base_address() + child.offset();
+
+    // inspect the reached child payload
+    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+
+    assert_eq!(bytes, &[0xC1, 0x1D, 0, 0, 0, 0, 0, 0]);
 }
 
 /// Bound shared small-span mark work by marked slots.
 #[test]
 fn test_collect_shared_scans_small_spans_incrementally() {
-    let reference_map = ReferenceMap::Reference {
+    let reference_map = ReferenceMap::Direct {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![0].into_boxed_slice(),
     };
@@ -210,31 +254,33 @@ fn test_collect_shared_scans_small_spans_incrementally() {
     let first_child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC1, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
     let second_child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC2, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
     let first_parent = shared
         .allocate(
             &mut allocator,
-            parent_layout.allocation(),
+            &shared.allocation_layout(parent_layout.allocation()),
             Payload::Bytes(&first_child.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
     let second_parent = shared
         .allocate(
             &mut allocator,
-            parent_layout.allocation(),
+            &shared.allocation_layout(parent_layout.allocation()),
             Payload::Bytes(&second_child.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -267,7 +313,7 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
     let second_offset = options.page_bytes;
     let parent_byte_len = second_offset + SharedHeapReference::BYTE_LEN;
     let second_offset = u32::try_from(second_offset).expect("page offset should fit uint32");
-    let reference_map = ReferenceMap::Reference {
+    let reference_map = ReferenceMap::Direct {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![first_offset as u32, second_offset].into_boxed_slice(),
     };
@@ -278,14 +324,14 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
     let first_child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC1, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
     let second_child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC2, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
@@ -297,10 +343,12 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
     let parent = shared
         .allocate(
             &mut allocator,
-            parent_layout.allocation(),
+            &shared.allocation_layout(parent_layout.allocation()),
             Payload::Bytes(&parent_bytes),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -368,10 +416,12 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
     let reference = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
+    flush_shared_allocator(&shared, &mut allocator);
+
     let stats = shared
         .collect_full(&[reference])
         .expect("shared collection should succeed");
@@ -402,10 +452,12 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
     let reference = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
+    flush_shared_allocator(&shared, &mut allocator);
+
     let stats = shared
         .collect_full(&[reference])
         .expect("shared collection should succeed");
@@ -421,7 +473,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
 /// Keep a child written during mark through the shared write barrier.
 #[test]
 fn test_collect_shared_barrier_keeps_written_child() {
-    let reference_map = ReferenceMap::Reference {
+    let reference_map = ReferenceMap::Direct {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: vec![0].into_boxed_slice(),
     };
@@ -432,13 +484,19 @@ fn test_collect_shared_barrier_keeps_written_child() {
     let child = shared
         .allocate(
             &mut allocator,
-            child_layout.allocation(),
+            &shared.allocation_layout(child_layout.allocation()),
             Payload::Bytes(&[0xC1, 0x1D]),
         )
         .expect("shared heap allocation should succeed");
     let parent = shared
-        .allocate(&mut allocator, parent_layout.allocation(), Payload::Zeroed)
+        .allocate(
+            &mut allocator,
+            &shared.allocation_layout(parent_layout.allocation()),
+            Payload::Zeroed,
+        )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -451,57 +509,18 @@ fn test_collect_shared_barrier_keeps_written_child() {
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
 
     shared
-        .write_heap_bytes(parent, 0, &child.bits().to_le_bytes())
-        .expect("shared heap write should succeed");
+        .write_barrier_bytes(parent, 0, &child.bits().to_le_bytes())
+        .expect("shared heap write barrier should record");
+    let address = shared.heap_base_address() + parent.offset();
 
-    while shared
-        .collect_step(&[parent], true, 1)
-        .expect("shared collection step should succeed")
-        .completed_stats()
-        .is_none()
-    {}
-
-    assert!(shared.is_heap_live(child));
-}
-
-/// Keep a child published through one exact shared-reference barrier path.
-#[test]
-fn test_collect_shared_publish_edge_keeps_written_child() {
-    let reference_map = ReferenceMap::Reference {
-        local_offsets: Vec::new().into_boxed_slice(),
-        shared_offsets: vec![0].into_boxed_slice(),
-    };
-    let (shared, mut allocator, layout_ids) =
-        test_shared_heap(&[(2, ReferenceMap::empty()), (8, reference_map.clone())]);
-    let child_layout = &layout_ids[0];
-    let parent_layout = &layout_ids[1];
-    let child = shared
-        .allocate(
-            &mut allocator,
-            child_layout.allocation(),
-            Payload::Bytes(&[0xC1, 0x1D]),
-        )
-        .expect("shared heap allocation should succeed");
-    let parent = shared
-        .allocate(&mut allocator, parent_layout.allocation(), Payload::Zeroed)
-        .expect("shared heap allocation should succeed");
-
-    assert!(
-        shared.start_gc().expect("shared collection should start"),
-        "shared collection should become active"
-    );
-
-    shared
-        .collect_step(&[parent], false, 1)
-        .expect("shared collection step should succeed");
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
-
-    shared
-        .write_heap_bytes(parent, 0, &child.bits().to_le_bytes())
-        .expect("shared heap write should succeed");
-    shared
-        .publish_edge(child)
-        .expect("shared exact publish should succeed");
+    // write the new edge through the live mapping
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            child.bits().to_le_bytes().as_ptr(),
+            address as *mut u8,
+            SharedHeapReference::BYTE_LEN,
+        );
+    }
 
     while shared
         .collect_step(&[parent], true, 1)
@@ -521,10 +540,12 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     let root = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -540,7 +561,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     let late = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[7, 8, 9]),
         )
         .expect("shared heap allocation should succeed");
@@ -556,6 +577,50 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     assert!(shared.is_heap_live(late));
 }
 
+/// Keep a shared allocation created during mark after publishing one worker-local run.
+#[test]
+fn test_collect_shared_keeps_run_allocation_created_during_mark() {
+    let (shared, mut allocator, layout_ids) = test_shared_heap(&[(3, ReferenceMap::empty())]);
+    let layout = &layout_ids[0];
+    let seed = shared
+        .allocate(
+            &mut allocator,
+            &shared.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[1, 2, 3]),
+        )
+        .expect("shared heap allocation should succeed");
+
+    shared.request_gc();
+    assert!(
+        shared.start_gc().expect("shared collection should start"),
+        "shared collection should become active"
+    );
+
+    let late = shared
+        .allocate(
+            &mut allocator,
+            &shared.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[7, 8, 9]),
+        )
+        .expect("shared heap allocation should succeed");
+
+    while shared
+        .collect_step(&[], true, 1)
+        .expect("shared collection step should succeed")
+        .completed_stats()
+        .is_none()
+    {}
+
+    assert!(!shared.is_heap_live(seed));
+    assert!(shared.is_heap_live(late));
+    let address = shared.heap_base_address() + late.offset();
+
+    // inspect the late allocation payload
+    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+
+    assert_eq!(bytes, &[7, 8, 9, 0, 0, 0, 0, 0]);
+}
+
 /// Keep one allocation created while allocation assists sweep.
 #[test]
 fn test_allocate_shared_assists_sweep_before_returning() {
@@ -564,17 +629,19 @@ fn test_allocate_shared_assists_sweep_before_returning() {
     let root = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
     let unreachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[4, 5, 6]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -594,7 +661,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
     let late = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[7, 8, 9]),
         )
         .expect("shared heap allocation should succeed");
@@ -623,17 +690,19 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     let reachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
     let unreachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[4, 5, 6]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -689,10 +758,12 @@ fn test_collect_step_honors_manual_request() {
     let reachable = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -715,10 +786,12 @@ fn test_shared_gc_budget_consumes_cycle_work() {
     let _reference = shared
         .allocate(
             &mut allocator,
-            layout.allocation(),
+            &shared.allocation_layout(layout.allocation()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("shared heap allocation should succeed");
+
+    flush_shared_allocator(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
