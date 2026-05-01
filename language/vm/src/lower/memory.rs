@@ -1,8 +1,10 @@
+use destack_heap::HeapOptions;
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationLayout, Instruction, Layout, Opcode, Operands, PointeeAccess, PointerClass,
-    ValueRepr, pack_optional_value, pointer_class_from_reference, value_repr_from_type,
+    AllocationLayout, FrameAccess, INVALID_VALUE_ID, Instruction, Layout, Opcode, Operands,
+    PointeeAccess, PointerClass, ValueLayout, pack_optional_value, pointer_class_from_reference,
+    value_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -12,9 +14,9 @@ use super::opcode::{
     select_element_addr_opcode, select_field_addr_opcode, select_load_opcode, select_store_opcode,
 };
 use super::pool::Pool;
-use super::repr::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_repr, pointer_class_for_value,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_repr, reference_meta_for_value,
+use super::value::{
+    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
+    raw_pointee_type_for_value, raw_pointee_type_for_value_layout, reference_meta_for_value,
 };
 
 /// Return the heap class for one slice backing allocation.
@@ -45,10 +47,11 @@ fn slice_backing_pointer_class(
 
 /// Build one allocation layout for a concrete MIR type.
 fn allocation_layout(
+    pool: &mut Pool<'_>,
     pointer_class: PointerClass,
     layout: &Layout,
-    heap_options: &destack_heap::HeapOptions,
-    shared_heap_options: &destack_heap::HeapOptions,
+    heap_options: &HeapOptions,
+    shared_heap_options: &HeapOptions,
 ) -> Result<AllocationLayout> {
     let is_noscan = !layout.reference_map.has_reference();
     let has_shared_reference = layout.reference_map.has_shared_reference();
@@ -65,15 +68,29 @@ fn allocation_layout(
             });
         }
     };
+    let reference_map = pool.reference_map(layout.reference_map.clone());
+    let class = pool.allocation_class(class);
 
     Ok(AllocationLayout {
         byte_len: layout.byte_len,
         alignment: layout.alignment(),
-        reference_map: layout.reference_map.clone(),
+        reference_map,
         is_noscan,
         has_shared_reference,
         class,
     })
+}
+
+/// Return one frame access from a pointer access.
+fn frame_access(access: PointeeAccess) -> FrameAccess {
+    FrameAccess {
+        value_type: access.value_type,
+        byte_offset: access.byte_offset,
+        byte_stride: 0,
+        length: 0,
+        byte_len: access.byte_len,
+        word_layout: access.word_layout,
+    }
 }
 
 impl<'a> BlockLowerer<'a> {
@@ -94,7 +111,7 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         Ok(Instruction {
-            opcode: Opcode::LocalGet,
+            opcode: Opcode::LoadLocal,
             operands: Operands::LocalGet {
                 dest: destination,
                 local,
@@ -119,11 +136,11 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         Ok(Instruction {
-            opcode: Opcode::LocalAddr,
+            opcode: Opcode::AddressLocal,
             operands: Operands::LocalAddr {
                 dest: destination,
                 local,
-                reference: reference_meta_for_value(self.value_repr_map(), destination),
+                reference: reference_meta_for_value(self.value_layout_map(), destination),
             },
         })
     }
@@ -143,7 +160,7 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         Ok(Instruction {
-            opcode: Opcode::LocalSet,
+            opcode: Opcode::StoreLocal,
             operands: Operands::LocalSet { local, value },
         })
     }
@@ -157,20 +174,20 @@ impl<'a> BlockLowerer<'a> {
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "global address destination".to_string(),
+                context: "static address destination".to_string(),
             })?;
         let global = global
             .global()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "global address global".to_string(),
+                context: "static address global".to_string(),
             })?;
 
         Ok(Instruction {
-            opcode: Opcode::StaticAddr,
+            opcode: Opcode::AddressStatic,
             operands: Operands::StaticAddr {
                 dest: destination,
                 global: global.id,
-                reference: reference_meta_for_value(self.value_repr_map(), destination),
+                reference: reference_meta_for_value(self.value_layout_map(), destination),
             },
         })
     }
@@ -193,7 +210,7 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction {
-            opcode: Opcode::FunctionAddr,
+            opcode: Opcode::AddressFunction,
             operands: Operands::FunctionAddr {
                 dest: destination,
                 function: function.id,
@@ -204,6 +221,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one load.
     pub(super) fn lower_load(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         pointer: mir::ValueReference,
     ) -> Result<Instruction> {
@@ -220,15 +238,21 @@ impl<'a> BlockLowerer<'a> {
         let access = self.pointee_access_for_value(pointer)?;
         let opcode = select_load_opcode(access)?;
         let operands = match opcode {
-            Opcode::CopyFromAddress => Operands::CopyFromAddress {
+            Opcode::LoadFrame => Operands::LoadFrame {
+                dest: destination,
+                base: pointer,
+                index: mir::Value(INVALID_VALUE_ID),
+                access: pool.frame_access(frame_access(access)),
+            },
+            Opcode::LoadFrameBytes => Operands::LoadFrameBytes {
                 destination,
                 address: pointer,
-                access,
+                access: pool.pointee_access(access),
             },
             _ => Operands::Load {
                 dest: destination,
                 pointer,
-                access,
+                access: pool.pointee_access(access),
             },
         };
 
@@ -238,6 +262,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one store.
     pub(super) fn lower_store(
         &self,
+        pool: &mut Pool<'_>,
         pointer: mir::ValueReference,
         value: mir::ValueReference,
     ) -> Result<Instruction> {
@@ -252,15 +277,22 @@ impl<'a> BlockLowerer<'a> {
         let access = self.pointee_access_for_value(pointer)?;
         let opcode = select_store_opcode(access)?;
         let operands = match opcode {
-            Opcode::CopyToAddress => Operands::CopyToAddress {
+            Opcode::StoreFrame => Operands::StoreFrame {
+                base: pointer,
+                index: mir::Value(INVALID_VALUE_ID),
+                value,
+                reference: reference_meta_for_value(self.value_layout_map(), pointer),
+                access: pool.frame_access(frame_access(access)),
+            },
+            Opcode::StoreFrameBytes => Operands::StoreFrameBytes {
                 address: pointer,
                 source: value,
-                access,
+                access: pool.pointee_access(access),
             },
             _ => Operands::Store {
                 pointer,
                 value,
-                access,
+                access: pool.pointee_access(access),
             },
         };
 
@@ -270,6 +302,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one field address.
     pub(super) fn lower_field_addr(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         base: mir::ValueReference,
         index: u32,
@@ -282,16 +315,31 @@ impl<'a> BlockLowerer<'a> {
         let base = base.value().ok_or_else(|| Error::MissingRepresentation {
             context: "field address base".to_string(),
         })?;
+        let opcode = select_field_addr_opcode(self.value_layout_map(), base)?;
+        let field = self.field_access_for_value(base, index)?;
+
+        if opcode == Opcode::AddressFrame {
+            return Ok(Instruction {
+                opcode,
+                operands: Operands::AddressFrame {
+                    dest: destination,
+                    base,
+                    index: mir::Value(INVALID_VALUE_ID),
+                    reference: reference_meta_for_value(self.value_layout_map(), destination),
+                    access: pool.frame_access(field.into()),
+                },
+            });
+        }
 
         Ok(Instruction {
-            opcode: select_field_addr_opcode(self.value_repr_map(), base)?,
+            opcode,
             operands: Operands::FieldAddr {
                 dest: destination,
                 base,
                 index,
-                reference: reference_meta_for_value(self.value_repr_map(), destination),
+                reference: reference_meta_for_value(self.value_layout_map(), destination),
                 field_count: self.field_count_for_value(base)?,
-                field: self.field_access_for_value(base, index)?,
+                field: pool.field_access(field),
             },
         })
     }
@@ -299,6 +347,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one element address.
     pub(super) fn lower_element_addr(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         array: mir::ValueReference,
         index: mir::ValueReference,
@@ -314,33 +363,49 @@ impl<'a> BlockLowerer<'a> {
         let index = index.value().ok_or_else(|| Error::MissingRepresentation {
             context: "element address index".to_string(),
         })?;
-        let pointer_class = pointer_class_for_value(self.value_repr_map(), array);
-        let pointee_type = self.indexed_type_for_value(array)?;
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), array);
+        let pointee_type = self.aggregate_type_for_value(array)?;
 
         if let Some(access) = pointee_type.and_then(|pointee_type| {
             slice_element_access(self.tree, self.layouts(), pointee_type, pointer_class)
         }) {
             return Ok(Instruction {
-                opcode: Opcode::SliceElementAddr,
+                opcode: Opcode::AddressSliceElement,
                 operands: Operands::SliceElementAddr {
                     dest: destination,
                     slice: array,
                     index,
-                    reference: reference_meta_for_value(self.value_repr_map(), destination),
-                    access,
+                    reference: reference_meta_for_value(self.value_layout_map(), destination),
+                    access: pool.slice_element_access(access),
+                },
+            });
+        }
+        let opcode = select_element_addr_opcode(self.value_layout_map(), array)?;
+        let element = self.element_access_for_value(array)?;
+        let array_length = self.array_length_for_value(array)?;
+
+        if opcode == Opcode::AddressFrame {
+            return Ok(Instruction {
+                opcode,
+                operands: Operands::AddressFrame {
+                    dest: destination,
+                    base: array,
+                    index,
+                    reference: reference_meta_for_value(self.value_layout_map(), destination),
+                    access: pool.frame_access(element.into_frame_access(0, array_length)),
                 },
             });
         }
 
         Ok(Instruction {
-            opcode: select_element_addr_opcode(self.value_repr_map(), array)?,
+            opcode,
             operands: Operands::ElementAddr {
                 dest: destination,
                 array,
                 index,
-                reference: reference_meta_for_value(self.value_repr_map(), destination),
-                array_length: self.array_length_for_value(array)?,
-                element: self.element_access_for_value(array)?,
+                reference: reference_meta_for_value(self.value_layout_map(), destination),
+                array_length,
+                element: pool.element_access(element),
             },
         })
     }
@@ -348,6 +413,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one managed allocation.
     pub(super) fn lower_new(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
     ) -> Result<Instruction> {
@@ -360,10 +426,10 @@ impl<'a> BlockLowerer<'a> {
             context: "new layout".to_string(),
         })?;
         let layout = self.layout_for_type(allocation_type)?;
-        let pointer_class = pointer_class_for_value(self.value_repr_map(), destination);
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
         let opcode = match pointer_class {
-            PointerClass::Heap => Opcode::NewHeap,
-            PointerClass::SharedHeap => Opcode::NewSharedHeap,
+            PointerClass::Heap => Opcode::AllocateHeap,
+            PointerClass::SharedHeap => Opcode::AllocateSharedHeap,
             _ => {
                 return Err(Error::InvalidPointerType {
                     actual: format!("{pointer_class:?}"),
@@ -371,6 +437,7 @@ impl<'a> BlockLowerer<'a> {
             }
         };
         let allocation = allocation_layout(
+            pool,
             pointer_class,
             layout,
             self.heap_options,
@@ -381,7 +448,7 @@ impl<'a> BlockLowerer<'a> {
             opcode,
             operands: Operands::New {
                 dest: destination,
-                allocation,
+                allocation: pool.allocation_layout(allocation),
             },
         })
     }
@@ -389,6 +456,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one slice allocation.
     pub(super) fn lower_new_slice(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         element: mir::TypeReference,
         length: mir::ValueReference,
@@ -414,6 +482,7 @@ impl<'a> BlockLowerer<'a> {
         let element_alignment = element_layout.alignment();
         let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
         let element = allocation_layout(
+            pool,
             pointer_class,
             element_layout,
             self.heap_options,
@@ -421,12 +490,12 @@ impl<'a> BlockLowerer<'a> {
         )?;
 
         Ok(Instruction {
-            opcode: Opcode::NewSlice,
+            opcode: Opcode::AllocateSlice,
             operands: Operands::NewSlice {
                 dest: destination,
                 length,
                 pointer_class,
-                element,
+                element: pool.allocation_layout(element),
                 element_alignment,
             },
         })
@@ -448,10 +517,10 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction {
-            opcode: Opcode::RawAlloc,
+            opcode: Opcode::AllocateRaw,
             operands: Operands::RawAlloc {
                 dest: destination,
-                byte_len: self.layout_byte_len(layout)?,
+                byte_len: self.byte_len_for_type(layout)?,
             },
         })
     }
@@ -465,7 +534,7 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction {
-            opcode: Opcode::RawFree,
+            opcode: Opcode::FreeRaw,
             operands: Operands::RawFree { pointer },
         })
     }
@@ -486,10 +555,10 @@ impl<'a> BlockLowerer<'a> {
         })?;
 
         Ok(Instruction {
-            opcode: Opcode::StackAlloc,
+            opcode: Opcode::AllocateStack,
             operands: Operands::StackAlloc {
                 dest: destination,
-                reference: reference_meta_for_value(self.value_repr_map(), destination),
+                reference: reference_meta_for_value(self.value_layout_map(), destination),
                 allocation_type,
             },
         })
@@ -501,7 +570,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         intrinsic: mir::Intrinsic,
         arguments: mir::ArgumentSlice,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         let arguments = pool
             .argument_reference_range(self.tree.get_arguments(arguments), "intrinsic argument")?;
@@ -671,11 +740,11 @@ impl<'a> BlockLowerer<'a> {
                 context: "barrier.write byte length".to_string(),
             })?;
         let object_type = self.value_type_for_value(object)?;
-        let object_repr = value_repr_from_type(self.tree, object_type);
-        let ValueRepr::Pointer { pointer_class, .. } = object_repr else {
+        let object_layout = value_layout_from_type(self.tree, object_type);
+        let ValueLayout::Pointer { pointer_class, .. } = object_layout else {
             return Err(Error::TypeMismatch {
                 expected: "managed barrier reference".to_string(),
-                actual: format!("{object_repr:?}"),
+                actual: format!("{object_layout:?}"),
             });
         };
 
@@ -692,11 +761,11 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return the lowered access for a pointer value.
     fn pointee_access_for_value(&self, pointer: mir::Value) -> Result<PointeeAccess> {
-        let pointee_type = heap_pointee_type_for_value_repr(self.value_repr_map(), pointer)
-            .or_else(|| raw_pointee_type_for_value_repr(self.value_repr_map(), pointer))
+        let pointee_type = heap_pointee_type_for_value_layout(self.value_layout_map(), pointer)
+            .or_else(|| raw_pointee_type_for_value_layout(self.value_layout_map(), pointer))
             .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), pointer))
             .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), pointer));
-        let pointer_class = pointer_class_for_value(self.value_repr_map(), pointer);
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), pointer);
 
         pointee_type
             .and_then(|pointee_type| {

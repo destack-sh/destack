@@ -1,13 +1,17 @@
 use destack_mir as mir;
 
-use crate::program::{ConstValue, Instruction, Opcode, Operands, ValueRepr, value_repr_from_type};
+use crate::program::{
+    ConstValue, Instruction, Opcode, Operands, ValueLayout, value_layout_from_type,
+};
 use crate::{Error, ReferenceAddressSpace, Result, Word};
 
 use super::lower::BlockLowerer;
-use super::opcode::{select_binary_opcode, select_specialized_int_opcode, select_unary_opcode};
-use super::repr::reference_meta_for_type;
+use super::opcode::{
+    select_binary_opcode, select_integer_opcode, select_integer_unary_opcode, select_unary_opcode,
+};
+use super::value::reference_meta_for_type;
 
-/// Encode a constant into its frame byte representation.
+/// Encode a constant into its frame bytes.
 fn constant_bytes(value: &mir::Constant, byte_len: usize) -> Result<Box<[u8]>> {
     let mut bytes = vec![0; byte_len];
 
@@ -75,8 +79,8 @@ impl<'a> BlockLowerer<'a> {
         };
 
         Ok(Instruction {
-            opcode: Opcode::Const,
-            operands: Operands::Const {
+            opcode: Opcode::LoadConst,
+            operands: Operands::LoadConst {
                 dest: destination,
                 value,
             },
@@ -121,25 +125,25 @@ impl<'a> BlockLowerer<'a> {
             });
         }
 
-        let repr = self.value_repr_map().get(left);
-        if let Some(ValueRepr::Int { width, signed }) = repr
-            && width <= Word::BIT_LEN as u16
-            && let Some(opcode) = select_specialized_int_opcode(operator, signed)
+        let layout = self.value_layout_map().get(left);
+        if let Some(ValueLayout::Int { width, signed }) = layout
+            && let Some(opcode) = select_integer_opcode(operator, signed, width)
         {
             return Ok(Instruction {
                 opcode,
-                operands: Operands::BinarySpecialized {
+                operands: Operands::BinaryInteger {
                     dest: destination,
                     left,
                     right,
                     width: width as u8,
+                    is_signed: signed,
                 },
             });
         }
 
-        let repr = repr.or_else(|| Some(value_repr_from_type(self.tree, left_type)));
+        let layout = layout.or_else(|| Some(value_layout_from_type(self.tree, left_type)));
         Ok(Instruction {
-            opcode: select_binary_opcode(repr, operator),
+            opcode: select_binary_opcode(layout, operator),
             operands: Operands::Binary {
                 dest: destination,
                 op: operator,
@@ -184,8 +188,23 @@ impl<'a> BlockLowerer<'a> {
             });
         }
 
+        let layout = self.value_layout_map().get(argument);
+        if let Some(ValueLayout::Int { width, signed }) = layout
+            && let Some(opcode) = select_integer_unary_opcode(operator, signed, width)
+        {
+            return Ok(Instruction {
+                opcode,
+                operands: Operands::UnaryInteger {
+                    dest: destination,
+                    arg: argument,
+                    width: width as u8,
+                    is_signed: signed,
+                },
+            });
+        }
+
         Ok(Instruction {
-            opcode: select_unary_opcode(self.value_repr_map(), argument, operator),
+            opcode: select_unary_opcode(self.value_layout_map(), argument, operator),
             operands: Operands::Unary {
                 dest: destination,
                 op: operator,

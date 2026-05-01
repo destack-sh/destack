@@ -7,8 +7,8 @@ use super::access::{interface_table_field, virtual_table_field};
 use super::lower::BlockLowerer;
 use super::opcode::{select_branch_opcode, select_switch_opcode, select_switch_table_opcode};
 use super::pool::Pool;
-use super::repr::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_repr, pointer_class_for_value,
+use super::value::{
+    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -16,7 +16,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_terminator(
         &self,
         term: &mir::Terminator,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         Ok(match term {
             mir::Terminator::Error => {
@@ -63,7 +63,7 @@ impl<'a> BlockLowerer<'a> {
                     .get(target_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let moves = pool.edge_move_plan(target_parameters, &arguments);
+                let moves = pool.edge_move_plan(target_parameters, &arguments)?;
 
                 Instruction {
                     opcode: Opcode::Jump,
@@ -131,11 +131,11 @@ impl<'a> BlockLowerer<'a> {
                     .get(else_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let then_moves = pool.edge_move_plan(then_parameters, &then_arguments);
-                let else_moves = pool.edge_move_plan(else_parameters, &else_arguments);
+                let then_moves = pool.edge_move_plan(then_parameters, &then_arguments)?;
+                let else_moves = pool.edge_move_plan(else_parameters, &else_arguments)?;
 
                 Instruction {
-                    opcode: select_branch_opcode(self.value_repr_map(), condition),
+                    opcode: select_branch_opcode(self.value_layout_map(), condition),
                     operands: Operands::Branch {
                         condition,
                         then_target: then_index as u32,
@@ -197,13 +197,13 @@ impl<'a> BlockLowerer<'a> {
                     .get(failure_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let success_moves = pool.edge_move_plan(success_parameters, &success_arguments);
-                let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments);
+                let success_moves = pool.edge_move_plan(success_parameters, &success_arguments)?;
+                let failure_moves = pool.edge_move_plan(failure_parameters, &failure_arguments)?;
 
                 Instruction {
                     opcode: Opcode::Check,
                     operands: Operands::Check {
-                        constraint: constraint.clone(),
+                        constraint: pool.check(constraint.clone()),
                         then_target: success_index as u32,
                         then_moves: success_moves,
                         else_target: failure_index as u32,
@@ -245,7 +245,7 @@ impl<'a> BlockLowerer<'a> {
                     .get(default_index)
                     .map(|params| params.as_slice())
                     .unwrap_or_default();
-                let default_moves = pool.edge_move_plan(default_parameters, &default_arguments);
+                let default_moves = pool.edge_move_plan(default_parameters, &default_arguments)?;
 
                 let is_word = self
                     .value_type_for_value(value)
@@ -253,7 +253,7 @@ impl<'a> BlockLowerer<'a> {
                     .and_then(|ty| self.layout_for_type(ty).ok())
                     .is_some_and(|layout| layout.is_word());
                 if is_word
-                    && let Some((min_value, table_range)) = pool.switch_table_range(
+                    && let Some(table) = pool.switch_table_range(
                         &self.block_index_by_id,
                         &self.block_parameter,
                         cases,
@@ -262,11 +262,10 @@ impl<'a> BlockLowerer<'a> {
                     )?
                 {
                     Instruction {
-                        opcode: select_switch_table_opcode(self.value_repr_map(), value),
+                        opcode: select_switch_table_opcode(self.value_layout_map(), value),
                         operands: Operands::SwitchTable {
                             value,
-                            min: min_value,
-                            table: table_range,
+                            table,
                             default_target: default_index as u32,
                             default_moves,
                         },
@@ -278,7 +277,7 @@ impl<'a> BlockLowerer<'a> {
                         cases,
                     )?;
                     Instruction {
-                        opcode: select_switch_opcode(self.value_repr_map(), value),
+                        opcode: select_switch_opcode(self.value_layout_map(), value),
                         operands: Operands::Switch {
                             value,
                             cases,
@@ -367,7 +366,7 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    opcode: Opcode::CallBranch,
+                    opcode: Opcode::Invoke,
                     operands: Operands::CallBranch {
                         function: function.id,
                         target: self.call_target(function)?,
@@ -397,7 +396,7 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    opcode: Opcode::CallIndirectBranch,
+                    opcode: Opcode::InvokeIndirect,
                     operands: Operands::CallIndirectBranch {
                         callee,
                         arguments,
@@ -431,15 +430,16 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    opcode: Opcode::CallVirtualBranch,
+                    opcode: Opcode::InvokeVirtual,
                     operands: Operands::CallVirtualBranch {
                         receiver,
                         table_field: virtual_table_field(
                             self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-                            pointer_class_for_value(self.value_repr_map(), receiver),
-                        ),
+                            pointer_class_for_value(self.value_layout_map(), receiver),
+                        )
+                        .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments,
                         normal_resume_point,
@@ -472,15 +472,16 @@ impl<'a> BlockLowerer<'a> {
                     })?;
 
                 Instruction {
-                    opcode: Opcode::CallInterfaceBranch,
+                    opcode: Opcode::InvokeInterface,
                     operands: Operands::CallInterfaceBranch {
                         receiver,
                         table_field: interface_table_field(
                             self.tree,
                             self.layouts(),
                             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-                            pointer_class_for_value(self.value_repr_map(), receiver),
-                        ),
+                            pointer_class_for_value(self.value_layout_map(), receiver),
+                        )
+                        .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments,
                         normal_resume_point,
@@ -570,9 +571,10 @@ impl<'a> BlockLowerer<'a> {
                         table_field: virtual_table_field(
                             self.tree,
                             self.layouts(),
-                            heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
-                            pointer_class_for_value(self.value_repr_map(), receiver),
-                        ),
+                            heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
+                            pointer_class_for_value(self.value_layout_map(), receiver),
+                        )
+                        .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments: args,
                     },
@@ -599,9 +601,10 @@ impl<'a> BlockLowerer<'a> {
                         table_field: interface_table_field(
                             self.tree,
                             self.layouts(),
-                            heap_pointee_type_for_value_repr(self.value_repr_map(), receiver),
-                            pointer_class_for_value(self.value_repr_map(), receiver),
-                        ),
+                            heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
+                            pointer_class_for_value(self.value_layout_map(), receiver),
+                        )
+                        .map(|field| pool.field_access(field)),
                         method_index: method.0,
                         arguments: args,
                     },

@@ -12,7 +12,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_tensor(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         Ok(match inst {
             mir::Instruction::TensorSplat { destination, value } => {
@@ -41,7 +41,9 @@ impl<'a> BlockLowerer<'a> {
                     self.tree.get_arguments(*indices),
                     "tensor load index",
                 )?;
-                let element = self.tensor_element_access(view_type);
+                let element = self
+                    .tensor_element_access(view_type)
+                    .map(|element| pool.element_access(element));
 
                 Instruction {
                     opcode: Opcode::TensorLoad,
@@ -89,7 +91,9 @@ impl<'a> BlockLowerer<'a> {
                     self.tree.get_arguments(*indices),
                     "tensor store index",
                 )?;
-                let element = self.tensor_element_access(view_type);
+                let element = self
+                    .tensor_element_access(view_type)
+                    .map(|element| pool.element_access(element));
 
                 Instruction {
                     opcode: Opcode::TensorStore,
@@ -106,7 +110,9 @@ impl<'a> BlockLowerer<'a> {
                 let view = tensor_value(*view, "tensor fill view")?;
                 let value = tensor_value(*value, "tensor fill value")?;
                 let view_type = self.value_type_for_value(view)?;
-                let element = self.tensor_element_access(view_type);
+                let element = self
+                    .tensor_element_access(view_type)
+                    .map(|element| pool.element_access(element));
 
                 Instruction {
                     opcode: Opcode::TensorFill,
@@ -123,8 +129,12 @@ impl<'a> BlockLowerer<'a> {
                 let source = tensor_value(*source, "tensor move source")?;
                 let target_type = self.value_type_for_value(target)?;
                 let source_type = self.value_type_for_value(source)?;
-                let target_element = self.tensor_element_access(target_type);
-                let source_element = self.tensor_element_access(source_type);
+                let target_element = self
+                    .tensor_element_access(target_type)
+                    .map(|element| pool.element_access(element));
+                let source_element = self
+                    .tensor_element_access(source_type)
+                    .map(|element| pool.element_access(element));
 
                 Instruction {
                     opcode: Opcode::TensorCopy,
@@ -176,7 +186,7 @@ impl<'a> BlockLowerer<'a> {
                     operands: Operands::TensorBroadcast {
                         dest: destination,
                         tensor,
-                        dimensions: dimensions.clone(),
+                        dimensions: pool.u32_range(dimensions),
                         source_type,
                         dest_type,
                     },
@@ -197,7 +207,7 @@ impl<'a> BlockLowerer<'a> {
                     operands: Operands::TensorTranspose {
                         dest: destination,
                         tensor,
-                        permutation: permutation.clone(),
+                        permutation: pool.u32_range(permutation),
                         source_type,
                         dest_type,
                     },
@@ -289,7 +299,7 @@ impl<'a> BlockLowerer<'a> {
                     operands: Operands::TensorConcat {
                         dest: destination,
                         tensors,
-                        tensor_types,
+                        tensor_types: pool.type_range(&tensor_types),
                         axis: *axis,
                         dest_type,
                     },
@@ -315,7 +325,7 @@ impl<'a> BlockLowerer<'a> {
                         operator: *operator,
                         tensor,
                         initial,
-                        axes: axes.clone(),
+                        axes: pool.u32_range(axes),
                         source_type,
                         dest_type,
                     },
@@ -340,7 +350,7 @@ impl<'a> BlockLowerer<'a> {
                         dest: destination,
                         left,
                         right,
-                        dimensions: dimensions.clone(),
+                        dimensions: pool.tensor_dot(dimensions.clone()),
                         left_type,
                         right_type,
                         dest_type,
@@ -369,8 +379,8 @@ impl<'a> BlockLowerer<'a> {
                         dest: destination,
                         input,
                         kernel,
-                        dimensions: dimensions.clone(),
-                        window: window.clone(),
+                        dimensions: pool.tensor_convolution(dimensions.clone()),
+                        window: pool.tensor_window(window.clone()),
                         feature_group_count: *feature_group_count,
                         batch_group_count: *batch_group_count,
                         input_type,
@@ -399,8 +409,8 @@ impl<'a> BlockLowerer<'a> {
                         dest: destination,
                         operand,
                         indices,
-                        dimensions: dimensions.clone(),
-                        slice_sizes: slice_sizes.clone(),
+                        dimensions: pool.tensor_gather(dimensions.clone()),
+                        slice_sizes: pool.u32_range(slice_sizes),
                         operand_type,
                         indices_type,
                         dest_type,
@@ -431,7 +441,7 @@ impl<'a> BlockLowerer<'a> {
                         operand,
                         indices,
                         updates,
-                        dimensions: dimensions.clone(),
+                        dimensions: pool.tensor_scatter(dimensions.clone()),
                         mode: *mode,
                         operand_type,
                         indices_type,
@@ -536,7 +546,9 @@ impl<'a> BlockLowerer<'a> {
                 )?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(view)?;
-                let element = self.tensor_element_access(source_type);
+                let element = self
+                    .tensor_element_access(source_type)
+                    .map(|element| pool.element_access(element));
 
                 Instruction {
                     opcode: Opcode::TensorView,

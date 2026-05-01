@@ -5,7 +5,7 @@ use {destack_heap as heap, destack_mir as mir};
 use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
 
-use super::repr::ValueReprMap;
+use super::value::ValueLayoutMap;
 
 /// One lowered block traversal order.
 pub(super) struct BlockOrder {
@@ -171,8 +171,8 @@ pub(super) struct FunctionContext<'a> {
     >,
     /// The call target by MIR function id.
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    /// The lowered value representation by SSA value id.
-    pub(super) value_repr_map: ValueReprMap,
+    /// The lowered value layout by SSA value id.
+    pub(super) value_layout_map: ValueLayoutMap,
     /// The lowered value type by SSA value id.
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.

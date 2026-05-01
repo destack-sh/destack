@@ -6,7 +6,7 @@ use crate::{Error, Result};
 use super::access::{interface_table_field, virtual_table_field};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-use super::repr::{heap_pointee_type_for_value, pointer_class_for_value};
+use super::value::{heap_pointee_type_for_value, pointer_class_for_value};
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one direct call.
@@ -15,7 +15,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         function: mir::FunctionReference,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         let function = function
             .function()
@@ -57,7 +57,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::VtableSlotId,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
@@ -72,8 +72,9 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class_for_value(self.value_repr_map(), receiver),
-        );
+            pointer_class_for_value(self.value_layout_map(), receiver),
+        )
+        .map(|field| pool.field_access(field));
 
         Ok(Instruction {
             opcode: Opcode::CallVirtual,
@@ -94,7 +95,7 @@ impl<'a> BlockLowerer<'a> {
         receiver: mir::ValueReference,
         method: mir::InterfaceSlotId,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
@@ -109,8 +110,9 @@ impl<'a> BlockLowerer<'a> {
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
-            pointer_class_for_value(self.value_repr_map(), receiver),
-        );
+            pointer_class_for_value(self.value_layout_map(), receiver),
+        )
+        .map(|field| pool.field_access(field));
 
         Ok(Instruction {
             opcode: Opcode::CallInterface,
@@ -130,7 +132,7 @@ impl<'a> BlockLowerer<'a> {
         destination: Option<mir::ValueReference>,
         callee: mir::ValueReference,
         call: &mir::Call<mir::ArgumentSlice>,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
@@ -174,7 +176,7 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction {
-            opcode: Opcode::CallableBind,
+            opcode: Opcode::BindCallable,
             operands: Operands::CallableBind {
                 dest: destination,
                 function: function.id,
@@ -195,7 +197,7 @@ impl<'a> BlockLowerer<'a> {
             })?;
 
         Ok(Instruction {
-            opcode: Opcode::CallableEnvironment,
+            opcode: Opcode::LoadCallableEnvironment,
             operands: Operands::CallableEnvironment { dest: destination },
         })
     }

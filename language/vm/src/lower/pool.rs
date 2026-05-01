@@ -3,38 +3,94 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::program::{
-    ArgumentRange, CallTarget, INVALID_VALUE_ID, MovePair, MoveRange, SwitchCase,
+    AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, CheckId,
+    ElementAccess, ElementAccessId, FieldAccess, FieldAccessId, FrameAccess, FrameAccessId,
+    MovePair, MoveRange, OperandTableBuilder, PointeeAccess, PointeeAccessId, ReferenceMapId,
+    SliceElementAccess, SliceElementAccessId, SwitchCase, SwitchCasesId, SwitchTable,
+    SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorScatterId,
+    TensorWindowId, TypeRangeId, U32RangeId,
 };
 use crate::{Error, Result};
 
 /// Return the lowered move source for one argument index.
-fn move_source(arguments: &[mir::Value], index: usize) -> u32 {
+fn move_source(arguments: &[mir::Value], index: usize) -> Result<u32> {
     arguments
         .get(index)
         .map(|value| value.0)
-        .unwrap_or(INVALID_VALUE_ID)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing edge argument at index {index}"),
+        })
 }
 
 /// One lowering pool for shared variable-length lowering data.
-pub(super) struct Pool {
+pub(super) struct Pool<'a> {
     /// The pooled argument values.
     argument: Vec<mir::Value>,
     /// The pooled move pairs.
     move_pair: Vec<MovePair>,
+    /// The program operand table.
+    operand_table: &'a mut OperandTableBuilder,
 }
 
-impl Pool {
+impl<'a> Pool<'a> {
     /// Create one empty lowering pool.
-    pub(super) fn new() -> Self {
+    pub(super) fn new(operand_table: &'a mut OperandTableBuilder) -> Self {
         Self {
             argument: Vec::new(),
             move_pair: Vec::new(),
+            operand_table,
         }
     }
 
     /// Finish the pool.
     pub(super) fn finish(self) -> (Vec<mir::Value>, Vec<MovePair>) {
         (self.argument, self.move_pair)
+    }
+
+    /// Return one pooled allocation layout id.
+    pub(super) fn allocation_layout(&mut self, allocation: AllocationLayout) -> AllocationLayoutId {
+        self.operand_table.push_allocation_layout(allocation)
+    }
+
+    /// Return one pooled allocation class id.
+    pub(super) fn allocation_class(
+        &mut self,
+        allocation_class: destack_heap::AllocationClass,
+    ) -> AllocationClassId {
+        self.operand_table.push_allocation_class(allocation_class)
+    }
+
+    /// Return one pooled reference map id.
+    pub(super) fn reference_map(&mut self, reference_map: mir::ReferenceMap) -> ReferenceMapId {
+        self.operand_table.push_reference_map(reference_map)
+    }
+
+    /// Return one pooled field access id.
+    pub(super) fn field_access(&mut self, access: FieldAccess) -> FieldAccessId {
+        self.operand_table.push_field_access(access)
+    }
+
+    /// Return one pooled frame access id.
+    pub(super) fn frame_access(&mut self, access: FrameAccess) -> FrameAccessId {
+        self.operand_table.push_frame_access(access)
+    }
+
+    /// Return one pooled element access id.
+    pub(super) fn element_access(&mut self, access: ElementAccess) -> ElementAccessId {
+        self.operand_table.push_element_access(access)
+    }
+
+    /// Return one pooled slice element access id.
+    pub(super) fn slice_element_access(
+        &mut self,
+        access: SliceElementAccess,
+    ) -> SliceElementAccessId {
+        self.operand_table.push_slice_element_access(access)
+    }
+
+    /// Return one pooled pointee access id.
+    pub(super) fn pointee_access(&mut self, access: PointeeAccess) -> PointeeAccessId {
+        self.operand_table.push_pointee_access(access)
     }
 
     /// Return one argument range from the pool.
@@ -67,7 +123,7 @@ impl Pool {
         &mut self,
         parameters: &[mir::Value],
         arguments: &[mir::Value],
-    ) -> MoveRange {
+    ) -> Result<MoveRange> {
         move_range(&mut self.move_pair, parameters, arguments)
     }
 
@@ -85,7 +141,7 @@ impl Pool {
         &mut self,
         parameters: &[mir::Value],
         arguments: &[mir::Value],
-    ) -> MoveRange {
+    ) -> Result<MoveRange> {
         move_range(&mut self.move_pair, parameters, arguments)
     }
 
@@ -95,8 +151,11 @@ impl Pool {
         block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
-    ) -> Result<Box<[SwitchCase]>> {
-        switch_case_range(&mut self.move_pair, block_index_map, block_parameter, cases)
+    ) -> Result<SwitchCasesId> {
+        let cases =
+            switch_case_range(&mut self.move_pair, block_index_map, block_parameter, cases)?;
+
+        Ok(self.operand_table.push_switch_cases(cases))
     }
 
     /// Return one switch-table range from the pool.
@@ -107,15 +166,69 @@ impl Pool {
         cases: &[mir::SwitchCase],
         default_target: u32,
         default_moves: MoveRange,
-    ) -> Result<Option<(i128, Box<[SwitchCase]>)>> {
-        switch_table_range(
+    ) -> Result<Option<SwitchTableId>> {
+        let table = switch_table_range(
             &mut self.move_pair,
             block_index_map,
             block_parameter,
             cases,
             default_target,
             default_moves,
-        )
+        )?;
+
+        Ok(table.map(|(min, cases)| {
+            self.operand_table
+                .push_switch_table(SwitchTable { min, cases })
+        }))
+    }
+
+    /// Return one pooled check constraint id.
+    pub(super) fn check(&mut self, constraint: mir::CheckConstraint) -> CheckId {
+        self.operand_table.push_check(constraint)
+    }
+
+    /// Return one pooled u32 slice id.
+    pub(super) fn u32_range(&mut self, values: &[u32]) -> U32RangeId {
+        self.operand_table.push_u32_range(values)
+    }
+
+    /// Return one pooled MIR type slice id.
+    pub(super) fn type_range(&mut self, values: &[mir::LocalNodeId<mir::Type>]) -> TypeRangeId {
+        self.operand_table.push_type_range(values)
+    }
+
+    /// Return one pooled tensor dot descriptor id.
+    pub(super) fn tensor_dot(&mut self, dimensions: mir::TensorDotDimensionNumbers) -> TensorDotId {
+        self.operand_table.push_tensor_dot(dimensions)
+    }
+
+    /// Return one pooled tensor convolution dimension descriptor id.
+    pub(super) fn tensor_convolution(
+        &mut self,
+        dimensions: mir::TensorConvolutionDimensionNumbers,
+    ) -> TensorConvolutionId {
+        self.operand_table.push_tensor_convolution(dimensions)
+    }
+
+    /// Return one pooled tensor convolution window descriptor id.
+    pub(super) fn tensor_window(&mut self, window: mir::TensorConvolutionWindow) -> TensorWindowId {
+        self.operand_table.push_tensor_window(window)
+    }
+
+    /// Return one pooled tensor gather descriptor id.
+    pub(super) fn tensor_gather(
+        &mut self,
+        dimensions: mir::TensorGatherDimensionNumbers,
+    ) -> TensorGatherId {
+        self.operand_table.push_tensor_gather(dimensions)
+    }
+
+    /// Return one pooled tensor scatter descriptor id.
+    pub(super) fn tensor_scatter(
+        &mut self,
+        dimensions: mir::TensorScatterDimensionNumbers,
+    ) -> TensorScatterId {
+        self.operand_table.push_tensor_scatter(dimensions)
     }
 }
 
@@ -124,17 +237,6 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
     // empty argument range
     if arguments.is_empty() {
         return ArgumentRange::empty();
-    }
-
-    // detect contiguous argument ids
-    let mut is_contiguous = true;
-    let contiguous_start = arguments[0].0;
-    for (offset, argument) in arguments.iter().enumerate() {
-        let expected = contiguous_start + offset as u32;
-        if argument.0 != expected {
-            is_contiguous = false;
-            break;
-        }
     }
 
     // compute range start
@@ -153,8 +255,6 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
     ArgumentRange {
         start: start as u32,
         len: arguments.len() as u32,
-        is_contiguous,
-        contiguous_start: if is_contiguous { contiguous_start } else { 0 },
     }
 }
 
@@ -163,16 +263,11 @@ fn move_range(
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Value],
     arguments: &[mir::Value],
-) -> MoveRange {
+) -> Result<MoveRange> {
     // empty move range
     if parameters.is_empty() {
-        return MoveRange::empty();
+        return Ok(MoveRange::empty());
     }
-
-    // detect contiguous move pairs
-    let mut is_contiguous = true;
-    let mut contiguous_src = 0;
-    let mut contiguous_dest = 0;
 
     // compute range start
     let start = pool.len();
@@ -185,31 +280,15 @@ fn move_range(
 
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let src = move_source(arguments, index);
-        if index == 0 {
-            contiguous_dest = param.0;
-            contiguous_src = src;
-            if src == INVALID_VALUE_ID {
-                is_contiguous = false;
-            }
-        } else if is_contiguous {
-            let expected_src = contiguous_src + index as u32;
-            let expected_dest = contiguous_dest + index as u32;
-            if src != expected_src || param.0 != expected_dest {
-                is_contiguous = false;
-            }
-        }
+        let src = move_source(arguments, index)?;
         pool.push(MovePair { dest: param.0, src });
     }
 
     // return range
-    MoveRange {
+    Ok(MoveRange {
         start: start as u32,
         len: parameters.len() as u32,
-        is_contiguous,
-        contiguous_src: if is_contiguous { contiguous_src } else { 0 },
-        contiguous_dest: if is_contiguous { contiguous_dest } else { 0 },
-    }
+    })
 }
 
 /// Return one parameter move range from the pool.
@@ -222,11 +301,6 @@ fn parameter_move_range(
     if parameters.is_empty() {
         return Ok(MoveRange::empty());
     }
-
-    // detect contiguous move pairs
-    let mut is_contiguous = true;
-    let mut contiguous_src = 0;
-    let mut contiguous_dest = 0;
 
     // compute range start
     let start = pool.len();
@@ -244,20 +318,7 @@ fn parameter_move_range(
             .ok_or_else(|| Error::MissingRepresentation {
                 context: "function parameter value".to_string(),
             })?;
-        let src = move_source(arguments, index);
-        if index == 0 {
-            contiguous_dest = parameter.0;
-            contiguous_src = src;
-            if src == INVALID_VALUE_ID {
-                is_contiguous = false;
-            }
-        } else if is_contiguous {
-            let expected_src = contiguous_src + index as u32;
-            let expected_dest = contiguous_dest + index as u32;
-            if src != expected_src || parameter.0 != expected_dest {
-                is_contiguous = false;
-            }
-        }
+        let src = move_source(arguments, index)?;
         pool.push(MovePair {
             dest: parameter.0,
             src,
@@ -268,9 +329,6 @@ fn parameter_move_range(
     Ok(MoveRange {
         start: start as u32,
         len: parameters.len() as u32,
-        is_contiguous,
-        contiguous_src: if is_contiguous { contiguous_src } else { 0 },
-        contiguous_dest: if is_contiguous { contiguous_dest } else { 0 },
     })
 }
 
@@ -315,7 +373,7 @@ fn switch_case_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(move_pool, target_parameters, &arguments);
+        let moves = move_range(move_pool, target_parameters, &arguments)?;
         lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
@@ -418,7 +476,7 @@ fn switch_table_range(
                     })
             })
             .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(move_pool, target_parameters, &arguments);
+        let moves = move_range(move_pool, target_parameters, &arguments)?;
         let offset = (case_value - min_value) as usize;
         let entry = &mut table[offset];
         entry.value = case_value;
