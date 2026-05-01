@@ -1,4 +1,80 @@
+use std::error::Error;
+use std::fmt;
+
 use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+
+/// One boundary value type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ValueType {
+    /// The void type.
+    Void,
+    /// The boolean type.
+    Bool,
+    /// The signed integer type.
+    Int,
+    /// The unsigned integer type.
+    UInt,
+    /// The 32-bit floating point type.
+    Float32,
+    /// The 64-bit floating point type.
+    Float64,
+    /// The character type.
+    Char,
+    /// The local heap reference type.
+    HeapReference,
+    /// The shared heap reference type.
+    SharedHeapReference,
+    /// The local raw pointer type.
+    RawPointer,
+    /// The shared raw pointer type.
+    SharedRawPointer,
+}
+
+/// Boundary value type mismatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ValueTypeMismatch {
+    /// The expected value type.
+    pub expected: ValueType,
+    /// The actual value type.
+    pub actual: ValueType,
+}
+
+impl ValueTypeMismatch {
+    /// Create one value type mismatch.
+    pub const fn new(expected: ValueType, actual: ValueType) -> Self {
+        Self { expected, actual }
+    }
+}
+
+impl fmt::Display for ValueTypeMismatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "expected value type {:?}, found {:?}",
+            self.expected, self.actual
+        )
+    }
+}
+
+impl Error for ValueTypeMismatch {}
+
+/// One signed integer boundary value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SignedInt {
+    /// The integer payload.
+    pub value: i128,
+    /// The integer width in bits.
+    pub width: u16,
+}
+
+/// One unsigned integer boundary value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct UnsignedInt {
+    /// The integer payload.
+    pub value: u128,
+    /// The integer width in bits.
+    pub width: u16,
+}
 
 /// One engine boundary value.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -139,5 +215,167 @@ impl Value {
     /// Create one shared raw pointer boundary value.
     pub const fn shared_raw_pointer(pointer: SharedRawPointer) -> Self {
         Self::SharedRawPointer(pointer)
+    }
+
+    /// Return this value's type.
+    pub const fn value_type(&self) -> ValueType {
+        match self {
+            Self::Void => ValueType::Void,
+            Self::Bool(_) => ValueType::Bool,
+            Self::Int { .. } => ValueType::Int,
+            Self::UInt { .. } => ValueType::UInt,
+            Self::Float32 { .. } => ValueType::Float32,
+            Self::Float64 { .. } => ValueType::Float64,
+            Self::Char(_) => ValueType::Char,
+            Self::HeapReference(_) => ValueType::HeapReference,
+            Self::SharedHeapReference(_) => ValueType::SharedHeapReference,
+            Self::RawPointer(_) => ValueType::RawPointer,
+            Self::SharedRawPointer(_) => ValueType::SharedRawPointer,
+        }
+    }
+}
+
+impl TryFrom<&Value> for () {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Void => Ok(()),
+            value => Err(ValueTypeMismatch::new(ValueType::Void, value.value_type())),
+        }
+    }
+}
+
+impl TryFrom<&Value> for bool {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Bool(value) => Ok(*value),
+            value => Err(ValueTypeMismatch::new(ValueType::Bool, value.value_type())),
+        }
+    }
+}
+
+impl TryFrom<&Value> for SignedInt {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Int { value, width } => Ok(Self {
+                value: *value,
+                width: *width,
+            }),
+            value => Err(ValueTypeMismatch::new(ValueType::Int, value.value_type())),
+        }
+    }
+}
+
+impl TryFrom<&Value> for UnsignedInt {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::UInt { value, width } => Ok(Self {
+                value: *value,
+                width: *width,
+            }),
+            value => Err(ValueTypeMismatch::new(ValueType::UInt, value.value_type())),
+        }
+    }
+}
+
+impl TryFrom<&Value> for f32 {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Float32 { bits } => Ok(f32::from_bits(*bits)),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::Float32,
+                value.value_type(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&Value> for f64 {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Float64 { bits } => Ok(f64::from_bits(*bits)),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::Float64,
+                value.value_type(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&Value> for char {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Char(value) => Ok(*value),
+            value => Err(ValueTypeMismatch::new(ValueType::Char, value.value_type())),
+        }
+    }
+}
+
+impl TryFrom<&Value> for HeapReference {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::HeapReference(reference) => Ok(*reference),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::HeapReference,
+                value.value_type(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&Value> for SharedHeapReference {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::SharedHeapReference(reference) => Ok(*reference),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::SharedHeapReference,
+                value.value_type(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&Value> for RawPointer {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::RawPointer(pointer) => Ok(*pointer),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::RawPointer,
+                value.value_type(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&Value> for SharedRawPointer {
+    type Error = ValueTypeMismatch;
+
+    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::SharedRawPointer(pointer) => Ok(*pointer),
+            value => Err(ValueTypeMismatch::new(
+                ValueType::SharedRawPointer,
+                value.value_type(),
+            )),
+        }
     }
 }
