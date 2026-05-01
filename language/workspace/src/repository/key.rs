@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use destack_artifact::{Platform, ProfileKey, Runtime};
+use destack_builtin::{BuiltinLibraryKind, builtin_library};
 
 use crate::{
     CompilerOptions, HostEnvironment, ProfileEnvironment, ProfileOptions, Target, TsConfigOptions,
@@ -64,31 +65,30 @@ fn effective_libs_for_target_profile(
             derived_target.derived_lib()
         };
 
+    // type libraries
     let mut libs = base_libs;
     let mut seen = HashSet::new();
-
-    // type library expansion
     for lib_name in &libs {
         seen.insert(lib_name.clone());
     }
-
     for type_lib in collect_types_for_target(target, compiler_options, profile_config) {
         if seen.insert(type_lib.clone()) {
             libs.push(type_lib);
         }
     }
 
-    // native library boundary
+    // prune/set native libraries
     if runtime.is_native() {
         libs.retain(|lib| {
-            let Some(builtin) = destack_builtin::builtin_library(lib) else {
+            let Some(builtin) = builtin_library(lib) else {
                 return true;
             };
 
-            matches!(builtin.kind, destack_builtin::BuiltinLibraryKind::Language)
+            matches!(builtin.kind, BuiltinLibraryKind::Language)
                 || matches!(builtin.name, "native" | "platform" | "destack")
         });
 
+        // add "native" if missing
         if !libs.iter().any(|lib| lib == "native") {
             libs.push("native".to_string());
         }

@@ -13,10 +13,12 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<PackageDeclaration>>, RepositoryError> {
+        // read file
         let Some(content_id) = self.file_content_id(revision, file_id)? else {
             return Ok(None);
         };
 
+        // already cached
         if let Some(declaration) = self.file_cache.package_declarations.get(&content_id) {
             return Ok(declaration.value().as_ref().ok().cloned());
         }
@@ -30,6 +32,7 @@ impl Repository {
             .map_err(|error| error.to_string());
         let package_declaration = declaration.as_ref().ok().cloned();
 
+        // populate cache
         self.file_cache
             .package_declarations
             .insert(content_id, declaration);
@@ -43,10 +46,12 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
+        // read file
         let Some(content_id) = self.file_content_id(revision, file_id)? else {
             return Ok(None);
         };
 
+        // already cached
         if let Some(declaration) = self.file_cache.destack_declarations.get(&content_id) {
             return Ok(declaration.value().as_ref().ok().cloned());
         }
@@ -60,6 +65,7 @@ impl Repository {
             .map_err(|error| error.to_string());
         let destack_declaration = declaration.as_ref().ok().cloned();
 
+        // populate cache
         self.file_cache
             .destack_declarations
             .insert(content_id, declaration);

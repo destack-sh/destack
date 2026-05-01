@@ -167,6 +167,13 @@ impl Repository {
         Ok(revision.file_content_id(file_id))
     }
 
+    /// Return the file ids visible in one revision.
+    pub fn file_ids(&self, revision: Revision) -> Result<Vec<FileId>, RepositoryError> {
+        let revision = self.revision(revision)?;
+
+        Ok(revision.files.keys().copied().collect())
+    }
+
     /// Build the workspace directory set for one file map.
     fn directory_paths_for_files(&self, files: &OrdMap<FileId, FileEntry>) -> FxHashSet<PathBuf> {
         let mut directories = FxHashSet::default();
