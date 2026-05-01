@@ -47,7 +47,10 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     assert_eq!(
         read_page_run_bytes(
             &shared.allocator,
-            &forked_image.allocation(0).unwrap().pages,
+            &forked_image
+                .allocation(0)
+                .expect("first forked allocation image should exist")
+                .pages,
             6
         ),
         vec![1, 2, 3, 4, 5, 6]
@@ -55,7 +58,10 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     assert_eq!(
         read_page_run_bytes(
             &shared.allocator,
-            &forked_image.allocation(1).unwrap().pages,
+            &forked_image
+                .allocation(1)
+                .expect("second forked allocation image should exist")
+                .pages,
             6
         ),
         vec![7, 8, 9, 10, 11, 12]
@@ -63,7 +69,10 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     assert_eq!(
         read_page_run_bytes(
             &shared.allocator,
-            &restored_image.allocation(0).unwrap().pages,
+            &restored_image
+                .allocation(0)
+                .expect("first restored allocation image should exist")
+                .pages,
             6,
         ),
         vec![1, 2, 3, 4, 5, 6]
@@ -71,7 +80,10 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     assert_eq!(
         read_page_run_bytes(
             &shared.allocator,
-            &restored_image.allocation(1).unwrap().pages,
+            &restored_image
+                .allocation(1)
+                .expect("second restored allocation image should exist")
+                .pages,
             6,
         ),
         vec![7, 8, 9, 10, 11, 12]
@@ -84,13 +96,23 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     let mutated_image = restored.image().expect("shared raw image should capture");
 
     assert_eq!(
-        read_page_run_bytes(&shared.allocator, &image.allocation(0).unwrap().pages, 6),
+        read_page_run_bytes(
+            &shared.allocator,
+            &image
+                .allocation(0)
+                .expect("captured allocation image should exist")
+                .pages,
+            6,
+        ),
         vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
         read_page_run_bytes(
             &shared.allocator,
-            &mutated_image.allocation(0).unwrap().pages,
+            &mutated_image
+                .allocation(0)
+                .expect("mutated allocation image should exist")
+                .pages,
             6,
         ),
         vec![9, 2, 3, 4, 5, 6]
@@ -123,15 +145,17 @@ fn test_roundtrip_shared_heap_space_image() {
     let first = heap
         .allocate(
             &mut shared_allocator,
-            first_layout.allocation(),
+            &heap.allocation_layout(first_layout.allocation()),
             Payload::Bytes(&first_bytes),
+            true,
         )
         .expect("shared heap allocation should succeed");
     let _second = heap
         .allocate(
             &mut shared_allocator,
-            second_layout.allocation(),
+            &heap.allocation_layout(second_layout.allocation()),
             Payload::Bytes(&second_bytes),
+            true,
         )
         .expect("shared heap allocation should succeed");
     let image = heap.image().expect("shared heap image should capture");
@@ -145,12 +169,11 @@ fn test_roundtrip_shared_heap_space_image() {
     assert_eq!(image.spans().len(), restored_image.spans().len());
 
     // restored bytes should match the captured shared heap
-    assert_eq!(
-        restored
-            .read_bytes(first)
-            .map(|bytes| bytes[..first_bytes.len()].to_vec()),
-        Ok(first_bytes.clone())
-    );
+    let first_address = restored.base_address() + first.offset();
+    let bytes =
+        unsafe { std::slice::from_raw_parts(first_address as *const u8, first_bytes.len()) };
+
+    assert_eq!(bytes, first_bytes);
     assert_eq!(
         read_page_run_bytes(
             allocator.as_ref(),
@@ -162,18 +185,22 @@ fn test_roundtrip_shared_heap_space_image() {
 
     // mutating one slot should not affect the captured image
     restored
-        .write_bytes(first, 0, &[0xFE])
-        .expect("shared heap byte write should succeed");
+        .write_barrier_bytes(first, 0, &[0xFE])
+        .expect("shared heap write barrier should record");
+
+    // write through the restored heap mapping
+    unsafe {
+        std::ptr::write(first_address as *mut u8, 0xFE);
+    }
+
     let mutated_image = restored.image().expect("shared heap image should capture");
     let mut expected_first = first_bytes.clone();
     expected_first[0] = 0xFE;
 
-    assert_eq!(
-        restored
-            .read_bytes(first)
-            .map(|bytes| bytes[..expected_first.len()].to_vec()),
-        Ok(expected_first.clone())
-    );
+    let bytes =
+        unsafe { std::slice::from_raw_parts(first_address as *const u8, expected_first.len()) };
+
+    assert_eq!(bytes, expected_first);
     assert_eq!(
         read_page_run_bytes(
             allocator.as_ref(),

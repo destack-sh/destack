@@ -8,6 +8,7 @@ mod tests;
 mod usage;
 
 pub use budget::{SharedHeapLimits, SharedHeapSpaceLimits, SharedRawBudget, SharedRawLimits};
+pub(crate) use gc::SharedGcPacer;
 pub use gc::{SharedGcPhase, SharedGcWorker};
 pub use heap::{SharedHeap, SharedHeapImage, SharedHeapSnapshot};
 pub use raw::{SharedRawAllocationImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};

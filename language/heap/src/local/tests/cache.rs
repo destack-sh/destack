@@ -51,7 +51,10 @@ fn test_release_heap_large_pages_into_page_run_cache() {
     let mut heap =
         HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
     let reference = heap
-        .allocate(layout.allocation(), Payload::Bytes(&[9; 9]))
+        .allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[9; 9]),
+        )
         .expect("heap allocation should succeed");
 
     // one live large allocation should charge one page of active bytes

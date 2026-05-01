@@ -5,7 +5,7 @@ use destack_mir::ReferenceMap;
 use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
-/// One frozen shared heap large-allocation root.
+/// One frozen shared heap large-allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapLargeAllocationImage {
     /// Whether this allocation slot is live.

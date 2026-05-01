@@ -9,7 +9,7 @@ impl HeapSpace {
         self.dirty_spans.clear();
         self.dirty_large_allocations.clear();
 
-        // conservatively dirty every mature span slot with heap edges
+        // conservatively dirty every mature span slot with heap references
         for span_index in 0..self.small.spans.len() {
             let Some(span) = self.span(span_index) else {
                 continue;
@@ -31,7 +31,7 @@ impl HeapSpace {
             }
         }
 
-        // conservatively dirty every mature large allocation with heap edges
+        // conservatively dirty every mature large allocation with heap references
         for allocation_index in 0..self.large.allocations.len() {
             let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
             let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -66,7 +66,7 @@ impl HeapSpace {
         }
 
         let reference_map = self.small_slot_reference_map(span_index, slot_index)?;
-        let is_overlapping = overlaps_heap_range(&reference_map, byte_offset, byte_len)?;
+        let is_overlapping = overlaps_heap_range(&reference_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
@@ -104,7 +104,7 @@ impl HeapSpace {
                 allocation_id: allocation_id.id(),
             });
         };
-        let is_overlapping = overlaps_heap_range(&allocation.reference_map, byte_offset, byte_len)?;
+        let is_overlapping = overlaps_heap_range(&allocation.reference_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
@@ -135,7 +135,7 @@ impl HeapSpace {
         reference_map: &ReferenceMap,
         byte_offset: usize,
         byte_len: usize,
-    ) -> HeapResult<bool> {
+    ) -> bool {
         overlaps_shared_range(reference_map, byte_offset, byte_len)
     }
 }

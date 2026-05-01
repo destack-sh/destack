@@ -9,7 +9,7 @@ impl RawSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.checked_location_range(pointer, start, target.len())?;
+        let (location, byte_offset) = self.resolve_range(pointer, start, target.len())?;
 
         self.fill_location_bytes(location, byte_offset, target)
     }
@@ -21,7 +21,7 @@ impl RawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*mut u8> {
-        let (location, byte_offset) = self.checked_location_range(pointer, start, byte_len)?;
+        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
         let offset = location.base.offset() + byte_offset;
 
         self.mapping.address(offset, byte_len)
@@ -34,7 +34,7 @@ impl RawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*mut u8> {
-        let (location, byte_offset) = self.checked_location_range(pointer, start, byte_len)?;
+        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
         let offset = location.base.offset() + byte_offset;
 
         self.mapping.address(offset, byte_len)
@@ -51,7 +51,7 @@ impl RawSpace {
         let Some(location) = self.resolve_location(pointer) else {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
-        let byte_len = checked_remaining_byte_len(location.byte_offset, location.byte_len)?;
+        let byte_len = location.byte_len - location.byte_offset;
 
         self.location_bytes(location, location.byte_offset, byte_len)
     }
@@ -74,7 +74,7 @@ impl RawSpace {
             return Err(HeapError::InvalidRawPointer { pointer });
         };
 
-        checked_remaining_byte_len(location.byte_offset, location.byte_len)
+        Ok(location.byte_len - location.byte_offset)
     }
 
     /// Fill one caller-provided buffer from one live raw location.
@@ -96,13 +96,13 @@ impl RawSpace {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.checked_location_range(pointer, start, bytes.len())?;
+        let (location, byte_offset) = self.resolve_range(pointer, start, bytes.len())?;
 
         self.write_location_bytes(location, byte_offset, bytes)
     }
 
     /// Return one checked live location and byte offset for one raw range.
-    fn checked_location_range(
+    fn resolve_range(
         &self,
         pointer: RawPointer,
         start: usize,
@@ -126,7 +126,11 @@ impl RawSpace {
     ) -> HeapResult<()> {
         let offset = location.base.offset() + byte_offset;
 
-        self.mapping.write(offset, bytes)
+        unsafe {
+            self.mapping.write_mapped(offset, bytes);
+        }
+
+        Ok(())
     }
 
     /// Overwrite one raw byte.
@@ -171,7 +175,9 @@ impl RawSpace {
                     let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                     let offset = span.first_offset + slot_offset;
 
-                    self.mapping.write(offset, bytes)?;
+                    unsafe {
+                        self.mapping.write_mapped(offset, bytes);
+                    }
 
                     self.usage.resize(previous_byte_len, bytes.len());
 
@@ -191,22 +197,8 @@ impl RawSpace {
                         };
                         let first_offset = allocation.first_offset;
 
-                        if let Err(error) = self.mapping.write(first_offset, bytes) {
-                            let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                                return Err(HeapError::MissingLargeAllocation {
-                                    allocation_id: allocation_id.id(),
-                                });
-                            };
-                            let pages = allocation.pages;
-
-                            allocation.retire();
-                            self.large
-                                .free_large_allocation_ids
-                                .push(allocation_id.id());
-                            self.unmap_page_run(first_offset, &pages);
-                            self.release_page_run(pages)?;
-
-                            return Err(error);
+                        unsafe {
+                            self.mapping.write_mapped(first_offset, bytes);
                         }
 
                         RawPlace::Large(allocation_id)
@@ -251,23 +243,6 @@ impl RawSpace {
             }
         }
     }
-
-    /// Return one raw byte by offset without materializing the full payload.
-    pub(crate) fn byte_at(&self, pointer: RawPointer, index: usize) -> Option<u8> {
-        let location = self.resolve_location(pointer)?;
-        let byte_offset = location.byte_offset + index;
-
-        if byte_offset >= location.byte_len {
-            return None;
-        }
-
-        let offset = location.base.offset() + byte_offset;
-        let mut byte = [0];
-
-        self.mapping.read(offset, &mut byte).ok()?;
-
-        Some(byte[0])
-    }
 }
 
 /// Return one allocation-local byte offset for one visible range.
@@ -299,19 +274,6 @@ fn allocation_byte_offset(
     }
 
     Ok(byte_offset)
-}
-
-/// Return the remaining bytes after one checked allocation-local offset.
-fn checked_remaining_byte_len(byte_offset: usize, capacity: usize) -> HeapResult<usize> {
-    if byte_offset > capacity {
-        return Err(HeapError::InvalidByteRange {
-            start: byte_offset,
-            len: 0,
-            capacity,
-        });
-    }
-
-    Ok(capacity - byte_offset)
 }
 
 /// Return one small-slot base offset.
