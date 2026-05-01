@@ -148,8 +148,8 @@ fn parse_diagnostic_code(code: &LitStr, severity: char, phase: char) -> Result<u
 }
 
 /// Generate the formatting expression for a field using DiagnosticFormat.
-fn format_field_expr(field_name: &Ident, context_name: &Ident) -> TokenStream2 {
-    quote! { #field_name.diagnostic_format(#context_name)? }
+fn format_field_expr(field_name: &Ident, formatter_name: &Ident) -> TokenStream2 {
+    quote! { #field_name.format_diagnostic(#formatter_name)? }
 }
 
 /// Push a unique field name into a generated binding list.
@@ -209,7 +209,7 @@ fn format_field_names(
 fn generate_format_expr(
     format_str: &str,
     fields: &[(Ident, Type)],
-    context_name: &Ident,
+    formatter_name: &Ident,
     span: Span,
 ) -> Result<TokenStream2> {
     let mut result_format = String::new();
@@ -242,7 +242,7 @@ fn generate_format_expr(
                     ));
                 };
                 result_format.push_str("{}");
-                format_args.push(format_field_expr(name, context_name));
+                format_args.push(format_field_expr(name, formatter_name));
             }
         } else if character == '}' {
             if chars.peek() == Some(&'}') {
@@ -391,12 +391,8 @@ fn phase_uses_mir(phase: &str) -> bool {
     phase == "Optimize" || phase == "Link"
 }
 
-/// Generate one anchor match arm.
-fn anchor_arm(
-    variant: &DiagnosticVariant,
-    is_mir: bool,
-    context_name: &Ident,
-) -> Result<TokenStream2> {
+/// Generate one site match arm.
+fn site_arm(variant: &DiagnosticVariant, is_mir: bool) -> Result<TokenStream2> {
     let name = &variant.name;
     let has_module = variant.fields.iter().any(|(name, _)| name == "module");
     let node_is_option = variant
@@ -408,7 +404,7 @@ fn anchor_arm(
     if variant.fields.iter().any(|(name, _)| name == "site") {
         Ok(quote! {
             Self::#name { site, .. } => {
-                #context_name.anchor(site)
+                Ok(site.clone())
             }
         })
     }
@@ -416,41 +412,21 @@ fn anchor_arm(
     else if variant.fields.iter().any(|(name, _)| name == "anchor") {
         Ok(quote! {
             Self::#name { anchor, .. } => {
-                Ok(anchor.clone())
+                Ok(destack_artifact::DiagnosticSite::Anchor(anchor.clone()))
             }
         })
     }
     // delegate dependency diagnostics to the dependency type
     else if variant.fields.iter().any(|(name, _)| name == "dependency") {
-        Ok(quote! { Self::#name { dependency, .. } => dependency.anchor(#context_name) })
+        Ok(quote! { Self::#name { dependency, .. } => dependency.site() })
     }
     // require optional artifact nodes to be present
     else if has_module && node_is_option {
         if is_mir {
             Ok(quote! {
                 Self::#name { node, .. } => match node {
-                    Some(node) => {
-                        let profile = node.profile_id.ok_or_else(|| {
-                            destack_artifact::DiagnosticError::InvalidProviderAnchor {
-                                message: format!(
-                                    "{} requires a profiled MIR diagnostic node",
-                                    stringify!(#name),
-                                ),
-                            }
-                        })?;
-                        let key = destack_artifact::ArtifactKey::mir_optimized(
-                            node.module_id(),
-                            profile,
-                            node.target_id,
-                        );
-                        let artifact = #context_name.artifact_version(key)?;
-
-                        Ok(destack_artifact::DiagnosticAnchor::Mir {
-                            artifact,
-                            node: node.node_id,
-                        })
-                    }
-                    None => Err(destack_artifact::DiagnosticError::InvalidProviderAnchor {
+                    Some(node) => destack_artifact::DiagnosticSite::mir_optimized(node.clone()),
+                    None => Err(destack_artifact::DiagnosticError::InvalidSite {
                         message: format!(
                             "{} requires a MIR diagnostic node",
                             stringify!(#name),
@@ -461,27 +437,8 @@ fn anchor_arm(
         } else {
             Ok(quote! {
                 Self::#name { node, .. } => match node {
-                    Some(node) => {
-                        let profile = node.profile_id.ok_or_else(|| {
-                            destack_artifact::DiagnosticError::InvalidProviderAnchor {
-                                message: format!(
-                                    "{} requires a profiled DIR diagnostic node",
-                                    stringify!(#name),
-                                ),
-                            }
-                        })?;
-                        let key = destack_artifact::ArtifactKey::dir_declared(
-                            node.node_id.module_id,
-                            profile,
-                        );
-                        let artifact = #context_name.artifact_version(key)?;
-
-                        Ok(destack_artifact::DiagnosticAnchor::Dir {
-                            artifact,
-                            node: node.node_id,
-                        })
-                    }
-                    None => Err(destack_artifact::DiagnosticError::InvalidProviderAnchor {
+                    Some(node) => destack_artifact::DiagnosticSite::dir_declared(*node),
+                    None => Err(destack_artifact::DiagnosticError::InvalidSite {
                         message: format!(
                             "{} requires a DIR diagnostic node",
                             stringify!(#name),
@@ -496,48 +453,13 @@ fn anchor_arm(
         if is_mir {
             Ok(quote! {
                 Self::#name { node, .. } => {
-                    let profile = node.profile_id.ok_or_else(|| {
-                        destack_artifact::DiagnosticError::InvalidProviderAnchor {
-                            message: format!(
-                                "{} requires a profiled MIR diagnostic node",
-                                stringify!(#name),
-                            ),
-                        }
-                    })?;
-                    let key = destack_artifact::ArtifactKey::mir_optimized(
-                        node.module_id(),
-                        profile,
-                        node.target_id,
-                    );
-                    let artifact = #context_name.artifact_version(key)?;
-
-                    Ok(destack_artifact::DiagnosticAnchor::Mir {
-                        artifact,
-                        node: node.node_id,
-                    })
+                    destack_artifact::DiagnosticSite::mir_optimized(node.clone())
                 }
             })
         } else {
             Ok(quote! {
                 Self::#name { node, .. } => {
-                    let profile = node.profile_id.ok_or_else(|| {
-                        destack_artifact::DiagnosticError::InvalidProviderAnchor {
-                            message: format!(
-                                "{} requires a profiled DIR diagnostic node",
-                                stringify!(#name),
-                            ),
-                        }
-                    })?;
-                    let key = destack_artifact::ArtifactKey::dir_declared(
-                        node.node_id.module_id,
-                        profile,
-                    );
-                    let artifact = #context_name.artifact_version(key)?;
-
-                    Ok(destack_artifact::DiagnosticAnchor::Dir {
-                        artifact,
-                        node: node.node_id,
-                    })
+                    destack_artifact::DiagnosticSite::dir_declared(*node)
                 }
             })
         }
@@ -546,7 +468,7 @@ fn anchor_arm(
     else if variant.fields.iter().any(|(name, _)| name == "span") {
         Ok(quote! {
             Self::#name { span, .. } => {
-                #context_name.anchor(&destack_artifact::DiagnosticSite::from(*span))
+                Ok(destack_artifact::DiagnosticSite::from(*span))
             }
         })
     }
@@ -554,7 +476,7 @@ fn anchor_arm(
     else if variant.fields.iter().any(|(name, _)| name == "package") {
         Ok(quote! {
             Self::#name { package, .. } => {
-                #context_name.anchor(&destack_artifact::DiagnosticSite::from(*package))
+                Ok(destack_artifact::DiagnosticSite::from(*package))
             }
         })
     }
@@ -562,7 +484,7 @@ fn anchor_arm(
     else if has_module {
         Ok(quote! {
             Self::#name { module, .. } => {
-                #context_name.anchor(&destack_artifact::DiagnosticSite::from(*module))
+                Ok(destack_artifact::DiagnosticSite::from(*module))
             }
         })
     }
@@ -576,13 +498,17 @@ fn anchor_arm(
 }
 
 /// Generate one message match arm.
-fn message_arm(variant: &DiagnosticVariant, context_name: &Ident) -> Result<TokenStream2> {
+fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<TokenStream2> {
     let name = &variant.name;
 
     if let Some(message) = &variant.message {
         let used_fields = format_field_names(message, &variant.fields, variant.code.span())?;
-        let format_expr =
-            generate_format_expr(message, &variant.fields, context_name, variant.code.span())?;
+        let format_expr = generate_format_expr(
+            message,
+            &variant.fields,
+            formatter_name,
+            variant.code.span(),
+        )?;
 
         if used_fields.is_empty() {
             let pattern = variant_pattern(variant);
@@ -658,6 +584,7 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
     let severity_ident = &options.severity;
     let is_mir = phase_uses_mir(&phase);
     let context_name = format_ident!("__diagnostic_context");
+    let formatter_name = format_ident!("__diagnostic_formatter");
 
     let all_codes: Vec<String> = variants
         .iter()
@@ -710,13 +637,13 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             quote! { #pattern => #directive }
         })
         .collect();
-    let anchor_arms: Vec<TokenStream2> = variants
+    let site_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| anchor_arm(variant, is_mir, &context_name))
+        .map(|variant| site_arm(variant, is_mir))
         .collect::<Result<Vec<_>>>()?;
     let message_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| message_arm(variant, &context_name))
+        .map(|variant| message_arm(variant, &formatter_name))
         .collect::<Result<Vec<_>>>()?;
 
     let result_alias = if is_error {
@@ -812,16 +739,10 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
                 }
             }
 
-            /// Get the anchor for this diagnostic.
-            pub fn anchor<R>(
-                &self,
-                #context_name: &dyn destack_artifact::ProviderContext<Revision = R>,
-            ) -> Result<destack_artifact::DiagnosticAnchor, destack_artifact::DiagnosticError>
-            where
-                R: Copy + Eq + std::hash::Hash,
-            {
+            /// Get the site for this diagnostic.
+            pub fn site(&self) -> Result<destack_artifact::DiagnosticSite, destack_artifact::DiagnosticError> {
                 match self {
-                    #(#anchor_arms),*
+                    #(#site_arms),*
                 }
             }
 
@@ -829,7 +750,7 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             #[allow(unused_variables)]
             pub fn message<R>(
                 &self,
-                #context_name: &dyn destack_artifact::ProviderContext<Revision = R>,
+                #formatter_name: &destack_artifact::DiagnosticFormatter<'_, R>,
             ) -> Result<String, destack_artifact::DiagnosticError>
             where
                 R: Copy + Eq + std::hash::Hash,
@@ -844,18 +765,17 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             /// Build the source diagnostic for this provider diagnostic.
             pub fn diagnostic<R>(
                 &self,
-                #context_name: &dyn destack_artifact::ProviderContext<Revision = R>,
+                #context_name: &dyn destack_artifact::DiagnosticContext<Revision = R>,
             ) -> Result<destack_source::Diagnostic, destack_artifact::DiagnosticError>
             where
                 R: Copy + Eq + std::hash::Hash,
             {
-                let message = self.message(#context_name)?;
-                let primary_anchor = self.anchor(#context_name)?;
-                let primary_span = #context_name
-                    .resolve_diagnostic_anchor(&primary_anchor)?
-                    .ok_or_else(|| destack_artifact::DiagnosticError::UnresolvedPrimary {
-                        anchor: primary_anchor.clone(),
-                    })?;
+                let primary_site = self.site()?;
+                let primary_anchor = #context_name.anchor(&primary_site)?;
+                let #formatter_name =
+                    destack_artifact::DiagnosticFormatter::new(#context_name, &primary_anchor);
+                let message = self.message(&#formatter_name)?;
+                let primary_span = #context_name.span(&primary_anchor)?;
 
                 let __diagnostic = destack_source::Diagnostic::new(
                     self.code(),
@@ -914,19 +834,19 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
 
         #into_impl
 
-        impl<R> destack_artifact::ToDiagnostic<R> for #enum_name
+        impl<R> destack_artifact::IntoDiagnostic<R> for #enum_name
         where
             R: Copy + Eq + std::hash::Hash,
         {
-            fn to_diagnostic(
+            fn into_diagnostic(
                 &self,
-                #context_name: &dyn destack_artifact::ProviderContext<Revision = R>,
+                #context_name: &dyn destack_artifact::DiagnosticContext<Revision = R>,
             ) -> Result<destack_source::Diagnostic, destack_artifact::DiagnosticError> {
                 self.diagnostic(#context_name)
             }
         }
 
-        impl<R> destack_artifact::ProviderDiagnostic<R> for #enum_name
+        impl<R> destack_artifact::DiagnosticDraft<R> for #enum_name
         where
             R: Copy + Eq + std::hash::Hash,
         {
@@ -942,11 +862,8 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
                 destack_source::DiagnosticSeverity::#severity_ident
             }
 
-            fn anchor(
-                &self,
-                #context_name: &dyn destack_artifact::ProviderContext<Revision = R>,
-            ) -> Result<destack_artifact::DiagnosticAnchor, destack_artifact::DiagnosticError> {
-                self.anchor(#context_name)
+            fn site(&self) -> Result<destack_artifact::DiagnosticSite, destack_artifact::DiagnosticError> {
+                self.site()
             }
 
             fn is_directive(&self) -> bool {

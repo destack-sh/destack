@@ -1,7 +1,7 @@
 use destack_source::{FileContentId, FileId, ModuleId, PackageId, Span};
 use {destack_ast as ast, destack_dir as dir, destack_mir as mir};
 
-use crate::ArtifactVersion;
+use crate::{ArtifactKey, ArtifactVersion, DiagnosticError};
 
 /// Provider-side source anchor for one diagnostic label.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -81,10 +81,63 @@ pub enum DiagnosticSite {
     Span(Span),
     /// A whole source file in the provider revision.
     File(FileId),
+    /// An AST node in the provider revision.
+    Ast {
+        /// The AST artifact key containing the node.
+        key: ArtifactKey,
+        /// The local AST node id.
+        node: ast::LocalNodeIdAny,
+    },
+    /// A DIR node in the provider revision.
+    Dir {
+        /// The DIR artifact key containing the node.
+        key: ArtifactKey,
+        /// The global DIR node id.
+        node: dir::GlobalNodeIdAny,
+    },
+    /// A MIR node in the provider revision.
+    Mir {
+        /// The MIR artifact key containing the node.
+        key: ArtifactKey,
+        /// The global MIR node id.
+        node: mir::GlobalNodeIdAny,
+    },
     /// A module in the provider revision.
     Module(ModuleId),
     /// A package in the provider revision.
     Package(PackageId),
+}
+
+impl DiagnosticSite {
+    /// Create a diagnostic site for a declared DIR node.
+    pub fn dir_declared(node: dir::AnchoredGlobalNodeId) -> Result<Self, DiagnosticError> {
+        let Some(profile) = node.profile_id else {
+            return Err(DiagnosticError::InvalidSite {
+                message: "DIR diagnostic site requires a profile id".to_string(),
+            });
+        };
+        let key = ArtifactKey::dir_declared(node.node_id.module_id, profile);
+
+        Ok(Self::Dir {
+            key,
+            node: node.node_id,
+        })
+    }
+
+    /// Create a diagnostic site for an optimized MIR node.
+    pub fn mir_optimized(node: mir::AnchoredGlobalNodeId) -> Result<Self, DiagnosticError> {
+        let Some(profile) = node.profile_id else {
+            return Err(DiagnosticError::InvalidSite {
+                message: "MIR diagnostic site requires a profile id".to_string(),
+            });
+        };
+        let key = ArtifactKey::mir_optimized(node.module_id(), profile, node.target_id);
+
+        Ok(Self::Mir {
+            key,
+            node: node.node_id,
+        })
+    }
 }
 
 impl From<DiagnosticAnchor> for DiagnosticSite {

@@ -4,7 +4,7 @@ use destack_source::{
     Diagnostic, DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSuggestion,
 };
 
-use crate::{DiagnosticError, DiagnosticSite, ProviderContext, ToDiagnostic};
+use crate::{DiagnosticContext, DiagnosticError, DiagnosticSite, IntoDiagnostic};
 
 /// One pending secondary diagnostic label.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,25 +98,21 @@ impl<T> From<T> for DiagnosticBuilder<T> {
     }
 }
 
-impl<R, T> ToDiagnostic<R> for DiagnosticBuilder<T>
+impl<R, T> IntoDiagnostic<R> for DiagnosticBuilder<T>
 where
     R: Copy + Eq + Hash,
-    T: ToDiagnostic<R>,
+    T: IntoDiagnostic<R>,
 {
     /// Convert the decorated provider diagnostic into one final diagnostic.
-    fn to_diagnostic(
+    fn into_diagnostic(
         &self,
-        context: &dyn ProviderContext<Revision = R>,
+        context: &dyn DiagnosticContext<Revision = R>,
     ) -> Result<Diagnostic, DiagnosticError> {
-        let mut diagnostic = self.diagnostic.to_diagnostic(context)?;
+        let mut diagnostic = self.diagnostic.into_diagnostic(context)?;
 
         for label in &self.labels {
             let anchor = context.anchor(&label.site)?;
-            let span = context.resolve_diagnostic_anchor(&anchor)?.ok_or_else(|| {
-                DiagnosticError::UnresolvedLabel {
-                    anchor: anchor.clone(),
-                }
-            })?;
+            let span = context.span(&anchor)?;
             diagnostic = diagnostic.label(DiagnosticLabel::message(span, label.message.clone()));
         }
 
