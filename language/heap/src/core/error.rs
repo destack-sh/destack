@@ -195,11 +195,6 @@ pub enum HeapError {
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One heap collection young-space reset failed.
-    HeapYoungResetFailed {
-        /// The underlying heap failure.
-        error: Box<HeapError>,
-    },
     /// One heap collection free failed.
     HeapFreeFailed {
         /// The heap reference being freed.
@@ -312,8 +307,8 @@ pub enum HeapError {
         /// The invalid byte width.
         bytes: usize,
     },
-    /// One traced field could not be read from one random-access reader.
-    TruncatedReferenceReaderWindow {
+    /// One traced field did not fit inside the provided byte window.
+    TruncatedReferenceBytes {
         /// The traced field byte offset.
         start: usize,
         /// The traced field byte width.
@@ -585,9 +580,6 @@ impl Display for HeapError {
                     "heap promotion failed for reference {reference:?}: {error}"
                 )
             }
-            Self::HeapYoungResetFailed { error } => {
-                write!(formatter, "heap young reset failed: {error}")
-            }
             Self::HeapFreeFailed { reference, error } => {
                 write!(
                     formatter,
@@ -688,7 +680,7 @@ impl Display for HeapError {
                     "unsupported heap reference width for tracing window: {bytes}"
                 )
             }
-            Self::TruncatedReferenceReaderWindow { start, width } => {
+            Self::TruncatedReferenceBytes { start, width } => {
                 write!(
                     formatter,
                     "truncated heap reference payload while tracing: start={start}, width={width}"

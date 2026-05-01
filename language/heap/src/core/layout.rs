@@ -150,14 +150,18 @@ pub(crate) fn allocation_layout<'a>(
     page_bytes: usize,
     span_bytes: usize,
 ) -> AllocationLayout<'a> {
-    let class = allocation_class(
-        plan.byte_len,
-        plan.alignment,
-        plan.is_noscan,
-        size_classes,
-        page_bytes,
-        span_bytes,
-    );
+    let class = if plan.reference_map.has_tagged_reference() {
+        AllocationClass::Large
+    } else {
+        allocation_class(
+            plan.byte_len,
+            plan.alignment,
+            plan.is_noscan,
+            size_classes,
+            page_bytes,
+            span_bytes,
+        )
+    };
 
     AllocationLayout {
         byte_len: plan.byte_len,
@@ -250,14 +254,8 @@ fn repeated_reference_map(
 
     match element_map {
         ReferenceMap::None => Ok(ReferenceMap::None),
-        ReferenceMap::Reference {
-            local_offsets,
-            shared_offsets,
-        } if local_offsets.is_empty() && shared_offsets.is_empty() => Ok(ReferenceMap::None),
-        ReferenceMap::Reference {
-            local_offsets,
-            shared_offsets,
-        } => Ok(ReferenceMap::RepeatedReference {
+        _ if !element_map.has_reference() => Ok(ReferenceMap::None),
+        _ => Ok(ReferenceMap::Repeat {
             count: u32::try_from(count).map_err(|_| HeapError::RepresentationLimitExceeded {
                 context: "repeated payload element count",
             })?,
@@ -266,134 +264,7 @@ fn repeated_reference_map(
                     context: "repeated payload element stride",
                 }
             })?,
-            local_offsets: local_offsets.clone(),
-            shared_offsets: shared_offsets.clone(),
+            element: Box::new(element_map.clone()),
         }),
-        ReferenceMap::RepeatedReference {
-            count: inner_count,
-            stride,
-            local_offsets,
-            shared_offsets,
-        } => nested_repeated_reference_map(
-            *inner_count,
-            *stride,
-            local_offsets,
-            shared_offsets,
-            element_stride,
-            count,
-        ),
     }
-}
-
-/// Return the composed reference map for repeated elements that are themselves repeated.
-fn nested_repeated_reference_map(
-    inner_count: u32,
-    inner_stride: u32,
-    local_offsets: &[u32],
-    shared_offsets: &[u32],
-    element_stride: usize,
-    outer_count: usize,
-) -> HeapResult<ReferenceMap> {
-    if inner_count == 0 || local_offsets.is_empty() && shared_offsets.is_empty() {
-        return Ok(ReferenceMap::None);
-    }
-
-    let inner_count = inner_count as usize;
-    let inner_stride = inner_stride as usize;
-    let contiguous_stride =
-        inner_count
-            .checked_mul(inner_stride)
-            .ok_or(HeapError::RepresentationLimitExceeded {
-                context: "nested repeated payload stride",
-            })?;
-
-    if element_stride == contiguous_stride {
-        return Ok(ReferenceMap::RepeatedReference {
-            count: u32::try_from(outer_count.checked_mul(inner_count).ok_or(
-                HeapError::RepresentationLimitExceeded {
-                    context: "nested repeated payload count",
-                },
-            )?)
-            .map_err(|_| HeapError::RepresentationLimitExceeded {
-                context: "nested repeated payload count",
-            })?,
-            stride: u32::try_from(inner_stride).map_err(|_| {
-                HeapError::RepresentationLimitExceeded {
-                    context: "nested repeated payload stride",
-                }
-            })?,
-            local_offsets: local_offsets.into(),
-            shared_offsets: shared_offsets.into(),
-        });
-    }
-
-    Ok(ReferenceMap::Reference {
-        local_offsets: expand_repeated_offsets(
-            local_offsets,
-            element_stride,
-            outer_count,
-            inner_count,
-            inner_stride,
-        )?,
-        shared_offsets: expand_repeated_offsets(
-            shared_offsets,
-            element_stride,
-            outer_count,
-            inner_count,
-            inner_stride,
-        )?,
-    })
-}
-
-/// Return concrete offsets for one nested repeated reference map.
-fn expand_repeated_offsets(
-    offsets: &[u32],
-    element_stride: usize,
-    outer_count: usize,
-    inner_count: usize,
-    inner_stride: usize,
-) -> HeapResult<Box<[u32]>> {
-    let total_offsets = outer_count
-        .checked_mul(inner_count)
-        .and_then(|count| count.checked_mul(offsets.len()))
-        .ok_or(HeapError::RepresentationLimitExceeded {
-            context: "nested repeated payload offsets",
-        })?;
-    let mut expanded = Vec::with_capacity(total_offsets);
-
-    for element_index in 0..outer_count {
-        let element_base = element_index.checked_mul(element_stride).ok_or(
-            HeapError::RepresentationLimitExceeded {
-                context: "nested repeated payload element base",
-            },
-        )?;
-
-        for inner_index in 0..inner_count {
-            let inner_base = inner_index.checked_mul(inner_stride).ok_or(
-                HeapError::RepresentationLimitExceeded {
-                    context: "nested repeated payload inner base",
-                },
-            )?;
-            let base = element_base.checked_add(inner_base).ok_or(
-                HeapError::RepresentationLimitExceeded {
-                    context: "nested repeated payload base",
-                },
-            )?;
-
-            for offset in offsets {
-                let offset = base.checked_add(*offset as usize).ok_or(
-                    HeapError::RepresentationLimitExceeded {
-                        context: "nested repeated payload offset",
-                    },
-                )?;
-                let offset =
-                    u32::try_from(offset).map_err(|_| HeapError::RepresentationLimitExceeded {
-                        context: "nested repeated payload offset",
-                    })?;
-                expanded.push(offset);
-            }
-        }
-    }
-
-    Ok(expanded.into_boxed_slice())
 }
