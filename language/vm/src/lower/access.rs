@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::program::{
-    ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, SliceElementAccess, ValueRepr,
-    WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
+    ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, SliceElementAccess,
+    ValueLayout, WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
 };
 
-const VIRTUAL_TABLE_FIELD: u32 = 0;
-const INTERFACE_TABLE_FIELD: u32 = 1;
+const VTABLE_FIELD_INDEX: u32 = 0;
+const ITABLE_FIELD_INDEX: u32 = 1;
 
 /// Build one field access from one compiled layout.
 pub(super) fn field_access(
@@ -22,8 +22,8 @@ pub(super) fn field_access(
     let layout = layouts.get(&pointee_type)?;
     let field = layout.field(index)?;
 
-    // cache scalar representation for lowered memory ops
-    let word_layout = lowered_word_layout(tree, layouts, field.ty);
+    // cache scalar layout for lowered memory ops
+    let word_layout = access_word_layout(tree, layouts, field.ty);
 
     Some(FieldAccess {
         pointer_class,
@@ -48,7 +48,7 @@ pub(super) fn virtual_table_field(
         layouts,
         receiver_type,
         pointer_class,
-        VIRTUAL_TABLE_FIELD,
+        VTABLE_FIELD_INDEX,
     )
 }
 
@@ -66,7 +66,7 @@ pub(super) fn interface_table_field(
         layouts,
         receiver_type,
         pointer_class,
-        INTERFACE_TABLE_FIELD,
+        ITABLE_FIELD_INDEX,
     )
 }
 
@@ -81,8 +81,8 @@ pub(super) fn element_access(
     let layout = layouts.get(&pointee_type)?;
     let element = layout.element()?;
 
-    // cache scalar representation for lowered memory ops
-    let word_layout = lowered_word_layout(tree, layouts, element.ty);
+    // cache scalar layout for lowered memory ops
+    let word_layout = access_word_layout(tree, layouts, element.ty);
 
     Some(ElementAccess {
         pointer_class,
@@ -114,7 +114,7 @@ pub(super) fn slice_element_access(
     let slice = layout.slice()?;
     let element_layout = layouts.get(&element_type)?;
     let element_class = pointer_class_from_reference(address_space.clone(), *kind);
-    let element_word_layout = lowered_word_layout(tree, layouts, element_type);
+    let element_word_layout = access_word_layout(tree, layouts, element_type);
 
     Some(SliceElementAccess {
         data: FieldAccess {
@@ -150,7 +150,7 @@ pub(super) fn pointee_access(
 ) -> Option<PointeeAccess> {
     // resolve the pointee layout directly
     let layout = layouts.get(&pointee_type)?;
-    let word_layout = lowered_word_layout(tree, layouts, pointee_type);
+    let word_layout = access_word_layout(tree, layouts, pointee_type);
 
     Some(PointeeAccess {
         pointer_class,
@@ -170,7 +170,7 @@ pub(super) fn tensor_element_access(
 ) -> Option<ElementAccess> {
     // resolve the lowered tensor element layout directly
     let layout = layouts.get(&element_type)?;
-    let word_layout = lowered_word_layout(tree, layouts, element_type);
+    let word_layout = access_word_layout(tree, layouts, element_type);
 
     Some(ElementAccess {
         pointer_class,
@@ -198,7 +198,7 @@ pub(super) fn tensor_view_pointer_class(
 }
 
 /// Report whether one compiled layout stays scalar in lowered memory ops.
-fn lowered_word_layout(
+fn access_word_layout(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
@@ -223,15 +223,15 @@ pub(super) fn tensor_element_type(
     }
 }
 
-/// Resolve the field count for a struct or tuple representation.
-pub(super) fn field_count(tree: &mir::Tree, repr: ValueRepr) -> Option<u32> {
-    match repr {
-        ValueRepr::FrameBytes { ty } => match tree.get(ty) {
+/// Resolve the field count for a struct or tuple layout.
+pub(super) fn aggregate_field_count(tree: &mir::Tree, layout: ValueLayout) -> Option<u32> {
+    match layout {
+        ValueLayout::FrameBytes { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
-        ValueRepr::Pointer { pointee, .. } => match tree.get(pointee) {
+        ValueLayout::Pointer { pointee, .. } => match tree.get(pointee) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
@@ -240,15 +240,15 @@ pub(super) fn field_count(tree: &mir::Tree, repr: ValueRepr) -> Option<u32> {
     }
 }
 
-/// Resolve the element length for an array representation.
-pub(super) fn array_length(tree: &mir::Tree, repr: ValueRepr) -> Option<u64> {
-    match repr {
-        ValueRepr::Array { length, .. } => Some(length),
-        ValueRepr::FrameBytes { ty } => match tree.get(ty) {
+/// Resolve the element count for an array layout.
+pub(super) fn array_element_count(tree: &mir::Tree, layout: ValueLayout) -> Option<u64> {
+    match layout {
+        ValueLayout::Array { length, .. } => Some(length),
+        ValueLayout::FrameBytes { ty } => match tree.get(ty) {
             mir::Type::Array { length, .. } => Some(*length),
             _ => None,
         },
-        ValueRepr::Pointer { pointee, .. } => match tree.get(pointee) {
+        ValueLayout::Pointer { pointee, .. } => match tree.get(pointee) {
             mir::Type::Array { length, .. } => Some(*length),
             _ => None,
         },

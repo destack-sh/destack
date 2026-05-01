@@ -9,11 +9,11 @@ mod lower;
 mod memory;
 mod opcode;
 mod pool;
-mod repr;
 mod scalar;
 mod tensor;
 mod terminator;
 mod tree;
+mod value;
 mod vector;
 
 pub(crate) use lower::lower_function;

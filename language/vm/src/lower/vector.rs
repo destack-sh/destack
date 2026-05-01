@@ -4,6 +4,7 @@ use crate::program::{Instruction, Opcode, Operands};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
+use super::pool::Pool;
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one vector splat.
@@ -96,6 +97,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one vector shuffle.
     pub(super) fn lower_vector_shuffle(
         &self,
+        pool: &mut Pool<'_>,
         destination: mir::ValueReference,
         left: mir::ValueReference,
         right: mir::ValueReference,
@@ -119,7 +121,7 @@ impl<'a> BlockLowerer<'a> {
                 dest: destination,
                 left,
                 right,
-                mask: mask.to_vec(),
+                mask: pool.u32_range(mask),
             },
         })
     }

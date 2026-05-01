@@ -1,10 +1,11 @@
 use destack_mir as mir;
 
-use crate::Word;
 use crate::diagnostic::Error;
-use crate::program::{ElementAccess, FieldAccess, Opcode, PointeeAccess, PointerClass, ValueRepr};
+use crate::program::{
+    ElementAccess, FieldAccess, Opcode, PointeeAccess, PointerClass, ValueLayout,
+};
 
-use super::repr::ValueReprMap;
+use super::value::ValueLayoutMap;
 
 /// Require one lowered access to fit in a word.
 fn require_word_access(
@@ -22,172 +23,147 @@ fn require_word_access(
     Ok(())
 }
 
-/// Pick a binary handler from one known operand representation.
+/// Pick a binary handler from one known operand layout.
 pub(super) fn select_binary_opcode(
-    repr: Option<ValueRepr>,
+    layout: Option<ValueLayout>,
     operator: mir::BinaryOperator,
 ) -> Opcode {
     use mir::BinaryOperator::*;
 
-    // try specialized integer handlers first: no operator dispatch overhead
-    if let Some(ValueRepr::Int { width, signed }) = repr
-        && width <= Word::BIT_LEN as u16
-        && let Some(handler) = select_specialized_int_opcode(operator, signed)
-    {
-        return handler;
-    }
-
-    // fall back to typed handlers
-    match repr {
-        Some(ValueRepr::Int {
-            width,
-            signed: true,
-        }) if width <= Word::BIT_LEN as u16 => Opcode::BinaryInt,
-        Some(ValueRepr::Int {
-            width,
-            signed: false,
-        }) if width <= Word::BIT_LEN as u16 => Opcode::BinaryUint,
-        Some(ValueRepr::Float { width: 32 }) => Opcode::BinaryFloat32,
-        Some(ValueRepr::Float { width: 64 }) => Opcode::BinaryFloat64,
-        Some(ValueRepr::Bool) if matches!(operator, And | Or | Xor) => Opcode::BinaryBool,
-        _ => Opcode::Binary,
+    match layout {
+        Some(ValueLayout::Int { width, signed }) => select_integer_opcode(operator, signed, width)
+            .unwrap_or_else(|| {
+                if signed {
+                    Opcode::BinaryWideInt
+                } else {
+                    Opcode::BinaryWideUint
+                }
+            }),
+        Some(ValueLayout::Float { width: 32 }) => select_float_opcode(operator, false),
+        Some(ValueLayout::Float { width: 64 }) => select_float_opcode(operator, true),
+        Some(ValueLayout::Bool) => match operator {
+            And => Opcode::AndBool,
+            Or => Opcode::OrBool,
+            Xor => Opcode::XorBool,
+            Equal => Opcode::EqInt,
+            NotEqual => Opcode::NeInt,
+            _ => Opcode::BinaryWideUint,
+        },
+        _ => Opcode::BinaryWideInt,
     }
 }
 
-/// Select a fully specialized integer handler if available.
-pub(super) fn select_specialized_int_opcode(
+/// Select a machine integer opcode when the operator has one.
+pub(super) fn select_integer_opcode(
     operator: mir::BinaryOperator,
     signed: bool,
+    width: u16,
 ) -> Option<Opcode> {
     use mir::BinaryOperator::*;
 
-    Some(if signed {
-        match operator {
-            // signed arithmetic
-            Add => Opcode::AddInt,
-            Subtract => Opcode::SubInt,
-            Multiply => Opcode::MulInt,
+    if width > u64::BITS as u16 {
+        return None;
+    }
 
-            // signed bitwise
-            And => Opcode::AndInt,
-            Or => Opcode::OrInt,
-            Xor => Opcode::XorInt,
-            ShiftLeft => Opcode::ShlInt,
-            ArithmeticShiftRight => Opcode::ShrInt,
-
-            // signed comparisons
-            Equal => Opcode::EqInt,
-            NotEqual => Opcode::NeInt,
-            SignedLessThan => Opcode::LtInt,
-            SignedLessEqual => Opcode::LeInt,
-            SignedGreaterThan => Opcode::GtInt,
-            SignedGreaterEqual => Opcode::GeInt,
-            _ => return None,
-        }
-    } else {
-        match operator {
-            // unsigned arithmetic
-            Add => Opcode::AddUint,
-            Subtract => Opcode::SubUint,
-            Multiply => Opcode::MulUint,
-
-            // unsigned bitwise
-            And => Opcode::AndUint,
-            Or => Opcode::OrUint,
-            Xor => Opcode::XorUint,
-            ShiftLeft => Opcode::ShlUint,
-            LogicalShiftRight => Opcode::ShrUint,
-
-            // unsigned comparisons: eq and ne produce bool, not int or uint
-            Equal => Opcode::EqInt,
-            NotEqual => Opcode::NeInt,
-            UnsignedLessThan => Opcode::LtUint,
-            UnsignedLessEqual => Opcode::LeUint,
-            UnsignedGreaterThan => Opcode::GtUint,
-            UnsignedGreaterEqual => Opcode::GeUint,
-            _ => return None,
-        }
+    Some(match (operator, signed) {
+        (Add, _) => Opcode::AddInt,
+        (Subtract, _) => Opcode::SubInt,
+        (Multiply, _) => Opcode::MulInt,
+        (SignedDivide, true) => Opcode::DivInt,
+        (UnsignedDivide, _) => Opcode::DivUint,
+        (SignedRemainder, true) => Opcode::RemInt,
+        (UnsignedRemainder, _) => Opcode::RemUint,
+        (And, _) => Opcode::AndInt,
+        (Or, _) => Opcode::OrInt,
+        (Xor, _) => Opcode::XorInt,
+        (ShiftLeft, _) => Opcode::ShlInt,
+        (ArithmeticShiftRight, true) => Opcode::ShrInt,
+        (LogicalShiftRight, _) => Opcode::ShrUint,
+        (Equal, _) => Opcode::EqInt,
+        (NotEqual, _) => Opcode::NeInt,
+        (SignedLessThan, true) => Opcode::LtInt,
+        (SignedLessEqual, true) => Opcode::LeInt,
+        (SignedGreaterThan, true) => Opcode::GtInt,
+        (SignedGreaterEqual, true) => Opcode::GeInt,
+        (UnsignedLessThan, _) => Opcode::LtUint,
+        (UnsignedLessEqual, _) => Opcode::LeUint,
+        (UnsignedGreaterThan, _) => Opcode::GtUint,
+        (UnsignedGreaterEqual, _) => Opcode::GeUint,
+        _ => return None,
     })
 }
 
-/// Select a specialized const-right handler if available.
-pub(super) fn select_specialized_const_int_opcode(
-    operator: mir::BinaryOperator,
-    signed: bool,
-) -> Option<Opcode> {
+/// Select a machine float opcode for one binary operator.
+fn select_float_opcode(operator: mir::BinaryOperator, is_64: bool) -> Opcode {
     use mir::BinaryOperator::*;
 
-    Some(if signed {
-        match operator {
-            Add => Opcode::AddConstInt,
-            Subtract => Opcode::SubConstInt,
-            Multiply => Opcode::MulConstInt,
-            Equal => Opcode::EqConstInt,
-            NotEqual => Opcode::NeConstInt,
-            SignedLessThan => Opcode::LtConstInt,
-            SignedLessEqual => Opcode::LeConstInt,
-            SignedGreaterThan => Opcode::GtConstInt,
-            SignedGreaterEqual => Opcode::GeConstInt,
-            _ => return None,
-        }
-    } else {
-        match operator {
-            Add => Opcode::AddConstUint,
-            Subtract => Opcode::SubConstUint,
-            Multiply => Opcode::MulConstUint,
+    match (operator, is_64) {
+        (FloatAdd, false) => Opcode::AddF32,
+        (FloatAdd, true) => Opcode::AddF64,
+        (FloatSubtract, false) => Opcode::SubF32,
+        (FloatSubtract, true) => Opcode::SubF64,
+        (FloatMultiply, false) => Opcode::MulF32,
+        (FloatMultiply, true) => Opcode::MulF64,
+        (FloatDivide, false) => Opcode::DivF32,
+        (FloatDivide, true) => Opcode::DivF64,
+        (FloatEqual, false) => Opcode::EqF32,
+        (FloatEqual, true) => Opcode::EqF64,
+        (FloatNotEqual, false) => Opcode::NeF32,
+        (FloatNotEqual, true) => Opcode::NeF64,
+        (FloatLessThan, false) => Opcode::LtF32,
+        (FloatLessThan, true) => Opcode::LtF64,
+        (FloatLessEqual, false) => Opcode::LeF32,
+        (FloatLessEqual, true) => Opcode::LeF64,
+        (FloatGreaterThan, false) => Opcode::GtF32,
+        (FloatGreaterThan, true) => Opcode::GtF64,
+        (FloatGreaterEqual, false) => Opcode::GeF32,
+        (FloatGreaterEqual, true) => Opcode::GeF64,
+        _ => Opcode::BinaryWideInt,
+    }
+}
 
-            // eq and ne produce bool, can use signed version
-            Equal => Opcode::EqConstInt,
-            NotEqual => Opcode::NeConstInt,
-            UnsignedLessThan => Opcode::LtConstUint,
-            UnsignedLessEqual => Opcode::LeConstUint,
-            UnsignedGreaterThan => Opcode::GtConstUint,
-            UnsignedGreaterEqual => Opcode::GeConstUint,
-            _ => return None,
-        }
+/// Select a machine integer unary opcode when the operator has one.
+pub(super) fn select_integer_unary_opcode(
+    operator: mir::UnaryOperator,
+    signed: bool,
+    width: u16,
+) -> Option<Opcode> {
+    if width > u64::BITS as u16 {
+        return None;
+    }
+
+    Some(match (operator, signed) {
+        (mir::UnaryOperator::Negate, true) => Opcode::NegInt,
+        (mir::UnaryOperator::Not, _) => Opcode::NotInt,
+        _ => return None,
     })
 }
 
-/// Pick a unary handler based on inferred operand representation.
+/// Pick a unary handler based on inferred operand layout.
 pub(super) fn select_unary_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     argument: mir::Value,
     operator: mir::UnaryOperator,
 ) -> Opcode {
-    // resolve operand representation
-    let repr = value_reprs.get(argument);
-
-    // select handler by representation
-    match (repr, operator) {
-        (
-            Some(ValueRepr::Int {
-                width,
-                signed: true,
-            }),
-            _,
-        ) if width <= Word::BIT_LEN as u16 => Opcode::UnaryInt,
-        (
-            Some(ValueRepr::Int {
-                width,
-                signed: false,
-            }),
-            _,
-        ) if width <= Word::BIT_LEN as u16 => Opcode::UnaryUint,
-        (Some(ValueRepr::Float { width: 32 }), mir::UnaryOperator::FloatNegate) => {
-            Opcode::UnaryFloat32
+    match value_layouts.get(argument) {
+        Some(ValueLayout::Int { width, signed }) => {
+            select_integer_unary_opcode(operator, signed, width).unwrap_or(Opcode::UnaryWideInt)
         }
-        (Some(ValueRepr::Float { width: 64 }), mir::UnaryOperator::FloatNegate) => {
-            Opcode::UnaryFloat64
+        Some(ValueLayout::Float { width: 32 }) if operator == mir::UnaryOperator::FloatNegate => {
+            Opcode::NegF32
         }
-        (Some(ValueRepr::Bool), mir::UnaryOperator::Not) => Opcode::UnaryBool,
-        _ => Opcode::Unary,
+        Some(ValueLayout::Float { width: 64 }) if operator == mir::UnaryOperator::FloatNegate => {
+            Opcode::NegF64
+        }
+        Some(ValueLayout::Bool) if operator == mir::UnaryOperator::Not => Opcode::NotBool,
+        _ => Opcode::UnaryWideInt,
     }
 }
 
 /// Pick a load handler for one known pointer access.
 pub(super) fn select_load_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
     if !access.is_word() {
-        return Ok(Opcode::CopyFromAddress);
+        return Ok(Opcode::LoadFrameBytes);
     }
 
     match access.pointer_class {
@@ -205,7 +181,7 @@ pub(super) fn select_load_opcode(access: PointeeAccess) -> Result<Opcode, Error>
 /// Pick a store handler for one known pointer access.
 pub(super) fn select_store_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
     if !access.is_word() {
-        return Ok(Opcode::CopyToAddress);
+        return Ok(Opcode::StoreFrameBytes);
     }
 
     match access.pointer_class {
@@ -220,366 +196,255 @@ pub(super) fn select_store_opcode(access: PointeeAccess) -> Result<Opcode, Error
     }
 }
 
-/// Pick a field address handler based on inferred value representation.
+/// Pick a field address handler based on inferred value layout.
 pub(super) fn select_field_addr_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     base: mir::Value,
 ) -> Result<Opcode, Error> {
-    match value_reprs.get(base) {
-        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldAddr),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::FieldAddrSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::FieldAddrSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::FieldAddrHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::FieldAddrRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::FieldAddrStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::FieldAddr),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::FieldAddrStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
+    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+
+    select_address_opcode(pointer_class, AggregateAccess::Field)
 }
 
-/// Pick an element address handler based on inferred value representation.
+/// Pick an element address handler based on inferred value layout.
 pub(super) fn select_element_addr_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     array: mir::Value,
 ) -> Result<Opcode, Error> {
-    match value_reprs.get(array) {
-        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
-            Ok(Opcode::ElementAddr)
-        }
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::ElementAddrSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::ElementAddrSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::ElementAddrHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::ElementAddrRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::ElementAddrStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::ElementAddr),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::ElementAddrStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
+    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+
+    select_address_opcode(pointer_class, AggregateAccess::Element)
 }
 
-/// Pick a field load handler based on inferred value representation.
+/// Pick a field load handler based on inferred value layout.
 pub(super) fn select_field_load_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     base: mir::Value,
     field: FieldAccess,
 ) -> Result<Opcode, Error> {
     require_word_access(field.is_word(), "word field load", field.value_type)?;
 
-    match value_reprs.get(base) {
-        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::FieldLoadSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::FieldLoadSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::FieldLoadHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::FieldLoadRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::FieldLoadStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::FieldLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::FieldLoadStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
+    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+
+    select_aggregate_load_opcode(pointer_class, AggregateAccess::Field)
 }
 
-/// Pick a field store handler based on inferred value representation.
+/// Pick a field store handler based on inferred value layout.
 pub(super) fn select_field_store_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     base: mir::Value,
     field: FieldAccess,
 ) -> Result<Opcode, Error> {
     require_word_access(field.is_word(), "word field store", field.value_type)?;
 
-    match value_reprs.get(base) {
-        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldStore),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::FieldStoreSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::FieldStoreSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::FieldStoreHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::FieldStoreRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::FieldStoreStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::FieldStore),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::FieldStoreStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
+    let pointer_class = aggregate_pointer_class(value_layouts.get(base), false)?;
+
+    select_aggregate_store_opcode(pointer_class, AggregateAccess::Field)
 }
 
-/// Pick an element load handler based on inferred value representation.
+/// Pick an element load handler based on inferred value layout.
 pub(super) fn select_element_load_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     array: mir::Value,
     element: ElementAccess,
 ) -> Result<Opcode, Error> {
     require_word_access(element.is_word(), "word element load", element.value_type)?;
 
-    match value_reprs.get(array) {
-        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
-            Ok(Opcode::ElementLoad)
-        }
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::ElementLoadSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::ElementLoadSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::ElementLoadHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::ElementLoadRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::ElementLoadStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::ElementLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::ElementLoadStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
+    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+
+    select_aggregate_load_opcode(pointer_class, AggregateAccess::Element)
 }
 
-/// Pick an element store handler based on inferred value representation.
+/// Pick an element store handler based on inferred value layout.
 pub(super) fn select_element_store_opcode(
-    value_reprs: &ValueReprMap,
+    value_layouts: &ValueLayoutMap,
     array: mir::Value,
     element: ElementAccess,
 ) -> Result<Opcode, Error> {
     require_word_access(element.is_word(), "word element store", element.value_type)?;
 
-    match value_reprs.get(array) {
-        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
-            Ok(Opcode::ElementStore)
-        }
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
-            ..
-        }) => Ok(Opcode::ElementStoreSharedHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::ElementStoreSharedRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
-            ..
-        }) => Ok(Opcode::ElementStoreHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::ElementStoreRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::ElementStoreStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::ElementStore),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::ElementStoreStatic),
+    let pointer_class = aggregate_pointer_class(value_layouts.get(array), true)?;
+
+    select_aggregate_store_opcode(pointer_class, AggregateAccess::Element)
+}
+
+/// Field or element access family.
+#[derive(Clone, Copy)]
+enum AggregateAccess {
+    /// Struct or tuple field.
+    Field,
+    /// Fixed array element.
+    Element,
+}
+
+/// Return the pointer class addressed by one aggregate access.
+fn aggregate_pointer_class(
+    layout: Option<ValueLayout>,
+    is_array_allowed: bool,
+) -> Result<PointerClass, Error> {
+    match layout {
+        Some(ValueLayout::FrameBytes { .. }) => Ok(PointerClass::Frame),
+        Some(ValueLayout::Array { .. }) if is_array_allowed => Ok(PointerClass::Frame),
+        Some(ValueLayout::Pointer { pointer_class, .. }) => Ok(pointer_class),
         _ => Err(Error::InvalidInstruction),
     }
 }
 
-/// Pick a branch handler based on inferred condition representation.
-pub(super) fn select_branch_opcode(value_reprs: &ValueReprMap, condition: mir::Value) -> Opcode {
-    // resolve condition representation
-    match value_reprs.get(condition) {
-        Some(ValueRepr::Bool) => Opcode::BranchBool,
-        _ => Opcode::Branch,
-    }
-}
-
-/// Pick a switch handler based on inferred value representation.
-pub(super) fn select_switch_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
-    // resolve switch value representation
-    match value_reprs.get(value) {
-        Some(ValueRepr::Int { width, .. }) if width <= Word::BIT_LEN as u16 => Opcode::SwitchInt,
-        _ => Opcode::Switch,
-    }
-}
-
-/// Pick a switch table handler based on inferred value representation.
-pub(super) fn select_switch_table_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
-    // resolve switch value representation
-    match value_reprs.get(value) {
-        Some(ValueRepr::Int { width, .. }) if width <= Word::BIT_LEN as u16 => {
-            Opcode::SwitchTableInt
+/// Pick one address opcode for an aggregate access.
+fn select_address_opcode(
+    pointer_class: PointerClass,
+    access: AggregateAccess,
+) -> Result<Opcode, Error> {
+    match (pointer_class, access) {
+        (PointerClass::Frame, _) => Ok(Opcode::AddressFrame),
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::AddressHeapField)
         }
-        _ => Opcode::SwitchTable,
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::AddressHeapElement)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::AddressSharedHeapField)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::AddressSharedHeapElement)
+        }
+        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::AddressRawField),
+        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::AddressRawElement),
+        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::AddressSharedRawField),
+        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::AddressSharedRawElement),
+        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::AddressStackField),
+        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::AddressStackElement),
+        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::AddressStaticField),
+        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::AddressStaticElement),
+        (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Pick one load opcode for an aggregate access.
+fn select_aggregate_load_opcode(
+    pointer_class: PointerClass,
+    access: AggregateAccess,
+) -> Result<Opcode, Error> {
+    match (pointer_class, access) {
+        (PointerClass::Frame, _) => Ok(Opcode::LoadFrame),
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::LoadHeapField)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::LoadHeapElement)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::LoadSharedHeapField)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::LoadSharedHeapElement)
+        }
+        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::LoadRawField),
+        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::LoadRawElement),
+        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::LoadSharedRawField),
+        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::LoadSharedRawElement),
+        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::LoadStackField),
+        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::LoadStackElement),
+        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::LoadStaticField),
+        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::LoadStaticElement),
+        (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Pick one store opcode for an aggregate access.
+fn select_aggregate_store_opcode(
+    pointer_class: PointerClass,
+    access: AggregateAccess,
+) -> Result<Opcode, Error> {
+    match (pointer_class, access) {
+        (PointerClass::Frame, _) => Ok(Opcode::StoreFrame),
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::StoreHeapField)
+        }
+        (PointerClass::Heap | PointerClass::HeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::StoreHeapElement)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Field) => {
+            Ok(Opcode::StoreSharedHeapField)
+        }
+        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, AggregateAccess::Element) => {
+            Ok(Opcode::StoreSharedHeapElement)
+        }
+        (PointerClass::Raw, AggregateAccess::Field) => Ok(Opcode::StoreRawField),
+        (PointerClass::Raw, AggregateAccess::Element) => Ok(Opcode::StoreRawElement),
+        (PointerClass::SharedRaw, AggregateAccess::Field) => Ok(Opcode::StoreSharedRawField),
+        (PointerClass::SharedRaw, AggregateAccess::Element) => Ok(Opcode::StoreSharedRawElement),
+        (PointerClass::Stack, AggregateAccess::Field) => Ok(Opcode::StoreStackField),
+        (PointerClass::Stack, AggregateAccess::Element) => Ok(Opcode::StoreStackElement),
+        (PointerClass::Static, AggregateAccess::Field) => Ok(Opcode::StoreStaticField),
+        (PointerClass::Static, AggregateAccess::Element) => Ok(Opcode::StoreStaticElement),
+        (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
+    }
+}
+
+/// Pick a branch handler based on inferred condition layout.
+pub(super) fn select_branch_opcode(
+    value_layouts: &ValueLayoutMap,
+    condition: mir::Value,
+) -> Opcode {
+    match value_layouts.get(condition) {
+        Some(ValueLayout::Bool) => Opcode::BranchBool,
+        _ => Opcode::BranchBool,
+    }
+}
+
+/// Pick a switch handler based on inferred value layout.
+pub(super) fn select_switch_opcode(value_layouts: &ValueLayoutMap, value: mir::Value) -> Opcode {
+    match value_layouts.get(value) {
+        Some(ValueLayout::Int { width, .. }) if width <= u32::BITS as u16 => Opcode::Switch32,
+        Some(ValueLayout::Int { width, .. }) if width <= u64::BITS as u16 => Opcode::Switch64,
+        _ => Opcode::SwitchWideInt,
+    }
+}
+
+/// Pick a switch table handler based on inferred value layout.
+pub(super) fn select_switch_table_opcode(
+    value_layouts: &ValueLayoutMap,
+    value: mir::Value,
+) -> Opcode {
+    match value_layouts.get(value) {
+        Some(ValueLayout::Int { width, .. }) if width <= u32::BITS as u16 => Opcode::SwitchTable32,
+        Some(ValueLayout::Int { width, .. }) if width <= u64::BITS as u16 => Opcode::SwitchTable64,
+        _ => Opcode::SwitchTableWideInt,
     }
 }
 
 /// Pick a compare and branch handler based on operator type.
-pub(super) fn select_compare_branch_opcode(operator: mir::BinaryOperator) -> Opcode {
-    match operator {
-        // signed integer comparisons: most common in loops
-        mir::BinaryOperator::Equal
-        | mir::BinaryOperator::NotEqual
-        | mir::BinaryOperator::SignedLessThan
-        | mir::BinaryOperator::SignedLessEqual
-        | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::SignedGreaterEqual => Opcode::CompareAndBranchInt,
+pub(super) fn select_compare_branch_opcode(
+    operator: mir::BinaryOperator,
+    layout: Option<ValueLayout>,
+) -> Option<Opcode> {
+    let is_float64 = matches!(layout, Some(ValueLayout::Float { width: 64 }));
 
-        // unsigned integer comparisons
-        mir::BinaryOperator::UnsignedLessThan
-        | mir::BinaryOperator::UnsignedLessEqual
-        | mir::BinaryOperator::UnsignedGreaterThan
-        | mir::BinaryOperator::UnsignedGreaterEqual => Opcode::CompareAndBranchUint,
-
-        // float comparisons
-        mir::BinaryOperator::FloatEqual
-        | mir::BinaryOperator::FloatNotEqual
-        | mir::BinaryOperator::FloatLessThan
-        | mir::BinaryOperator::FloatLessEqual
-        | mir::BinaryOperator::FloatGreaterThan
-        | mir::BinaryOperator::FloatGreaterEqual => Opcode::CompareAndBranchFloat,
-
-        // default for non comparison operators
-        _ => Opcode::CompareAndBranch,
-    }
-}
-
-/// Pick a compare and branch handler for constant right operands.
-pub(super) fn select_compare_branch_const_opcode(operator: mir::BinaryOperator) -> Opcode {
-    match operator {
-        // signed integer comparisons: most common in loops
-        mir::BinaryOperator::Equal
-        | mir::BinaryOperator::NotEqual
-        | mir::BinaryOperator::SignedLessThan
-        | mir::BinaryOperator::SignedLessEqual
-        | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::SignedGreaterEqual => Opcode::CompareAndBranchConstInt,
-
-        // unsigned integer comparisons
-        mir::BinaryOperator::UnsignedLessThan
-        | mir::BinaryOperator::UnsignedLessEqual
-        | mir::BinaryOperator::UnsignedGreaterThan
-        | mir::BinaryOperator::UnsignedGreaterEqual => Opcode::CompareAndBranchConstUint,
-
-        // float comparisons
-        mir::BinaryOperator::FloatEqual
-        | mir::BinaryOperator::FloatNotEqual
-        | mir::BinaryOperator::FloatLessThan
-        | mir::BinaryOperator::FloatLessEqual
-        | mir::BinaryOperator::FloatGreaterThan
-        | mir::BinaryOperator::FloatGreaterEqual => Opcode::CompareAndBranchConstFloat,
-
-        // default for non comparison operators
-        _ => Opcode::CompareAndBranchConst,
-    }
-}
-
-/// Swap the comparison operator when the constant appears on the left.
-pub(super) fn swap_compare_operator(operator: mir::BinaryOperator) -> mir::BinaryOperator {
-    match operator {
-        mir::BinaryOperator::Equal => mir::BinaryOperator::Equal,
-        mir::BinaryOperator::NotEqual => mir::BinaryOperator::NotEqual,
-        mir::BinaryOperator::SignedLessThan => mir::BinaryOperator::SignedGreaterThan,
-        mir::BinaryOperator::SignedLessEqual => mir::BinaryOperator::SignedGreaterEqual,
-        mir::BinaryOperator::SignedGreaterThan => mir::BinaryOperator::SignedLessThan,
-        mir::BinaryOperator::SignedGreaterEqual => mir::BinaryOperator::SignedLessEqual,
-        mir::BinaryOperator::UnsignedLessThan => mir::BinaryOperator::UnsignedGreaterThan,
-        mir::BinaryOperator::UnsignedLessEqual => mir::BinaryOperator::UnsignedGreaterEqual,
-        mir::BinaryOperator::UnsignedGreaterThan => mir::BinaryOperator::UnsignedLessThan,
-        mir::BinaryOperator::UnsignedGreaterEqual => mir::BinaryOperator::UnsignedLessEqual,
-        mir::BinaryOperator::FloatLessThan => mir::BinaryOperator::FloatGreaterThan,
-        mir::BinaryOperator::FloatLessEqual => mir::BinaryOperator::FloatGreaterEqual,
-        mir::BinaryOperator::FloatGreaterThan => mir::BinaryOperator::FloatLessThan,
-        mir::BinaryOperator::FloatGreaterEqual => mir::BinaryOperator::FloatLessEqual,
-        mir::BinaryOperator::FloatEqual => mir::BinaryOperator::FloatEqual,
-        mir::BinaryOperator::FloatNotEqual => mir::BinaryOperator::FloatNotEqual,
-        _ => operator,
-    }
+    Some(match (operator, is_float64) {
+        (mir::BinaryOperator::Equal, _) => Opcode::BranchEqInt,
+        (mir::BinaryOperator::NotEqual, _) => Opcode::BranchNeInt,
+        (mir::BinaryOperator::SignedLessThan, _) => Opcode::BranchLtInt,
+        (mir::BinaryOperator::SignedLessEqual, _) => Opcode::BranchLeInt,
+        (mir::BinaryOperator::SignedGreaterThan, _) => Opcode::BranchGtInt,
+        (mir::BinaryOperator::SignedGreaterEqual, _) => Opcode::BranchGeInt,
+        (mir::BinaryOperator::UnsignedLessThan, _) => Opcode::BranchLtUint,
+        (mir::BinaryOperator::UnsignedLessEqual, _) => Opcode::BranchLeUint,
+        (mir::BinaryOperator::UnsignedGreaterThan, _) => Opcode::BranchGtUint,
+        (mir::BinaryOperator::UnsignedGreaterEqual, _) => Opcode::BranchGeUint,
+        (mir::BinaryOperator::FloatEqual, false) => Opcode::BranchEqF32,
+        (mir::BinaryOperator::FloatEqual, true) => Opcode::BranchEqF64,
+        (mir::BinaryOperator::FloatNotEqual, false) => Opcode::BranchNeF32,
+        (mir::BinaryOperator::FloatNotEqual, true) => Opcode::BranchNeF64,
+        (mir::BinaryOperator::FloatLessThan, false) => Opcode::BranchLtF32,
+        (mir::BinaryOperator::FloatLessThan, true) => Opcode::BranchLtF64,
+        (mir::BinaryOperator::FloatLessEqual, false) => Opcode::BranchLeF32,
+        (mir::BinaryOperator::FloatLessEqual, true) => Opcode::BranchLeF64,
+        (mir::BinaryOperator::FloatGreaterThan, false) => Opcode::BranchGtF32,
+        (mir::BinaryOperator::FloatGreaterThan, true) => Opcode::BranchGtF64,
+        (mir::BinaryOperator::FloatGreaterEqual, false) => Opcode::BranchGeF32,
+        (mir::BinaryOperator::FloatGreaterEqual, true) => Opcode::BranchGeF64,
+        _ => return None,
+    })
 }

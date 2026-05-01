@@ -3,23 +3,23 @@ use std::ops::Deref;
 
 use {destack_heap as heap, destack_mir as mir};
 
-use crate::program::{Block, CallTarget, Function, Layout};
+use crate::program::{Block, CallTarget, Function, Layout, OperandTableBuilder};
 use crate::{Error, Result};
 
 use super::block::{BlockOrder, FunctionContext};
 use super::pool::{Pool, lookup_call_target};
-use super::repr::{ReprMapBuilder, ValueReprMap};
 use super::tree::ValueType;
+use super::value::{ValueLayoutMap, ValueLayoutMapBuilder};
 
 /// One whole-function lowering session.
-struct FunctionLowerer<'a> {
+struct FunctionLowerer<'a, 'table> {
     context: FunctionContext<'a>,
     func: &'a mir::Function,
     frame_layout: destack_engine::FrameLayoutId,
-    pool: Pool,
+    pool: Pool<'table>,
 }
 
-impl<'a> FunctionLowerer<'a> {
+impl<'a, 'table> FunctionLowerer<'a, 'table> {
     /// Create one function lowerer for the given MIR function.
     fn new(
         tree: &'a mir::Tree,
@@ -38,6 +38,7 @@ impl<'a> FunctionLowerer<'a> {
         heap_options: &'a heap::HeapOptions,
         shared_heap_options: &'a heap::HeapOptions,
         value_types: &'a [ValueType],
+        operand_table: &'table mut OperandTableBuilder,
     ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
 
@@ -55,8 +56,9 @@ impl<'a> FunctionLowerer<'a> {
             .map(|value_type| value_type.ty)
             .collect::<Vec<_>>();
         let value_count = value_types.len();
-        let value_repr_map =
-            ReprMapBuilder::new(tree, func, &block_order.block, &value_type, value_count).build();
+        let value_layout_map =
+            ValueLayoutMapBuilder::new(tree, func, &block_order.block, &value_type, value_count)
+                .build();
         let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count)?;
         let local_index_by_id = Self::local_index_map(func);
         let block_parameter = Self::block_parameter(tree, &block_order.block)?;
@@ -68,7 +70,7 @@ impl<'a> FunctionLowerer<'a> {
             yield_resume_points,
             exceptional_call_resume_points,
             call_targets,
-            value_repr_map,
+            value_layout_map,
             value_type,
             layouts,
             heap_options,
@@ -83,7 +85,7 @@ impl<'a> FunctionLowerer<'a> {
             context,
             func,
             frame_layout,
-            pool: Pool::new(),
+            pool: Pool::new(operand_table),
         }))
     }
 
@@ -118,6 +120,7 @@ impl<'a> FunctionLowerer<'a> {
         let (argument_pool, move_pool) = self.pool.finish();
 
         Ok(Function {
+            mir_function: self.context.function_id,
             frame_layout: self.frame_layout,
             parameters: parameter,
             entry: self.context.entry_block,
@@ -196,6 +199,7 @@ pub(crate) fn lower_function(
     heap_options: &heap::HeapOptions,
     shared_heap_options: &heap::HeapOptions,
     value_types: &[ValueType],
+    operand_table: &mut OperandTableBuilder,
 ) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
         tree,
@@ -208,6 +212,7 @@ pub(crate) fn lower_function(
         heap_options,
         shared_heap_options,
         value_types,
+        operand_table,
     )?;
 
     lowerer.map(FunctionLowerer::lower).transpose()
@@ -235,7 +240,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower the block into program form.
-    fn lower(self, pool: &mut Pool) -> Result<Block> {
+    fn lower(self, pool: &mut Pool<'_>) -> Result<Block> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut mir_instruction_offsets = Vec::with_capacity(self.block.instructions.len() + 2);
         mir_instruction_offsets.push(0);
@@ -246,24 +251,19 @@ impl<'a> BlockLowerer<'a> {
             let inst_id = self.block.instructions[inst_index];
             let inst = self.tree.get(inst_id);
 
-            if let Some((instruction, skip)) = self
-                .try_fuse_addr_access(inst, self.block.instructions.get(inst_index + 1).copied())
-            {
+            // fuse address formation into direct memory access
+            if let Some((instruction, skip)) = self.try_fuse_addr_access(
+                inst,
+                self.block.instructions.get(inst_index + 1).copied(),
+                pool,
+            ) {
                 instructions.push(instruction);
                 inst_index += skip;
                 mir_instruction_offsets.push(inst_index as u32);
                 continue;
             }
 
-            if let Some((instruction, skip)) = self
-                .try_fuse_const_binary(inst, self.block.instructions.get(inst_index + 1).copied())
-            {
-                instructions.push(instruction);
-                inst_index += skip;
-                mir_instruction_offsets.push(inst_index as u32);
-                continue;
-            }
-
+            // lower the remaining instruction shape
             let lowered = self.lower_instructions(inst, pool)?;
             instructions.extend(lowered);
             inst_index += 1;
@@ -272,6 +272,7 @@ impl<'a> BlockLowerer<'a> {
 
         let terminator = self.tree.get(self.block.terminator);
 
+        // fuse compare producers into conditional branches
         if let Some(fused) = self.try_fuse_compare_branch(self.block, &mut instructions, pool) {
             instructions.push(fused);
         } else {
@@ -318,9 +319,9 @@ impl<'a> BlockLowerer<'a> {
             })
     }
 
-    /// Return the lowered value representation map.
-    pub(super) fn value_repr_map(&self) -> &ValueReprMap {
-        &self.function.value_repr_map
+    /// Return the lowered value layout map.
+    pub(super) fn value_layout_map(&self) -> &ValueLayoutMap {
+        &self.function.value_layout_map
     }
 
     /// Return the lowered value types.

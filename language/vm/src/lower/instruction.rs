@@ -40,38 +40,38 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_instructions(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Vec<Instruction>> {
         match inst {
             mir::Instruction::Struct {
                 destination,
                 fields,
                 ..
-            } => self.lower_frame_constructor(*destination, *fields),
+            } => self.lower_frame_constructor(pool, *destination, *fields),
             mir::Instruction::Tuple {
                 destination,
                 elements,
                 ..
-            } => self.lower_frame_constructor(*destination, *elements),
+            } => self.lower_frame_constructor(pool, *destination, *elements),
             mir::Instruction::Array {
                 destination,
                 elements,
                 ..
-            } => self.lower_frame_constructor(*destination, *elements),
+            } => self.lower_frame_constructor(pool, *destination, *elements),
             mir::Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
                 value,
-            } => self.lower_field_update(*destination, *aggregate, *index, *value),
-            mir::Instruction::FieldGet { .. } => self.lower_field_read(inst),
-            mir::Instruction::ElementGet { .. } => self.lower_element_read(inst),
+            } => self.lower_field_update(pool, *destination, *aggregate, *index, *value),
+            mir::Instruction::FieldGet { .. } => self.lower_field_read(pool, inst),
+            mir::Instruction::ElementGet { .. } => self.lower_element_read(pool, inst),
             mir::Instruction::ElementSet {
                 destination,
                 array,
                 index,
                 value,
-            } => self.lower_element_update(*destination, *array, *index, *value),
+            } => self.lower_element_update(pool, *destination, *array, *index, *value),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
     }
@@ -80,7 +80,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_instruction(
         &self,
         inst: &mir::Instruction,
-        pool: &mut Pool,
+        pool: &mut Pool<'_>,
     ) -> Result<Instruction> {
         Ok(match inst {
             mir::Instruction::Error => {
@@ -181,9 +181,11 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 pointer,
                 ..
-            } => self.lower_load(*destination, *pointer)?,
+            } => self.lower_load(pool, *destination, *pointer)?,
 
-            mir::Instruction::Store { pointer, value } => self.lower_store(*pointer, *value)?,
+            mir::Instruction::Store { pointer, value } => {
+                self.lower_store(pool, *pointer, *value)?
+            }
 
             mir::Instruction::Dispose { .. } => Instruction {
                 opcode: Opcode::Dispose,
@@ -246,7 +248,7 @@ impl<'a> BlockLowerer<'a> {
                 aggregate: base,
                 index,
                 ..
-            } => self.lower_field_addr(*destination, *base, *index)?,
+            } => self.lower_field_addr(pool, *destination, *base, *index)?,
 
             mir::Instruction::FieldSet { .. } => return Err(Error::InvalidInstruction),
 
@@ -257,7 +259,7 @@ impl<'a> BlockLowerer<'a> {
                 array,
                 index,
                 ..
-            } => self.lower_element_addr(*destination, *array, *index)?,
+            } => self.lower_element_addr(pool, *destination, *array, *index)?,
 
             mir::Instruction::ElementSet { .. } => return Err(Error::InvalidInstruction),
 
@@ -289,7 +291,7 @@ impl<'a> BlockLowerer<'a> {
                 left,
                 right,
                 mask,
-            } => self.lower_vector_shuffle(*destination, *left, *right, mask)?,
+            } => self.lower_vector_shuffle(pool, *destination, *left, *right, mask)?,
             mir::Instruction::VectorSelect {
                 destination,
                 mask,
@@ -322,7 +324,7 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 layout,
                 ..
-            } => self.lower_new(*destination, *layout)?,
+            } => self.lower_new(pool, *destination, *layout)?,
 
             mir::Instruction::NewSlice {
                 destination,
@@ -330,7 +332,7 @@ impl<'a> BlockLowerer<'a> {
                 length,
                 result_type,
                 ..
-            } => self.lower_new_slice(*destination, *element, *length, *result_type)?,
+            } => self.lower_new_slice(pool, *destination, *element, *length, *result_type)?,
 
             mir::Instruction::RawAlloc {
                 destination,

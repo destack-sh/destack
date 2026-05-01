@@ -3,11 +3,11 @@ use destack_mir as mir;
 use crate::program::{ElementAccess, FieldAccess, Layout};
 use crate::{Error, Result};
 
-use super::access::{array_length, element_access, field_access, field_count};
+use super::access::{aggregate_field_count, array_element_count, element_access, field_access};
 use super::lower::BlockLowerer;
-use super::repr::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_repr, pointer_class_for_value,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_repr,
+use super::value::{
+    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
+    raw_pointee_type_for_value, raw_pointee_type_for_value_layout,
     value_type_for_value as lookup_value_type_for_value,
 };
 
@@ -27,14 +27,14 @@ impl<'a> BlockLowerer<'a> {
     /// Return one lowered field count for one value.
     pub(super) fn field_count_for_value(&self, value: mir::Value) -> Result<u32> {
         if let Some(count) = self
-            .value_repr_map()
+            .value_layout_map()
             .get(value)
-            .and_then(|repr| field_count(self.tree, repr))
+            .and_then(|layout| aggregate_field_count(self.tree, layout))
         {
             return Ok(count);
         }
 
-        let value_type = self.indexed_type_for_value(value)?;
+        let value_type = self.aggregate_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
@@ -45,14 +45,14 @@ impl<'a> BlockLowerer<'a> {
     /// Return one lowered array length for one value.
     pub(super) fn array_length_for_value(&self, value: mir::Value) -> Result<u64> {
         if let Some(length) = self
-            .value_repr_map()
+            .value_layout_map()
             .get(value)
-            .and_then(|repr| array_length(self.tree, repr))
+            .and_then(|layout| array_element_count(self.tree, layout))
         {
             return Ok(length);
         }
 
-        let value_type = self.indexed_type_for_value(value)?;
+        let value_type = self.aggregate_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
@@ -60,13 +60,13 @@ impl<'a> BlockLowerer<'a> {
         self.array_length_for_type(value_type)
     }
 
-    /// Return the indexed type behind one value.
-    pub(super) fn indexed_type_for_value(
+    /// Return the aggregate type behind one value.
+    pub(super) fn aggregate_type_for_value(
         &self,
         value: mir::Value,
     ) -> Result<Option<mir::LocalNodeId<mir::Type>>> {
-        let pointee_type = heap_pointee_type_for_value_repr(self.value_repr_map(), value)
-            .or_else(|| raw_pointee_type_for_value_repr(self.value_repr_map(), value))
+        let pointee_type = heap_pointee_type_for_value_layout(self.value_layout_map(), value)
+            .or_else(|| raw_pointee_type_for_value_layout(self.value_layout_map(), value))
             .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), value))
             .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), value));
 
@@ -84,11 +84,11 @@ impl<'a> BlockLowerer<'a> {
         index: u32,
     ) -> Result<FieldAccess> {
         let field_count = self.field_count_for_value(value)? as usize;
-        let value_type = self.indexed_type_for_value(value)?;
+        let value_type = self.aggregate_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidFieldAccess { index, field_count });
         };
-        let pointer_class = pointer_class_for_value(self.value_repr_map(), value);
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), value);
 
         field_access(self.tree, self.layouts(), value_type, pointer_class, index)
             .ok_or(Error::InvalidFieldAccess { index, field_count })
@@ -96,11 +96,11 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return one lowered element access for a value.
     pub(super) fn element_access_for_value(&self, value: mir::Value) -> Result<ElementAccess> {
-        let value_type = self.indexed_type_for_value(value)?;
+        let value_type = self.aggregate_type_for_value(value)?;
         let Some(value_type) = value_type else {
             return Err(Error::InvalidInstruction);
         };
-        let pointer_class = pointer_class_for_value(self.value_repr_map(), value);
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), value);
 
         element_access(self.tree, self.layouts(), value_type, pointer_class)
             .ok_or(Error::InvalidInstruction)
@@ -127,7 +127,7 @@ impl<'a> BlockLowerer<'a> {
         }
     }
 
-    /// Return one lowered byte length for one layout.
+    /// Return the MIR type for one value.
     pub(super) fn value_type_for_value(
         &self,
         value: mir::Value,
@@ -139,8 +139,8 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Return one lowered byte length for one layout.
-    pub(super) fn layout_byte_len(&self, layout: mir::LocalNodeId<mir::Type>) -> Result<usize> {
+    /// Return the lowered byte length for one type.
+    pub(super) fn byte_len_for_type(&self, layout: mir::LocalNodeId<mir::Type>) -> Result<usize> {
         self.layouts()
             .get(&layout)
             .map(|layout| layout.byte_len)
