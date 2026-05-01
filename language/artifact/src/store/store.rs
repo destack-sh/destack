@@ -129,7 +129,7 @@ impl ArtifactStore {
     pub fn failure(&self, version: &ArtifactVersion) -> Option<ArtifactFailure> {
         match self.outcome(version) {
             Some(ArtifactOutcome::Failed(failure)) => Some(failure),
-            Some(ArtifactOutcome::Ready | ArtifactOutcome::Errored) | None => None,
+            Some(ArtifactOutcome::Ok) | None => None,
         }
     }
 
@@ -292,22 +292,11 @@ impl ArtifactStore {
         }
 
         self.entries
-            .insert(version, ArtifactEntry::ready(dependencies, diagnostics));
+            .insert(version, ArtifactEntry::ok(dependencies, diagnostics));
     }
 
-    /// Publish one errored artifact record.
-    pub fn publish_errored(
-        &self,
-        version: ArtifactVersion,
-        dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
-    ) {
-        self.entries
-            .insert(version, ArtifactEntry::errored(dependencies, diagnostics));
-    }
-
-    /// Publish one failed artifact record.
-    pub fn publish_failed(
+    /// Fail one artifact.
+    pub fn fail(
         &self,
         version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,

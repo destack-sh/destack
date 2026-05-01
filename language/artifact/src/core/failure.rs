@@ -5,7 +5,9 @@ use crate::{ArtifactKey, ArtifactVersion};
 /// One provider failure that prevented an artifact payload from being published.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactFailure {
-    /// One required artifact reached a failed or errored terminal state.
+    /// The provider produced user diagnostics without a payload.
+    Diagnostics,
+    /// One required artifact reached a non-ready terminal state.
     Requirement {
         /// The failed requirement key.
         key: ArtifactKey,
@@ -23,6 +25,11 @@ pub enum ArtifactFailure {
 }
 
 impl ArtifactFailure {
+    /// Build one diagnostic failure.
+    pub fn diagnostics() -> Self {
+        Self::Diagnostics
+    }
+
     /// Build one requirement failure.
     pub fn requirement(key: ArtifactKey) -> Self {
         Self::Requirement { key }

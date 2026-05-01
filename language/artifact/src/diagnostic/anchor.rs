@@ -1,0 +1,123 @@
+use destack_source::{FileContentId, FileId, ModuleId, PackageId, Span};
+use {destack_ast as ast, destack_dir as dir, destack_mir as mir};
+
+use crate::ArtifactVersion;
+
+/// Provider-side source anchor for one diagnostic label.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DiagnosticAnchor {
+    /// A concrete span in an exact file image.
+    Source {
+        /// The exact file content containing the span.
+        content: FileContentId,
+        /// The source span inside the file content.
+        span: Span,
+    },
+    /// A whole exact file image.
+    File {
+        /// The exact file content.
+        content: FileContentId,
+        /// The file containing the content.
+        file: FileId,
+    },
+    /// An AST node in an exact AST artifact.
+    Ast {
+        /// The exact AST artifact containing the node.
+        artifact: ArtifactVersion,
+        /// The local AST node id.
+        node: ast::LocalNodeIdAny,
+    },
+    /// A DIR node in an exact DIR artifact.
+    Dir {
+        /// The exact DIR artifact containing the node.
+        artifact: ArtifactVersion,
+        /// The global node id within the artifact tree.
+        node: dir::GlobalNodeIdAny,
+    },
+    /// A MIR node in an exact MIR artifact.
+    Mir {
+        /// The exact MIR artifact containing the node.
+        artifact: ArtifactVersion,
+        /// The global node id within the artifact tree.
+        node: mir::GlobalNodeIdAny,
+    },
+}
+
+impl DiagnosticAnchor {
+    /// Return the module id carried by this anchor when available.
+    pub fn module_id(&self) -> Option<ModuleId> {
+        match self {
+            Self::Ast { artifact, .. } => artifact.module_id(),
+            Self::Dir { node, .. } => Some(node.module_id),
+            Self::Mir { node, .. } => Some(node.module_id),
+            Self::Source { .. } | Self::File { .. } => None,
+        }
+    }
+
+    /// Return the file id carried by this anchor when available without repository access.
+    pub fn file_id(&self) -> Option<FileId> {
+        match self {
+            Self::Source { span, .. } => Some(span.file),
+            Self::File { file, .. } => Some(*file),
+            Self::Ast { .. } | Self::Dir { .. } | Self::Mir { .. } => None,
+        }
+    }
+
+    /// Return the file content id carried by this anchor when available.
+    pub fn file_content_id(&self) -> Option<FileContentId> {
+        match self {
+            Self::Source { content, .. } | Self::File { content, .. } => Some(*content),
+            Self::Ast { .. } | Self::Dir { .. } | Self::Mir { .. } => None,
+        }
+    }
+}
+
+/// Provider-side location seed for one diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DiagnosticSite {
+    /// An already exact diagnostic anchor.
+    Anchor(DiagnosticAnchor),
+    /// A concrete span in the provider revision.
+    Span(Span),
+    /// A whole source file in the provider revision.
+    File(FileId),
+    /// A module in the provider revision.
+    Module(ModuleId),
+    /// A package in the provider revision.
+    Package(PackageId),
+}
+
+impl From<DiagnosticAnchor> for DiagnosticSite {
+    /// Create a diagnostic site from an exact anchor.
+    fn from(anchor: DiagnosticAnchor) -> Self {
+        Self::Anchor(anchor)
+    }
+}
+
+impl From<Span> for DiagnosticSite {
+    /// Create a diagnostic site from a source span.
+    fn from(span: Span) -> Self {
+        Self::Span(span)
+    }
+}
+
+impl From<FileId> for DiagnosticSite {
+    /// Create a diagnostic site from a source file.
+    fn from(file: FileId) -> Self {
+        Self::File(file)
+    }
+}
+
+impl From<ModuleId> for DiagnosticSite {
+    /// Create a diagnostic site from a source module.
+    fn from(module: ModuleId) -> Self {
+        Self::Module(module)
+    }
+}
+
+impl From<PackageId> for DiagnosticSite {
+    /// Create a diagnostic site from a source package.
+    fn from(package: PackageId) -> Self {
+        Self::Package(package)
+    }
+}

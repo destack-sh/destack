@@ -7,11 +7,9 @@ use crate::{ArtifactDependency, ArtifactFailure};
 /// Exact terminal outcome for one artifact version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactOutcome {
-    /// The exact payload is published.
-    Ready,
-    /// The exact artifact attempt produced diagnostics without a payload.
-    Errored,
-    /// The exact artifact attempt failed without a payload or user diagnostic result.
+    /// The exact payload was produced.
+    Ok,
+    /// The exact artifact attempt failed without a payload.
     Failed(ArtifactFailure),
 }
 
@@ -27,25 +25,13 @@ pub(crate) struct ArtifactEntry {
 }
 
 impl ArtifactEntry {
-    /// Create one published artifact entry.
-    pub(crate) fn ready(
+    /// Create one successful artifact entry.
+    pub(crate) fn ok(
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
     ) -> Self {
         Self {
-            outcome: ArtifactOutcome::Ready,
-            dependencies: dependencies.into(),
-            diagnostics: diagnostics.into(),
-        }
-    }
-
-    /// Create one errored artifact entry.
-    pub(crate) fn errored(
-        dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        diagnostics: impl Into<Arc<DiagnosticCollection>>,
-    ) -> Self {
-        Self {
-            outcome: ArtifactOutcome::Errored,
+            outcome: ArtifactOutcome::Ok,
             dependencies: dependencies.into(),
             diagnostics: diagnostics.into(),
         }

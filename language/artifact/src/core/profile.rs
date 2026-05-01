@@ -86,6 +86,8 @@ pub struct ProfileKey {
     pub target_abi: Option<TargetAbi>,
     /// Normalized library set for the profile.
     pub lib: Vec<String>,
+    /// Normalized global provider roots for the profile.
+    pub globals: Vec<String>,
     /// Debug flag exposed to `import.meta`.
     pub debug: bool,
     /// Test flag exposed to `import.meta`.
@@ -100,7 +102,7 @@ pub struct ProfileKey {
 
 #[allow(clippy::too_many_arguments)]
 impl ProfileKey {
-    /// Create a profile key with normalized library entries.
+    /// Create a profile key with normalized library and global entries.
     pub fn new(
         emit: EmitFormat,
         runtime: Runtime,
@@ -109,6 +111,7 @@ impl ProfileKey {
         target_vendor: Option<TargetVendor>,
         target_abi: Option<TargetAbi>,
         lib: Vec<String>,
+        globals: Vec<String>,
         debug: bool,
         test: bool,
         skip_lib_check: bool,
@@ -116,6 +119,7 @@ impl ProfileKey {
         flags: ProfileFlags,
     ) -> Self {
         let lib = normalize_profile_keys(lib);
+        let globals = normalize_profile_keys(globals);
 
         Self {
             emit,
@@ -125,6 +129,7 @@ impl ProfileKey {
             target_vendor,
             target_abi,
             lib,
+            globals,
             debug,
             test,
             skip_lib_check,
