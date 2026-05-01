@@ -288,17 +288,36 @@ impl Bitmap {
         self.words.capacity() * std::mem::size_of::<u64>()
     }
 
-    /// Visit each contiguous set-bit range.
-    pub fn visit_set_ranges(&self, mut callback: impl FnMut(usize, usize)) {
-        let mut start = 0usize;
-
-        // walk each retained set-bit run in order
-        while let Some(range_start) = self.first_set_from(start) {
-            let range_end = self.first_clear_from(range_start).unwrap_or(self.capacity);
-
-            callback(range_start, range_end - range_start);
-            start = range_end;
+    /// Return each contiguous set-bit range.
+    pub fn set_ranges(&self) -> BitmapSetRanges<'_> {
+        BitmapSetRanges {
+            bitmap: self,
+            next_start: 0,
         }
+    }
+}
+
+/// An iterator over contiguous set-bit ranges.
+#[derive(Debug, Clone)]
+pub struct BitmapSetRanges<'a> {
+    /// The bitmap being scanned.
+    bitmap: &'a Bitmap,
+    /// The next bit offset to scan from.
+    next_start: usize,
+}
+
+impl Iterator for BitmapSetRanges<'_> {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let range_start = self.bitmap.first_set_from(self.next_start)?;
+        let range_end = self
+            .bitmap
+            .first_clear_from(range_start)
+            .unwrap_or(self.bitmap.capacity);
+        self.next_start = range_end;
+
+        Some((range_start, range_end - range_start))
     }
 }
 

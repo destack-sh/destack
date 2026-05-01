@@ -25,6 +25,8 @@ impl AddressSpace {
     }
 
     /// Fork this address space with page-granular isolation.
+    ///
+    /// Call this only while no raw writes can race with remapping.
     pub fn fork(&self) -> HeapResult<Self> {
         let mapping = Self {
             map: self.map.fork()?,
