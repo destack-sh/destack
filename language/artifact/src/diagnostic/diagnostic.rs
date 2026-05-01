@@ -3,22 +3,22 @@ use std::hash::Hash;
 
 use destack_source::{Diagnostic, DiagnosticSeverity};
 
-use crate::{DiagnosticAnchor, DiagnosticError, ProviderContext};
+use crate::{DiagnosticContext, DiagnosticError, DiagnosticSite};
 
-/// Provider-side typed value that can become one final diagnostic.
-pub trait ToDiagnostic<R>
+/// Typed value that can become one final diagnostic.
+pub trait IntoDiagnostic<R>
 where
     R: Copy + Eq + Hash,
 {
-    /// Convert this typed provider diagnostic into one final diagnostic.
-    fn to_diagnostic(
+    /// Convert this typed value into one final diagnostic.
+    fn into_diagnostic(
         &self,
-        context: &dyn ProviderContext<Revision = R>,
+        context: &dyn DiagnosticContext<Revision = R>,
     ) -> Result<Diagnostic, DiagnosticError>;
 }
 
-/// Provider-side typed diagnostic metadata.
-pub trait ProviderDiagnostic<R>: ToDiagnostic<R> + std::fmt::Debug + Send + Sync + 'static
+/// Provider-side diagnostic before finalization.
+pub trait DiagnosticDraft<R>: IntoDiagnostic<R> + std::fmt::Debug + Send + Sync + 'static
 where
     R: Copy + Eq + Hash,
 {
@@ -31,47 +31,44 @@ where
     /// Return the default source severity.
     fn severity(&self) -> DiagnosticSeverity;
 
-    /// Return the provider-side source anchor.
-    fn anchor(
-        &self,
-        context: &dyn ProviderContext<Revision = R>,
-    ) -> Result<DiagnosticAnchor, DiagnosticError>;
+    /// Return the provider-side diagnostic site.
+    fn site(&self) -> Result<DiagnosticSite, DiagnosticError>;
 
     /// Return whether source directives can control this diagnostic.
     fn is_directive(&self) -> bool;
 }
 
-impl<R> ToDiagnostic<R> for Diagnostic
+impl<R> IntoDiagnostic<R> for Diagnostic
 where
     R: Copy + Eq + Hash,
 {
     /// Return this already-resolved source diagnostic.
-    fn to_diagnostic(
+    fn into_diagnostic(
         &self,
-        _context: &dyn ProviderContext<Revision = R>,
+        _context: &dyn DiagnosticContext<Revision = R>,
     ) -> Result<Diagnostic, DiagnosticError> {
         Ok(self.clone())
     }
 }
 
-impl<R, T> ToDiagnostic<R> for Box<T>
+impl<R, T> IntoDiagnostic<R> for Box<T>
 where
     R: Copy + Eq + Hash,
-    T: ToDiagnostic<R> + ?Sized,
+    T: IntoDiagnostic<R> + ?Sized,
 {
-    /// Convert this boxed provider diagnostic into one final diagnostic.
-    fn to_diagnostic(
+    /// Convert this boxed value into one final diagnostic.
+    fn into_diagnostic(
         &self,
-        context: &dyn ProviderContext<Revision = R>,
+        context: &dyn DiagnosticContext<Revision = R>,
     ) -> Result<Diagnostic, DiagnosticError> {
-        self.as_ref().to_diagnostic(context)
+        self.as_ref().into_diagnostic(context)
     }
 }
 
-impl<R, T> ProviderDiagnostic<R> for Box<T>
+impl<R, T> DiagnosticDraft<R> for Box<T>
 where
     R: Copy + Eq + Hash,
-    T: ProviderDiagnostic<R> + ?Sized,
+    T: DiagnosticDraft<R> + ?Sized,
 {
     /// Return this diagnostic as `Any` for policy-specific downcasts.
     fn as_any(&self) -> &dyn Any {
@@ -88,12 +85,9 @@ where
         self.as_ref().severity()
     }
 
-    /// Return the provider-side source anchor.
-    fn anchor(
-        &self,
-        context: &dyn ProviderContext<Revision = R>,
-    ) -> Result<DiagnosticAnchor, DiagnosticError> {
-        self.as_ref().anchor(context)
+    /// Return the provider-side diagnostic site.
+    fn site(&self) -> Result<DiagnosticSite, DiagnosticError> {
+        self.as_ref().site()
     }
 
     /// Return whether source directives can control this diagnostic.
