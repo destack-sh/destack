@@ -118,6 +118,7 @@ else {
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer. 
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing. 
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
+- Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 
 ### Refactoring
 
