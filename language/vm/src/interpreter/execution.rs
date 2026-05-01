@@ -10,12 +10,16 @@ use destack_mir as mir;
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError};
 use crate::options::IsolateOptions;
-use crate::program::{ArgumentRange, Function, Layout, Program};
+use crate::program::{
+    ArgumentRange, ElementAccess, ElementAccessId, FieldAccess, FieldAccessId, FrameAccess,
+    FrameAccessId, Function, Layout, OperandTable, PointeeAccess, PointeeAccessId, Program,
+    SliceElementAccess, SliceElementAccessId,
+};
 use crate::{FrameInfo, FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
 
 /// Cached state for one interpreter dispatch.
 pub(crate) struct DispatchState<'ctx, 'iso> {
-    /// Immutable program metadata for this dispatch.
+    /// Program executed by this dispatch.
     pub(crate) program: &'iso Program,
     /// Immutable isolate options.
     pub(crate) options: &'iso IsolateOptions,
@@ -44,6 +48,8 @@ pub(crate) struct DispatchState<'ctx, 'iso> {
     frame: *mut Frame,
     /// Pointer to the current frame layout.
     frame_layout: *const engine::FrameLayout,
+    /// Pointer to the program operand table.
+    operand_table: *const OperandTable,
     /// Argument pool for the current function.
     argument_pool: *const mir::Value,
     /// Argument pool length.
@@ -78,7 +84,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         shared_allocator: &'iso mut SharedAllocator,
         engine: &'ctx mut Interpreter,
         frame_index: usize,
-        argument_pool: &[mir::Value],
+        function: &'iso Function,
     ) -> Result<Self, Error> {
         // resolve check policies
         let mode = options.execution.mode;
@@ -112,8 +118,9 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
             reference_mutability_checks,
             frame,
             frame_layout,
-            argument_pool: argument_pool.as_ptr(),
-            argument_pool_len: argument_pool.len(),
+            operand_table: &program.operand_table,
+            argument_pool: function.argument_pool.as_ptr(),
+            argument_pool_len: function.argument_pool.len(),
         })
     }
 
@@ -225,11 +232,13 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
                 .frames
                 .iter()
                 .map(|frame| {
-                    let func = self.program.tree.get(frame.function);
+                    let function = frame.function();
+                    let block = frame.current_block();
+                    let func = self.program.tree.get(function);
                     let name = self.program.strings.get(func.name).to_string();
                     FrameInfo {
-                        function: frame.function,
-                        block: frame.current_block,
+                        function,
+                        block,
                         function_name: Some(name),
                     }
                 })
@@ -237,8 +246,8 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         )
     }
 
-    /// Refresh cached frame metadata after moving to another function.
-    pub(crate) fn refresh_frame_metadata(&mut self, function: &Function) {
+    /// Refresh cached frame data after moving to another function.
+    pub(crate) fn refresh_frame(&mut self, function: &Function) {
         let frame_layout = unsafe { (*self.frame).frame_layout };
         if let Some(frame_layout) = self.program.frame_layout_by_id(frame_layout) {
             self.frame_layout = frame_layout as *const engine::FrameLayout;
@@ -247,6 +256,42 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         // refresh argument pool
         self.argument_pool = function.argument_pool.as_ptr();
         self.argument_pool_len = function.argument_pool.len();
+    }
+
+    /// Return the program operand table pointer.
+    #[inline(always)]
+    pub(crate) fn operand_table_ptr(&self) -> *const OperandTable {
+        self.operand_table
+    }
+
+    /// Return one pooled field access.
+    #[inline(always)]
+    pub(crate) fn field_access(&self, id: FieldAccessId) -> FieldAccess {
+        *unsafe { (*self.operand_table).field_access(id) }
+    }
+
+    /// Return one pooled frame access.
+    #[inline(always)]
+    pub(crate) fn frame_access(&self, id: FrameAccessId) -> FrameAccess {
+        *unsafe { (*self.operand_table).frame_access(id) }
+    }
+
+    /// Return one pooled element access.
+    #[inline(always)]
+    pub(crate) fn element_access(&self, id: ElementAccessId) -> ElementAccess {
+        *unsafe { (*self.operand_table).element_access(id) }
+    }
+
+    /// Return one pooled slice element access.
+    #[inline(always)]
+    pub(crate) fn slice_element_access(&self, id: SliceElementAccessId) -> SliceElementAccess {
+        *unsafe { (*self.operand_table).slice_element_access(id) }
+    }
+
+    /// Return one pooled pointee access.
+    #[inline(always)]
+    pub(crate) fn pointee_access(&self, id: PointeeAccessId) -> PointeeAccess {
+        *unsafe { (*self.operand_table).pointee_access(id) }
     }
 
     /// Borrow the heap for the current block.
@@ -373,7 +418,7 @@ impl<'ctx, 'iso> DispatchState<'ctx, 'iso> {
         self.frame = frame as *mut Frame;
 
         // refresh cached pointers
-        self.refresh_frame_metadata(function);
+        self.refresh_frame(function);
     }
 
     /// Get the current frame mutably.

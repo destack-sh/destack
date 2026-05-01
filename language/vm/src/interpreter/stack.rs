@@ -1,4 +1,4 @@
-use destack_heap::AddressSpace;
+use destack_heap::{AddressSpace, DEFAULT_PAGE_BYTES};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 
@@ -33,7 +33,7 @@ impl Stack {
     /// Reserve one empty stack.
     pub(crate) fn reserve(byte_len: usize) -> RuntimeResult<Self> {
         // reserve page-backed virtual memory
-        let page_bytes = destack_heap::DEFAULT_PAGE_BYTES;
+        let page_bytes = DEFAULT_PAGE_BYTES;
         let space = AddressSpace::reserve(byte_len, page_bytes).map_err(Error::from)?;
 
         Ok(Self {

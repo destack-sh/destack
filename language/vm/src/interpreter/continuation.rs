@@ -394,12 +394,18 @@ fn captured_resume_point(
     }
 
     program
-        .resume_point_for_position(frame.function, frame.current_block, frame.resume_pc as u32)
+        .resume_point_for_position(
+            frame.function(),
+            frame.current_block(),
+            frame.resume_pc as u32,
+        )
         .ok_or_else(|| {
             RuntimeError::new(Error::InvariantViolation {
                 context: format!(
                     "missing generic resume point for frame position: {:?} {:?} {}",
-                    frame.function, frame.current_block, frame.resume_pc
+                    frame.function(),
+                    frame.current_block(),
+                    frame.resume_pc
                 ),
             })
         })
@@ -469,15 +475,12 @@ fn restore_frame_image(
 
     let mut frame = Frame::new(
         image.frame_layout,
-        function_id,
         function_ptr,
         std::ptr::NonNull::from(block),
-        block_id,
         layout,
         stack_offset,
         frame_base,
     );
-    frame.current_block = block_id;
     frame.block_ptr = std::ptr::NonNull::from(block);
     frame.resume_pc = resume_point.instruction_offset as usize;
     frame.transfer = image.transfer.clone();

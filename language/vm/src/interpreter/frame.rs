@@ -26,14 +26,10 @@ enum ScalarRoot {
 pub struct Frame {
     /// The logical frame layout.
     pub(crate) frame_layout: engine::FrameLayoutId,
-    /// The function being executed.
-    pub(crate) function: mir::LocalNodeId<mir::Function>,
     /// Pointer to the lowered function.
     pub(crate) function_ptr: NonNull<Function>,
     /// Pointer to the current block.
     pub(crate) block_ptr: NonNull<Block>,
-    /// The current block being executed.
-    pub(crate) current_block: mir::LocalNodeId<mir::Block>,
     /// Program counter within the current block.
     pub(crate) resume_pc: usize,
     /// The pending transfer owned by this frame while one callee runs.
@@ -46,6 +42,9 @@ pub struct Frame {
     base: *mut u8,
 }
 
+// frame should fit in 64 bytes
+const _: () = assert!(std::mem::size_of::<Frame>() <= 64);
+
 // the raw function and block pointers always point into immutable program data
 // that stays alive for the duration of the owning isolate
 unsafe impl Send for Frame {}
@@ -55,26 +54,34 @@ impl Frame {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         frame_layout: engine::FrameLayoutId,
-        function: mir::LocalNodeId<mir::Function>,
         function_ptr: NonNull<Function>,
         block_ptr: NonNull<Block>,
-        current_block: mir::LocalNodeId<mir::Block>,
         layout: &engine::FrameLayout,
         stack_offset: usize,
         base: *mut u8,
     ) -> Self {
         Self {
             frame_layout,
-            function,
             function_ptr,
             block_ptr,
-            current_block,
             resume_pc: 0,
             transfer: None,
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,
         }
+    }
+
+    /// Return the current MIR function id.
+    #[inline(always)]
+    pub(crate) fn function(&self) -> mir::LocalNodeId<mir::Function> {
+        unsafe { self.function_ptr.as_ref().mir_function }
+    }
+
+    /// Return the current MIR block id.
+    #[inline(always)]
+    pub(crate) fn current_block(&self) -> mir::LocalNodeId<mir::Block> {
+        unsafe { self.block_ptr.as_ref().mir_block }
     }
 
     /// Replace this frame's byte range.
@@ -290,12 +297,12 @@ impl Frame {
         program: &Program,
         roots: &mut impl RootSink,
     ) -> Result<(), Error> {
-        let layout =
-            program
-                .frame_layout(self.function)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!("missing frame layout for frame: {:?}", self.function),
-                })?;
+        let function = self.function();
+        let layout = program
+            .frame_layout(function)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing frame layout for frame: {function:?}"),
+            })?;
 
         // ssa values
         for region in &layout.values {
@@ -321,12 +328,12 @@ impl Frame {
         program: &Program,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout =
-            program
-                .frame_layout(self.function)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!("missing frame layout for frame: {:?}", self.function),
-                })?;
+        let function = self.function();
+        let layout = program
+            .frame_layout(function)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing frame layout for frame: {function:?}"),
+            })?;
 
         // ssa values
         for region in &layout.values {
@@ -720,10 +727,8 @@ impl Frame {
     pub(crate) fn clone_for_fork(&self) -> Self {
         Self {
             frame_layout: self.frame_layout,
-            function: self.function,
             function_ptr: self.function_ptr,
             block_ptr: self.block_ptr,
-            current_block: self.current_block,
             resume_pc: self.resume_pc,
             transfer: self.transfer.clone(),
             stack_offset: self.stack_offset,
@@ -736,8 +741,8 @@ impl Frame {
     pub(crate) fn image(&self) -> FrameImage {
         FrameImage {
             frame_layout: self.frame_layout,
-            function: self.function,
-            current_block: self.current_block,
+            function: self.function(),
+            current_block: self.current_block(),
             resume_pc: self.resume_pc,
             transfer: self.transfer.clone(),
             bytes: self.bytes().to_vec(),
@@ -779,10 +784,8 @@ impl Frame {
 
         Ok(Self {
             frame_layout: image.frame_layout,
-            function: image.function,
             function_ptr,
             block_ptr: NonNull::from(block),
-            current_block: block.mir_block,
             resume_pc: image.resume_pc,
             transfer: image.transfer.clone(),
             stack_offset,
