@@ -13,9 +13,9 @@ pub(crate) enum PointerClass {
     Heap,
     /// Shared heap reference.
     SharedHeap,
-    /// Projected local heap address.
+    /// Interior local heap address.
     HeapAddress,
-    /// Projected shared heap address.
+    /// Interior shared heap address.
     SharedHeapAddress,
     /// Raw heap pointer.
     Raw,

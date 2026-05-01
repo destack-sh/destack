@@ -7,11 +7,11 @@ pub(crate) enum Opcode {
     /// Load a constant into a frame value.
     LoadConst,
     /// Copy bytes between frame values.
-    CopyFrameBytes,
-    /// Load bytes from a computed address into a frame value.
-    LoadAddressBytes,
-    /// Store bytes from a frame value into a computed address.
-    StoreAddressBytes,
+    CopyFrame,
+    /// Load bytes from memory into a frame value.
+    LoadFrameBytes,
+    /// Store bytes from a frame value into memory.
+    StoreFrameBytes,
     /// Select one of two word values.
     Select,
 
@@ -74,12 +74,10 @@ pub(crate) enum Opcode {
     StoreStatic,
 
     // ============================================================================
-    // field projection
+    // field access
     // ============================================================================
-    /// Project a word field from a frame value.
-    ProjectField,
-    /// Compute a field address in frame memory.
-    AddressFrameField,
+    /// Compute an address in frame memory.
+    AddressFrame,
     /// Compute a field address in local heap memory.
     AddressHeapField,
     /// Compute a field address in shared heap memory.
@@ -92,8 +90,6 @@ pub(crate) enum Opcode {
     AddressStackField,
     /// Compute a field address in static memory.
     AddressStaticField,
-    /// Load a word field through a frame address.
-    LoadFrameField,
     /// Load a word field through a local heap reference.
     LoadHeapField,
     /// Load a word field through a shared heap reference.
@@ -106,8 +102,6 @@ pub(crate) enum Opcode {
     LoadStackField,
     /// Load a word field through a static address.
     LoadStaticField,
-    /// Store a word field through a frame address.
-    StoreFrameField,
     /// Store a word field through a local heap reference.
     StoreHeapField,
     /// Store a word field through a shared heap reference.
@@ -122,12 +116,8 @@ pub(crate) enum Opcode {
     StoreStaticField,
 
     // ============================================================================
-    // element projection
+    // element access
     // ============================================================================
-    /// Project a word element from a frame value.
-    ProjectElement,
-    /// Compute an element address in frame memory.
-    AddressFrameElement,
     /// Compute an element address in local heap memory.
     AddressHeapElement,
     /// Compute an element address in shared heap memory.
@@ -142,8 +132,6 @@ pub(crate) enum Opcode {
     AddressStaticElement,
     /// Compute an element address through a slice descriptor.
     AddressSliceElement,
-    /// Load a word element through a frame address.
-    LoadFrameElement,
     /// Load a word element through a local heap reference.
     LoadHeapElement,
     /// Load a word element through a shared heap reference.
@@ -156,8 +144,6 @@ pub(crate) enum Opcode {
     LoadStackElement,
     /// Load a word element through a static address.
     LoadStaticElement,
-    /// Store a word element through a frame address.
-    StoreFrameElement,
     /// Store a word element through a local heap reference.
     StoreHeapElement,
     /// Store a word element through a shared heap reference.
@@ -212,58 +198,32 @@ pub(crate) enum Opcode {
     OrBool,
     /// Xor boolean values.
     XorBool,
-    /// Add 32-bit integer values.
-    Add32,
-    /// Add 64-bit integer values.
-    Add64,
-    /// Subtract 32-bit integer values.
-    Sub32,
-    /// Subtract 64-bit integer values.
-    Sub64,
-    /// Multiply 32-bit integer values.
-    Mul32,
-    /// Multiply 64-bit integer values.
-    Mul64,
-    /// Divide signed 32-bit integer values.
-    DivI32,
-    /// Divide unsigned 32-bit integer values.
-    DivU32,
-    /// Divide signed 64-bit integer values.
-    DivI64,
-    /// Divide unsigned 64-bit integer values.
-    DivU64,
-    /// Remainder signed 32-bit integer values.
-    RemI32,
-    /// Remainder unsigned 32-bit integer values.
-    RemU32,
-    /// Remainder signed 64-bit integer values.
-    RemI64,
-    /// Remainder unsigned 64-bit integer values.
-    RemU64,
-    /// And 32-bit integer values.
-    And32,
-    /// And 64-bit integer values.
-    And64,
-    /// Or 32-bit integer values.
-    Or32,
-    /// Or 64-bit integer values.
-    Or64,
-    /// Xor 32-bit integer values.
-    Xor32,
-    /// Xor 64-bit integer values.
-    Xor64,
-    /// Shift a 32-bit integer left.
-    Shl32,
-    /// Shift a 64-bit integer left.
-    Shl64,
-    /// Arithmetically shift a 32-bit integer right.
-    ShrI32,
-    /// Logically shift a 32-bit integer right.
-    ShrU32,
-    /// Arithmetically shift a 64-bit integer right.
-    ShrI64,
-    /// Logically shift a 64-bit integer right.
-    ShrU64,
+    /// Add integer values.
+    AddInt,
+    /// Subtract integer values.
+    SubInt,
+    /// Multiply integer values.
+    MulInt,
+    /// Divide signed integer values.
+    DivInt,
+    /// Divide unsigned integer values.
+    DivUint,
+    /// Remainder signed integer values.
+    RemInt,
+    /// Remainder unsigned integer values.
+    RemUint,
+    /// And integer values.
+    AndInt,
+    /// Or integer values.
+    OrInt,
+    /// Xor integer values.
+    XorInt,
+    /// Shift integer values left.
+    ShlInt,
+    /// Arithmetically shift integer values right.
+    ShrInt,
+    /// Logically shift integer values right.
+    ShrUint,
     /// Add float32 values.
     AddF32,
     /// Add float64 values.
@@ -280,50 +240,26 @@ pub(crate) enum Opcode {
     DivF32,
     /// Divide float64 values.
     DivF64,
-    /// Remainder float32 values.
-    RemF32,
-    /// Remainder float64 values.
-    RemF64,
-    /// Compare 32-bit integers for equality.
-    Eq32,
-    /// Compare 64-bit integers for equality.
-    Eq64,
-    /// Compare 32-bit integers for inequality.
-    Ne32,
-    /// Compare 64-bit integers for inequality.
-    Ne64,
-    /// Compare signed 32-bit integers with less than.
-    LtI32,
-    /// Compare unsigned 32-bit integers with less than.
-    LtU32,
-    /// Compare signed 64-bit integers with less than.
-    LtI64,
-    /// Compare unsigned 64-bit integers with less than.
-    LtU64,
-    /// Compare signed 32-bit integers with less than or equal.
-    LeI32,
-    /// Compare unsigned 32-bit integers with less than or equal.
-    LeU32,
-    /// Compare signed 64-bit integers with less than or equal.
-    LeI64,
-    /// Compare unsigned 64-bit integers with less than or equal.
-    LeU64,
-    /// Compare signed 32-bit integers with greater than.
-    GtI32,
-    /// Compare unsigned 32-bit integers with greater than.
-    GtU32,
-    /// Compare signed 64-bit integers with greater than.
-    GtI64,
-    /// Compare unsigned 64-bit integers with greater than.
-    GtU64,
-    /// Compare signed 32-bit integers with greater than or equal.
-    GeI32,
-    /// Compare unsigned 32-bit integers with greater than or equal.
-    GeU32,
-    /// Compare signed 64-bit integers with greater than or equal.
-    GeI64,
-    /// Compare unsigned 64-bit integers with greater than or equal.
-    GeU64,
+    /// Compare integers for equality.
+    EqInt,
+    /// Compare integers for inequality.
+    NeInt,
+    /// Compare signed integers with less than.
+    LtInt,
+    /// Compare unsigned integers with less than.
+    LtUint,
+    /// Compare signed integers with less than or equal.
+    LeInt,
+    /// Compare unsigned integers with less than or equal.
+    LeUint,
+    /// Compare signed integers with greater than.
+    GtInt,
+    /// Compare unsigned integers with greater than.
+    GtUint,
+    /// Compare signed integers with greater than or equal.
+    GeInt,
+    /// Compare unsigned integers with greater than or equal.
+    GeUint,
     /// Compare float32 values for equality.
     EqF32,
     /// Compare float64 values for equality.
@@ -350,14 +286,10 @@ pub(crate) enum Opcode {
     GeF64,
     /// Execute a wide integer unary operation.
     UnaryWideInt,
-    /// Negate a signed 32-bit integer.
-    NegI32,
-    /// Negate a signed 64-bit integer.
-    NegI64,
-    /// Invert a 32-bit integer.
-    Not32,
-    /// Invert a 64-bit integer.
-    Not64,
+    /// Negate an integer value.
+    NegInt,
+    /// Invert an integer value.
+    NotInt,
     /// Negate a float32 value.
     NegF32,
     /// Negate a float64 value.
@@ -406,46 +338,26 @@ pub(crate) enum Opcode {
     Jump,
     /// Branch on one boolean value.
     BranchBool,
-    /// Branch when 32-bit integer values are equal.
-    BranchEq32,
-    /// Branch when 64-bit integer values are equal.
-    BranchEq64,
-    /// Branch when 32-bit integer values are not equal.
-    BranchNe32,
-    /// Branch when 64-bit integer values are not equal.
-    BranchNe64,
-    /// Branch when a signed 32-bit integer is less than another.
-    BranchLtI32,
-    /// Branch when an unsigned 32-bit integer is less than another.
-    BranchLtU32,
-    /// Branch when a signed 64-bit integer is less than another.
-    BranchLtI64,
-    /// Branch when an unsigned 64-bit integer is less than another.
-    BranchLtU64,
-    /// Branch when a signed 32-bit integer is less than or equal to another.
-    BranchLeI32,
-    /// Branch when an unsigned 32-bit integer is less than or equal to another.
-    BranchLeU32,
-    /// Branch when a signed 64-bit integer is less than or equal to another.
-    BranchLeI64,
-    /// Branch when an unsigned 64-bit integer is less than or equal to another.
-    BranchLeU64,
-    /// Branch when a signed 32-bit integer is greater than another.
-    BranchGtI32,
-    /// Branch when an unsigned 32-bit integer is greater than another.
-    BranchGtU32,
-    /// Branch when a signed 64-bit integer is greater than another.
-    BranchGtI64,
-    /// Branch when an unsigned 64-bit integer is greater than another.
-    BranchGtU64,
-    /// Branch when a signed 32-bit integer is greater than or equal to another.
-    BranchGeI32,
-    /// Branch when an unsigned 32-bit integer is greater than or equal to another.
-    BranchGeU32,
-    /// Branch when a signed 64-bit integer is greater than or equal to another.
-    BranchGeI64,
-    /// Branch when an unsigned 64-bit integer is greater than or equal to another.
-    BranchGeU64,
+    /// Branch when integer values are equal.
+    BranchEqInt,
+    /// Branch when integer values are not equal.
+    BranchNeInt,
+    /// Branch when a signed integer is less than another.
+    BranchLtInt,
+    /// Branch when an unsigned integer is less than another.
+    BranchLtUint,
+    /// Branch when a signed integer is less than or equal to another.
+    BranchLeInt,
+    /// Branch when an unsigned integer is less than or equal to another.
+    BranchLeUint,
+    /// Branch when a signed integer is greater than another.
+    BranchGtInt,
+    /// Branch when an unsigned integer is greater than another.
+    BranchGtUint,
+    /// Branch when a signed integer is greater than or equal to another.
+    BranchGeInt,
+    /// Branch when an unsigned integer is greater than or equal to another.
+    BranchGeUint,
     /// Branch when float32 values are equal.
     BranchEqF32,
     /// Branch when float64 values are equal.
@@ -587,3 +499,6 @@ pub(crate) enum Opcode {
     /// Create a tensor view.
     TensorView,
 }
+
+// opcode should fit in 2 bytes
+const _: () = assert!(std::mem::size_of::<Opcode>() <= 2);

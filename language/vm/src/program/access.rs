@@ -2,6 +2,23 @@ use destack_mir as mir;
 
 use super::{PointerClass, WordLayout};
 
+/// One compiled frame access.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FrameAccess {
+    /// The accessed value type.
+    pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The fixed byte offset from the frame value base.
+    pub byte_offset: usize,
+    /// The byte stride for indexed access.
+    pub byte_stride: usize,
+    /// The number of indexed elements.
+    pub length: u64,
+    /// The byte width of the accessed value.
+    pub byte_len: usize,
+    /// The word representation for scalar access.
+    pub word_layout: Option<WordLayout>,
+}
+
 /// One compiled field access.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FieldAccess {
@@ -90,6 +107,58 @@ impl From<FieldAccess> for PointeeAccess {
             byte_offset: field.byte_offset,
             byte_len: field.byte_len,
             word_layout: field.word_layout,
+        }
+    }
+}
+
+impl From<FieldAccess> for FrameAccess {
+    fn from(field: FieldAccess) -> Self {
+        Self {
+            value_type: field.value_type,
+            byte_offset: field.byte_offset,
+            byte_stride: 0,
+            length: 0,
+            byte_len: field.byte_len,
+            word_layout: field.word_layout,
+        }
+    }
+}
+
+impl ElementAccess {
+    /// Return this element access as one indexed frame access.
+    pub(crate) fn into_frame_access(self, byte_offset: usize, length: u64) -> FrameAccess {
+        FrameAccess {
+            value_type: self.value_type,
+            byte_offset,
+            byte_stride: self.byte_stride,
+            length,
+            byte_len: self.byte_len,
+            word_layout: self.word_layout,
+        }
+    }
+}
+
+impl From<FrameAccess> for PointeeAccess {
+    fn from(access: FrameAccess) -> Self {
+        Self {
+            pointer_class: PointerClass::Frame,
+            value_type: access.value_type,
+            byte_offset: access.byte_offset,
+            byte_len: access.byte_len,
+            word_layout: access.word_layout,
+        }
+    }
+}
+
+impl From<PointeeAccess> for FrameAccess {
+    fn from(access: PointeeAccess) -> Self {
+        Self {
+            value_type: access.value_type,
+            byte_offset: access.byte_offset,
+            byte_stride: 0,
+            length: 0,
+            byte_len: access.byte_len,
+            word_layout: access.word_layout,
         }
     }
 }

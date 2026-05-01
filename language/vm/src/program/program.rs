@@ -6,7 +6,7 @@ use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, build_layouts, callable_object_layout};
-use super::{CallTarget, Function, FunctionTable};
+use super::{CallTarget, Function, FunctionTable, OperandTable, OperandTableBuilder};
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
 
@@ -34,6 +34,8 @@ pub struct Program {
     pub(crate) strings: ImmutableStringPool,
     /// Lowered function bodies for the current interpreter backend.
     pub(crate) functions: FunctionTable,
+    /// Side table referenced by compact instruction operands.
+    pub(crate) operand_table: OperandTable,
     /// Lookup table for function ids by name.
     pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
     /// MIR layouts keyed by layout id.
@@ -710,7 +712,14 @@ impl ProgramBuilder {
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
         let statics = self.build_statics(&type_layouts)?;
-        let functions = self.build_functions(&function_ids, &target_by_id, &type_layouts)?;
+        let mut operand_table = OperandTableBuilder::default();
+        let functions = self.build_functions(
+            &function_ids,
+            &target_by_id,
+            &type_layouts,
+            &mut operand_table,
+        )?;
+        let operand_table = operand_table.finish();
         let functions = FunctionTable::new(functions, target_by_id);
 
         Ok(Program {
@@ -730,6 +739,7 @@ impl ProgramBuilder {
             type_layouts,
             resume_point_id_by_position: self.resume_point_id_by_position,
             functions,
+            operand_table,
         })
     }
 
@@ -973,6 +983,7 @@ impl ProgramBuilder {
         function_ids: &[mir::LocalNodeId<mir::Function>],
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        operand_table: &mut OperandTableBuilder,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
 
@@ -980,7 +991,8 @@ impl ProgramBuilder {
 
         // build one lowered function at a time
         for function_id in function_ids {
-            let function = self.build_function(*function_id, &call_targets, layouts)?;
+            let function =
+                self.build_function(*function_id, &call_targets, layouts, operand_table)?;
             functions.push(function);
         }
 
@@ -993,6 +1005,7 @@ impl ProgramBuilder {
         function_id: mir::LocalNodeId<mir::Function>,
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        operand_table: &mut OperandTableBuilder,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
         let value_types = analyze_value_types(function);
@@ -1015,6 +1028,7 @@ impl ProgramBuilder {
             &self.heap_options,
             &self.shared_heap_options,
             &value_types,
+            operand_table,
         )?
         .ok_or_else(|| Error::MissingRepresentation {
             context: format!("program function {function_id:?}"),

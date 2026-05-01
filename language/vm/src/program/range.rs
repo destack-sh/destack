@@ -10,21 +10,12 @@ pub(crate) struct ArgumentRange {
     pub start: u32,
     /// Number of arguments in the range.
     pub len: u32,
-    /// Whether the arguments are contiguous SSA ids.
-    pub is_contiguous: bool,
-    /// First SSA value id when contiguous.
-    pub contiguous_start: u32,
 }
 
 impl ArgumentRange {
     /// Create an empty argument range.
     pub(crate) const fn empty() -> Self {
-        Self {
-            start: 0,
-            len: 0,
-            is_contiguous: false,
-            contiguous_start: 0,
-        }
+        Self { start: 0, len: 0 }
     }
 
     /// Slice arguments from the pool for this range.
@@ -61,24 +52,12 @@ pub(crate) struct MoveRange {
     pub start: u32,
     /// Number of pairs in the range.
     pub len: u32,
-    /// Whether the moves are contiguous pairs.
-    pub is_contiguous: bool,
-    /// First source id when contiguous.
-    pub contiguous_src: u32,
-    /// First destination id when contiguous.
-    pub contiguous_dest: u32,
 }
 
 impl MoveRange {
     /// Create an empty move range.
     pub(crate) const fn empty() -> Self {
-        Self {
-            start: 0,
-            len: 0,
-            is_contiguous: false,
-            contiguous_src: 0,
-            contiguous_dest: 0,
-        }
+        Self { start: 0, len: 0 }
     }
 
     /// Slice pairs from the pool for this range.
