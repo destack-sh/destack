@@ -633,7 +633,6 @@ pub(crate) enum Operands {
     /// Allocate a managed heap value.
     New {
         dest: mir::Value,
-        pointer_class: PointerClass,
         allocation: AllocationLayout,
     },
 
