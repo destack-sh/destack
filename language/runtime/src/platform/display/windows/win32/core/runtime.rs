@@ -16,7 +16,6 @@ use crate::platform::display::windows::win32::event::{
 use crate::platform::display::windows::win32::model::{MonitorSnapshot, Win32WindowHostState};
 use crate::platform::display::windows::win32::{core, publish_monitor_topology_deltas};
 use crate::platform::resource::{self, InputTextSessionHandle, ResourceTable};
-use crate::runtime::world::World;
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
@@ -28,20 +27,11 @@ pub(crate) struct Win32ResourceTableRef(*const ResourceTable);
 unsafe impl Send for Win32ResourceTableRef {}
 unsafe impl Sync for Win32ResourceTableRef {}
 
-/// Callback-safe reference to the owning runtime world.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Win32WorldRef(*const World);
-
-unsafe impl Send for Win32WorldRef {}
-unsafe impl Sync for Win32WorldRef {}
-
 /// Runtime-owned mutable state for the Win32 display backend.
 #[derive(Debug)]
 pub(crate) struct Win32RuntimeState {
     /// Worker resource table used for callback-owned input-session updates.
     pub(crate) resources: Win32ResourceTableRef,
-    /// Runtime world used for callback-owned resource-table updates.
-    pub(crate) world: Win32WorldRef,
     /// Shared global cursor visibility state.
     pub(crate) cursor_visible_state: Mutex<Option<bool>>,
     /// Per-window cursor policy lanes used to derive process-global cursor state.
@@ -80,21 +70,15 @@ impl Default for Win32RuntimeState {
         Self::new(
             Arc::new(DiagnosticStore::default()),
             Win32ResourceTableRef(std::ptr::null()),
-            Win32WorldRef(std::ptr::null()),
         )
     }
 }
 
 impl Win32RuntimeState {
     /// Create one Win32 runtime state with explicit diagnostics storage.
-    fn new(
-        diagnostics: Arc<DiagnosticStore>,
-        resources: Win32ResourceTableRef,
-        world: Win32WorldRef,
-    ) -> Self {
+    fn new(diagnostics: Arc<DiagnosticStore>, resources: Win32ResourceTableRef) -> Self {
         Self {
             resources,
-            world,
             cursor_visible_state: Mutex::new(None),
             cursor_policy_by_window: Mutex::new(HashMap::new()),
             next_cursor_policy_sequence: AtomicU64::new(1),
@@ -138,12 +122,6 @@ impl Win32RuntimeState {
     pub(crate) fn resource_table(&self) -> &ResourceTable {
         // safety: the worker owns the resource table for the lifetime of the runtime state
         unsafe { &*self.resources.0 }
-    }
-
-    /// Borrow the runtime world captured by this runtime.
-    pub(crate) fn world(&self) -> &World {
-        // safety: the world outlives the runtime state for the lifetime of the worker
-        unsafe { &*self.world.0 }
     }
 
     /// Register one monitor-event stream for this runtime.
@@ -359,7 +337,6 @@ pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeSta
             Win32RuntimeState::new(
                 diagnostics,
                 Win32ResourceTableRef(&context.worker().resources),
-                Win32WorldRef(context.world()),
             )
         });
 

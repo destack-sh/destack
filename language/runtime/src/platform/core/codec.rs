@@ -302,7 +302,7 @@ pub(crate) fn bytes_array_array_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_heap_value_slots(len)
+        .allocate_heap_words(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each byte array directly into raw VM storage
@@ -310,7 +310,7 @@ pub(crate) fn bytes_array_array_to_vm(
         let value = VmArray::from_bytes(&mut context, unsafe { value.as_slice()? })?;
         let value = value.encode_with_context(&mut context)?;
         context
-            .write_heap_value(data, index, value)
+            .write_heap_word(data, index, value)
             .map_err(Box::<RuntimeError>::from)?;
     }
 
@@ -419,7 +419,7 @@ pub(crate) fn string_array_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_heap_value_slots(len)
+        .allocate_heap_words(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each string directly into raw VM storage
@@ -429,7 +429,7 @@ pub(crate) fn string_array_to_vm(
             .map_err(Box::<RuntimeError>::from)?;
         let handle = handle.value();
         context
-            .write_heap_value(data, index, handle)
+            .write_heap_word(data, index, handle)
             .map_err(Box::<RuntimeError>::from)?;
     }
 
@@ -457,7 +457,7 @@ pub(crate) fn string_slice_to_vm(
         .boxed()
     })?;
     let data = context
-        .allocate_heap_value_slots(len)
+        .allocate_heap_words(len)
         .map_err(Box::<RuntimeError>::from)?;
 
     // encode each string directly into raw VM storage
@@ -467,7 +467,7 @@ pub(crate) fn string_slice_to_vm(
             .map_err(Box::<RuntimeError>::from)?;
         let handle = handle.value();
         context
-            .write_heap_value(data, index, handle)
+            .write_heap_word(data, index, handle)
             .map_err(Box::<RuntimeError>::from)?;
     }
 

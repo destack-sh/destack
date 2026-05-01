@@ -15,7 +15,6 @@ use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, Monit
 use crate::platform::display::unix::appkit::window;
 use crate::platform::resource::InputTextSessionHandle;
 use crate::platform::{ResourceTable, core as core_platform, resource};
-use crate::runtime::world::WorldRef;
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
@@ -58,13 +57,6 @@ pub(crate) struct AppKitResourceTableRef(*const ResourceTable);
 unsafe impl Send for AppKitResourceTableRef {}
 unsafe impl Sync for AppKitResourceTableRef {}
 
-/// Callback-safe reference to the owning runtime world.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct AppKitWorldRef(WorldRef);
-
-unsafe impl Send for AppKitWorldRef {}
-unsafe impl Sync for AppKitWorldRef {}
-
 /// Host-owned thread-message observer for one AppKit runtime.
 #[derive(Debug)]
 struct AppKitIngressHandler {
@@ -105,8 +97,6 @@ pub(crate) struct AppKitRuntimeState {
     pub(crate) main_thread_state: MainThreadBound<RefCell<AppKitMainThreadState>>,
     /// Worker resource table used for callback-owned display-handle updates.
     pub(crate) resources: AppKitResourceTableRef,
-    /// Runtime world used for callback-owned resource-table updates.
-    pub(crate) world: AppKitWorldRef,
     /// Cached display handles keyed by stable AppKit display identifier.
     pub(crate) display_handle_cache: Mutex<HashMap<String, resource::DisplayHandle>>,
     /// Runtime-owned monitor-event log.
@@ -165,7 +155,6 @@ impl AppKitRuntimeState {
         Self {
             main_thread_state,
             resources: AppKitResourceTableRef(&binding.worker().resources),
-            world: AppKitWorldRef(*binding.world()),
             display_handle_cache: Mutex::new(HashMap::new()),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
@@ -260,11 +249,6 @@ impl AppKitRuntimeState {
     pub(crate) fn resource_table(&self) -> &ResourceTable {
         // safety: the worker owns the resource table for the lifetime of the runtime state
         unsafe { &*self.resources.0 }
-    }
-
-    /// Borrow the runtime world captured by this runtime.
-    pub(crate) fn world_ref(&self) -> WorldRef {
-        self.world.0
     }
 
     /// Register one host-owned ingress observer for this runtime.

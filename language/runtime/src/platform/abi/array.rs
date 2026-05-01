@@ -97,7 +97,7 @@ impl<T> VmArray<T> {
         name: &str,
         expected: &str,
     ) -> RuntimeResult<Self> {
-        let value_ref = context.value_ref(value).map_err(|_error| {
+        let value_ref = context.value_ref(value, "Array").map_err(|_error| {
             RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
 

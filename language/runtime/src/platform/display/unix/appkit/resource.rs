@@ -5,7 +5,7 @@ use crate::platform::resource::resolve::resolve_payload;
 use crate::platform::resource::{ResourceAffinity, ResourceEntry, ResourceKind};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::bindings::{BindingAffinity, BindingEngine};
+use crate::runtime::bindings::BindingAffinity;
 
 use super::core::{self, AppKitRuntimeState};
 use super::event::{MonitorEventStream, WindowEventStream};
@@ -38,11 +38,7 @@ pub(crate) fn open_display_handle_for_runtime(
         .with_label(core::DISPLAY_RESOURCE_LABEL)
         .with_affinity(ResourceAffinity::EventLoop)
         .with_payload(AppKitDisplayHostState { id });
-    let resource_id = runtime_state.resource_table().insert(
-        &runtime_state.world_ref(),
-        entry,
-        Some(BindingEngine::Native),
-    );
+    let resource_id = runtime_state.resource_table().insert_untracked(entry);
 
     resource::DisplayHandle(resource_id)
 }

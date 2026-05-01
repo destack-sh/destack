@@ -1708,7 +1708,7 @@ impl VmAggregateCodec for AccessibilityActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -2837,7 +2837,7 @@ impl VmAggregateCodec for AccessibilityDocumentQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentQuery")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3329,7 +3329,7 @@ impl VmAggregateCodec for AccessibilityDocumentResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentResponse")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3702,7 +3702,7 @@ impl VmAggregateCodec for AccessibilityActionMetadata {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityActionMetadata")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3828,7 +3828,7 @@ impl VmAggregateCodec for AccessibilityActionOpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityActionOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -3942,7 +3942,7 @@ impl VmAggregateCodec for AccessibilityActivateActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityActivateAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4098,7 +4098,7 @@ impl VmAggregateCodec for AccessibilityAddToSelectionActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityAddToSelectionAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4254,7 +4254,7 @@ impl VmAggregateCodec for AccessibilityClearSelectionActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityClearSelectionAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4410,7 +4410,7 @@ impl VmAggregateCodec for AccessibilityCollapseActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityCollapseAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4549,7 +4549,7 @@ impl VmAggregateCodec for AccessibilityCollectionInfo {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityCollectionInfo")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4676,7 +4676,7 @@ impl VmAggregateCodec for AccessibilityCollectionItemInfo {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityCollectionItemInfo")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4838,7 +4838,7 @@ impl VmAggregateCodec for AccessibilityCustomActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityCustomAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -4982,7 +4982,7 @@ impl VmAggregateCodec for AccessibilityCustomActionInvocationAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityCustomActionInvocation")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5153,7 +5153,7 @@ impl VmAggregateCodec for AccessibilityDecrementActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDecrementAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5309,7 +5309,7 @@ impl VmAggregateCodec for AccessibilityDismissActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDismissAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5473,7 +5473,10 @@ impl VmAggregateCodec for AccessibilityDocumentEmbeddedObjectsResponseAbi<VmAbi>
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentEmbeddedObjectsResponse",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5675,7 +5678,7 @@ impl VmAggregateCodec for AccessibilityDocumentOpenOptions {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentOpenOptions")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5778,7 +5781,7 @@ impl VmAggregateCodec for AccessibilityDocumentQueryMetadata {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentQueryMetadata")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -5950,7 +5953,10 @@ impl VmAggregateCodec for AccessibilityDocumentRangeAtPointQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentRangeAtPointQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6139,7 +6145,10 @@ impl VmAggregateCodec for AccessibilityDocumentRangeBoundsResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentRangeBoundsResponse",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6369,7 +6378,10 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForChildQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentRangeForChildQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6561,7 +6573,10 @@ impl VmAggregateCodec for AccessibilityDocumentRangeForUnitQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentRangeForUnitQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6752,7 +6767,7 @@ impl VmAggregateCodec for AccessibilityDocumentRangeResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentRangeResponse")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -6983,7 +6998,7 @@ impl VmAggregateCodec for AccessibilityDocumentRangesResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentRangesResponse")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7213,7 +7228,10 @@ impl VmAggregateCodec for AccessibilityDocumentReadEmbeddedObjectsQueryAbi<VmAbi
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7393,7 +7411,10 @@ impl VmAggregateCodec for AccessibilityDocumentReadRangeBoundsQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7573,7 +7594,10 @@ impl VmAggregateCodec for AccessibilityDocumentReadStyleRunsQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentReadStyleRunsQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7749,7 +7773,7 @@ impl VmAggregateCodec for AccessibilityDocumentReadTextQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentReadTextQuery")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -7929,7 +7953,10 @@ impl VmAggregateCodec for AccessibilityDocumentReadUnitRangesQueryAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentReadUnitRangesQuery",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8128,7 +8155,10 @@ impl VmAggregateCodec for AccessibilityDocumentStyleRunsResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityDocumentStyleRunsResponse",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8353,7 +8383,7 @@ impl VmAggregateCodec for AccessibilityDocumentTextResponseAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityDocumentTextResponse")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8545,7 +8575,7 @@ impl VmAggregateCodec for AccessibilityEmbeddedObject {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityEmbeddedObject")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8671,7 +8701,7 @@ impl VmAggregateCodec for AccessibilityExpandActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityExpandAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8827,7 +8857,7 @@ impl VmAggregateCodec for AccessibilityFocusActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityFocusAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -8983,7 +9013,7 @@ impl VmAggregateCodec for AccessibilityIncrementActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityIncrementAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9145,7 +9175,7 @@ impl VmAggregateCodec for AccessibilityMoveTextSelectionActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityMoveTextSelectionAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9370,7 +9400,7 @@ impl VmAggregateCodec for AccessibilityNodeAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityNode")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9836,7 +9866,7 @@ impl VmAggregateCodec for AccessibilityNodeBounds {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityNodeBounds")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -9984,7 +10014,7 @@ impl VmAggregateCodec for AccessibilityNodeRelationsAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityNodeRelations")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -10454,7 +10484,7 @@ impl VmAggregateCodec for AccessibilityNodeStateAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityNodeState")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11204,7 +11234,7 @@ impl VmAggregateCodec for AccessibilityNotificationAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityNotification")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11445,7 +11475,7 @@ impl VmAggregateCodec for AccessibilityRangeValueAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityRangeValue")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11617,7 +11647,10 @@ impl VmAggregateCodec for AccessibilityRemoveFromSelectionActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityRemoveFromSelectionAction",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11777,7 +11810,10 @@ impl VmAggregateCodec for AccessibilityReplaceSelectedTextActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityReplaceSelectedTextAction",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -11950,7 +11986,7 @@ impl VmAggregateCodec for AccessibilityScrollActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityScrollAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12135,7 +12171,7 @@ impl VmAggregateCodec for AccessibilityScrollIntoViewActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityScrollIntoViewAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12280,7 +12316,7 @@ impl VmAggregateCodec for AccessibilityScrollState {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityScrollState")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12446,7 +12482,10 @@ impl VmAggregateCodec for AccessibilityScrollTextRangeIntoViewActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilityScrollTextRangeIntoViewAction",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12635,7 +12674,7 @@ impl VmAggregateCodec for AccessibilitySelectActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilitySelectAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12793,7 +12832,7 @@ impl VmAggregateCodec for AccessibilitySetNumericValueActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilitySetNumericValueAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -12968,7 +13007,10 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangeActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilitySetSelectedTextRangeAction",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13156,7 +13198,10 @@ impl VmAggregateCodec for AccessibilitySetSelectedTextRangesActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(
+                value,
+                "accessibility::AccessibilitySetSelectedTextRangesAction",
+            )
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13348,7 +13393,7 @@ impl VmAggregateCodec for AccessibilitySetTextValueActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilitySetTextValueAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13519,7 +13564,7 @@ impl VmAggregateCodec for AccessibilityShowMenuActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityShowMenuAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13683,7 +13728,7 @@ impl VmAggregateCodec for AccessibilityTextDocumentAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextDocument")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -13942,7 +13987,7 @@ impl VmAggregateCodec for AccessibilityTextRange {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextRange")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14046,7 +14091,7 @@ impl VmAggregateCodec for AccessibilityTextRect {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextRect")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14157,7 +14202,7 @@ impl VmAggregateCodec for AccessibilityTextSelection {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextSelection")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14299,7 +14344,7 @@ impl VmAggregateCodec for AccessibilityTextStateAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextState")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -14686,7 +14731,7 @@ impl VmAggregateCodec for AccessibilityTextStyleRunAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTextStyleRun")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15095,7 +15140,7 @@ impl VmAggregateCodec for AccessibilityToggleActionAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityToggleAction")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -15256,7 +15301,7 @@ impl VmAggregateCodec for AccessibilityTreeUpdateAbi<VmAbi> {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value)
+            .value_ref(value, "accessibility::AccessibilityTreeUpdate")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
