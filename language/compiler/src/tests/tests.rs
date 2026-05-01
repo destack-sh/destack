@@ -2781,7 +2781,7 @@ impl TestProgram {
         let (heap, shared) = create_test_heaps();
 
         isolate
-            .initialize_statics(&mut statics)
+            .initialize(&heap, &shared, &mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
         TestIsolate {
