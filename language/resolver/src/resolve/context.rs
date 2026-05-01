@@ -1,30 +1,31 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileMetadata, PackageId};
+use destack_artifact::{ArtifactDependency, ArtifactPathState};
+use destack_source::{FileContentId, FileId, FileMetadata, PackageId};
 use destack_workspace::{DestackDeclaration, Revision, TsConfigDeclaration};
 
 #[cfg(not(target_arch = "wasm32"))]
 use pnp::fs::{LruZipCache, open_zip_via_read_p};
 
 use crate::resolve::TsConfigKey;
-use crate::{PackageScope, ResolveError, ResolveOrigin, ResolveTrace, TypeScriptOptionsReferences};
+use crate::{PackageScope, ResolverBase, ResolverResult, TypeScriptOptionsReferences};
 
 /// The maximum number of open Yarn PnP zip files per query.
 #[cfg(not(target_arch = "wasm32"))]
 const PNP_ZIP_CACHE_SIZE: u64 = 8;
 
-/// The request local scratch state for one resolve call chain.
+/// The request local scratch state for one resolve search chain.
 #[derive(Debug)]
-pub(crate) struct ResolveContext {
+pub struct ResolverContext {
     /// The active repository revision for this request.
     revision: Revision,
 
-    /// The files found while tracing this request.
-    found_dependencies: Option<Vec<PathBuf>>,
-    /// The files missed while tracing this request.
-    missing_dependencies: Option<Vec<PathBuf>>,
+    /// The exact resolver dependency facts observed in this request.
+    dependencies: Vec<ArtifactDependency>,
+    /// The exact resolver dependency facts already recorded in this request.
+    dependency_set: HashSet<ArtifactDependency>,
 
     /// The memoized nearest package scope results for this request.
     package_scope_cache: HashMap<PathBuf, Option<PackageId>>,
@@ -59,13 +60,13 @@ pub(crate) struct ResolveContext {
     pnp_zip_cache: Option<LruZipCache<Vec<u8>>>,
 }
 
-impl ResolveContext {
+impl ResolverContext {
     /// Build one request local context for one revision.
-    pub(crate) fn new(revision: Revision) -> Self {
+    pub fn new(revision: Revision) -> Self {
         Self {
             revision,
-            found_dependencies: None,
-            missing_dependencies: None,
+            dependencies: Vec::new(),
+            dependency_set: HashSet::new(),
             package_scope_cache: HashMap::new(),
             package_ids_by_path: HashMap::new(),
             packages_by_id: HashMap::new(),
@@ -84,43 +85,36 @@ impl ResolveContext {
         }
     }
 
-    /// Build one tracing context for one revision.
-    pub(crate) fn with_trace(revision: Revision) -> Self {
-        Self {
-            found_dependencies: Some(Vec::new()),
-            missing_dependencies: Some(Vec::new()),
-            ..Self::new(revision)
-        }
-    }
-
     /// Return the active repository revision for this request.
     pub(crate) fn revision(&self) -> Revision {
         self.revision
     }
 
-    /// Append any recorded dependency tracing into the given public trace.
-    pub(crate) fn append_trace_to(&mut self, trace: &mut ResolveTrace) {
-        if let Some(found_dependencies) = &mut self.found_dependencies {
-            trace.found_dependencies.append(found_dependencies);
-        }
+    /// Return the dependencies observed so far.
+    pub fn dependencies(&self) -> &[ArtifactDependency] {
+        &self.dependencies
+    }
 
-        if let Some(missing_dependencies) = &mut self.missing_dependencies {
-            trace.missing_dependencies.append(missing_dependencies);
+    /// Consume the context and return its observed dependencies.
+    pub fn into_dependencies(self) -> Vec<ArtifactDependency> {
+        self.dependencies
+    }
+
+    /// Track one exact dependency.
+    pub(crate) fn track_dependency(&mut self, dependency: ArtifactDependency) {
+        if self.dependency_set.insert(dependency.clone()) {
+            self.dependencies.push(dependency);
         }
     }
 
-    /// Track one found dependency when dependency tracing is enabled.
-    pub(crate) fn track_found_dependency(&mut self, path: &Path) {
-        if let Some(dependencies) = &mut self.found_dependencies {
-            dependencies.push(path.to_path_buf());
-        }
+    /// Track one path state dependency.
+    pub(crate) fn track_path_state(&mut self, path: FileId, state: ArtifactPathState) {
+        self.track_dependency(ArtifactDependency::path(path, state));
     }
 
-    /// Track one missing dependency when dependency tracing is enabled.
-    pub(crate) fn track_missing_dependency(&mut self, path: &Path) {
-        if let Some(dependencies) = &mut self.missing_dependencies {
-            dependencies.push(path.to_path_buf());
-        }
+    /// Track one path content dependency.
+    pub(crate) fn track_file_content(&mut self, file: FileId, content: FileContentId) {
+        self.track_dependency(ArtifactDependency::file_content(file, content));
     }
 
     /// Return one cached package scope result when present.
@@ -128,8 +122,8 @@ impl ResolveContext {
         self.package_scope_cache.get(path).cloned()
     }
 
-    /// Remember one package scope result.
-    pub(crate) fn remember_package_scope(&mut self, path: &Path, package_id: Option<PackageId>) {
+    /// Cache one package scope result.
+    pub(crate) fn cache_package_scope(&mut self, path: &Path, package_id: Option<PackageId>) {
         self.package_scope_cache
             .insert(path.to_path_buf(), package_id);
     }
@@ -144,14 +138,16 @@ impl ResolveContext {
         self.packages_by_id.get(&id).cloned()
     }
 
-    /// Remember one package scope in the request local cache.
-    pub(crate) fn remember_package(&mut self, entry: PackageScope) {
+    /// Cache one package scope entry.
+    pub(crate) fn cache_package(&mut self, entry: PackageScope) {
         let package_id = entry.package.id;
         let package_path = entry.package.path.clone();
         let entry = Arc::new(entry);
 
+        // update the id lookup first
         self.packages_by_id.insert(package_id, entry);
 
+        // update the path lookup when this package has one
         if let Some(package_path) = package_path {
             self.package_ids_by_path.insert(package_path, package_id);
         }
@@ -162,8 +158,8 @@ impl ResolveContext {
         self.path_metadata_cache.get(path).copied()
     }
 
-    /// Remember one path metadata result.
-    pub(crate) fn remember_path_metadata(&mut self, path: &Path, metadata: Option<FileMetadata>) {
+    /// Cache one path metadata result.
+    pub(crate) fn cache_path_metadata(&mut self, path: &Path, metadata: Option<FileMetadata>) {
         self.path_metadata_cache
             .insert(path.to_path_buf(), metadata);
     }
@@ -173,8 +169,8 @@ impl ResolveContext {
         self.nearest_tsconfig_cache.get(path).cloned()
     }
 
-    /// Remember one nearest tsconfig result.
-    pub(crate) fn remember_nearest_tsconfig(
+    /// Cache one nearest tsconfig result.
+    pub(crate) fn cache_nearest_tsconfig(
         &mut self,
         path: &Path,
         tsconfig_key: Option<TsConfigKey>,
@@ -186,28 +182,30 @@ impl ResolveContext {
     /// Return one effective tsconfig result when present.
     pub(crate) fn effective_tsconfig(
         &self,
-        origin: ResolveOrigin,
+        base: ResolverBase<'_>,
         path: &Path,
     ) -> Option<Option<TsConfigKey>> {
-        match origin {
-            ResolveOrigin::File => self.effective_file_tsconfig_cache.get(path).cloned(),
-            ResolveOrigin::Directory => self.effective_directory_tsconfig_cache.get(path).cloned(),
+        match base {
+            ResolverBase::File(_) => self.effective_file_tsconfig_cache.get(path).cloned(),
+            ResolverBase::Directory(_) => {
+                self.effective_directory_tsconfig_cache.get(path).cloned()
+            }
         }
     }
 
-    /// Remember one effective tsconfig result.
-    pub(crate) fn remember_effective_tsconfig(
+    /// Cache one effective tsconfig result.
+    pub(crate) fn cache_effective_tsconfig(
         &mut self,
-        origin: ResolveOrigin,
+        base: ResolverBase<'_>,
         path: &Path,
         tsconfig_key: Option<TsConfigKey>,
     ) {
-        match origin {
-            ResolveOrigin::File => {
+        match base {
+            ResolverBase::File(_) => {
                 self.effective_file_tsconfig_cache
                     .insert(path.to_path_buf(), tsconfig_key);
             }
-            ResolveOrigin::Directory => {
+            ResolverBase::Directory(_) => {
                 self.effective_directory_tsconfig_cache
                     .insert(path.to_path_buf(), tsconfig_key);
             }
@@ -215,12 +213,12 @@ impl ResolveContext {
     }
 
     /// Return one cached declaration by path when present.
-    pub(crate) fn destack_declaration(&self, path: &Path) -> Option<DestackDeclaration> {
-        self.destack_declarations_by_path.get(path).cloned()
+    pub(crate) fn destack_declaration(&self, path: &Path) -> Option<&DestackDeclaration> {
+        self.destack_declarations_by_path.get(path)
     }
 
-    /// Remember one parsed destack declaration.
-    pub(crate) fn remember_destack_declaration(&mut self, declaration: DestackDeclaration) {
+    /// Cache one parsed destack declaration.
+    pub(crate) fn cache_destack_declaration(&mut self, declaration: DestackDeclaration) {
         self.destack_declarations_by_path
             .insert(declaration.path.clone(), declaration);
     }
@@ -241,8 +239,8 @@ impl ResolveContext {
         self.tsconfig(&key)
     }
 
-    /// Remember one tsconfig declaration.
-    pub(crate) fn remember_tsconfig(&mut self, key: TsConfigKey, tsconfig: TsConfigDeclaration) {
+    /// Cache one tsconfig declaration.
+    pub(crate) fn cache_tsconfig(&mut self, key: TsConfigKey, tsconfig: TsConfigDeclaration) {
         self.tsconfigs_by_key.insert(key, tsconfig);
     }
 
@@ -251,9 +249,9 @@ impl ResolveContext {
         &mut self,
         path: PathBuf,
         f: F,
-    ) -> Result<T, ResolveError>
+    ) -> ResolverResult<T>
     where
-        F: FnOnce(&mut Self) -> Result<T, ResolveError>,
+        F: FnOnce(&mut Self) -> ResolverResult<T>,
     {
         self.extended_destack_configs.push(path);
         let result = f(self);
@@ -276,13 +274,9 @@ impl ResolveContext {
     }
 
     /// Execute a closure with one extended tsconfig pushed on the stack.
-    pub(crate) fn with_extended_tsconfig<F, T>(
-        &mut self,
-        path: PathBuf,
-        f: F,
-    ) -> Result<T, ResolveError>
+    pub(crate) fn with_extended_tsconfig<F, T>(&mut self, path: PathBuf, f: F) -> ResolverResult<T>
     where
-        F: FnOnce(&mut Self) -> Result<T, ResolveError>,
+        F: FnOnce(&mut Self) -> ResolverResult<T>,
     {
         self.extended_tsconfig_paths.push(path);
         let result = f(self);
@@ -310,9 +304,9 @@ impl ResolveContext {
         self.pnp_manifest.clone()
     }
 
-    /// Remember one Yarn PnP manifest for this request.
+    /// Cache one Yarn PnP manifest for this request.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn remember_pnp_manifest(&mut self, manifest: Arc<pnp::Manifest>) {
+    pub(crate) fn cache_pnp_manifest(&mut self, manifest: Arc<pnp::Manifest>) {
         self.pnp_manifest = Some(manifest);
     }
 
@@ -328,29 +322,27 @@ impl ResolveContext {
 mod tests {
     use super::*;
 
-    /// Append trace should drain the request local buffers.
+    /// Dependencies should be recorded once in the request local buffer.
     #[test]
-    fn test_append_trace_drains_dependencies() {
-        let mut context = ResolveContext::with_trace(Revision::NULL);
-        let mut trace = ResolveTrace::default();
+    fn test_track_dependency_deduplicates() {
+        let mut context = ResolverContext::new(Revision::NULL);
+        let file_id = FileId::from_logical_path(Path::new("/tmp/found"));
 
-        context.track_found_dependency(Path::new("/tmp/found"));
-        context.track_missing_dependency(Path::new("/tmp/missing"));
-        context.append_trace_to(&mut trace);
+        context.track_path_state(file_id, ArtifactPathState::File);
+        context.track_path_state(file_id, ArtifactPathState::File);
 
-        assert_eq!(trace.found_dependencies, vec![PathBuf::from("/tmp/found")]);
         assert_eq!(
-            trace.missing_dependencies,
-            vec![PathBuf::from("/tmp/missing")]
+            context.dependencies(),
+            vec![ArtifactDependency::path(file_id, ArtifactPathState::File)]
         );
     }
 
     /// Package scope entries should round trip through the query cache.
     #[test]
-    fn test_remember_package_scope_roundtrips() {
-        let mut context = ResolveContext::new(Revision::NULL);
+    fn test_cache_package_scope_roundtrips() {
+        let mut context = ResolverContext::new(Revision::NULL);
 
-        context.remember_package_scope(Path::new("/tmp"), Some(PackageId::new(1)));
+        context.cache_package_scope(Path::new("/tmp"), Some(PackageId::new(1)));
 
         assert_eq!(
             context.package_scope(Path::new("/tmp")),

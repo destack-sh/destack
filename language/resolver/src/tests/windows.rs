@@ -14,7 +14,7 @@ pub(super) fn volume_name_from_mount_point<S: AsRef<OsStr>>(
     let mount_point: Vec<u16> = mount_point.as_ref().encode_wide().chain(Some(0)).collect();
     let mut buffer = vec![0; BUFFER_SIZE as usize];
 
-    // win32 call to read volume name for one mount point
+    // win32 search to read volume name for one mount point
     let success = unsafe {
         GetVolumeNameForVolumeMountPointW(mount_point.as_ptr(), buffer.as_mut_ptr(), BUFFER_SIZE)
     };

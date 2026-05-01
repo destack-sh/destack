@@ -5,7 +5,7 @@ use std::sync::Arc;
 use fancy_regex::Regex;
 use indexmap::IndexMap;
 
-use crate::{ResolveError, ResolveOptions, Resolver, Restriction};
+use crate::{Resolver, ResolverError, ResolverOptions, Restriction};
 
 /// Test that regex restrictions are respected.
 #[test]
@@ -13,14 +13,14 @@ fn test_restrictions_respect_regexp() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::for_tests(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver1
@@ -28,7 +28,7 @@ fn test_restrictions_respect_regexp() {
         .map(|r| r.full_path());
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pck1".into()
         })
     );
@@ -40,7 +40,7 @@ fn test_restrictions_find_alternative_extension() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::for_tests(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
@@ -48,7 +48,7 @@ fn test_restrictions_find_alternative_extension() {
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver1
@@ -63,16 +63,16 @@ fn test_restrictions_respect_string() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(f.clone())],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pck2".into()
         })
     );
@@ -84,14 +84,14 @@ fn test_restrictions_find_alternative_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = Resolver::for_tests(ResolveOptions {
+    let resolver1 = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".css".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolution = resolver1
@@ -106,7 +106,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(css)$").unwrap();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         enforce_extension: crate::EnforceExtension::Disabled,
@@ -115,7 +115,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // prefer the unrestricted index candidate
@@ -127,17 +127,17 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
 
 /// Test restrictions when probing aliases or files directly.
 #[test]
-fn test_restrictions_check_in_probe_alias_or_file() {
+fn test_restrictions_check_in_probe_file_candidate() {
     let f = super::fixture().join("restrictions");
 
     // reject any path under the fixture directory
     let restrictions_path = f.clone();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             !path.starts_with(&restrictions_path)
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // direct file access should fail
@@ -150,12 +150,12 @@ fn test_restrictions_check_in_probe_alias_or_file() {
 fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // reject files containing "browser" in their path
             !path.to_str().is_some_and(|s| s.contains("browser"))
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // browser rewrites should still honor restrictions
@@ -168,7 +168,7 @@ fn test_restrictions_check_in_browser_field_alias() {
 fn test_restrictions_check_in_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
@@ -177,7 +177,7 @@ fn test_restrictions_check_in_extension_alias() {
             // allow only .js files
             path.extension().and_then(|e| e.to_str()) == Some("js")
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // skip the restricted .ts candidate
@@ -192,19 +192,19 @@ fn test_restrictions_check_in_extension_alias() {
 fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // reject .js files
             path.extension().and_then(|e| e.to_str()) != Some("js")
         }))],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // package main candidates should be rejected
     let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pck2".into()
         })
     );
@@ -218,7 +218,7 @@ fn test_restrictions_apply_multiple() {
     // require css and reject js
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_js = Regex::new(r"\.(js)$").unwrap();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -234,7 +234,7 @@ fn test_restrictions_apply_multiple() {
                     .is_some_and(|s| !re_no_js.is_match(s).unwrap_or(false))
             })),
         ],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // the css fallback satisfies both restrictions
@@ -252,7 +252,7 @@ fn test_restrictions_fail_if_any_fails() {
     // require css, then reject css
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_css = Regex::new(r"\.(css)$").unwrap();
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -269,14 +269,14 @@ fn test_restrictions_fail_if_any_fails() {
                     .is_some_and(|s| !re_no_css.is_match(s).unwrap_or(false))
             })),
         ],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // conflicting restrictions should reject every candidate
     let resolution = resolver.resolve_test_directory(&f, "pck1");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pck1".into()
         })
     );
@@ -288,11 +288,11 @@ fn test_restrictions_allow_exact_path() {
     let f = super::fixture().join("restrictions");
     let exact_file = f.join("node_modules/pck1/index.css");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Path(exact_file.clone())],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // exact path matches should pass
@@ -308,17 +308,17 @@ fn test_restrictions_respect_parent_directory() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(fixture)],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     // pck2 points outside the restricted parent directory
     let resolution = resolver.resolve_test_directory(&f, "pck2");
     assert_eq!(
         resolution,
-        Err(ResolveError::NotFound {
+        Err(ResolverError::NotFound {
             specifier: "pck2".into()
         })
     );

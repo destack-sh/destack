@@ -4,7 +4,16 @@ use std::sync::Arc;
 use destack_source::FileSystem;
 use destack_workspace::{Package, PackageDeclaration, Repository, Revision};
 
-use crate::{CompiledAliasTable, ResolveContext, ResolveOptions};
+use crate::{AliasTable, ResolverContext, ResolverOptions};
+
+/// The source truth used for resolver path reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolverSource {
+    /// Read from the active immutable repository revision.
+    Revision,
+    /// Read from the repository file system.
+    FileSystem,
+}
 
 /// One discovered package scope for one resolve query.
 #[derive(Debug, Clone)]
@@ -21,12 +30,14 @@ pub struct Resolver {
     pub(crate) repository: Arc<Repository>,
     /// The file system used for reads and metadata lookups.
     fs: Arc<dyn FileSystem>,
+    /// The source truth used for path reads.
+    pub(crate) source: ResolverSource,
     /// The configuration options controlling resolution behavior.
-    pub options: ResolveOptions,
-    /// The precompiled primary alias matchers for this option set.
-    pub(crate) compiled_alias: CompiledAliasTable,
-    /// The precompiled fallback alias matchers for this option set.
-    pub(crate) compiled_fallback: CompiledAliasTable,
+    pub(crate) options: ResolverOptions,
+    /// The primary alias matchers for this option set.
+    pub(crate) aliases: AliasTable,
+    /// The fallback alias matchers for this option set.
+    pub(crate) fallback_aliases: AliasTable,
 }
 
 impl fmt::Debug for Resolver {
@@ -36,28 +47,33 @@ impl fmt::Debug for Resolver {
 }
 
 impl Resolver {
-    /// Create a resolver from explicit parts.
-    pub(crate) fn from_parts(repository: Arc<Repository>, options: ResolveOptions) -> Self {
-        let compiled_alias = CompiledAliasTable::from_aliases(&options.alias);
-        let compiled_fallback = CompiledAliasTable::from_aliases(&options.fallback);
+    /// Create a resolver from explicit repository, options, and source truth.
+    pub(crate) fn new(
+        repository: Arc<Repository>,
+        options: ResolverOptions,
+        source: ResolverSource,
+    ) -> Self {
+        let aliases = AliasTable::new(&options.alias);
+        let fallback_aliases = AliasTable::new(&options.fallback);
 
         Self {
             fs: Arc::clone(repository.file_system()),
             repository,
+            source,
             options,
-            compiled_alias,
-            compiled_fallback,
+            aliases,
+            fallback_aliases,
         }
     }
 
-    /// Create a resolver from one repository.
-    pub fn from_repository(repository: Arc<Repository>, options: ResolveOptions) -> Self {
-        Self::from_parts(repository, options)
+    /// Create a resolver from one repository revision source.
+    pub fn from_repository(repository: Arc<Repository>, options: ResolverOptions) -> Self {
+        Self::new(repository, options, ResolverSource::Revision)
     }
 
     /// Clone the resolver with new options.
-    pub fn with_options(&self, options: ResolveOptions) -> Self {
-        Self::from_parts(self.repository.clone(), options)
+    pub fn with_options(&self, options: ResolverOptions) -> Self {
+        Self::new(self.repository.clone(), options, self.source)
     }
 
     /// Get the backing repository.
@@ -66,14 +82,20 @@ impl Resolver {
         &self.repository
     }
 
+    /// Return the active resolver options.
+    #[inline]
+    pub fn options(&self) -> &ResolverOptions {
+        &self.options
+    }
+
     /// Get a reference to the file system.
     #[inline]
     pub(crate) fn fs(&self) -> &dyn FileSystem {
         self.fs.as_ref()
     }
 
-    /// Return the active repository revision for one request context.
-    pub(crate) fn source_world(&self, ctx: &ResolveContext) -> (&Repository, Revision) {
-        (self.repository().as_ref(), ctx.revision())
+    /// Return the repository and active revision for one request context.
+    pub(crate) fn repository_revision(&self, ctx: &ResolverContext) -> (&Repository, Revision) {
+        (self.repository.as_ref(), ctx.revision())
     }
 }

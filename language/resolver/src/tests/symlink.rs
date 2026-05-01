@@ -5,7 +5,7 @@ use destack_source::PathExt;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use crate::{ResolveOptions, Resolver};
+use crate::{Resolver, ResolverOptions};
 
 #[derive(Debug, Clone, Copy)]
 enum FileType {
@@ -160,11 +160,11 @@ fn test_symlinks_resolution() {
     let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
         return;
     };
-    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolverOptions {
         canonicalize_symlinks: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolverOptions::default());
 
     #[rustfmt::skip]
     let pass = [
@@ -230,7 +230,7 @@ fn test_symlinks_circular() {
     }
 
     // should error due to circular symlink
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
     let result = resolver.resolve_test_directory(&temp_path, "./link1");
     assert!(result.is_err());
 
@@ -281,11 +281,11 @@ fn test_symlinks_self_reference_exports_resolution() {
         return;
     }
 
-    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolverOptions {
         canonicalize_symlinks: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolverOptions::default());
 
     let link_root_resolution = resolver_without_symlinks
         .resolve_test_directory(&package_link_src_path, "selfpkg")
@@ -361,11 +361,11 @@ fn test_symlinks_package_imports_resolution() {
         return;
     }
 
-    let resolver_without_symlinks = Resolver::for_tests(ResolveOptions {
+    let resolver_without_symlinks = Resolver::for_tests(ResolverOptions {
         canonicalize_symlinks: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
-    let resolver_with_symlinks = Resolver::for_tests(ResolveOptions::default());
+    let resolver_with_symlinks = Resolver::for_tests(ResolverOptions::default());
 
     let link_resolution = resolver_without_symlinks
         .resolve_test_directory(&package_link_src_path, "#self")

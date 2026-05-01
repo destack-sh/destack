@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution {
     /// The path without query or fragment.
-    pub path: PathBuf,
+    path: PathBuf,
     /// The query suffix, including the leading `?`.
-    pub query: Option<String>,
+    query: Option<String>,
     /// The fragment suffix, including the leading `#`.
-    pub fragment: Option<String>,
+    fragment: Option<String>,
 }
 
 impl Resolution {
@@ -21,12 +21,8 @@ impl Resolution {
         }
     }
 
-    /// Create one resolution with explicit query and fragment parts.
-    pub(crate) fn with_parts(
-        path: PathBuf,
-        query: Option<String>,
-        fragment: Option<String>,
-    ) -> Self {
+    /// Create one resolution with explicit path, query, and fragment.
+    pub(crate) fn new(path: PathBuf, query: Option<String>, fragment: Option<String>) -> Self {
         Self {
             path,
             query,
@@ -34,8 +30,8 @@ impl Resolution {
         }
     }
 
-    /// Override query and fragment when the new parts are present.
-    pub(crate) fn override_parts(
+    /// Override query and fragment when the new values are present.
+    pub(crate) fn override_suffixes(
         mut self,
         query: Option<String>,
         fragment: Option<String>,
@@ -52,7 +48,7 @@ impl Resolution {
     }
 
     /// Fill query and fragment only when they are still missing.
-    pub(crate) fn fill_missing_parts(
+    pub(crate) fn fill_missing_suffixes(
         mut self,
         query: Option<String>,
         fragment: Option<String>,
@@ -73,9 +69,24 @@ impl Resolution {
         &self.path
     }
 
+    /// Return the query suffix.
+    pub fn query(&self) -> Option<&str> {
+        self.query.as_deref()
+    }
+
+    /// Return the fragment suffix.
+    pub fn fragment(&self) -> Option<&str> {
+        self.fragment.as_deref()
+    }
+
     /// Return the path without query or fragment.
     pub fn into_path_buf(self) -> PathBuf {
-        self.path.clone()
+        self.path
+    }
+
+    /// Consume this resolution into its path, query, and fragment.
+    pub(crate) fn into_components(self) -> (PathBuf, Option<String>, Option<String>) {
+        (self.path, self.query, self.fragment)
     }
 
     /// Build the full path with query and fragment.

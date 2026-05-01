@@ -4,7 +4,7 @@
 
 mod resolve;
 
-pub(crate) use resolve::{ResolvePath, ResolvePathKind};
+pub(crate) use resolve::{ResolverSpecifier, ResolverSpecifierKind};
 
 pub use resolve::{Resolution, *};
 

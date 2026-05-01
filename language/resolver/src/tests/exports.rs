@@ -8,7 +8,7 @@ use destack_source::{MemoryFileSystem, PathExt};
 use indexmap::IndexMap;
 use serde_json::json;
 
-use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{Resolution, Resolver, ResolverError, ResolverOptions};
 
 /// Test simple exports field resolution.
 #[test]
@@ -18,11 +18,11 @@ fn test_resolve_exports_field_simple() {
     let f4 = super::fixture().join("exports-field-error");
     let f5 = super::fixture().join("imports-exports-wildcard");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         is_fully_specified: true,
         conditions: vec!["webpack".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -61,16 +61,16 @@ fn test_resolve_exports_field_simple() {
 
     #[rustfmt::skip]
     let fail = [
-        ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound { specifier: "./node_modules/exports-field/dist/main.js".into() }),
-        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget { target: "./lib/../../../a.js".to_string(), name: "./dist/".to_string(), package_path: p.clone() }),
-        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget { target: "./../../a.js".to_string(), name: "./dist/a.js".to_string(), package_path: p.clone() }),
-        ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported { subpath: "./anything/else".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
-        ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported { subpath: "./".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
-        ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported { subpath: "./dist/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
-        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported { subpath: "./lib/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p, conditions: vec!["webpack".into()] }),
-        ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget { target: "./a/../b/../../pack1/index.js".to_string(), name: ".".to_string(), package_path: p4 }),
-        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::InvalidPackageJson { path: f.join("node_modules/invalid-exports-field/package.json") }),
-        ("should throw error if target is 'null'", f5.clone(), "m/features/internal/file.js", ResolveError::PackagePathNotExported { subpath: "./features/internal/file.js".to_string(), package_path: f5.join("node_modules/m"), package_json_path: p5, conditions: vec!["webpack".into()] }),
+        ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolverError::NotFound { specifier: "./node_modules/exports-field/dist/main.js".into() }),
+        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolverError::InvalidPackageTarget { target: "./lib/../../../a.js".to_string(), name: "./dist/".to_string(), package_path: p.clone() }),
+        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolverError::InvalidPackageTarget { target: "./../../a.js".to_string(), name: "./dist/a.js".to_string(), package_path: p.clone() }),
+        ("not exported error", f.clone(), "exports-field/anything/else", ResolverError::PackagePathNotExported { subpath: "./anything/else".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
+        ("request ending with slash #1", f.clone(), "exports-field/", ResolverError::PackagePathNotExported { subpath: "./".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
+        ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolverError::PackagePathNotExported { subpath: "./dist/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
+        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolverError::PackagePathNotExported { subpath: "./lib/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p, conditions: vec!["webpack".into()] }),
+        ("should throw error if target is invalid", f4, "exports-field", ResolverError::InvalidPackageTarget { target: "./a/../b/../../pack1/index.js".to_string(), name: ".".to_string(), package_path: p4 }),
+        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolverError::InvalidPackageJson { path: f.join("node_modules/invalid-exports-field/package.json") }),
+        ("should throw error if target is 'null'", f5.clone(), "m/features/internal/file.js", ResolverError::PackagePathNotExported { subpath: "./features/internal/file.js".to_string(), package_path: f5.join("node_modules/m"), package_json_path: p5, conditions: vec!["webpack".into()] }),
     ];
 
     for (comment, path, request, error) in fail {
@@ -84,10 +84,10 @@ fn test_resolve_exports_field_simple() {
 fn test_resolve_exports_field_disabled_uses_main_field() {
     let f = super::fixture().join("exports-field");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         resolve_package_json_exports: false,
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolved_path = resolver
@@ -104,10 +104,10 @@ fn test_resolve_exports_field_disabled_uses_main_field() {
 fn test_resolve_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         conditions: vec!["webpack".into()],
         extensions: vec![".js".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolved_path = resolver
@@ -124,10 +124,10 @@ fn test_resolve_exports_field_not_browser_field1() {
 fn test_resolve_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         conditions: vec!["node".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolved_path = resolver
@@ -144,10 +144,10 @@ fn test_resolve_exports_field_not_browser_field2() {
 fn test_resolve_exports_field_extension_without_fully_specified() {
     let f2 = super::fixture().join("exports-field2");
 
-    let commonjs_resolver = Resolver::for_tests(ResolveOptions {
+    let commonjs_resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         conditions: vec!["webpack".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     let resolved_path = commonjs_resolver
@@ -164,12 +164,12 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
 fn test_resolve_exports_field_extension_alias() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".js".into()])]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -191,7 +191,7 @@ fn test_resolve_exports_field_extension_alias() {
 fn test_resolve_exports_field_extension_alias_complex() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(
             ".js".into(),
@@ -205,7 +205,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
         )]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
@@ -226,18 +226,18 @@ fn test_resolve_exports_field_extension_alias_complex() {
 fn test_resolve_exports_field_extension_alias_error() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = Resolver::for_tests(ResolveOptions {
+    let resolver = Resolver::for_tests(ResolverOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
-        ..ResolveOptions::default()
+        ..ResolverOptions::default()
     });
 
     #[rustfmt::skip]
     let fail = [
         // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/test/exportsField.test.js#L2976-L3024
-        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAliasNotFound {
+        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolverError::ExtensionAliasNotFound {
             filename: "string.js".into(),
             tried: "string.ts".into(),
             dir: f.join("node_modules/pkg/dist")
@@ -254,7 +254,7 @@ fn test_resolve_exports_field_extension_alias_error() {
 #[test]
 fn test_resolve_exports_field_directory() {
     let f = super::fixture();
-    let resolver = Resolver::for_tests(ResolveOptions::default());
+    let resolver = Resolver::for_tests(ResolverOptions::default());
     let resolution = resolver.resolve_test_directory(f.join("foo"), "../exports-field");
     let path = resolution.unwrap().full_path();
     assert_eq!(path, f.join("exports-field").join("a.js"));
@@ -2388,6 +2388,7 @@ fn test_resolve_exports_field_cases() {
     ];
 
     for case in test_cases {
+        let package_url = Path::new(".");
         let condition_names = case
             .conditions
             .iter()
@@ -2396,16 +2397,16 @@ fn test_resolve_exports_field_cases() {
         let file_system = MemoryFileSystem::default();
         let resolver = Resolver::for_test_file_system(
             Arc::new(file_system),
-            ResolveOptions {
+            ResolverOptions {
                 conditions: condition_names,
-                ..ResolveOptions::default()
+                ..ResolverOptions::default()
             },
         );
-        let resolved_path = resolver.package_exports_resolve(
-            Path::new(""),
+        let resolved_path = resolver.resolve_package_exports_field(
+            package_url,
             case.request,
             &case.exports,
-            crate::ResolveState::new(&resolver.options),
+            crate::ResolverSearch::root(resolver.options()),
             &mut super::test_resolve_context(),
         );
         if let Some(expect) = case.expect {
@@ -2413,7 +2414,7 @@ fn test_resolve_exports_field_cases() {
                 assert!(
                     matches!(
                         resolved_path,
-                        Err(ResolveError::PackagePathNotExported { .. })
+                        Err(ResolverError::PackagePathNotExported { .. })
                     ),
                     "{} {:?}",
                     &case.name,
@@ -2423,7 +2424,9 @@ fn test_resolve_exports_field_cases() {
                 for expect in expect {
                     assert_eq!(
                         resolved_path,
-                        Ok(Some(Resolution::path_only(Path::new(expect).normalize()))),
+                        Ok(Some(Resolution::path_only(
+                            package_url.normalize_with(expect)
+                        ))),
                         "{}",
                         &case.name
                     );
@@ -2440,7 +2443,7 @@ fn test_resolve_exports_field_cases() {
 fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
     let resolver = Resolver::for_test_file_system(
         Arc::new(MemoryFileSystem::default()),
-        ResolveOptions::default(),
+        ResolverOptions::default(),
     );
     let exports = json!({
         "./a/": [
@@ -2449,18 +2452,18 @@ fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
         ]
     });
 
-    let resolved_path = resolver.package_exports_resolve(
-        Path::new(""),
+    let resolved_path = resolver.resolve_package_exports_field(
+        Path::new("."),
         "./a/file.js",
         &exports,
-        crate::ResolveState::new(&resolver.options),
+        crate::ResolverSearch::root(resolver.options()),
         &mut super::test_resolve_context(),
     );
 
     assert_eq!(
         resolved_path,
-        Err(ResolveError::InvalidPackageConfigDirectory {
-            path: Path::new("package.json").to_path_buf()
+        Err(ResolverError::InvalidPackageConfigDirectory {
+            path: Path::new(".").normalize_with("package.json")
         })
     );
 }

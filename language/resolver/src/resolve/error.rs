@@ -5,7 +5,7 @@ use std::path::PathBuf;
 /// Resolution error.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
-pub enum ResolveError {
+pub enum ResolverError {
     /// Path explicitly ignored.
     /// <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
     Ignored {
@@ -99,13 +99,13 @@ pub enum ResolveError {
         message: String,
     },
 
-    /// File origin resolution received a non file path.
+    /// File base resolution received a non file path.
     ExpectedFilePath {
         /// The path that was expected to be a file.
         path: PathBuf,
     },
 
-    /// Directory origin resolution received a non directory path.
+    /// Directory base resolution received a non directory path.
     ExpectedDirectoryPath {
         /// The path that was expected to be a directory.
         path: PathBuf,
@@ -198,7 +198,10 @@ pub enum ResolveError {
     },
 }
 
-impl ResolveError {
+/// Resolver result.
+pub type ResolverResult<T> = Result<T, ResolverError>;
+
+impl ResolverError {
     /// Check if the error is the ignored path error.
     pub const fn is_ignore(&self) -> bool {
         matches!(self, Self::Ignored { .. })
@@ -272,10 +275,10 @@ impl ResolveError {
                 format!("repository resolution error at {path:?}: {message}")
             }
             Self::ExpectedFilePath { path } => {
-                format!("expected a file path for file-origin resolution, got {path:?}")
+                format!("expected a file path for file base resolution, got {path:?}")
             }
             Self::ExpectedDirectoryPath { path } => {
-                format!("expected a directory path for directory-origin resolution, got {path:?}")
+                format!("expected a directory path for directory base resolution, got {path:?}")
             }
             Self::UnsupportedPath { path } => {
                 format!("path {path:?} contains unsupported construct.")
@@ -360,10 +363,10 @@ impl ResolveError {
     }
 }
 
-impl std::fmt::Display for ResolveError {
+impl std::fmt::Display for ResolverError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.message())
     }
 }
 
-impl std::error::Error for ResolveError {}
+impl std::error::Error for ResolverError {}
