@@ -3,7 +3,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_core::LocalStringPool;
 use destack_engine::{StaticSpace, Value};
+use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{ReferenceMap, Tree};
+use destack_source::FileId;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
 
@@ -15,11 +17,7 @@ use crate::host::{
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::bindings::BindingEngine;
-use crate::runtime::engine::engine::ErasedNativeEngine;
-use crate::runtime::engine::{
-    Context, Continuation, Engine, Entry, NativeContinuation, NativeImage, Outcome, Output,
-};
-use crate::runtime::memory::RootVisitor;
+use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome, Output};
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
@@ -31,20 +29,20 @@ use crate::runtime::time::{HostClockSource, Nanos};
 use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
 use crate::runtime::{
     BindingCallContext, DropCounts, RuntimeId, RuntimeSharedHeap, TickOutcome, Worker, WorkerId,
-    World, WorldRef,
+    World, WorldScope,
 };
 
-/// Scripted host clock source for deterministic host-time runtime tests.
+/// Test host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
-pub(super) struct ScriptedHostClockSource {
-    /// Current scripted wall time in nanoseconds.
+pub(super) struct TestHostClockSource {
+    /// Current test wall time in nanoseconds.
     wall_nanos: AtomicU64,
-    /// Current scripted monotonic time in nanoseconds.
+    /// Current test monotonic time in nanoseconds.
     mono_nanos: AtomicU64,
 }
 
-impl ScriptedHostClockSource {
-    /// Create one scripted host clock source.
+impl TestHostClockSource {
+    /// Create one test host clock source.
     pub(super) fn new(wall_nanos: u64, mono_nanos: u64) -> Self {
         Self {
             wall_nanos: AtomicU64::new(wall_nanos),
@@ -70,12 +68,12 @@ impl ScriptedHostClockSource {
         self.wall_nanos.store(next, Ordering::Relaxed);
     }
 
-    /// Return one scripted wall time sample.
+    /// Return one test wall time sample.
     pub(super) fn wall_nanos(&self) -> u64 {
         self.wall_nanos.load(Ordering::Relaxed)
     }
 
-    /// Return one scripted monotonic time sample.
+    /// Return one test monotonic time sample.
     pub(super) fn mono_nanos(&self) -> u64 {
         self.mono_nanos.load(Ordering::Relaxed)
     }
@@ -85,202 +83,99 @@ impl ScriptedHostClockSource {
 pub(super) fn binding_call_context(
     worker: &Worker,
     host: &Session,
-    world: &WorldRef,
+    world: &WorldScope,
 ) -> BindingCallContext {
     BindingCallContext::from_raw(
         worker as *const Worker,
         worker.event_loop.as_ref() as *const _,
         host as *const Session,
-        world as *const WorldRef,
+        world as *const WorldScope,
         BindingEngine::Native,
     )
 }
 
-impl HostClockSource for ScriptedHostClockSource {
-    /// Return one scripted wall-clock sample.
+impl HostClockSource for TestHostClockSource {
+    /// Return one test wall-clock sample.
     fn wall_nanos(&self) -> u64 {
         self.wall_nanos()
     }
 
-    /// Return one scripted monotonic-clock sample.
+    /// Return one test monotonic-clock sample.
     fn mono_nanos(&self) -> u64 {
         self.mono_nanos()
     }
 
-    /// Sleep by advancing scripted wall and monotonic time.
+    /// Sleep by advancing test wall and monotonic time.
     fn sleep_nanos(&self, duration_nanos: u64) {
         self.advance_both_nanos(duration_nanos);
     }
 }
 
-/// Test engine that yields once, then completes.
-#[derive(Debug, Clone, Default)]
+const TEST_ENGINE_MIR: &str = r#"
+function test.entry(): void {
+b0:
+    return
+}
+
+function test.task(v0: int32): int32 {
+b0(v0: int32):
+    yield v0, b1(v0)
+b1(v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    yield v3, b2(v3)
+b2(v4: int32, v5: int32):
+    return v4
+}
+
+function test.complete(v0: int32): int32 {
+b0(v0: int32):
+    yield v0, b1(v0)
+b1(v1: int32, v2: int32):
+    return v1
+}
+"#;
+
+/// VM-backed test engine factory.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct TestEngine {
-    /// Number of resume calls executed.
-    pub(super) resume_calls: usize,
+    /// MIR text used to build the VM engine.
+    mir: &'static str,
 }
 
-/// Engine that allocates into the heap when it runs or resumes.
-#[derive(Debug, Clone, Copy, Default)]
-pub(super) struct AllocatingEngine {
-    /// The number of heap values to allocate into one heap allocation.
-    pub(super) heap_values: usize,
-    /// The number of raw bytes to allocate into one raw allocation.
-    pub(super) raw_bytes: usize,
-}
-
-impl ErasedNativeEngine for TestEngine {
-    /// Run one entrypoint without yielding.
-    fn run(
-        &mut self,
-        _context: Context<'_>,
-        _entry: &Entry,
-        _args: &[Value],
-    ) -> RuntimeResult<Outcome<Continuation>> {
-        Ok(Outcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Resume one continuation and yield once before completion.
-    fn resume(
-        &mut self,
-        _context: Context<'_>,
-        _continuation: NativeContinuation,
-        _value: Value,
-    ) -> RuntimeResult<Outcome<Continuation>> {
-        // return one yielded continuation on the first resume
-        if self.resume_calls == 0 {
-            self.resume_calls += 1;
-            return Ok(Outcome::Yielded {
-                continuation: Continuation::Native(NativeContinuation::new(2)),
-                value: Value::Void,
-            });
+impl Default for TestEngine {
+    fn default() -> Self {
+        Self {
+            mir: TEST_ENGINE_MIR,
         }
-
-        // complete all later resumes
-        self.resume_calls += 1;
-        Ok(Outcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Test engines retain no heap roots.
-    fn visit_roots(
-        &mut self,
-        _worker_static: &StaticSpace,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Test native continuations retain no heap roots.
-    /// Capture one immutable engine image for tests.
-    fn image(&mut self) -> RuntimeResult<NativeImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "test engine images are not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Fork one live test engine.
-    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn ErasedNativeEngine>> {
-        Ok(Box::new(self.clone()))
-    }
-
-    /// Restore one immutable engine image for tests.
-    fn restore(&mut self, _heap: &mut heap::Heap, image: &NativeImage) -> RuntimeResult<()> {
-        let _ = image;
-
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "test engine image restore is not implemented".to_string(),
-        }
-        .boxed())
     }
 }
 
-impl ErasedNativeEngine for AllocatingEngine {
-    /// Run one entrypoint after allocating into the heap.
-    fn run(
-        &mut self,
-        context: Context<'_>,
-        _entry: &Entry,
-        _args: &[Value],
-    ) -> RuntimeResult<Outcome<Continuation>> {
-        self.allocate(context.heap)?;
-
-        Ok(Outcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Resume one continuation after allocating into the heap.
-    fn resume(
-        &mut self,
-        context: Context<'_>,
-        _continuation: NativeContinuation,
-        _value: Value,
-    ) -> RuntimeResult<Outcome<Continuation>> {
-        self.allocate(context.heap)?;
-
-        Ok(Outcome::Completed {
-            output: void_output(),
-        })
-    }
-
-    /// Allocating test engines retain no heap roots.
-    fn visit_roots(
-        &mut self,
-        _worker_static: &StaticSpace,
-        _roots: &mut RootVisitor<'_>,
-    ) -> RuntimeResult<()> {
-        Ok(())
-    }
-
-    /// Allocating test continuations retain no heap roots.
-    /// Capture one immutable engine image for tests.
-    fn image(&mut self) -> RuntimeResult<NativeImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "allocating test engine images are not implemented".to_string(),
-        }
-        .boxed())
-    }
-
-    /// Fork one live allocating test engine.
-    fn fork(&mut self, _heap: &mut heap::Heap) -> RuntimeResult<Box<dyn ErasedNativeEngine>> {
-        Ok(Box::new(*self))
-    }
-
-    /// Restore one immutable engine image for tests.
-    fn restore(&mut self, _heap: &mut heap::Heap, image: &NativeImage) -> RuntimeResult<()> {
-        let _ = image;
-
-        Err(crate::diagnostic::RuntimeError::Internal {
-            message: "allocating test engine image restore is not implemented".to_string(),
-        }
-        .boxed())
+impl TestEngine {
+    /// Build one VM isolate for this test engine.
+    fn isolate(self) -> vm::Isolate {
+        vm_engine_from_mir(self.mir)
     }
 }
 
-impl AllocatingEngine {
-    /// Allocate the configured heap and raw payload into the heap.
-    fn allocate(&self, heap: &mut heap::Heap) -> RuntimeResult<()> {
-        // heap payload
-        if self.heap_values > 0 {
-            let bytes = vec![0; self.heap_values * vm::Word::BYTE_LEN];
-            let reference_map = ReferenceMap::empty();
-            let layout = heap::AllocationLayout::new(bytes.len(), &reference_map);
-            let _ = heap.allocate(layout, heap::Payload::Bytes(&bytes))?;
-        }
-
-        // raw payload
-        if self.raw_bytes > 0 {
-            let bytes = vec![0xAB; self.raw_bytes];
-            let _ = heap.allocate_raw(bytes.len(), heap::Payload::Bytes(&bytes))?;
-        }
-
-        Ok(())
+impl From<TestEngine> for Engine {
+    fn from(engine: TestEngine) -> Self {
+        Self::from(engine.isolate())
     }
+}
+
+/// Build one VM isolate from MIR text.
+pub(super) fn vm_engine_from_mir(mir: &str) -> vm::Isolate {
+    let (tree, strings) = Parser::parse(FileId::new(0), mir, ParseOptions::default())
+        .validate()
+        .expect("runtime test MIR should parse");
+
+    vm::Isolate::build_with_options(
+        vm::IsolateId::new(1),
+        tree,
+        strings,
+        vm::IsolateOptions::test(),
+    )
+    .expect("runtime test VM engine should build")
 }
 
 /// Test harness for worker scheduling tests.
@@ -314,7 +209,7 @@ pub(super) struct TestWorld {
     world: World,
 }
 
-/// Scripted poller for runtime ingress tests.
+/// Test poller for runtime ingress tests.
 #[derive(Debug, Default)]
 pub(super) struct TestPoller {
     /// Events returned by the next poll.
@@ -322,7 +217,7 @@ pub(super) struct TestPoller {
 }
 
 impl TestPoller {
-    /// Build one scripted poller from explicit events.
+    /// Build one test poller from explicit events.
     pub(super) fn with_events(events: Vec<PollerEvent>) -> Self {
         Self { events }
     }
@@ -410,16 +305,14 @@ impl TestWorld {
         let worker = runtime
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
-        let engine = worker.engine.as_any_mut();
-        let _isolate = engine
-            .downcast_mut::<vm::Isolate>()
-            .expect("worker should use a vm engine");
         let bytes = value.to_byte_array();
         let reference_map = ReferenceMap::empty();
-        let layout = heap::AllocationLayout::new(bytes.len(), &reference_map);
+        let plan = heap::AllocationPlan::new(bytes.len(), 1, &reference_map);
+        let layout = worker.heap.allocation_layout(plan);
+
         worker
             .heap
-            .allocate(layout, heap::Payload::Bytes(&bytes))
+            .allocate(&layout, heap::Payload::Bytes(&bytes))
             .expect("heap allocation should succeed")
     }
 
@@ -429,6 +322,71 @@ impl TestWorld {
         runtime_id: RuntimeId,
     ) -> heap::HeapReference {
         self.allocate_vm_managed_value(runtime_id, vm::Word::int32(7))
+    }
+
+    /// Return the managed bytes for one primary worker heap allocation.
+    pub(super) fn read_vm_heap_bytes_result(
+        &mut self,
+        runtime_id: RuntimeId,
+        reference: heap::HeapReference,
+    ) -> RuntimeResult<Vec<u8>> {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+        let byte_len = vm::Word::BYTE_LEN;
+        let mut bytes = vec![0u8; byte_len];
+        let address = worker.heap.heap_base_address() + reference.offset();
+
+        // copy from the managed payload address
+        unsafe {
+            std::ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), byte_len);
+        }
+
+        Ok(bytes)
+    }
+
+    /// Return the managed bytes for one primary worker heap allocation.
+    pub(super) fn read_vm_heap_bytes(
+        &mut self,
+        runtime_id: RuntimeId,
+        reference: heap::HeapReference,
+    ) -> Vec<u8> {
+        self.read_vm_heap_bytes_result(runtime_id, reference)
+            .expect("managed byte read should succeed")
+    }
+
+    /// Mutate one managed byte in the primary worker heap.
+    pub(super) fn mutate_vm_heap_byte(
+        &mut self,
+        runtime_id: RuntimeId,
+        reference: heap::HeapReference,
+        index: usize,
+        byte: u8,
+    ) {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+        let worker = runtime
+            .worker_mut(worker_id)
+            .expect("runtime should keep its primary worker");
+
+        worker
+            .heap
+            .write_barrier(reference, index, 1)
+            .expect("heap barrier should record");
+        let address = worker.heap.heap_base_address() + reference.offset() + index;
+
+        // copy into the managed payload address
+        unsafe {
+            (address as *mut u8).write(byte);
+        }
     }
 
     /// Return the heap allocation count for the primary worker VM isolate.
@@ -443,6 +401,26 @@ impl TestWorld {
             .expect("runtime should keep its primary worker");
 
         worker.heap.heap_allocation_count()
+    }
+
+    /// Create one VM continuation in the primary worker.
+    pub(super) fn yielding_continuation(
+        &mut self,
+        runtime_id: RuntimeId,
+        value: u64,
+    ) -> Continuation {
+        let value = i32::try_from(value).expect("test continuation id should fit int32");
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let worker_id = runtime.primary_worker_id();
+
+        runtime
+            .with_worker_context(worker_id, |shared, runtime_static, worker| {
+                start_worker_continuation(worker, shared, runtime_static, "test.task", value)
+            })
+            .expect("runtime should keep its primary worker")
     }
 
     /// Allocate one raw span in the primary worker heap.
@@ -523,37 +501,14 @@ impl TestWorld {
             .worker_mut(worker_id)
             .expect("runtime should keep its primary worker");
 
-        worker.heap.set_raw_byte(pointer, index, byte)
-    }
-
-    /// Capture the primary worker heap image for one runtime.
-    pub(super) fn runtime_heap_image(&mut self, runtime_id: RuntimeId) -> heap::HeapImage {
-        let runtime = self
-            .world_mut()
-            .runtime_mut(runtime_id)
-            .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
-        let worker = runtime
-            .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
-
-        worker
-            .heap
-            .image()
-            .map_err(|error| {
-                crate::diagnostic::RuntimeError::Internal {
-                    message: format!("heap capture failed during world test: {error}"),
-                }
-                .boxed()
-            })
-            .expect("heap image capture should succeed")
+        worker.heap.write_raw_byte(pointer, index, byte)
     }
 
     /// Record one simple entity-kind topology mutation.
     pub(super) fn record_world_entity_kind(&mut self, suffix: &str) {
         self.world_mut()
             .define_entity_kind(WorldEntityKindDefinition {
-                kind: format!("app.record.shared.{suffix}").into(),
+                kind: format!("app.record.shared_heap.{suffix}").into(),
                 labels: Default::default(),
                 supported_faults: Default::default(),
             })
@@ -582,6 +537,24 @@ impl TestWorld {
             .expect("world fork should succeed");
 
         Self::from_world(world)
+    }
+}
+
+impl crate::runtime::Runtime {
+    /// Run one closure with one worker and its runtime context.
+    pub(super) fn with_worker_context<R>(
+        &mut self,
+        worker_id: WorkerId,
+        callback: impl FnOnce(&RuntimeSharedHeap, &StaticSpace, &mut Worker) -> R,
+    ) -> RuntimeResult<R> {
+        let shared = &self.shared as *const RuntimeSharedHeap;
+        let runtime_static = self.runtime_static() as *const StaticSpace;
+        let worker = self
+            .worker_mut(worker_id)
+            .expect("worker should exist in runtime");
+
+        // split immutable runtime context from the mutable worker borrow
+        Ok(unsafe { callback(&*shared, &*runtime_static, worker) })
     }
 }
 
@@ -614,17 +587,17 @@ impl HostPoller for TestPoller {
         Ok(())
     }
 
-    /// Return no dedicated wake handle for this scripted poller.
+    /// Return no dedicated wake handle for this test poller.
     fn wake_handle(&self) -> Option<Arc<dyn PollerWakeHandle>> {
         None
     }
 
-    /// Waking the scripted poller is a no-op.
+    /// Waking the test poller is a no-op.
     fn wake(&mut self) -> RuntimeResult<()> {
         Ok(())
     }
 
-    /// Return the scripted poll result once and then drain it.
+    /// Return the test poll result once and then drain it.
     fn poll(&mut self, _timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         Ok(std::mem::take(&mut self.events))
     }
@@ -719,11 +692,11 @@ impl TestRuntime {
 
     /// Enqueue one native task with explicit identifiers.
     pub(super) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
+        let continuation = self.yielding_continuation(continuation_id);
+
         self.worker.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
-            runnable: Continuation::Native(NativeContinuation::new(continuation_handle(
-                continuation_id,
-            ))),
+            runnable: continuation,
             resume_value: Value::Void,
             status: TaskStatus::Ready,
             priority,
@@ -732,11 +705,11 @@ impl TestRuntime {
 
     /// Enqueue one native microtask with explicit identifiers.
     pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
+        let continuation = self.completing_continuation(continuation_id);
+
         self.worker.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
-            continuation: Continuation::Native(NativeContinuation::new(continuation_handle(
-                continuation_id,
-            ))),
+            continuation,
             resume_value: Value::Void,
             status: TaskStatus::Ready,
         });
@@ -751,8 +724,8 @@ impl TestRuntime {
     }
 
     /// Borrow one execution view from the wrapped world.
-    fn world_ref(&mut self) -> WorldRef {
-        self.world.world_ref()
+    fn world_scope(&mut self) -> WorldScope {
+        self.world.world_scope()
     }
 
     /// Return the exact live heap usage for this test worker.
@@ -770,15 +743,10 @@ impl TestRuntime {
 
     /// Register one native timer watch.
     pub(super) fn watch_timer_native(&mut self, handle: u64, continuation_id: u64, priority: u8) {
+        let continuation = self.yielding_continuation(continuation_id);
+
         self.worker
-            .watch_timer(
-                ResourceId(handle),
-                Continuation::Native(NativeContinuation::new(continuation_handle(
-                    continuation_id,
-                ))),
-                Value::Void,
-                priority,
-            )
+            .watch_timer(ResourceId(handle), continuation, Value::Void, priority)
             .expect("timer watch should register");
     }
 
@@ -820,15 +788,10 @@ impl TestRuntime {
 
     /// Register one native event watch.
     pub(super) fn watch_event_native(&mut self, token: u64, continuation_id: u64, priority: u8) {
+        let continuation = self.yielding_continuation(continuation_id);
+
         self.worker
-            .watch_event(
-                PollerToken(token),
-                Continuation::Native(NativeContinuation::new(continuation_handle(
-                    continuation_id,
-                ))),
-                Value::Void,
-                priority,
-            )
+            .watch_event(PollerToken(token), continuation, Value::Void, priority)
             .expect("event watch should register");
     }
 
@@ -839,15 +802,10 @@ impl TestRuntime {
         continuation_id: u64,
         priority: u8,
     ) {
+        let continuation = self.yielding_continuation(continuation_id);
+
         self.worker
-            .watch_host_event(
-                kind,
-                Continuation::Native(NativeContinuation::new(continuation_handle(
-                    continuation_id,
-                ))),
-                Value::Void,
-                priority,
-            )
+            .watch_host_event(kind, continuation, Value::Void, priority)
             .expect("host event watch should register");
     }
 
@@ -875,7 +833,7 @@ impl TestRuntime {
 
     /// Tick once and fail loudly on runtime errors.
     pub(super) fn tick(&mut self) -> bool {
-        let world = self.world_ref();
+        let world = self.world_scope();
 
         self.worker
             .tick(&world, &self.shared, &self.runtime_static, &self.host)
@@ -884,7 +842,7 @@ impl TestRuntime {
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(super) fn tick_until_idle(&mut self) {
-        let world = self.world_ref();
+        let world = self.world_scope();
 
         let mut poller = None;
         self.worker
@@ -902,7 +860,7 @@ impl TestRuntime {
 
     /// Run one synthetic entrypoint and return the engine output.
     pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<Output> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let mut poller = None;
 
         self.worker.run_entrypoint_with_host_and_poller(
@@ -918,7 +876,7 @@ impl TestRuntime {
 
     /// Run until one task completes.
     pub(super) fn run_loop_until_task_complete(&mut self, task_id: u64) -> RuntimeResult<Output> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let mut poller = None;
 
         let output = self.worker.run_event_loop(
@@ -943,7 +901,7 @@ impl TestRuntime {
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<Output>> {
-        let world = self.world_ref();
+        let world = self.world_scope();
         let mut poller = None;
 
         self.worker.run_event_loop(
@@ -967,14 +925,29 @@ impl TestRuntime {
         self.worker.event_loop.has_microtasks()
     }
 
-    /// Run one closure with one stored worker engine by explicit type.
-    pub(super) fn with_engine<T: 'static, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
-        let engine = self.worker.engine.as_any();
-        let engine = engine
-            .downcast_ref::<T>()
-            .expect("worker engine should exist");
+    /// Create one VM continuation that yields once when scheduled.
+    pub(super) fn yielding_continuation(&mut self, value: u64) -> Continuation {
+        let value = i32::try_from(value).expect("test continuation id should fit int32");
 
-        callback(engine)
+        self.start_continuation("test.task", value)
+    }
+
+    /// Create one VM continuation that completes when scheduled.
+    pub(super) fn completing_continuation(&mut self, value: u64) -> Continuation {
+        let value = i32::try_from(value).expect("test continuation id should fit int32");
+
+        self.start_continuation("test.complete", value)
+    }
+
+    /// Start one yielding VM function and return its continuation.
+    fn start_continuation(&mut self, entry: &str, value: i32) -> Continuation {
+        start_worker_continuation(
+            &mut self.worker,
+            &self.shared,
+            &self.runtime_static,
+            entry,
+            value,
+        )
     }
 
     /// Return event-loop drop accounting.
@@ -1050,7 +1023,7 @@ impl TestMultiAgentRuntime {
         self.world.tick().expect("runtime tick should succeed")
     }
 
-    /// Attach one explicit scripted poller.
+    /// Attach one explicit test poller.
     pub(super) fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
         let runtime = self
             .world
@@ -1082,54 +1055,28 @@ impl TestMultiAgentRuntime {
         &mut self.world
     }
 
-    /// Run one closure with one stored primary-worker engine by explicit type.
-    #[allow(dead_code)]
-    pub(super) fn with_engine<T: 'static, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
-        self.with_primary_engine(callback)
-    }
-
     /// Return current world monotonic time in nanoseconds.
     pub(super) fn mono_nanos(&self) -> u64 {
         self.world.mono_nanos()
     }
 
-    /// Run one closure with one stored primary-worker engine by explicit type.
-    pub(super) fn with_primary_engine<T: 'static, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
-        let runtime = self
-            .world
-            .runtime(self.runtime_id)
-            .expect("runtime should exist");
-        let primary_worker_id = runtime.primary_worker_id();
-        let worker = runtime
-            .worker(primary_worker_id)
-            .expect("primary worker should exist");
-        let engine = worker.engine.as_any();
-        let engine = engine
-            .downcast_ref::<T>()
-            .expect("worker engine should exist");
-
-        callback(engine)
-    }
-
-    /// Run one closure with one stored worker engine by explicit type.
-    pub(super) fn with_worker_engine<T: 'static, R>(
-        &self,
+    /// Create one completing continuation in one explicit worker.
+    pub(super) fn completing_continuation(
+        &mut self,
         worker_id: WorkerId,
-        callback: impl FnOnce(&T) -> R,
-    ) -> R {
+        value: u64,
+    ) -> Continuation {
+        let value = i32::try_from(value).expect("test continuation id should fit int32");
         let runtime = self
             .world
-            .runtime(self.runtime_id)
+            .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
-        let worker = runtime
-            .worker(worker_id)
-            .expect("worker should exist in runtime");
-        let engine = worker.engine.as_any();
-        let engine = engine
-            .downcast_ref::<T>()
-            .expect("worker engine should exist");
 
-        callback(engine)
+        runtime
+            .with_worker_context(worker_id, |shared, runtime_static, worker| {
+                start_worker_continuation(worker, shared, runtime_static, "test.complete", value)
+            })
+            .expect("worker should exist in runtime")
     }
 }
 
@@ -1144,10 +1091,9 @@ fn worker_for_options(
 /// Build runtime-owned shared heap state for one test world.
 pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeSharedHeap {
     let lineage = world.lineage.read();
-    let shared = RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), options)
-        .expect("runtime shared heap should build");
 
-    shared
+    RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), options)
+        .expect("runtime shared heap should build")
 }
 
 /// Build one worker configured for runtime tests and one optional host clock source.
@@ -1184,13 +1130,13 @@ fn agent_for_options_with_engine_and_host_clock_source(
     };
 
     // construct one runtime worker from explicit options
-    let world_ref = world.world_ref();
+    let world_scope = world.world_scope();
     let shared = runtime_shared_heap(&world, options);
     let runtime_static = StaticSpace::empty();
     let mut worker = Worker::new_in_world(
         Vec::new(),
         options,
-        &world_ref,
+        &world_scope,
         &shared,
         &runtime_static,
         engine,
@@ -1216,12 +1162,35 @@ fn agent_for_options_with_engine_and_host_clock_source(
     (world, shared, runtime_static, worker, host)
 }
 
-/// Build one void runtime output.
-fn void_output() -> Output {
-    Output { value: Value::Void }
-}
+/// Start one VM continuation in a worker test harness.
+pub(crate) fn start_worker_continuation(
+    worker: &mut Worker,
+    shared: &RuntimeSharedHeap,
+    runtime_static: &StaticSpace,
+    entry: &str,
+    value: i32,
+) -> Continuation {
+    let Worker {
+        heap,
+        statics,
+        engine,
+        shared_gc_worker,
+        ..
+    } = worker;
+    let context = Context {
+        heap,
+        shared: shared.shared(),
+        shared_gc: shared_gc_worker,
+        worker_static: statics,
+        runtime_static,
+    };
+    let args = [Value::int32(value)];
+    let outcome = engine
+        .run(context, &Entry::new(entry), &args)
+        .expect("test continuation should start");
 
-/// Convert one test continuation identifier into one native continuation handle.
-fn continuation_handle(value: u64) -> usize {
-    usize::try_from(value).expect("test continuation id should fit usize")
+    match outcome {
+        Outcome::Yielded { continuation, .. } => continuation,
+        Outcome::Completed { .. } => panic!("test continuation entry should yield"),
+    }
 }

@@ -16,7 +16,7 @@ use crate::platform::NativeArray;
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::runtime::bindings::BindingAffinity;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
-use crate::runtime::world::WorldRef;
+use crate::runtime::world::WorldScope;
 
 thread_local! {
     /// TLS slot for the current runtime execution context.
@@ -72,7 +72,7 @@ pub(crate) struct CurrentWorkerContext {
     /// Host pointer for callback dispatch.
     pub host: *const Session,
     /// World pointer for replay, time, random, and policy.
-    pub world: *const WorldRef,
+    pub world: *const WorldScope,
     /// Execution context identifier for callback dispatch.
     pub execution_context_id: ExecutionContextId,
     /// Whether this execution scope runs on the process main context.
@@ -245,7 +245,7 @@ impl CallBlock {
     /// Reserve one aligned byte range from this block.
     fn allocate(&mut self, byte_len: usize, align: usize) -> Option<*mut u8> {
         let start = align_offset(self.used, align);
-        let end = start.checked_add(byte_len)?;
+        let end = start + byte_len;
         if end > self.byte_len {
             return None;
         }
@@ -415,12 +415,12 @@ fn align_offset(offset: usize, align: usize) -> usize {
     }
 
     let mask = align - 1;
-    offset.saturating_add(mask) & !mask
+    (offset + mask) & !mask
 }
 
 /// Round one byte length up to the next whole page.
 fn round_up_to_page(byte_len: usize, page_bytes: usize) -> usize {
-    byte_len.div_ceil(page_bytes).saturating_mul(page_bytes)
+    byte_len.div_ceil(page_bytes) * page_bytes
 }
 
 /// Allocate zeroed page-aligned bytes for native binding-call scratch storage.
@@ -744,7 +744,7 @@ pub(crate) fn enter_current_worker_context(
     worker: *const Worker,
     event_loop: *const EventLoop,
     host: *const Session,
-    world: *const WorldRef,
+    world: *const WorldScope,
     is_process_main: bool,
 ) -> CurrentWorkerContextGuard {
     let event_loop = unsafe { &*event_loop };

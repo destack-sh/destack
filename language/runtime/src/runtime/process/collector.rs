@@ -7,7 +7,7 @@ use destack_workspace::SchedulerMode;
 use parking_lot::{Condvar, Mutex};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::memory::SharedMarkRoots;
+use crate::runtime::memory::SharedRootSet;
 
 /// Shared heap collection scheduling mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,21 +44,21 @@ impl CollectorMode {
 /// Lineage-owned shared heap collection scheduler.
 #[derive(Debug)]
 pub struct Collector {
-    /// Collection scheduling mode.
+    /// Shared heap collector mode.
     mode: CollectorMode,
     /// Dedicated collector thread for concurrent mode.
     thread: Mutex<Option<CollectorThread>>,
 }
 
-/// Per-world shared heap collection state.
+/// Runtime-owned shared heap collection state.
 #[derive(Debug)]
-pub struct Collection {
-    /// Shared heap driven by this collection.
+pub struct CollectorWork {
+    /// Shared heap driven by this collector work.
     heap: Arc<SharedHeap>,
-    /// Mark roots consumed by shared mark steps.
-    roots: Arc<SharedMarkRoots>,
-    /// Collection state changed by world and collector threads.
-    state: Mutex<CollectionState>,
+    /// Shared roots consumed by mark steps.
+    roots: Arc<SharedRootSet>,
+    /// Collector work state changed by world and collector threads.
+    state: Mutex<CollectorWorkState>,
     /// Wake quiescence waiters when pending collection work drains.
     quiesce: Condvar,
     /// Terminal collection failure recorded by one collector run.
@@ -67,22 +67,22 @@ pub struct Collection {
 
 /// Shared collection lifecycle state.
 #[derive(Debug, Default)]
-struct CollectionState {
+struct CollectorWorkState {
     /// Pending scheduler state.
-    pending: CollectionPending,
+    pending: CollectorWorkPending,
     /// Whether one collector thread is currently running a step.
     is_running: bool,
 }
 
 /// Pending collection scheduling state.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum CollectionPending {
+enum CollectorWorkPending {
     /// No collection work is currently queued.
     #[default]
     Idle,
     /// One collector wake is queued.
     Scheduled,
-    /// Collection work is suspended for capture or restore.
+    /// Collector work is suspended for capture or restore.
     Suspended,
 }
 
@@ -90,16 +90,16 @@ enum CollectionPending {
 #[derive(Debug)]
 struct CollectorThread {
     /// Wake sender for the collector thread.
-    sender: Sender<CollectorMessage>,
+    sender: Sender<CollectorThreadMessage>,
     /// Join handle for the live collector thread.
     join: Mutex<Option<JoinHandle<()>>>,
 }
 
 /// Collector thread message.
 #[derive(Debug)]
-enum CollectorMessage {
+enum CollectorThreadMessage {
     /// Run one bounded shared heap collection step.
-    Wake(Arc<Collection>),
+    Wake(Arc<CollectorWork>),
     /// Shut down the collector thread.
     Stop,
 }
@@ -126,31 +126,31 @@ impl Collector {
     }
 
     /// Wake concurrent collection for one world.
-    pub(crate) fn wake(self: &Arc<Self>, collection: &Arc<Collection>) {
-        if !self.mode.is_concurrent() || !collection.schedule() {
+    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<CollectorWork>) {
+        if !self.mode.is_concurrent() || !work.schedule() {
             return;
         }
 
         let thread = self.thread.lock();
         let Some(thread) = thread.as_ref() else {
-            collection.fail_scheduled("collector thread is missing");
+            work.fail_scheduled("collector thread is missing");
 
             return;
         };
 
-        if thread.wake(collection.clone()).is_err() {
-            collection.fail_scheduled("collector thread is stopped");
+        if thread.wake(work.clone()).is_err() {
+            work.fail_scheduled("collector thread is stopped");
         }
     }
 }
 
-impl Collection {
-    /// Create one per-world shared collection state.
-    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedMarkRoots>) -> Arc<Self> {
+impl CollectorWork {
+    /// Create one runtime-owned shared collection state.
+    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedRootSet>) -> Arc<Self> {
         Arc::new(Self {
             heap,
             roots,
-            state: Mutex::new(CollectionState::default()),
+            state: Mutex::new(CollectorWorkState::default()),
             quiesce: Condvar::new(),
             failure: Mutex::new(None),
         })
@@ -164,9 +164,9 @@ impl Collection {
     /// Suspend collection and wait for in-flight collection work to drain.
     pub(crate) fn quiesce(&self) {
         let mut state = self.state.lock();
-        state.pending = CollectionPending::Suspended;
+        state.pending = CollectorWorkPending::Suspended;
 
-        while state.is_running || state.pending == CollectionPending::Scheduled {
+        while state.is_running || state.pending == CollectorWorkPending::Scheduled {
             self.quiesce.wait(&mut state);
         }
     }
@@ -174,8 +174,8 @@ impl Collection {
     /// Resume collection after a quiescent world operation.
     pub(crate) fn resume(&self) {
         let mut state = self.state.lock();
-        if state.pending == CollectionPending::Suspended {
-            state.pending = CollectionPending::Idle;
+        if state.pending == CollectorWorkPending::Suspended {
+            state.pending = CollectorWorkPending::Idle;
         }
         self.quiesce.notify_all();
     }
@@ -184,7 +184,7 @@ impl Collection {
     pub(crate) fn is_busy(&self) -> bool {
         let state = self.state.lock();
 
-        state.is_running || state.pending == CollectionPending::Scheduled
+        state.is_running || state.pending == CollectorWorkPending::Scheduled
     }
 
     /// Run one scheduled collection step on the collector thread.
@@ -193,7 +193,7 @@ impl Collection {
             return;
         }
 
-        let should_continue = self.run_step_with_failure();
+        let should_continue = self.collect_with_failure();
         self.finish_run();
 
         if should_continue {
@@ -204,13 +204,13 @@ impl Collection {
     /// Mark one scheduled collection step as running.
     fn begin_run(&self) -> bool {
         let mut state = self.state.lock();
-        if state.pending != CollectionPending::Scheduled {
+        if state.pending != CollectorWorkPending::Scheduled {
             self.quiesce.notify_all();
 
             return false;
         }
 
-        state.pending = CollectionPending::Idle;
+        state.pending = CollectorWorkPending::Idle;
         state.is_running = true;
 
         true
@@ -226,11 +226,11 @@ impl Collection {
     /// Schedule one collection step.
     fn schedule(&self) -> bool {
         let mut state = self.state.lock();
-        if state.pending != CollectionPending::Idle {
+        if state.pending != CollectorWorkPending::Idle {
             return false;
         }
 
-        state.pending = CollectionPending::Scheduled;
+        state.pending = CollectorWorkPending::Scheduled;
 
         true
     }
@@ -238,8 +238,8 @@ impl Collection {
     /// Clear scheduled work after one collector scheduling failure.
     fn fail_scheduled(&self, message: impl Into<String>) {
         let mut state = self.state.lock();
-        if state.pending == CollectionPending::Scheduled {
-            state.pending = CollectionPending::Idle;
+        if state.pending == CollectorWorkPending::Scheduled {
+            state.pending = CollectorWorkPending::Idle;
         }
         self.quiesce.notify_all();
         drop(state);
@@ -252,9 +252,9 @@ impl Collection {
         );
     }
 
-    /// Run one bounded shared collection step and retain one failure.
-    fn run_step_with_failure(&self) -> bool {
-        match self.run_step() {
+    /// Run one bounded shared collection increment and retain one failure.
+    fn collect_with_failure(&self) -> bool {
+        match self.collect() {
             Ok(should_continue) => should_continue,
             Err(error) => {
                 *self.failure.lock() = Some(error);
@@ -264,18 +264,18 @@ impl Collection {
         }
     }
 
-    /// Run one bounded shared collection step.
-    fn run_step(&self) -> RuntimeResult<bool> {
+    /// Run one bounded shared collection increment.
+    fn collect(&self) -> RuntimeResult<bool> {
         if self.heap.gc_phase() == SharedGcPhase::Idle {
             return Ok(false);
         }
 
         let roots = self.roots.roots_snapshot();
         let roots_complete = self.roots.roots_complete();
-        let work_items = self.heap.take_collection_budget(1);
+        let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .gc_step(&roots, roots_complete, work_items)
+            .collect_step(roots.as_ref(), roots_complete, budget_bytes)
             .map_err(Box::<RuntimeError>::from)?;
 
         if self.heap.gc_phase() != SharedGcPhase::Mark || roots_complete {
@@ -313,14 +313,14 @@ impl CollectorThread {
     }
 
     /// Wake the collector thread.
-    fn wake(&self, collection: Arc<Collection>) -> Result<(), SendError<CollectorMessage>> {
-        self.sender.send(CollectorMessage::Wake(collection))
+    fn wake(&self, work: Arc<CollectorWork>) -> Result<(), SendError<CollectorThreadMessage>> {
+        self.sender.send(CollectorThreadMessage::Wake(work))
     }
 }
 
 impl Drop for CollectorThread {
     fn drop(&mut self) {
-        let _ = self.sender.send(CollectorMessage::Stop);
+        let _ = self.sender.send(CollectorThreadMessage::Stop);
 
         if let Some(join) = self.join.lock().take() {
             let _ = join.join();
@@ -329,11 +329,11 @@ impl Drop for CollectorThread {
 }
 
 /// Run the dedicated collector thread loop.
-fn run_collector_thread(receiver: Receiver<CollectorMessage>, collector: Arc<Collector>) {
+fn run_collector_thread(receiver: Receiver<CollectorThreadMessage>, collector: Arc<Collector>) {
     while let Ok(message) = receiver.recv() {
         match message {
-            CollectorMessage::Wake(collection) => collection.run_scheduled(&collector),
-            CollectorMessage::Stop => break,
+            CollectorThreadMessage::Wake(work) => work.run_scheduled(&collector),
+            CollectorThreadMessage::Stop => break,
         }
     }
 }

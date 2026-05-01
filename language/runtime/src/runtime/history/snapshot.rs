@@ -726,9 +726,15 @@ impl World {
                         Ok((*worker_id, worker_name.to_string()))
                     })
                     .collect::<RuntimeResult<BTreeMap<_, _>>>()?;
+                let (allocator, collector) = {
+                    let lineage = self.lineage.read();
+                    (lineage.allocator(), lineage.collector())
+                };
+
                 let runtime = Runtime::from_image(
-                    &self.world_ref(),
-                    self.lineage.read().collector(),
+                    &self.world_scope(),
+                    allocator,
+                    collector,
                     *runtime_id,
                     runtime_name,
                     runtime_image.as_ref(),

@@ -3,21 +3,21 @@ use {destack_engine as engine, destack_heap as heap, destack_native as native, d
 
 use super::{Context, Continuation, ContinuationImage, Entry, Image, Outcome};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::memory::RootVisitor;
+use crate::runtime::memory::RootSink;
 
 /// VM root visitor bridged into runtime root collection.
-struct VmRootVisitor<'a, 'b> {
+struct VmRootSink<'a, 'b> {
     /// The runtime root visitor.
-    roots: &'a mut RootVisitor<'b>,
+    roots: &'a mut RootSink<'b>,
 }
 
-impl vm::RootVisitor for VmRootVisitor<'_, '_> {
+impl vm::RootSink for VmRootSink<'_, '_> {
     fn push_heap(&mut self, reference: heap::HeapReference) {
         self.roots.push_heap(reference);
     }
 
-    fn push_shared(&mut self, reference: heap::SharedHeapReference) {
-        self.roots.push_shared(reference);
+    fn push_shared_heap(&mut self, reference: heap::SharedHeapReference) {
+        self.roots.push_shared_heap(reference);
     }
 }
 
@@ -98,17 +98,25 @@ impl Engine {
     pub fn visit_roots(
         &mut self,
         worker_static: &engine::StaticSpace,
-        roots: &mut RootVisitor<'_>,
+        roots: &mut RootSink<'_>,
     ) -> RuntimeResult<()> {
         match self {
             Self::Vm(engine) => {
-                let mut roots = VmRootVisitor { roots };
+                let mut roots = VmRootSink { roots };
 
                 engine
                     .visit_state_roots(worker_static, &[], &mut roots)
                     .map_err(Box::<RuntimeError>::from)
             }
             Self::Native(_) => Ok(()),
+        }
+    }
+
+    /// Publish allocator-local shared heap buffers before global heap work.
+    pub fn flush_shared_allocator(&mut self, shared: &heap::SharedHeap) {
+        match self {
+            Self::Vm(engine) => engine.flush_shared_allocator(shared),
+            Self::Native(_) => {}
         }
     }
 
@@ -131,11 +139,11 @@ impl Engine {
     pub fn visit_continuation_roots(
         &mut self,
         continuation: &Continuation,
-        roots: &mut RootVisitor<'_>,
+        roots: &mut RootSink<'_>,
     ) -> RuntimeResult<()> {
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                let mut roots = VmRootVisitor { roots };
+                let mut roots = VmRootSink { roots };
 
                 vm::Isolate::visit_continuation_roots(engine, continuation, &mut roots)
                     .map_err(Box::<RuntimeError>::from)
@@ -172,11 +180,11 @@ impl Engine {
     pub fn visit_continuation_image_roots(
         &mut self,
         continuation: &ContinuationImage,
-        roots: &mut RootVisitor<'_>,
+        roots: &mut RootSink<'_>,
     ) -> RuntimeResult<()> {
         match self {
             Self::Vm(engine) => {
-                let mut roots = VmRootVisitor { roots };
+                let mut roots = VmRootSink { roots };
 
                 engine
                     .visit_image_roots(continuation, &mut roots)

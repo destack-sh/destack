@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::{Runtime, WorkerId};
+use crate::runtime::Runtime;
 use destack_heap::SharedGcPhase;
 
 impl Runtime {
@@ -9,67 +9,35 @@ impl Runtime {
         self.shared.shared().gc_phase() == SharedGcPhase::Mark
     }
 
-    /// Queue one worker for one later shared direct-root rescan.
-    #[inline]
-    pub(crate) fn queue_shared_root_scan(&self, worker_id: WorkerId) {
-        self.shared.mark_roots().queue_root_scan(worker_id);
-    }
-
-    /// Record one worker as participating in the active shared local-edge pass.
-    #[inline]
-    pub(crate) fn join_shared_edge_scan(&self, worker_id: WorkerId) {
-        self.shared.join_shared_edge_scan(worker_id);
-    }
-
     /// Return whether one concurrent shared-GC cycle is still in flight.
     pub(crate) fn shared_gc_in_flight(&self) -> bool {
         self.shared.is_concurrent()
             && (self.shared.shared().gc_phase() != SharedGcPhase::Idle
-                || self.shared.collection().is_busy()
-                || self.shared_cycle_pending_cleanup())
+                || self.shared.collector_work().is_busy()
+                || self.shared_gc_pending_cleanup())
     }
 
-    /// Refresh shared GC work budgets from current shared pressure.
-    fn refresh_shared_gc_budget(&mut self) {
-        let edge_scan_budget = self.shared.shared().edge_scan_budget(self.worker_count());
+    /// Refresh shared GC work from current shared pressure.
+    fn refresh_shared_gc_work(&mut self) {
+        let work_bytes = self.shared.shared().take_edge_scan_work_bytes();
 
-        self.shared
-            .mark_roots()
-            .set_edge_scan_budget(edge_scan_budget);
+        self.shared.roots().set_edge_scan_work_bytes(work_bytes);
     }
 
-    /// Start one incremental shared direct-root pass across all workers.
-    fn start_shared_root_scan(&mut self) {
+    /// Start shared root publication across all workers.
+    fn start_shared_root_publication(&mut self) {
         let worker_ids = self.worker_ids();
+        let work_bytes = self.shared.shared().take_edge_scan_work_bytes();
 
-        self.shared.mark_roots().clear_direct_roots();
-        self.shared.mark_roots().clear_root_scan();
-
-        for worker_id in worker_ids {
-            self.shared.mark_roots().queue_root_scan(worker_id);
-        }
-    }
-
-    /// Start local-to-shared edge scans across all workers.
-    fn start_shared_edge_scan_for_gc(&mut self) {
-        let worker_ids = self.worker_ids();
-        let edge_scan_budget = self.shared.shared().edge_scan_budget(self.worker_count());
-
+        self.flush_shared_allocators();
+        self.shared.roots().begin_mark(worker_ids, work_bytes);
         self.start_shared_edge_scan();
-        self.shared.mark_roots().clear_edge_scan();
-        self.shared
-            .mark_roots()
-            .set_edge_scan_budget(edge_scan_budget);
-
-        for worker_id in worker_ids {
-            self.shared.mark_roots().join_edge_scan(worker_id);
-        }
     }
 
-    /// Finish local-to-shared edge scans across all workers.
-    fn finish_shared_edge_scan_for_gc(&mut self) {
+    /// Finish shared root publication across all workers.
+    fn finish_shared_root_publication(&mut self) {
         self.finish_shared_edge_scan();
-        self.shared.mark_roots().clear_edge_scan();
+        self.shared.roots().finish_mark();
     }
 
     /// Remove workers that have finished the active shared local-edge pass.
@@ -88,7 +56,7 @@ impl Runtime {
         }
 
         for worker_id in finished_workers {
-            self.shared.mark_roots().leave_edge_scan(worker_id);
+            self.shared.leave_shared_edge_scan(worker_id);
         }
     }
 
@@ -118,45 +86,40 @@ impl Runtime {
         }
 
         if did_start {
-            self.shared.mark_roots().clear_termination();
-            self.shared.mark_roots().clear_edge_scan();
-            self.start_shared_root_scan();
-            self.start_shared_edge_scan_for_gc();
+            self.start_shared_root_publication();
         }
 
-        self.refresh_shared_gc_budget();
+        self.refresh_shared_gc_work();
 
         let before_cycles = self.shared.shared().gc_state().completed_cycles;
         let mut roots_complete = true;
 
         if did_start || self.shared.shared().gc_phase() == SharedGcPhase::Mark {
             self.refresh_shared_edge_scan();
-            roots_complete = self.shared.mark_roots().roots_complete();
+            roots_complete = self.shared.roots().roots_complete();
         }
 
-        let roots = self.shared.mark_roots().roots_snapshot();
-        let work_items = self
+        let roots = self.shared.roots().roots_snapshot();
+        let budget_bytes = self
             .shared
             .shared()
-            .take_collection_budget(self.worker_count());
+            .take_collection_budget_bytes(self.worker_count());
         let progress = self
             .shared
             .shared()
-            .gc_step(&roots, roots_complete, work_items)
+            .collect_step(roots.as_ref(), roots_complete, budget_bytes)
             .map_err(Box::<RuntimeError>::from)?;
         let is_active = self.shared.shared().gc_phase() != SharedGcPhase::Idle;
         let after_cycles = self.shared.shared().gc_state().completed_cycles;
 
         if self.shared.shared().gc_phase() != SharedGcPhase::Mark || roots_complete {
-            self.shared.mark_roots().clear_termination();
+            self.shared.roots().clear_termination();
         } else if self.shared.shared().mark_idle() {
-            self.shared.mark_roots().request_termination();
+            self.shared.roots().request_termination();
         }
 
         if !is_active && (was_active || did_start) {
-            self.shared.mark_roots().clear_termination();
-            self.shared.mark_roots().clear_root_scan();
-            self.finish_shared_edge_scan_for_gc();
+            self.finish_shared_root_publication();
         }
 
         Ok(progress.made_progress() || was_active || is_active || before_cycles != after_cycles)
@@ -164,16 +127,14 @@ impl Runtime {
 
     /// Drive shared collection through one collector thread.
     fn advance_shared_gc_concurrent(&mut self) -> RuntimeResult<bool> {
-        if let Some(error) = self.shared.collection().take_failure() {
+        if let Some(error) = self.shared.collector_work().take_failure() {
             return Err(error);
         }
 
         if self.shared.shared().gc_phase() == SharedGcPhase::Idle
-            && self.shared_cycle_pending_cleanup()
+            && self.shared_gc_pending_cleanup()
         {
-            self.shared.mark_roots().clear_termination();
-            self.shared.mark_roots().clear_root_scan();
-            self.finish_shared_edge_scan_for_gc();
+            self.finish_shared_root_publication();
 
             return Ok(true);
         }
@@ -193,22 +154,19 @@ impl Runtime {
         }
 
         if did_start {
-            self.shared.mark_roots().clear_termination();
-            self.shared.mark_roots().clear_edge_scan();
-            self.start_shared_root_scan();
-            self.start_shared_edge_scan_for_gc();
+            self.start_shared_root_publication();
         }
 
-        self.refresh_shared_gc_budget();
+        self.refresh_shared_gc_work();
         self.shared.wake();
 
         Ok(did_start)
     }
 
     /// Return whether one completed shared cycle still needs cleanup.
-    fn shared_cycle_pending_cleanup(&self) -> bool {
-        !self.shared.mark_roots().root_scan_idle()
-            || !self.shared.mark_roots().edge_scan_idle()
-            || self.shared.mark_roots().termination_requested()
+    fn shared_gc_pending_cleanup(&self) -> bool {
+        !self.shared.roots().root_scan_idle()
+            || !self.shared.roots().edge_scan_idle()
+            || self.shared.roots().termination_requested()
     }
 }

@@ -19,7 +19,7 @@ use crate::platform::random::{
 };
 use crate::runtime::bindings::BindingEngine;
 use crate::runtime::{
-    BindingCallContext, RuntimeSharedHeap, Worker, World, WorldRef, enter_binding_call_context,
+    BindingCallContext, RuntimeSharedHeap, Worker, World, WorldScope, enter_binding_call_context,
     enter_current_worker_context,
 };
 
@@ -116,7 +116,7 @@ impl TestRuntime {
         let agent_engine = vm::Isolate::build(vm::IsolateId::new(1), agent_tree, agent_strings)
             .expect("worker engine should build");
 
-        let world_ref = world.world_ref();
+        let world_scope = world.world_scope();
         let lineage = world.lineage.read();
         let shared = RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), &options)
             .expect("runtime shared heap should build");
@@ -125,7 +125,7 @@ impl TestRuntime {
         let mut worker = Worker::new_in_world(
             Vec::new(),
             &options,
-            &world_ref,
+            &world_scope,
             &shared,
             &runtime_static,
             agent_engine,
@@ -195,7 +195,7 @@ impl TestRuntime {
         &mut self,
         run: impl FnOnce(&BindingCallContext) -> T,
     ) -> T {
-        let world = self.world_ref();
+        let world = self.world_scope();
 
         // install current worker context for vm callback bridges
         let runtime = self.worker.as_ref() as *const Worker;
@@ -215,7 +215,7 @@ impl TestRuntime {
             self.worker.as_ref() as *const Worker,
             self.worker.event_loop.as_ref() as *const _,
             &self.host as *const Session,
-            &world as *const WorldRef,
+            &world as *const WorldScope,
             BindingEngine::Native,
         );
         let _guard = enter_binding_call_context(&call_context);
@@ -235,7 +235,7 @@ impl TestRuntime {
         &mut self,
         run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
     ) -> T {
-        let world = self.world_ref();
+        let world = self.world_scope();
 
         // install current worker context for vm callback bridges
         let runtime = self.worker.as_ref() as *const Worker;
@@ -260,7 +260,7 @@ impl TestRuntime {
                     self.worker.as_ref() as *const Worker,
                     self.worker.event_loop.as_ref() as *const _,
                     &self.host as *const Session,
-                    &world as *const WorldRef,
+                    &world as *const WorldScope,
                     BindingEngine::Vm,
                 );
                 let _guard = enter_binding_call_context(&call_context);
@@ -270,8 +270,8 @@ impl TestRuntime {
     }
 
     /// Borrow one execution view from the owned test world.
-    fn world_ref(&mut self) -> WorldRef {
-        self.world.world_ref()
+    fn world_scope(&mut self) -> WorldScope {
+        self.world.world_scope()
     }
 
     /// Execute the native random binding with deterministic runtime state.

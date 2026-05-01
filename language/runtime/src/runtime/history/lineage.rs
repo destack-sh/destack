@@ -342,7 +342,7 @@ impl Lineage {
 
         for image in images {
             for runtime in image.runtimes.values() {
-                reachable_pages.extend(runtime.shared.page_ids());
+                reachable_pages.extend(runtime.shared_heap.page_ids());
             }
         }
 
