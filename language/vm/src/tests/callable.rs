@@ -1,5 +1,7 @@
-use crate::Word;
-use crate::tests::{assert_value_word, create_isolate, run_mir_expect};
+use std::slice;
+
+use crate::Value;
+use crate::tests::{create_isolate, run_mir_expect};
 
 /// Function environment state is preserved across repeated calls in one isolate.
 #[test]
@@ -51,19 +53,19 @@ b0(v0: ref<Env, managed>):
     let env = isolate
         .run_function_by_name("makeEnv", &[])
         .expect("execution failed");
-    let env = assert_value_word(&env.value);
+    let env = env.value;
 
     let first = isolate
-        .run_function_by_name("callOnce", &[env])
+        .run_function_by_name("callOnce", slice::from_ref(&env))
         .expect("execution failed");
-    let first = assert_value_word(&first.value);
+    let first = first.value;
     let second = isolate
         .run_function_by_name("callOnce", &[env])
         .expect("execution failed");
-    let second = assert_value_word(&second.value);
+    let second = second.value;
 
-    assert_eq!(first, Word::int32(11));
-    assert_eq!(second, Word::int32(12));
+    assert_eq!(first, Value::int32(11));
+    assert_eq!(second, Value::int32(12));
 }
 
 /// call.indirect passes the callable environment for callable.environment.
@@ -89,7 +91,7 @@ b0:
     return v4
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(41));
+    run_mir_expect(mir, "caller", &[], Value::int32(41));
 }
 
 /// Tail call indirect forwards the callable environment.
@@ -113,7 +115,7 @@ b0:
     tailCall.indirect v2(): () -> int32
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(99));
+    run_mir_expect(mir, "caller", &[], Value::int32(99));
 }
 
 /// Managed callable environments hold by-reference capture cells.
@@ -149,7 +151,7 @@ b0:
     return v6
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(2));
+    run_mir_expect(mir, "caller", &[], Value::int32(2));
 }
 
 /// Managed callable environments support by-value fields.
@@ -180,7 +182,7 @@ b0:
     return v4
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(42));
+    run_mir_expect(mir, "caller", &[], Value::int32(42));
 }
 
 /// call.indirect selects the environment provided at the callsite.
@@ -216,7 +218,7 @@ b0:
     return v10
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(30));
+    run_mir_expect(mir, "caller", &[], Value::int32(30));
 }
 
 /// call.indirect can swap callable environments within a single isolate.
@@ -251,33 +253,33 @@ b0(v0: ref<Env, managed>):
 
     let mut isolate = create_isolate(mir);
     let env_a = isolate
-        .run_function_by_name("makeEnv", &[Word::int32(7)])
+        .run_function_by_name("makeEnv", &[Value::int32(7)])
         .expect("execution failed");
-    let env_a = assert_value_word(&env_a.value);
+    let env_a = env_a.value;
     let env_b = isolate
-        .run_function_by_name("makeEnv", &[Word::int32(13)])
+        .run_function_by_name("makeEnv", &[Value::int32(13)])
         .expect("execution failed");
-    let env_b = assert_value_word(&env_b.value);
+    let env_b = env_b.value;
 
     let first = isolate
-        .run_function_by_name("callOnce", &[env_a])
+        .run_function_by_name("callOnce", slice::from_ref(&env_a))
         .expect("execution failed");
-    let first = assert_value_word(&first.value);
+    let first = first.value;
     let second = isolate
         .run_function_by_name("callOnce", &[env_b])
         .expect("execution failed");
-    let second = assert_value_word(&second.value);
+    let second = second.value;
     let third = isolate
         .run_function_by_name("callOnce", &[env_a])
         .expect("execution failed");
-    let third = assert_value_word(&third.value);
+    let third = third.value;
 
-    assert_eq!(first, Word::int32(7));
-    assert_eq!(second, Word::int32(13));
-    assert_eq!(third, Word::int32(7));
+    assert_eq!(first, Value::int32(7));
+    assert_eq!(second, Value::int32(13));
+    assert_eq!(third, Value::int32(7));
 }
 
-/// Callable values can be stored in payloads and invoked with their env.
+/// Callable values can be stored in managed structs and invoked with their environment.
 #[test]
 fn test_environment_loaded_from_struct() {
     let mir = r#"
@@ -316,7 +318,7 @@ b0(v0: int32):
     return v6
 }"#;
 
-    run_mir_expect(mir, "caller", &[Word::int32(42)], Word::int32(42));
+    run_mir_expect(mir, "caller", &[Value::int32(42)], Value::int32(42));
 }
 
 /// Nested callable environments can invoke inner callables via stored environments.
@@ -371,7 +373,7 @@ b0(v0: int32):
     return v3
 }"#;
 
-    run_mir_expect(mir, "caller", &[Word::int32(55)], Word::int32(55));
+    run_mir_expect(mir, "caller", &[Value::int32(55)], Value::int32(55));
 }
 
 /// Function pointers without env can be stored and called indirectly.
@@ -397,10 +399,10 @@ b0(v0: int32):
     return v5
 }"#;
 
-    run_mir_expect(mir, "caller", &[Word::int32(21)], Word::int32(42));
+    run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
 }
 
-/// Raw callable environments can carry payloads in stack address space.
+/// Raw callable environments can carry stack allocated structs.
 #[test]
 fn test_environment_raw_struct_on_stack() {
     let mir = r#"
@@ -433,7 +435,7 @@ b0:
     return v7
 }"#;
 
-    run_mir_expect(mir, "caller", &[], Word::int32(42));
+    run_mir_expect(mir, "caller", &[], Value::int32(42));
 }
 
 /// Callable values can be stored in arrays and invoked later.
@@ -470,5 +472,5 @@ b0(v0: int32):
     return v6
 }"#;
 
-    run_mir_expect(mir, "caller", &[Word::int32(8)], Word::int32(8));
+    run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(8));
 }

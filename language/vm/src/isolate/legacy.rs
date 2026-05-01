@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::execute::bytes::{decode_raw_value, encode_raw_value};
+use crate::execute::word::{decode_raw_value, encode_raw_value};
 use crate::program::{Layout, repr_type};
-use destack_heap::{HeapReference, Payload};
+use destack_heap::{AllocationPlan, HeapReference, Payload};
 use destack_mir as mir;
 
 use super::{ExternalCallContext, ExternalReadContext, ExternalWriteContext};
@@ -66,8 +66,8 @@ impl StringHandle {
 pub struct VmValueRef<'call, 'ctx> {
     /// The active external call context.
     context: *mut ExternalCallContext<'ctx>,
-    /// The MIR type for this value when known.
-    ty: Option<mir::LocalNodeId<mir::Type>>,
+    /// The typed fields inside this value.
+    fields: Box<[AggregateField]>,
     /// The shared payload bytes.
     bytes: Arc<[u8]>,
     /// The first byte of this view inside the payload.
@@ -105,27 +105,15 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
             .ok_or(Error::InvalidHeapReference)
     }
 
-    /// Return the field layouts for the known MIR type.
-    fn fields(&self) -> Result<Vec<AggregateField>, Error> {
-        let ty = self.ty.ok_or(Error::InvalidHeapReference)?;
-        let layout = self.context_ref().layout(ty)?;
-
-        aggregate_fields(layout)
-    }
-
     /// Return the semantic field count for this value.
     pub fn field_count(&self) -> usize {
-        if let Ok(fields) = self.fields() {
-            return fields.len();
-        }
-
-        self.byte_len / Word::BYTE_LEN
+        self.fields.len()
     }
 
     /// Return one nested VM value view for one field.
     pub fn field_ref(&self, index: u32) -> Result<Self, Error> {
-        let fields = self.fields()?;
-        let field = fields
+        let field = self
+            .fields
             .get(index as usize)
             .copied()
             .ok_or(Error::InvalidHeapReference)?;
@@ -147,7 +135,7 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
 
         Ok(Self {
             context: self.context,
-            ty: Some(field.ty),
+            fields: aggregate_fields(layout)?.into_boxed_slice(),
             bytes: self.bytes.clone(),
             start,
             byte_len: layout.byte_len,
@@ -157,26 +145,16 @@ impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
 
     /// Decode one field value from this view.
     pub fn field_value(&self, index: u32) -> Result<Word, Error> {
-        if let Ok(fields) = self.fields() {
-            let field = fields
-                .get(index as usize)
-                .copied()
-                .ok_or(Error::InvalidHeapReference)?;
-            let layout = self.context_ref().layout(field.ty)?;
-            let bytes = self.byte_window(field.offset, layout.byte_len)?.to_vec();
-
-            return self
-                .context_mut()
-                .materialize_value_from_bytes(field.ty, &bytes);
-        }
-
-        let start = (index as usize)
-            .checked_mul(Word::BYTE_LEN)
+        let field = self
+            .fields
+            .get(index as usize)
+            .copied()
             .ok_or(Error::InvalidHeapReference)?;
-        let bytes = self.byte_window(start, Word::BYTE_LEN)?;
-        let value = Word::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
+        let layout = self.context_ref().layout(field.ty)?;
+        let bytes = self.byte_window(field.offset, layout.byte_len)?.to_vec();
 
-        self.context_mut().capture_value(value)
+        self.context_mut()
+            .materialize_value_from_bytes(field.ty, &bytes)
     }
 }
 
@@ -284,6 +262,113 @@ fn aggregate_fields(layout: &Layout) -> Result<Vec<AggregateField>, Error> {
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
+    /// Copy one managed payload range into caller storage.
+    fn copy_payload_into(
+        &self,
+        reference: HeapReference,
+        start: usize,
+        target: &mut [u8],
+    ) -> Result<(), Error> {
+        if reference.is_null() {
+            return Err(Error::InvalidHeapReference);
+        }
+
+        let address = self.heap_ref().heap_base_address() + reference.offset() + start;
+
+        // copy from the managed payload address
+        unsafe {
+            std::ptr::copy_nonoverlapping(address as *const u8, target.as_mut_ptr(), target.len());
+        }
+
+        Ok(())
+    }
+
+    /// Copy one managed payload range into owned storage.
+    fn copy_payload(&self, reference: HeapReference, byte_len: usize) -> Result<Vec<u8>, Error> {
+        let mut bytes = vec![0u8; byte_len];
+        self.copy_payload_into(reference, 0, &mut bytes)?;
+
+        Ok(bytes)
+    }
+
+    /// Write one managed payload range.
+    fn write_payload(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        bytes: &[u8],
+    ) -> Result<(), Error> {
+        if reference.is_null() {
+            return Err(Error::InvalidHeapReference);
+        }
+
+        let heap = self.heap();
+        heap.write_barrier(reference, start, bytes.len())?;
+        let address = heap.heap_base_address() + reference.offset() + start;
+
+        // copy into the managed payload address
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
+        }
+
+        Ok(())
+    }
+
+    /// Allocate one heap word buffer.
+    pub fn allocate_heap_words(&mut self, count: usize) -> Result<HeapReference, Error> {
+        let byte_len = count * Word::BYTE_LEN;
+        let reference_map = mir::ReferenceMap::None;
+        let plan = AllocationPlan::new(byte_len, Word::BYTE_LEN, &reference_map);
+        let layout = self.heap().allocation_layout(plan);
+
+        self.heap()
+            .allocate(&layout, Payload::Zeroed)
+            .map_err(Into::into)
+    }
+
+    /// Read heap words from one heap reference.
+    pub fn heap_words(
+        &mut self,
+        reference: HeapReference,
+        count: usize,
+    ) -> Result<Vec<Word>, Error> {
+        let byte_len = count * Word::BYTE_LEN;
+        let bytes = self.copy_payload(reference, byte_len)?;
+
+        let mut values = Vec::with_capacity(count);
+
+        // decode each packed word from the managed payload
+        for bytes in bytes.chunks_exact(Word::BYTE_LEN) {
+            let value = Word::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
+            let value = self.capture_value(value)?;
+            values.push(value);
+        }
+
+        Ok(values)
+    }
+
+    /// Read one heap word by index.
+    pub fn heap_word(&mut self, reference: HeapReference, index: usize) -> Result<Word, Error> {
+        let start = index * Word::BYTE_LEN;
+        let mut bytes = [0u8; Word::BYTE_LEN];
+        self.copy_payload_into(reference, start, &mut bytes)?;
+        let value = Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)?;
+
+        self.capture_value(value)
+    }
+
+    /// Write one heap word by index.
+    pub fn write_heap_word(
+        &mut self,
+        reference: HeapReference,
+        index: usize,
+        value: Word,
+    ) -> Result<(), Error> {
+        let start = index * Word::BYTE_LEN;
+
+        self.write_payload(reference, start, &value.to_byte_array())
+    }
+
     /// Return one named MIR type from program metadata.
     fn named_type(&self, name: &str) -> Result<mir::LocalNodeId<mir::Type>, Error> {
         self.program()
@@ -350,7 +435,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         // write scalars directly into the target payload
         if self.layout(ty)?.is_scalar() {
             let bytes = encode_raw_value(&self.program().tree, ty, value)?;
-            self.write_heap_bytes(handle, start, &bytes)?;
+            self.write_payload(handle, start, &bytes)?;
 
             return Ok(());
         }
@@ -358,11 +443,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
         let source = value.as_heap_reference();
         let byte_len = self.layout(ty)?.byte_len;
         let mut bytes = vec![0u8; byte_len];
-        self.heap_ref()
-            .read_heap_bytes_into(source, 0, &mut bytes)
-            .map_err(Error::from)?;
+        self.copy_payload_into(source, 0, &mut bytes)?;
 
-        self.write_heap_bytes(handle, start, &bytes)
+        self.write_payload(handle, start, &bytes)
     }
 
     /// Return the callable box payload layout.
@@ -412,9 +495,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .layout_id_for_type(ty)
             .ok_or(Error::InvalidInstruction)?;
         let bytes = self.callable_payload(values)?;
-        let handle = self.allocate_heap_layout(layout_id, Payload::Bytes(&bytes))?;
+        let handle = self.allocate_heap_layout_bytes(layout_id, &bytes)?;
         let handle = self.capture_heap_reference(handle)?;
-        self.record_heap_type(handle, ty);
 
         Ok(Word::heap_reference(handle))
     }
@@ -438,7 +520,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .ok_or(Error::InvalidInstruction)?;
         let handle = self.allocate_heap_layout(layout_id, Payload::Zeroed)?;
         let handle = self.capture_heap_reference(handle)?;
-        self.record_heap_type(handle, ty);
         let reprs = aggregate_fields(self.layout(ty)?)?;
 
         if values.len() != reprs.len() {
@@ -507,15 +588,21 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
 impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
     /// Return one cached VM value view.
-    pub fn value_ref(&self, value: Word) -> Result<VmValueRef<'call, 'ctx>, Error> {
+    pub fn value_ref(
+        &self,
+        value: Word,
+        aggregate_type: &str,
+    ) -> Result<VmValueRef<'call, 'ctx>, Error> {
         let reference = value.as_heap_reference();
-        let bytes = self.context().heap_ref().read_heap_bytes(reference)?;
-        let ty = self.context().heap_type(reference);
-        let byte_len = bytes.len();
+        let ty = self.context().named_type(aggregate_type)?;
+        let layout = self.context().layout(ty)?;
+        let fields = aggregate_fields(layout)?.into_boxed_slice();
+        let byte_len = layout.byte_len;
+        let bytes = self.context().copy_payload(reference, byte_len)?;
 
         Ok(VmValueRef {
             context: self.context,
-            ty,
+            fields,
             bytes: Arc::<[u8]>::from(bytes),
             start: 0,
             byte_len,

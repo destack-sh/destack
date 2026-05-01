@@ -10,7 +10,7 @@ use crate::{SharedHeap, Word};
 use destack_heap::{
     Heap, HeapReference, Payload, RawPointer, SharedRawBudget, SharedRawLimits, SharedRawPointer,
 };
-use destack_mir::{self as mir, ReferenceMap};
+use destack_mir as mir;
 
 /// Handler invoked by the VM when calling an external function.
 pub trait ExternalHandler:
@@ -38,8 +38,6 @@ pub struct ExternalCallContext<'ctx> {
     shared_raw_limits: SharedRawLimits,
     /// The external pin scope for this call.
     pin_scope: PinScope,
-    /// MIR types keyed by heap references allocated through this call context.
-    heap_type_by_reference: BTreeMap<HeapReference, mir::LocalNodeId<mir::Type>>,
 }
 
 /// External VM call read capability.
@@ -123,7 +121,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
             shared: shared as *const SharedHeap,
             shared_raw_limits,
             pin_scope: PinScope::default(),
-            heap_type_by_reference: BTreeMap::new(),
         }
     }
 
@@ -137,30 +134,14 @@ impl<'ctx> ExternalCallContext<'ctx> {
         self.program.layout(ty).ok_or(Error::InvalidInstruction)
     }
 
-    /// Track the MIR type for one heap reference allocated through this context.
-    pub(super) fn record_heap_type(
-        &mut self,
-        reference: HeapReference,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) {
-        if reference.is_null() {
-            return;
-        }
-
-        self.heap_type_by_reference.insert(reference, ty);
-    }
-
-    /// Return the tracked MIR type for one heap reference.
-    pub(super) fn heap_type(
-        &self,
-        reference: HeapReference,
-    ) -> Option<mir::LocalNodeId<mir::Type>> {
-        self.heap_type_by_reference.get(&reference).copied()
-    }
-
     /// Borrow the local heap.
     pub(super) fn heap(&mut self) -> &mut Heap {
         unsafe { &mut *self.heap }
+    }
+
+    /// Borrow the local heap immutably.
+    pub(super) fn heap_ref(&self) -> &Heap {
+        unsafe { &*self.heap }
     }
 
     /// Allocate one local heap payload from one program layout id.
@@ -169,35 +150,24 @@ impl<'ctx> ExternalCallContext<'ctx> {
         layout_id: mir::LayoutId,
         payload: Payload<'_>,
     ) -> Result<HeapReference, Error> {
-        let layout = self.program.allocation_layout(layout_id)?;
+        let plan = self.program.allocation_plan(layout_id)?;
+        let heap = unsafe { &mut *self.heap };
+        let layout = heap.allocation_layout(plan);
 
-        unsafe { &mut *self.heap }
-            .allocate(layout, payload)
-            .map_err(Error::from)
+        heap.allocate(&layout, payload).map_err(Error::from)
     }
 
-    /// Write one managed byte range through the external mutator path.
-    pub(super) fn write_heap_bytes(
+    /// Allocate one byte-initialized local heap payload from one program layout id.
+    pub(super) fn allocate_heap_layout_bytes(
         &mut self,
-        handle: HeapReference,
-        start: usize,
+        layout_id: mir::LayoutId,
         bytes: &[u8],
-    ) -> Result<(), Error> {
-        // publish the completed store to the collector
-        self.heap().write_heap_bytes(handle, start, bytes)?;
-        self.heap()
-            .write_barrier(handle, start, bytes.len())
-            .map_err(Error::from)
-    }
+    ) -> Result<HeapReference, Error> {
+        let plan = self.program.allocation_plan(layout_id)?;
+        let heap = unsafe { &mut *self.heap };
+        let layout = heap.allocation_layout(plan);
 
-    /// Borrow the local heap immutably.
-    pub(super) fn heap_ref(&self) -> &Heap {
-        unsafe { &*self.heap }
-    }
-
-    /// Borrow the world shared heap immutably.
-    fn shared_ref(&self) -> &SharedHeap {
-        unsafe { &*self.shared }
+        heap.allocate_bytes(&layout, bytes).map_err(Error::from)
     }
 
     /// Borrow the world shared heap.
@@ -207,10 +177,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Return the current shared raw-space budget.
     fn shared_raw_budget(&self) -> SharedRawBudget {
-        SharedRawBudget::new(
-            self.shared_raw_limits,
-            self.shared_ref().raw_retained_bytes(),
-        )
+        SharedRawBudget::new(self.shared_raw_limits, self.shared().raw_retained_bytes())
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
@@ -246,67 +213,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
             })?;
 
         self.allocate_zeroed_raw_bytes(byte_len)
-    }
-
-    /// Allocate a heap packed-value buffer.
-    pub fn allocate_heap_value_slots(&mut self, slot_count: usize) -> Result<HeapReference, Error> {
-        let byte_len = slot_count
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvariantViolation {
-                context: "heap value buffer byte length".to_string(),
-            })?;
-        let reference_map = ReferenceMap::None;
-        let layout = destack_heap::AllocationLayout::new(byte_len, &reference_map);
-
-        self.heap()
-            .allocate(layout, Payload::Zeroed)
-            .map_err(Error::from)
-    }
-
-    /// Read heap packed values from one heap reference.
-    pub fn heap_values(&mut self, reference: HeapReference) -> Result<Vec<Word>, Error> {
-        let bytes = self.heap_ref().read_heap_bytes(reference)?;
-        if bytes.len() % Word::BYTE_LEN != 0 {
-            return Err(Error::InvalidHeapReference);
-        }
-
-        let mut values = Vec::with_capacity(bytes.len() / Word::BYTE_LEN);
-
-        for bytes in bytes.chunks_exact(Word::BYTE_LEN) {
-            let value = Word::from_byte_slice(bytes).ok_or(Error::InvalidHeapReference)?;
-            let value = self.capture_value(value)?;
-            values.push(value);
-        }
-
-        Ok(values)
-    }
-
-    /// Read one heap packed value by index.
-    pub fn heap_value_at(&mut self, reference: HeapReference, index: usize) -> Result<Word, Error> {
-        let start = index
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvalidHeapReference)?;
-        let mut bytes = [0u8; Word::BYTE_LEN];
-
-        self.heap_ref()
-            .read_heap_bytes_into(reference, start, &mut bytes)?;
-        let value = Word::from_byte_slice(&bytes).ok_or(Error::InvalidHeapReference)?;
-
-        self.capture_value(value)
-    }
-
-    /// Write one heap packed value by index.
-    pub fn write_heap_value(
-        &mut self,
-        reference: HeapReference,
-        index: usize,
-        value: Word,
-    ) -> Result<(), Error> {
-        let start = index
-            .checked_mul(Word::BYTE_LEN)
-            .ok_or(Error::InvalidHeapReference)?;
-
-        self.write_heap_bytes(reference, start, &value.to_byte_array())
     }
 
     /// Allocate a shared heap byte region and return its pointer.
@@ -349,7 +255,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
         let mut values = Vec::with_capacity(bytes.len() / Word::BYTE_LEN);
 
-        // decode each packed lane from the raw payload
+        // decode each packed word from the raw payload
         for window in bytes.chunks_exact(Word::BYTE_LEN) {
             let value = Word::from_byte_slice(window).ok_or(Error::InvalidHeapReference)?;
             let value = self.capture_value(value)?;
@@ -367,7 +273,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .ok_or(Error::InvalidHeapReference)?;
         let mut bytes = [0u8; Word::BYTE_LEN];
 
-        // read the packed value lane without materializing the whole raw payload
+        // read the packed word without materializing the whole raw payload
         self.heap_ref()
             .read_raw_bytes_into(pointer, start, &mut bytes)
             .map_err(Error::from)?;
@@ -379,9 +285,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Read shared bytes from a pointer to one shared allocation as one owned vector.
     pub fn read_shared_bytes(&self, pointer: SharedRawPointer) -> Result<Vec<u8>, Error> {
-        self.shared_ref()
-            .read_raw_bytes(pointer)
-            .map_err(Error::from)
+        self.shared().read_raw_bytes(pointer).map_err(Error::from)
     }
 
     /// Write raw bytes into a pointer to a bytes cell.
@@ -478,10 +382,6 @@ impl<'ctx> ExternalCallContext<'ctx> {
         self.pin_scope
             .rewrite_heap_reference(reference, pinned_reference);
         self.pin_scope.push_heap_reference(pinned_reference);
-        if let Some(ty) = self.heap_type(reference) {
-            self.record_heap_type(pinned_reference, ty);
-        }
-
         Ok(pinned_reference)
     }
 
@@ -551,14 +451,14 @@ impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
         self.context().read_shared_bytes(pointer)
     }
 
-    /// Return one heap packed-value payload copy.
-    pub fn heap_values(&self, reference: HeapReference) -> Result<Vec<Word>, Error> {
-        self.context_mut().heap_values(reference)
+    /// Return one heap word payload copy.
+    pub fn heap_words(&self, reference: HeapReference, count: usize) -> Result<Vec<Word>, Error> {
+        self.context_mut().heap_words(reference, count)
     }
 
-    /// Return one heap packed value by index.
-    pub fn heap_value_at(&self, reference: HeapReference, index: usize) -> Result<Word, Error> {
-        self.context_mut().heap_value_at(reference, index)
+    /// Return one heap word by index.
+    pub fn heap_word(&self, reference: HeapReference, index: usize) -> Result<Word, Error> {
+        self.context_mut().heap_word(reference, index)
     }
 }
 
@@ -646,19 +546,19 @@ impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
         self.context_mut().write_shared_bytes(pointer, bytes)
     }
 
-    /// Allocate one heap packed-value buffer.
-    pub fn allocate_heap_value_slots(&mut self, slot_count: usize) -> Result<HeapReference, Error> {
-        self.context_mut().allocate_heap_value_slots(slot_count)
+    /// Allocate one heap word buffer.
+    pub fn allocate_heap_words(&mut self, count: usize) -> Result<HeapReference, Error> {
+        self.context_mut().allocate_heap_words(count)
     }
 
-    /// Write one heap packed value.
-    pub fn write_heap_value(
+    /// Write one heap word.
+    pub fn write_heap_word(
         &mut self,
         reference: HeapReference,
         index: usize,
         value: Word,
     ) -> Result<(), Error> {
-        self.context_mut().write_heap_value(reference, index, value)
+        self.context_mut().write_heap_word(reference, index, value)
     }
 }
 
