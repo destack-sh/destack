@@ -1,19 +1,37 @@
 use destack_mir as mir;
 
+use crate::Word;
 use crate::diagnostic::Error;
-use crate::program::{Opcode, PointeeAccess, PointerClass, ValueRepr};
+use crate::program::{ElementAccess, FieldAccess, Opcode, PointeeAccess, PointerClass, ValueRepr};
 
 use super::repr::ValueReprMap;
 
+/// Require one lowered access to fit in a word.
+fn require_word_access(
+    is_word: bool,
+    expected: &'static str,
+    actual: mir::LocalNodeId<mir::Type>,
+) -> Result<(), Error> {
+    if !is_word {
+        return Err(Error::TypeMismatch {
+            expected: expected.to_string(),
+            actual: format!("{actual:?}"),
+        });
+    }
+
+    Ok(())
+}
+
 /// Pick a binary handler from one known operand representation.
-pub(super) fn select_binary_opcode_for_repr(
+pub(super) fn select_binary_opcode(
     repr: Option<ValueRepr>,
     operator: mir::BinaryOperator,
 ) -> Opcode {
     use mir::BinaryOperator::*;
 
     // try specialized integer handlers first: no operator dispatch overhead
-    if let Some(ValueRepr::Int { signed, .. }) = repr
+    if let Some(ValueRepr::Int { width, signed }) = repr
+        && width <= Word::BIT_LEN as u16
         && let Some(handler) = select_specialized_int_opcode(operator, signed)
     {
         return handler;
@@ -21,8 +39,14 @@ pub(super) fn select_binary_opcode_for_repr(
 
     // fall back to typed handlers
     match repr {
-        Some(ValueRepr::Int { signed: true, .. }) => Opcode::BinaryInt,
-        Some(ValueRepr::Int { signed: false, .. }) => Opcode::BinaryUint,
+        Some(ValueRepr::Int {
+            width,
+            signed: true,
+        }) if width <= Word::BIT_LEN as u16 => Opcode::BinaryInt,
+        Some(ValueRepr::Int {
+            width,
+            signed: false,
+        }) if width <= Word::BIT_LEN as u16 => Opcode::BinaryUint,
         Some(ValueRepr::Float { width: 32 }) => Opcode::BinaryFloat32,
         Some(ValueRepr::Float { width: 64 }) => Opcode::BinaryFloat64,
         Some(ValueRepr::Bool) if matches!(operator, And | Or | Xor) => Opcode::BinaryBool,
@@ -135,8 +159,20 @@ pub(super) fn select_unary_opcode(
 
     // select handler by representation
     match (repr, operator) {
-        (Some(ValueRepr::Int { signed: true, .. }), _) => Opcode::UnaryInt,
-        (Some(ValueRepr::Int { signed: false, .. }), _) => Opcode::UnaryUint,
+        (
+            Some(ValueRepr::Int {
+                width,
+                signed: true,
+            }),
+            _,
+        ) if width <= Word::BIT_LEN as u16 => Opcode::UnaryInt,
+        (
+            Some(ValueRepr::Int {
+                width,
+                signed: false,
+            }),
+            _,
+        ) if width <= Word::BIT_LEN as u16 => Opcode::UnaryUint,
         (Some(ValueRepr::Float { width: 32 }), mir::UnaryOperator::FloatNegate) => {
             Opcode::UnaryFloat32
         }
@@ -150,20 +186,13 @@ pub(super) fn select_unary_opcode(
 
 /// Pick a load handler for one known pointer access.
 pub(super) fn select_load_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
-    if matches!(
-        access.pointer_class,
-        PointerClass::Heap | PointerClass::SharedHeap
-    ) && !access.is_scalar
-    {
-        return Err(Error::TypeMismatch {
-            expected: "scalar managed heap load".to_string(),
-            actual: format!("{:?}", access.value_type),
-        });
+    if !access.is_word() {
+        return Ok(Opcode::CopyFromAddress);
     }
 
     match access.pointer_class {
-        PointerClass::Heap => Ok(Opcode::LoadHeap),
-        PointerClass::SharedHeap => Ok(Opcode::LoadSharedHeap),
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Opcode::LoadHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Opcode::LoadSharedHeap),
         PointerClass::Raw => Ok(Opcode::LoadRaw),
         PointerClass::SharedRaw => Ok(Opcode::LoadSharedRaw),
         PointerClass::Stack => Ok(Opcode::LoadStack),
@@ -175,89 +204,19 @@ pub(super) fn select_load_opcode(access: PointeeAccess) -> Result<Opcode, Error>
 
 /// Pick a store handler for one known pointer access.
 pub(super) fn select_store_opcode(access: PointeeAccess) -> Result<Opcode, Error> {
-    match (access.pointer_class, access.is_scalar) {
-        (PointerClass::Heap, true) => Ok(Opcode::StoreHeap),
-        (PointerClass::Heap, false) => Ok(Opcode::StoreHeapBytes),
-        (PointerClass::SharedHeap, true) => Ok(Opcode::StoreSharedHeap),
-        (PointerClass::SharedHeap, false) => Ok(Opcode::StoreSharedHeapBytes),
-        (PointerClass::Raw, _) => Ok(Opcode::StoreRaw),
-        (PointerClass::SharedRaw, _) => Ok(Opcode::StoreSharedRaw),
-        (PointerClass::Stack, _) => Ok(Opcode::StoreStack),
-        (PointerClass::Frame, _) => Ok(Opcode::StoreFrame),
-        (PointerClass::Static, _) => Ok(Opcode::StoreStatic),
-        (PointerClass::Unknown, _) => Err(Error::InvalidInstruction),
+    if !access.is_word() {
+        return Ok(Opcode::CopyToAddress);
     }
-}
 
-/// Pick a field get handler based on inferred value representation.
-pub(super) fn select_field_get_opcode(
-    value_reprs: &ValueReprMap,
-    base: mir::Value,
-) -> Result<Opcode, Error> {
-    match value_reprs.get(base) {
-        Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldGet),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::FieldLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
-            ..
-        }) => Ok(Opcode::FieldLoadHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::FieldLoadRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::FieldLoadStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::FieldLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::FieldLoadStatic),
-        _ => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Pick an element get handler based on inferred value representation.
-pub(super) fn select_element_get_opcode(
-    value_reprs: &ValueReprMap,
-    array: mir::Value,
-) -> Result<Opcode, Error> {
-    match value_reprs.get(array) {
-        Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
-            Ok(Opcode::ElementGet)
-        }
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
-            ..
-        }) => Ok(Opcode::ElementLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
-            ..
-        }) => Ok(Opcode::ElementLoadHeap),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Raw,
-            ..
-        }) => Ok(Opcode::ElementLoadRaw),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Stack,
-            ..
-        }) => Ok(Opcode::ElementLoadStack),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Frame,
-            ..
-        }) => Ok(Opcode::ElementLoad),
-        Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Static,
-            ..
-        }) => Ok(Opcode::ElementLoadStatic),
-        _ => Err(Error::InvalidInstruction),
+    match access.pointer_class {
+        PointerClass::Heap | PointerClass::HeapAddress => Ok(Opcode::StoreHeap),
+        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Opcode::StoreSharedHeap),
+        PointerClass::Raw => Ok(Opcode::StoreRaw),
+        PointerClass::SharedRaw => Ok(Opcode::StoreSharedRaw),
+        PointerClass::Stack => Ok(Opcode::StoreStack),
+        PointerClass::Frame => Ok(Opcode::StoreFrame),
+        PointerClass::Static => Ok(Opcode::StoreStatic),
+        PointerClass::Unknown => Err(Error::InvalidInstruction),
     }
 }
 
@@ -269,11 +228,15 @@ pub(super) fn select_field_addr_opcode(
     match value_reprs.get(base) {
         Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldAddr),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::FieldAddr),
+        }) => Ok(Opcode::FieldAddrSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldAddrSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::FieldAddrHeap),
         Some(ValueRepr::Pointer {
@@ -306,11 +269,15 @@ pub(super) fn select_element_addr_opcode(
             Ok(Opcode::ElementAddr)
         }
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::ElementAddr),
+        }) => Ok(Opcode::ElementAddrSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementAddrSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::ElementAddrHeap),
         Some(ValueRepr::Pointer {
@@ -337,15 +304,22 @@ pub(super) fn select_element_addr_opcode(
 pub(super) fn select_field_load_opcode(
     value_reprs: &ValueReprMap,
     base: mir::Value,
+    field: FieldAccess,
 ) -> Result<Opcode, Error> {
+    require_word_access(field.is_word(), "word field load", field.value_type)?;
+
     match value_reprs.get(base) {
         Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldLoad),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::FieldLoad),
+        }) => Ok(Opcode::FieldLoadSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldLoadSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::FieldLoadHeap),
         Some(ValueRepr::Pointer {
@@ -372,15 +346,22 @@ pub(super) fn select_field_load_opcode(
 pub(super) fn select_field_store_opcode(
     value_reprs: &ValueReprMap,
     base: mir::Value,
+    field: FieldAccess,
 ) -> Result<Opcode, Error> {
+    require_word_access(field.is_word(), "word field store", field.value_type)?;
+
     match value_reprs.get(base) {
         Some(ValueRepr::FrameBytes { .. }) => Ok(Opcode::FieldStore),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::FieldStore),
+        }) => Ok(Opcode::FieldStoreSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::FieldStoreSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::FieldStoreHeap),
         Some(ValueRepr::Pointer {
@@ -407,17 +388,24 @@ pub(super) fn select_field_store_opcode(
 pub(super) fn select_element_load_opcode(
     value_reprs: &ValueReprMap,
     array: mir::Value,
+    element: ElementAccess,
 ) -> Result<Opcode, Error> {
+    require_word_access(element.is_word(), "word element load", element.value_type)?;
+
     match value_reprs.get(array) {
         Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
             Ok(Opcode::ElementLoad)
         }
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::ElementLoad),
+        }) => Ok(Opcode::ElementLoadSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementLoadSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::ElementLoadHeap),
         Some(ValueRepr::Pointer {
@@ -444,17 +432,24 @@ pub(super) fn select_element_load_opcode(
 pub(super) fn select_element_store_opcode(
     value_reprs: &ValueReprMap,
     array: mir::Value,
+    element: ElementAccess,
 ) -> Result<Opcode, Error> {
+    require_word_access(element.is_word(), "word element store", element.value_type)?;
+
     match value_reprs.get(array) {
         Some(ValueRepr::Array { .. }) | Some(ValueRepr::FrameBytes { .. }) => {
             Ok(Opcode::ElementStore)
         }
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::SharedHeap | PointerClass::SharedRaw,
+            pointer_class: PointerClass::SharedHeap | PointerClass::SharedHeapAddress,
             ..
-        }) => Ok(Opcode::ElementStore),
+        }) => Ok(Opcode::ElementStoreSharedHeap),
         Some(ValueRepr::Pointer {
-            pointer_class: PointerClass::Heap,
+            pointer_class: PointerClass::SharedRaw,
+            ..
+        }) => Ok(Opcode::ElementStoreSharedRaw),
+        Some(ValueRepr::Pointer {
+            pointer_class: PointerClass::Heap | PointerClass::HeapAddress,
             ..
         }) => Ok(Opcode::ElementStoreHeap),
         Some(ValueRepr::Pointer {
@@ -490,7 +485,7 @@ pub(super) fn select_branch_opcode(value_reprs: &ValueReprMap, condition: mir::V
 pub(super) fn select_switch_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
     // resolve switch value representation
     match value_reprs.get(value) {
-        Some(ValueRepr::Int { .. }) => Opcode::SwitchInt,
+        Some(ValueRepr::Int { width, .. }) if width <= Word::BIT_LEN as u16 => Opcode::SwitchInt,
         _ => Opcode::Switch,
     }
 }
@@ -499,7 +494,9 @@ pub(super) fn select_switch_opcode(value_reprs: &ValueReprMap, value: mir::Value
 pub(super) fn select_switch_table_opcode(value_reprs: &ValueReprMap, value: mir::Value) -> Opcode {
     // resolve switch value representation
     match value_reprs.get(value) {
-        Some(ValueRepr::Int { .. }) => Opcode::SwitchTableInt,
+        Some(ValueRepr::Int { width, .. }) if width <= Word::BIT_LEN as u16 => {
+            Opcode::SwitchTableInt
+        }
         _ => Opcode::SwitchTable,
     }
 }
@@ -529,7 +526,7 @@ pub(super) fn select_compare_branch_opcode(operator: mir::BinaryOperator) -> Opc
         | mir::BinaryOperator::FloatGreaterThan
         | mir::BinaryOperator::FloatGreaterEqual => Opcode::CompareAndBranchFloat,
 
-        // fallback for non comparison operators
+        // default for non comparison operators
         _ => Opcode::CompareAndBranch,
     }
 }
@@ -559,7 +556,7 @@ pub(super) fn select_compare_branch_const_opcode(operator: mir::BinaryOperator) 
         | mir::BinaryOperator::FloatGreaterThan
         | mir::BinaryOperator::FloatGreaterEqual => Opcode::CompareAndBranchConstFloat,
 
-        // fallback for non comparison operators
+        // default for non comparison operators
         _ => Opcode::CompareAndBranchConst,
     }
 }

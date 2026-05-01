@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use destack_mir as mir;
+use {destack_heap as heap, destack_mir as mir};
 
 use crate::program::{Block, CallTarget, Function, Layout};
 use crate::{Error, Result};
@@ -35,7 +35,8 @@ impl<'a> FunctionLowerer<'a> {
         >,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+        heap_options: &'a heap::HeapOptions,
+        shared_heap_options: &'a heap::HeapOptions,
         value_types: &'a [ValueType],
     ) -> Result<Option<Self>> {
         let func = tree.get(func_id);
@@ -70,7 +71,8 @@ impl<'a> FunctionLowerer<'a> {
             value_repr_map,
             value_type,
             layouts,
-            layout_id_by_type,
+            heap_options,
+            shared_heap_options,
             block_index_by_id: block_order.index_by_id,
             block_parameter,
             local_index_by_id,
@@ -94,7 +96,7 @@ impl<'a> FunctionLowerer<'a> {
             .map(|parameter| {
                 (parameter.value)
                     .value()
-                    .ok_or_else(|| Error::ConcreteMirRequired {
+                    .ok_or_else(|| Error::MissingRepresentation {
                         context: "function parameter value".to_string(),
                     })
             })
@@ -113,7 +115,7 @@ impl<'a> FunctionLowerer<'a> {
             block.push(self.lower_block(mir_block)?);
         }
 
-        let (argument_pool, move_pool) = self.pool.into_parts();
+        let (argument_pool, move_pool) = self.pool.finish();
 
         Ok(Function {
             frame_layout: self.frame_layout,
@@ -167,7 +169,7 @@ impl<'a> FunctionLowerer<'a> {
                 .map(|parameter| {
                     (parameter.value)
                         .value()
-                        .ok_or_else(|| Error::ConcreteMirRequired {
+                        .ok_or_else(|| Error::MissingRepresentation {
                             context: "block parameter value".to_string(),
                         })
                 })
@@ -191,7 +193,8 @@ pub(crate) fn lower_function(
     >,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+    heap_options: &heap::HeapOptions,
+    shared_heap_options: &heap::HeapOptions,
     value_types: &[ValueType],
 ) -> Result<Option<Function>> {
     let lowerer = FunctionLowerer::new(
@@ -202,7 +205,8 @@ pub(crate) fn lower_function(
         exceptional_call_resume_points,
         call_targets,
         layouts,
-        layout_id_by_type,
+        heap_options,
+        shared_heap_options,
         value_types,
     )?;
 
@@ -289,6 +293,11 @@ impl<'a> BlockLowerer<'a> {
         self.function.value_use_count.get(value.0 as usize).copied()
     }
 
+    /// Return whether a lowered value has exactly one use.
+    pub(super) fn is_single_use(&self, value: mir::Value) -> bool {
+        self.value_use_count(value) == Some(1)
+    }
+
     /// Return one call target for one function id.
     pub(super) fn call_target(
         &self,
@@ -348,22 +357,30 @@ fn compute_value_use_counts(
         for inst_id in &block.instructions {
             let inst = tree.get(*inst_id);
             for value in inst.uses() {
-                record_use((value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                    context: "instruction use".to_string(),
-                })?);
+                record_use(
+                    (value)
+                        .value()
+                        .ok_or_else(|| Error::MissingRepresentation {
+                            context: "instruction use".to_string(),
+                        })?,
+                );
             }
             if let Some(args) = inst.argument_slice() {
                 for arg in tree.get_arguments(args) {
-                    record_use((*arg).value().ok_or_else(|| Error::ConcreteMirRequired {
+                    record_use((*arg).value().ok_or_else(|| Error::MissingRepresentation {
                         context: "instruction argument".to_string(),
                     })?);
                 }
             }
         }
         for value in terminator.uses() {
-            record_use((value).value().ok_or_else(|| Error::ConcreteMirRequired {
-                context: "terminator use".to_string(),
-            })?);
+            record_use(
+                (value)
+                    .value()
+                    .ok_or_else(|| Error::MissingRepresentation {
+                        context: "terminator use".to_string(),
+                    })?,
+            );
         }
     }
 

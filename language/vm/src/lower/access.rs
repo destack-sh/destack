@@ -3,15 +3,16 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::program::{
-    ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, ValueRepr,
-    pointer_class_from_reference, repr_type,
+    ElementAccess, FieldAccess, Layout, PointeeAccess, PointerClass, SliceElementAccess, ValueRepr,
+    WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
 };
 
 const VIRTUAL_TABLE_FIELD: u32 = 0;
 const INTERFACE_TABLE_FIELD: u32 = 1;
 
 /// Build one field access from one compiled layout.
-pub(super) fn field_access_for_pointee(
+pub(super) fn field_access(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     pointer_class: PointerClass,
@@ -21,42 +22,57 @@ pub(super) fn field_access_for_pointee(
     let layout = layouts.get(&pointee_type)?;
     let field = layout.field(index)?;
 
-    // cache whether the loaded field can stay scalar in lowered memory ops
-    let is_scalar = layout_is_scalar(layouts, field.ty);
+    // cache scalar representation for lowered memory ops
+    let word_layout = lowered_word_layout(tree, layouts, field.ty);
 
     Some(FieldAccess {
         pointer_class,
         value_type: field.ty,
         byte_offset: field.offset,
         byte_len: field.byte_len,
-        is_scalar,
+        word_layout,
     })
 }
 
 /// Build the vtable field for one virtual receiver.
-pub(super) fn virtual_table_field_for_receiver(
+pub(super) fn virtual_table_field(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
     pointer_class: PointerClass,
 ) -> Option<FieldAccess> {
     let receiver_type = receiver_type?;
 
-    field_access_for_pointee(layouts, receiver_type, pointer_class, VIRTUAL_TABLE_FIELD)
+    field_access(
+        tree,
+        layouts,
+        receiver_type,
+        pointer_class,
+        VIRTUAL_TABLE_FIELD,
+    )
 }
 
 /// Build the itab field for one interface receiver.
-pub(super) fn interface_table_field_for_receiver(
+pub(super) fn interface_table_field(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
     pointer_class: PointerClass,
 ) -> Option<FieldAccess> {
     let receiver_type = receiver_type?;
 
-    field_access_for_pointee(layouts, receiver_type, pointer_class, INTERFACE_TABLE_FIELD)
+    field_access(
+        tree,
+        layouts,
+        receiver_type,
+        pointer_class,
+        INTERFACE_TABLE_FIELD,
+    )
 }
 
 /// Build one element access from one compiled layout.
-pub(super) fn element_access_for_pointee(
+pub(super) fn element_access(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     pointer_class: PointerClass,
@@ -65,53 +81,103 @@ pub(super) fn element_access_for_pointee(
     let layout = layouts.get(&pointee_type)?;
     let element = layout.element()?;
 
-    // cache whether the loaded element can stay scalar in lowered memory ops
-    let is_scalar = layout_is_scalar(layouts, element.ty);
+    // cache scalar representation for lowered memory ops
+    let word_layout = lowered_word_layout(tree, layouts, element.ty);
 
     Some(ElementAccess {
         pointer_class,
         value_type: element.ty,
         byte_stride: element.stride,
         byte_len: element.byte_len,
-        is_scalar,
+        word_layout,
+    })
+}
+
+/// Build one slice element access from one slice descriptor type.
+pub(super) fn slice_element_access(
+    tree: &mir::Tree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    slice_type: mir::LocalNodeId<mir::Type>,
+    descriptor_class: PointerClass,
+) -> Option<SliceElementAccess> {
+    let mir::Type::Slice {
+        kind,
+        element,
+        address_space,
+        ..
+    } = tree.get(repr_type(tree, slice_type))
+    else {
+        return None;
+    };
+    let element_type = element.ty()?;
+    let layout = layouts.get(&slice_type)?;
+    let slice = layout.slice()?;
+    let element_layout = layouts.get(&element_type)?;
+    let element_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let element_word_layout = lowered_word_layout(tree, layouts, element_type);
+
+    Some(SliceElementAccess {
+        data: FieldAccess {
+            pointer_class: descriptor_class,
+            value_type: slice.data.ty,
+            byte_offset: slice.data.offset,
+            byte_len: slice.data.byte_len,
+            word_layout: word_layout_from_type(tree, slice.data.ty),
+        },
+        length: FieldAccess {
+            pointer_class: descriptor_class,
+            value_type: slice.length.ty,
+            byte_offset: slice.length.offset,
+            byte_len: slice.length.byte_len,
+            word_layout: word_layout_from_type(tree, slice.length.ty),
+        },
+        element: ElementAccess {
+            pointer_class: element_class,
+            value_type: element_type,
+            byte_stride: element_layout.stride(),
+            byte_len: element_layout.byte_len,
+            word_layout: element_word_layout,
+        },
     })
 }
 
 /// Build one pointee access from one compiled layout.
-pub(super) fn pointee_access_for_type(
+pub(super) fn pointee_access(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     pointer_class: PointerClass,
 ) -> Option<PointeeAccess> {
     // resolve the pointee layout directly
     let layout = layouts.get(&pointee_type)?;
-    let is_scalar = layout.is_scalar();
+    let word_layout = lowered_word_layout(tree, layouts, pointee_type);
 
     Some(PointeeAccess {
         pointer_class,
         value_type: pointee_type,
         byte_offset: 0,
         byte_len: layout.byte_len,
-        is_scalar,
+        word_layout,
     })
 }
 
 /// Build one tensor element access from one compiled element layout.
 pub(super) fn tensor_element_access(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     element_type: mir::LocalNodeId<mir::Type>,
     pointer_class: PointerClass,
 ) -> Option<ElementAccess> {
     // resolve the lowered tensor element layout directly
     let layout = layouts.get(&element_type)?;
-    let is_scalar = layout.is_scalar();
+    let word_layout = lowered_word_layout(tree, layouts, element_type);
 
     Some(ElementAccess {
         pointer_class,
         value_type: element_type,
         byte_stride: layout.stride(),
         byte_len: layout.byte_len,
-        is_scalar,
+        word_layout,
     })
 }
 
@@ -132,15 +198,20 @@ pub(super) fn tensor_view_pointer_class(
 }
 
 /// Report whether one compiled layout stays scalar in lowered memory ops.
-fn layout_is_scalar(
+fn lowered_word_layout(
+    tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
-) -> bool {
-    layouts.get(&ty).is_some_and(Layout::is_scalar)
+) -> Option<WordLayout> {
+    if !layouts.get(&ty).is_some_and(Layout::is_word) {
+        return None;
+    }
+
+    word_layout_from_type(tree, ty)
 }
 
 /// Resolve the tensor element type for one tensor value or reference type.
-pub(super) fn tensor_element_type_for_view_type(
+pub(super) fn tensor_element_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -153,7 +224,7 @@ pub(super) fn tensor_element_type_for_view_type(
 }
 
 /// Resolve the field count for a struct or tuple representation.
-pub(super) fn field_count_from_repr(tree: &mir::Tree, repr: ValueRepr) -> Option<u32> {
+pub(super) fn field_count(tree: &mir::Tree, repr: ValueRepr) -> Option<u32> {
     match repr {
         ValueRepr::FrameBytes { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
@@ -170,7 +241,7 @@ pub(super) fn field_count_from_repr(tree: &mir::Tree, repr: ValueRepr) -> Option
 }
 
 /// Resolve the element length for an array representation.
-pub(super) fn array_length_from_repr(tree: &mir::Tree, repr: ValueRepr) -> Option<u64> {
+pub(super) fn array_length(tree: &mir::Tree, repr: ValueRepr) -> Option<u64> {
     match repr {
         ValueRepr::Array { length, .. } => Some(length),
         ValueRepr::FrameBytes { ty } => match tree.get(ty) {

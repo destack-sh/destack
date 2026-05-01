@@ -1,12 +1,20 @@
 mod access;
+mod aggregate;
 mod block;
+mod call;
+mod fusion;
 mod instruction;
+mod layout;
 mod lower;
+mod memory;
 mod opcode;
 mod pool;
 mod repr;
+mod scalar;
+mod tensor;
 mod terminator;
 mod tree;
+mod vector;
 
 pub(crate) use lower::lower_function;
 pub(crate) use tree::{ValueType, analyze_value_types};

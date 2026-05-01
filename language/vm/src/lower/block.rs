@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_mir as mir;
+use {destack_heap as heap, destack_mir as mir};
 
 use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
@@ -41,7 +41,7 @@ impl BlockOrder {
             match terminator {
                 mir::Terminator::Jump { target, .. } => {
                     queue.push((target.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "jump target".to_string(),
                         }
                     })?);
@@ -52,12 +52,12 @@ impl BlockOrder {
                     ..
                 } => {
                     queue.push((then_target.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "branch then target".to_string(),
                         }
                     })?);
                     queue.push((else_target.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "branch else target".to_string(),
                         }
                     })?);
@@ -66,12 +66,12 @@ impl BlockOrder {
                     success, failure, ..
                 } => {
                     queue.push((success.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "check success target".to_string(),
                         }
                     })?);
                     queue.push((failure.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "check failure target".to_string(),
                         }
                     })?);
@@ -79,20 +79,20 @@ impl BlockOrder {
                 mir::Terminator::Switch { cases, default, .. } => {
                     for case in cases {
                         queue.push((case.target.block).block().ok_or_else(|| {
-                            Error::ConcreteMirRequired {
+                            Error::MissingRepresentation {
                                 context: "switch case target".to_string(),
                             }
                         })?);
                     }
                     queue.push((default.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "switch default target".to_string(),
                         }
                     })?);
                 }
                 mir::Terminator::Yield { resume, .. } => {
                     queue.push((resume.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "yield resume target".to_string(),
                         }
                     })?);
@@ -118,18 +118,18 @@ impl BlockOrder {
                     ..
                 } => {
                     queue.push((normal_target.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "invoke normal target".to_string(),
                         }
                     })?);
                     queue.push((unwind_target.block).block().ok_or_else(|| {
-                        Error::ConcreteMirRequired {
+                        Error::MissingRepresentation {
                             context: "invoke unwind target".to_string(),
                         }
                     })?);
                 }
                 mir::Terminator::Error => {
-                    return Err(Error::ConcreteMirRequired {
+                    return Err(Error::MissingRepresentation {
                         context: "terminator".to_string(),
                     });
                 }
@@ -177,8 +177,10 @@ pub(super) struct FunctionContext<'a> {
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.
     pub(super) layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    /// The heap allocation layout id by MIR type id.
-    pub(super) layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+    /// The worker-local heap allocation geometry.
+    pub(super) heap_options: &'a heap::HeapOptions,
+    /// The runtime-shared heap allocation geometry.
+    pub(super) shared_heap_options: &'a heap::HeapOptions,
     /// The lowered block index by MIR block id.
     pub(super) block_index_by_id: HashMap<mir::LocalNodeId<mir::Block>, usize>,
     /// The lowered block parameter values by block index.
