@@ -30,6 +30,8 @@ pub(crate) struct Block {
 /// Lowered function with predecoded dispatch metadata.
 #[derive(Clone, Debug)]
 pub(crate) struct Function {
+    /// Original MIR function id.
+    pub mir_function: mir::LocalNodeId<mir::Function>,
     /// The logical frame layout for this function.
     pub frame_layout: engine::FrameLayoutId,
     /// Function parameters.
