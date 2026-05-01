@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use destack_core::Color;
 
-use crate::{File, LabeledSpan, Span};
+use crate::{AnnotateError, File, LabeledSpan};
 
 const HEADER_PREFIX: &str = "──▶";
 const BODY_PREFIX: &str = " │ ";
@@ -109,18 +109,32 @@ impl fmt::Debug for AnnotateOptions {
 /// Prefix and suffix line counts control how many lines are shown before and
 /// after the highlighted region.
 /// Lines longer than `max_line_width` are clipped to keep the highlight visible.
-pub fn annotate_file(source: &File, span: &LabeledSpan, options: AnnotateOptions) -> String {
-    debug_assert_eq!(source.id, span.span.file);
+pub fn annotate_file(
+    source: &File,
+    span: &LabeledSpan,
+    options: AnnotateOptions,
+) -> Result<String, AnnotateError> {
+    if source.id != span.span.file {
+        return Err(AnnotateError::FileMismatch {
+            source_file: source.id,
+            span_file: span.span.file,
+        });
+    }
 
     // compute span bounds
-    let (span_start_line, start_col) = match source.get_position(span.span.start) {
-        Some(pos) => pos,
-        None => return String::new(),
+    let Some((span_start_line, start_col)) = source.get_position(span.span.start) else {
+        return Err(AnnotateError::InvalidSpanStart {
+            file: source.id,
+            offset: span.span.start,
+        });
     };
     let span_end_line = source
         .get_position(span.span.end)
         .map(|(line, _)| line)
-        .unwrap_or(span_start_line);
+        .ok_or(AnnotateError::InvalidSpanEnd {
+            file: source.id,
+            offset: span.span.end,
+        })?;
 
     // compute source window
     let (window_start_line, window_end_line) = get_source_window(
@@ -152,7 +166,7 @@ pub fn annotate_file(source: &File, span: &LabeledSpan, options: AnnotateOptions
             span_start_line,
             span_end_line,
             options.line_width,
-        );
+        )?;
         let is_in_span = line >= span_start_line && line <= span_end_line;
         write_source_line(
             &mut buffer,
@@ -186,7 +200,7 @@ pub fn annotate_file(source: &File, span: &LabeledSpan, options: AnnotateOptions
     }
     write_body_separator(&mut buffer, options.use_color, options.color_meta);
 
-    buffer
+    Ok(buffer)
 }
 
 /// Write the header line: `==> name:line:col`.
@@ -395,11 +409,19 @@ fn get_visible_source_slice<'a>(
     start_line: u32,
     end_line: u32,
     max_line_width: u32,
-) -> (&'a str, (u32, u32, u32, u32), bool, bool) {
-    let line_text = source.get_line_str(current_line).unwrap_or_default();
+) -> Result<(&'a str, (u32, u32, u32, u32), bool, bool), AnnotateError> {
+    let line_text = source
+        .get_line_str(current_line)
+        .ok_or(AnnotateError::MissingLineText {
+            file: source.id,
+            line: current_line,
+        })?;
     let line_span = source
         .get_line_span(current_line)
-        .unwrap_or(Span::empty(source.id));
+        .ok_or(AnnotateError::MissingLineSpan {
+            file: source.id,
+            line: current_line,
+        })?;
     let line_len_bytes = line_span.len();
 
     // determine slice bounds within the line
@@ -450,12 +472,16 @@ fn get_visible_source_slice<'a>(
     // extract the visible portion and compute absolute bounds
     let visible = line_text
         .get(slice_start_in_line as usize..slice_end_in_line as usize)
-        .unwrap_or(line_text);
+        .ok_or(AnnotateError::InvalidVisibleSlice {
+            file: source.id,
+            start: slice_start_in_line,
+            end: slice_end_in_line,
+        })?;
     let absolute_visible_start = line_span.start + slice_start_in_line;
     let absolute_visible_end = line_span.start + slice_end_in_line;
     let truncate_left = slice_start_in_line > 0;
     let truncate_right = slice_end_in_line < line_len_bytes;
-    (
+    Ok((
         visible,
         (
             absolute_visible_start,
@@ -465,7 +491,7 @@ fn get_visible_source_slice<'a>(
         ),
         truncate_left,
         truncate_right,
-    )
+    ))
 }
 
 /// Get the offset and length of the highlight within the visible slice.
@@ -552,7 +578,7 @@ mod tests {
             color_highlight: Color::BrightYellow,
             colorizer: None,
         };
-        let annotated = annotate_file(&source, &span, options);
+        let annotated = annotate_file(&source, &span, options).unwrap();
 
         let expected = concat!(
             "──▶ <test>:2:9\n",
@@ -596,7 +622,7 @@ mod tests {
             color_highlight: Color::BrightYellow,
             colorizer: None,
         };
-        let annotated = annotate_file(&source, &span, options);
+        let annotated = annotate_file(&source, &span, options).unwrap();
 
         let expected = concat!(
             "──▶ <test>:1:151\n",
