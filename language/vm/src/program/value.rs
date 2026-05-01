@@ -260,8 +260,9 @@ pub(crate) fn word_layout_from_type(
             kind,
             address_space,
             ..
-        } => Some(word_layout_from_pointer_class(
-            pointer_class_from_reference(address_space.clone(), *kind),
+        } => word_layout_from_pointer_class(pointer_class_from_reference(
+            address_space.clone(),
+            *kind,
         )),
         mir::Type::Callable { .. } => Some(WordLayout::HeapReference),
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
@@ -295,8 +296,8 @@ pub(crate) fn pointer_class_from_reference(
 }
 
 /// Map one pointer class to the word representation carried by memory.
-pub(crate) fn word_layout_from_pointer_class(pointer_class: PointerClass) -> WordLayout {
-    match pointer_class {
+pub(crate) fn word_layout_from_pointer_class(pointer_class: PointerClass) -> Option<WordLayout> {
+    Some(match pointer_class {
         PointerClass::Heap | PointerClass::HeapAddress => WordLayout::HeapReference,
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
             WordLayout::SharedHeapReference
@@ -306,6 +307,6 @@ pub(crate) fn word_layout_from_pointer_class(pointer_class: PointerClass) -> Wor
         PointerClass::Stack => WordLayout::StackPointer,
         PointerClass::Frame => WordLayout::FramePointer,
         PointerClass::Static => WordLayout::StaticPointer,
-        PointerClass::Unknown => WordLayout::RawPointer,
-    }
+        PointerClass::Unknown => return None,
+    })
 }

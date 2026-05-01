@@ -1,436 +1,589 @@
-/// Operation code for one decoded program instruction.
+/// Operation code for one lowered VM instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Opcode {
-    /// The `add_const_int` opcode.
-    AddConstInt,
-    /// The `add_const_uint` opcode.
-    AddConstUint,
-    /// The `add_int` opcode.
-    AddInt,
-    /// The `add_uint` opcode.
-    AddUint,
-    /// The `and_int` opcode.
-    AndInt,
-    /// The `and_uint` opcode.
-    AndUint,
-    /// The `assume` opcode.
-    Assume,
-    /// The `atomic_compare_exchange` opcode.
-    AtomicCompareExchange,
-    /// The `atomic_fence` opcode.
-    AtomicFence,
-    /// The `atomic_load` opcode.
-    AtomicLoad,
-    /// The `atomic_rmw` opcode.
-    AtomicRmw,
-    /// The `atomic_store` opcode.
-    AtomicStore,
-    /// The `barrier_write` opcode.
-    BarrierWrite,
-    /// The `binary` opcode.
-    Binary,
-    /// The `binary_bool` opcode.
-    BinaryBool,
-    /// The `binary_elementwise` opcode.
-    BinaryElementwise,
-    /// The `binary_float32` opcode.
-    BinaryFloat32,
-    /// The `binary_float64` opcode.
-    BinaryFloat64,
-    /// The `binary_int` opcode.
-    BinaryInt,
-    /// The `binary_uint` opcode.
-    BinaryUint,
-    /// The `branch` opcode.
-    Branch,
-    /// The `branch_bool` opcode.
-    BranchBool,
-    /// The `check` opcode.
-    Check,
-    /// The `call` opcode.
-    Call,
-    /// The `call.branch` opcode.
-    CallBranch,
-    /// The `call_indirect` opcode.
-    CallIndirect,
-    /// The `call_indirect.branch` opcode.
-    CallIndirectBranch,
-    /// The `call_interface` opcode.
-    CallInterface,
-    /// The `call_interface.branch` opcode.
-    CallInterfaceBranch,
-    /// The `call_virtual` opcode.
-    CallVirtual,
-    /// The `call_virtual.branch` opcode.
-    CallVirtualBranch,
-    /// The `cast` opcode.
-    Cast,
-    /// The `compare_and_branch` opcode.
-    CompareAndBranch,
-    /// The `compare_and_branch_const` opcode.
-    CompareAndBranchConst,
-    /// The `compare_and_branch_const_float` opcode.
-    CompareAndBranchConstFloat,
-    /// The `compare_and_branch_const_int` opcode.
-    CompareAndBranchConstInt,
-    /// The `compare_and_branch_const_uint` opcode.
-    CompareAndBranchConstUint,
-    /// The `compare_and_branch_float` opcode.
-    CompareAndBranchFloat,
-    /// The `compare_and_branch_int` opcode.
-    CompareAndBranchInt,
-    /// The `compare_and_branch_uint` opcode.
-    CompareAndBranchUint,
-    /// The `const` opcode.
-    Const,
-    /// The `copy` opcode.
-    Copy,
-    /// The `copy_from_address` opcode.
-    CopyFromAddress,
-    /// The `copy_to_address` opcode.
-    CopyToAddress,
-    /// The `element_addr` opcode.
-    ElementAddr,
-    /// The `element_addr_static` opcode.
-    ElementAddrStatic,
-    /// The `element_addr_heap` opcode.
-    ElementAddrHeap,
-    /// The `element_addr_shared_heap` opcode.
-    ElementAddrSharedHeap,
-    /// The `element_addr_raw` opcode.
-    ElementAddrRaw,
-    /// The `element_addr_shared_raw` opcode.
-    ElementAddrSharedRaw,
-    /// The `element_addr_stack` opcode.
-    ElementAddrStack,
-    /// The `slice_element_addr` opcode.
-    SliceElementAddr,
-    /// The `element_get` opcode.
-    ElementGet,
-    /// The `element_copy` opcode.
-    ElementCopy,
-    /// The `element_load` opcode.
-    ElementLoad,
-    /// The `element_load_static` opcode.
-    ElementLoadStatic,
-    /// The `element_load_heap` opcode.
-    ElementLoadHeap,
-    /// The `element_load_shared_heap` opcode.
-    ElementLoadSharedHeap,
-    /// The `element_load_raw` opcode.
-    ElementLoadRaw,
-    /// The `element_load_shared_raw` opcode.
-    ElementLoadSharedRaw,
-    /// The `element_load_stack` opcode.
-    ElementLoadStack,
-    /// The `element_store` opcode.
-    ElementStore,
-    /// The `element_write` opcode.
-    ElementWrite,
-    /// The `element_store_static` opcode.
-    ElementStoreStatic,
-    /// The `element_store_heap` opcode.
-    ElementStoreHeap,
-    /// The `element_store_shared_heap` opcode.
-    ElementStoreSharedHeap,
-    /// The `element_store_raw` opcode.
-    ElementStoreRaw,
-    /// The `element_store_shared_raw` opcode.
-    ElementStoreSharedRaw,
-    /// The `element_store_stack` opcode.
-    ElementStoreStack,
-    /// The `eq_const_int` opcode.
-    EqConstInt,
-    /// The `eq_int` opcode.
-    EqInt,
-    /// The `field_addr` opcode.
-    FieldAddr,
-    /// The `field_addr_static` opcode.
-    FieldAddrStatic,
-    /// The `field_addr_heap` opcode.
-    FieldAddrHeap,
-    /// The `field_addr_shared_heap` opcode.
-    FieldAddrSharedHeap,
-    /// The `field_addr_raw` opcode.
-    FieldAddrRaw,
-    /// The `field_addr_shared_raw` opcode.
-    FieldAddrSharedRaw,
-    /// The `field_addr_stack` opcode.
-    FieldAddrStack,
-    /// The `field_get` opcode.
-    FieldGet,
-    /// The `field_load` opcode.
-    FieldLoad,
-    /// The `field_load_static` opcode.
-    FieldLoadStatic,
-    /// The `field_load_heap` opcode.
-    FieldLoadHeap,
-    /// The `field_load_shared_heap` opcode.
-    FieldLoadSharedHeap,
-    /// The `field_load_raw` opcode.
-    FieldLoadRaw,
-    /// The `field_load_shared_raw` opcode.
-    FieldLoadSharedRaw,
-    /// The `field_load_stack` opcode.
-    FieldLoadStack,
-    /// The `field_store` opcode.
-    FieldStore,
-    /// The `field_store_static` opcode.
-    FieldStoreStatic,
-    /// The `field_store_heap` opcode.
-    FieldStoreHeap,
-    /// The `field_store_shared_heap` opcode.
-    FieldStoreSharedHeap,
-    /// The `field_store_raw` opcode.
-    FieldStoreRaw,
-    /// The `field_store_shared_raw` opcode.
-    FieldStoreSharedRaw,
-    /// The `field_store_stack` opcode.
-    FieldStoreStack,
-    /// The `function_addr` opcode.
-    FunctionAddr,
-    /// The `callable_bind` opcode.
-    CallableBind,
-    /// The `callable_environment` opcode.
-    CallableEnvironment,
-    /// The `ge_const_int` opcode.
-    GeConstInt,
-    /// The `ge_const_uint` opcode.
-    GeConstUint,
-    /// The `ge_int` opcode.
-    GeInt,
-    /// The `ge_uint` opcode.
-    GeUint,
-    /// The `static_addr` opcode.
-    StaticAddr,
-    /// The `static_load` opcode.
-    StaticLoad,
-    /// The `static_store` opcode.
-    StaticStore,
-    /// The `gt_const_int` opcode.
-    GtConstInt,
-    /// The `gt_const_uint` opcode.
-    GtConstUint,
-    /// The `gt_int` opcode.
-    GtInt,
-    /// The `gt_uint` opcode.
-    GtUint,
-    /// The `intrinsic` opcode.
-    Intrinsic,
-    /// The `jump` opcode.
-    Jump,
-    /// The `le_const_int` opcode.
-    LeConstInt,
-    /// The `le_const_uint` opcode.
-    LeConstUint,
-    /// The `le_int` opcode.
-    LeInt,
-    /// The `le_uint` opcode.
-    LeUint,
-    /// The `load_static` opcode.
-    LoadStatic,
-    /// The `load_heap` opcode.
-    LoadHeap,
-    /// The `load_shared_heap` opcode.
-    LoadSharedHeap,
-    /// The `load_raw` opcode.
-    LoadRaw,
-    /// The `load_shared_raw` opcode.
-    LoadSharedRaw,
-    /// The `load_stack` opcode.
-    LoadStack,
-    /// The `load_frame` opcode.
-    LoadFrame,
-    /// The `local_addr` opcode.
-    LocalAddr,
-    /// The `local_get` opcode.
-    LocalGet,
-    /// The `local_set` opcode.
-    LocalSet,
-    /// The `lt_const_int` opcode.
-    LtConstInt,
-    /// The `lt_const_uint` opcode.
-    LtConstUint,
-    /// The `lt_int` opcode.
-    LtInt,
-    /// The `lt_uint` opcode.
-    LtUint,
-    /// The `mul_const_int` opcode.
-    MulConstInt,
-    /// The `mul_const_uint` opcode.
-    MulConstUint,
-    /// The `mul_int` opcode.
-    MulInt,
-    /// The `mul_uint` opcode.
-    MulUint,
-    /// The `ne_const_int` opcode.
-    NeConstInt,
-    /// The `ne_int` opcode.
-    NeInt,
-    /// The `new` opcode.
-    New,
-    /// The `new.heap` opcode.
-    NewHeap,
-    /// The `new.shared_heap` opcode.
-    NewSharedHeap,
-    /// The `new.slice` opcode.
-    NewSlice,
-    /// The `or_int` opcode.
-    OrInt,
-    /// The `or_uint` opcode.
-    OrUint,
-    /// The `raw_alloc` opcode.
-    RawAlloc,
-    /// The `dispose` opcode.
-    Dispose,
-    /// The `dispose_async` opcode.
-    AsyncDispose,
-    /// The `pin` opcode.
-    Pin,
-    /// The `unpin` opcode.
-    Unpin,
-    /// The `drop` opcode.
-    Drop,
-    /// The `raw_free` opcode.
-    RawFree,
-    /// The `return` opcode.
-    Return,
-    /// The `select` opcode.
+    // ============================================================================
+    // values
+    // ============================================================================
+    /// Load a constant into a frame value.
+    LoadConst,
+    /// Copy bytes between frame values.
+    CopyFrameBytes,
+    /// Load bytes from a computed address into a frame value.
+    LoadAddressBytes,
+    /// Store bytes from a frame value into a computed address.
+    StoreAddressBytes,
+    /// Select one of two word values.
     Select,
-    /// The `shl_int` opcode.
-    ShlInt,
-    /// The `shl_uint` opcode.
-    ShlUint,
-    /// The `shr_int` opcode.
-    ShrInt,
-    /// The `shr_uint` opcode.
-    ShrUint,
-    /// The `stack_alloc` opcode.
-    StackAlloc,
-    /// The `store_static` opcode.
-    StoreStatic,
-    /// The `store_heap` opcode.
+
+    // ============================================================================
+    // locals, statics, functions
+    // ============================================================================
+    /// Load a local value.
+    LoadLocal,
+    /// Store a local value.
+    StoreLocal,
+    /// Compute a local address.
+    AddressLocal,
+    /// Compute a static address.
+    AddressStatic,
+    /// Load a word from a static id.
+    LoadStaticId,
+    /// Store a word to a static id.
+    StoreStaticId,
+    /// Materialize a function pointer.
+    AddressFunction,
+    /// Bind a function pointer to one environment.
+    BindCallable,
+    /// Load the current callable environment.
+    LoadCallableEnvironment,
+
+    // ============================================================================
+    // word loads
+    // ============================================================================
+    /// Load a word from local heap memory.
+    LoadHeap,
+    /// Load a word from shared heap memory.
+    LoadSharedHeap,
+    /// Load a word from local raw memory.
+    LoadRaw,
+    /// Load a word from shared raw memory.
+    LoadSharedRaw,
+    /// Load a word from stack memory.
+    LoadStack,
+    /// Load a word from frame memory.
+    LoadFrame,
+    /// Load a word from static memory.
+    LoadStatic,
+
+    // ============================================================================
+    // word stores
+    // ============================================================================
+    /// Store a word to local heap memory.
     StoreHeap,
-    /// The `store_shared_heap` opcode.
+    /// Store a word to shared heap memory.
     StoreSharedHeap,
-    /// The `store_raw` opcode.
+    /// Store a word to local raw memory.
     StoreRaw,
-    /// The `store_shared_raw` opcode.
+    /// Store a word to shared raw memory.
     StoreSharedRaw,
-    /// The `store_stack` opcode.
+    /// Store a word to stack memory.
     StoreStack,
-    /// The `store_frame` opcode.
+    /// Store a word to frame memory.
     StoreFrame,
-    /// The `sub_const_int` opcode.
-    SubConstInt,
-    /// The `sub_const_uint` opcode.
-    SubConstUint,
-    /// The `sub_int` opcode.
-    SubInt,
-    /// The `sub_uint` opcode.
-    SubUint,
-    /// The `switch` opcode.
-    Switch,
-    /// The `switch_int` opcode.
-    SwitchInt,
-    /// The `switch_table` opcode.
-    SwitchTable,
-    /// The `switch_table_int` opcode.
-    SwitchTableInt,
-    /// The `tail_call` opcode.
-    TailCall,
-    /// The `tail_call_indirect` opcode.
-    TailCallIndirect,
-    /// The `tail_call_interface` opcode.
-    TailCallInterface,
-    /// The `tail_call_self` opcode.
-    TailCallSelf,
-    /// The `tail_call_virtual` opcode.
-    TailCallVirtual,
-    /// The `tensor_broadcast` opcode.
-    TensorBroadcast,
-    /// The `tensor_cast` opcode.
-    TensorCast,
-    /// The `tensor_compare` opcode.
-    TensorCompare,
-    /// The `tensor_concat` opcode.
-    TensorConcat,
-    /// The `tensor_convert` opcode.
-    TensorConvert,
-    /// The `tensor_convolution` opcode.
-    TensorConvolution,
-    /// The `tensor_copy` opcode.
-    TensorCopy,
-    /// The `tensor_dot` opcode.
-    TensorDot,
-    /// The `tensor_fill` opcode.
-    TensorFill,
-    /// The `tensor_gather` opcode.
-    TensorGather,
-    /// The `tensor_load` opcode.
-    TensorLoad,
-    /// The `tensor_splat` opcode.
-    TensorSplat,
-    /// The `tensor_extract` opcode.
-    TensorExtract,
-    /// The `tensor_pad` opcode.
-    TensorPad,
-    /// The `tensor_reduce` opcode.
-    TensorReduce,
-    /// The `tensor_reshape` opcode.
-    TensorReshape,
-    /// The `tensor_scatter` opcode.
-    TensorScatter,
-    /// The `tensor_select` opcode.
-    TensorSelect,
-    /// The `tensor_slice` opcode.
-    TensorSlice,
-    /// The `tensor_store` opcode.
-    TensorStore,
-    /// The `tensor_transpose` opcode.
-    TensorTranspose,
-    /// The `tensor_view` opcode.
-    TensorView,
-    /// The `trap` opcode.
-    Trap,
-    /// The `throw` opcode.
-    Throw,
-    /// The `unary` opcode.
-    Unary,
-    /// The `unary_bool` opcode.
-    UnaryBool,
-    /// The `unary_elementwise` opcode.
+    /// Store a word to static memory.
+    StoreStatic,
+
+    // ============================================================================
+    // field projection
+    // ============================================================================
+    /// Project a word field from a frame value.
+    ProjectField,
+    /// Compute a field address in frame memory.
+    AddressFrameField,
+    /// Compute a field address in local heap memory.
+    AddressHeapField,
+    /// Compute a field address in shared heap memory.
+    AddressSharedHeapField,
+    /// Compute a field address in local raw memory.
+    AddressRawField,
+    /// Compute a field address in shared raw memory.
+    AddressSharedRawField,
+    /// Compute a field address in stack memory.
+    AddressStackField,
+    /// Compute a field address in static memory.
+    AddressStaticField,
+    /// Load a word field through a frame address.
+    LoadFrameField,
+    /// Load a word field through a local heap reference.
+    LoadHeapField,
+    /// Load a word field through a shared heap reference.
+    LoadSharedHeapField,
+    /// Load a word field through a local raw pointer.
+    LoadRawField,
+    /// Load a word field through a shared raw pointer.
+    LoadSharedRawField,
+    /// Load a word field through a stack address.
+    LoadStackField,
+    /// Load a word field through a static address.
+    LoadStaticField,
+    /// Store a word field through a frame address.
+    StoreFrameField,
+    /// Store a word field through a local heap reference.
+    StoreHeapField,
+    /// Store a word field through a shared heap reference.
+    StoreSharedHeapField,
+    /// Store a word field through a local raw pointer.
+    StoreRawField,
+    /// Store a word field through a shared raw pointer.
+    StoreSharedRawField,
+    /// Store a word field through a stack address.
+    StoreStackField,
+    /// Store a word field through a static address.
+    StoreStaticField,
+
+    // ============================================================================
+    // element projection
+    // ============================================================================
+    /// Project a word element from a frame value.
+    ProjectElement,
+    /// Compute an element address in frame memory.
+    AddressFrameElement,
+    /// Compute an element address in local heap memory.
+    AddressHeapElement,
+    /// Compute an element address in shared heap memory.
+    AddressSharedHeapElement,
+    /// Compute an element address in local raw memory.
+    AddressRawElement,
+    /// Compute an element address in shared raw memory.
+    AddressSharedRawElement,
+    /// Compute an element address in stack memory.
+    AddressStackElement,
+    /// Compute an element address in static memory.
+    AddressStaticElement,
+    /// Compute an element address through a slice descriptor.
+    AddressSliceElement,
+    /// Load a word element through a frame address.
+    LoadFrameElement,
+    /// Load a word element through a local heap reference.
+    LoadHeapElement,
+    /// Load a word element through a shared heap reference.
+    LoadSharedHeapElement,
+    /// Load a word element through a local raw pointer.
+    LoadRawElement,
+    /// Load a word element through a shared raw pointer.
+    LoadSharedRawElement,
+    /// Load a word element through a stack address.
+    LoadStackElement,
+    /// Load a word element through a static address.
+    LoadStaticElement,
+    /// Store a word element through a frame address.
+    StoreFrameElement,
+    /// Store a word element through a local heap reference.
+    StoreHeapElement,
+    /// Store a word element through a shared heap reference.
+    StoreSharedHeapElement,
+    /// Store a word element through a local raw pointer.
+    StoreRawElement,
+    /// Store a word element through a shared raw pointer.
+    StoreSharedRawElement,
+    /// Store a word element through a stack address.
+    StoreStackElement,
+    /// Store a word element through a static address.
+    StoreStaticElement,
+
+    // ============================================================================
+    // allocation and lifetime
+    // ============================================================================
+    /// Allocate a zeroed local heap value.
+    AllocateHeap,
+    /// Allocate a zeroed shared heap value.
+    AllocateSharedHeap,
+    /// Allocate a zeroed slice backing and descriptor.
+    AllocateSlice,
+    /// Allocate local raw memory.
+    AllocateRaw,
+    /// Free local raw memory.
+    FreeRaw,
+    /// Allocate stack memory.
+    AllocateStack,
+    /// Run a synchronous disposer.
+    Dispose,
+    /// Run an asynchronous disposer.
+    AsyncDispose,
+    /// Pin one value.
+    Pin,
+    /// Unpin one value.
+    Unpin,
+    /// Drop one value.
+    Drop,
+
+    // ============================================================================
+    // arithmetic and casts
+    // ============================================================================
+    /// Execute a wide signed integer binary operation.
+    BinaryWideInt,
+    /// Execute a wide unsigned integer binary operation.
+    BinaryWideUint,
+    /// Execute an elementwise binary operation.
+    BinaryElementwise,
+    /// And boolean values.
+    AndBool,
+    /// Or boolean values.
+    OrBool,
+    /// Xor boolean values.
+    XorBool,
+    /// Add 32-bit integer values.
+    Add32,
+    /// Add 64-bit integer values.
+    Add64,
+    /// Subtract 32-bit integer values.
+    Sub32,
+    /// Subtract 64-bit integer values.
+    Sub64,
+    /// Multiply 32-bit integer values.
+    Mul32,
+    /// Multiply 64-bit integer values.
+    Mul64,
+    /// Divide signed 32-bit integer values.
+    DivI32,
+    /// Divide unsigned 32-bit integer values.
+    DivU32,
+    /// Divide signed 64-bit integer values.
+    DivI64,
+    /// Divide unsigned 64-bit integer values.
+    DivU64,
+    /// Remainder signed 32-bit integer values.
+    RemI32,
+    /// Remainder unsigned 32-bit integer values.
+    RemU32,
+    /// Remainder signed 64-bit integer values.
+    RemI64,
+    /// Remainder unsigned 64-bit integer values.
+    RemU64,
+    /// And 32-bit integer values.
+    And32,
+    /// And 64-bit integer values.
+    And64,
+    /// Or 32-bit integer values.
+    Or32,
+    /// Or 64-bit integer values.
+    Or64,
+    /// Xor 32-bit integer values.
+    Xor32,
+    /// Xor 64-bit integer values.
+    Xor64,
+    /// Shift a 32-bit integer left.
+    Shl32,
+    /// Shift a 64-bit integer left.
+    Shl64,
+    /// Arithmetically shift a 32-bit integer right.
+    ShrI32,
+    /// Logically shift a 32-bit integer right.
+    ShrU32,
+    /// Arithmetically shift a 64-bit integer right.
+    ShrI64,
+    /// Logically shift a 64-bit integer right.
+    ShrU64,
+    /// Add float32 values.
+    AddF32,
+    /// Add float64 values.
+    AddF64,
+    /// Subtract float32 values.
+    SubF32,
+    /// Subtract float64 values.
+    SubF64,
+    /// Multiply float32 values.
+    MulF32,
+    /// Multiply float64 values.
+    MulF64,
+    /// Divide float32 values.
+    DivF32,
+    /// Divide float64 values.
+    DivF64,
+    /// Remainder float32 values.
+    RemF32,
+    /// Remainder float64 values.
+    RemF64,
+    /// Compare 32-bit integers for equality.
+    Eq32,
+    /// Compare 64-bit integers for equality.
+    Eq64,
+    /// Compare 32-bit integers for inequality.
+    Ne32,
+    /// Compare 64-bit integers for inequality.
+    Ne64,
+    /// Compare signed 32-bit integers with less than.
+    LtI32,
+    /// Compare unsigned 32-bit integers with less than.
+    LtU32,
+    /// Compare signed 64-bit integers with less than.
+    LtI64,
+    /// Compare unsigned 64-bit integers with less than.
+    LtU64,
+    /// Compare signed 32-bit integers with less than or equal.
+    LeI32,
+    /// Compare unsigned 32-bit integers with less than or equal.
+    LeU32,
+    /// Compare signed 64-bit integers with less than or equal.
+    LeI64,
+    /// Compare unsigned 64-bit integers with less than or equal.
+    LeU64,
+    /// Compare signed 32-bit integers with greater than.
+    GtI32,
+    /// Compare unsigned 32-bit integers with greater than.
+    GtU32,
+    /// Compare signed 64-bit integers with greater than.
+    GtI64,
+    /// Compare unsigned 64-bit integers with greater than.
+    GtU64,
+    /// Compare signed 32-bit integers with greater than or equal.
+    GeI32,
+    /// Compare unsigned 32-bit integers with greater than or equal.
+    GeU32,
+    /// Compare signed 64-bit integers with greater than or equal.
+    GeI64,
+    /// Compare unsigned 64-bit integers with greater than or equal.
+    GeU64,
+    /// Compare float32 values for equality.
+    EqF32,
+    /// Compare float64 values for equality.
+    EqF64,
+    /// Compare float32 values for inequality.
+    NeF32,
+    /// Compare float64 values for inequality.
+    NeF64,
+    /// Compare float32 values with less than.
+    LtF32,
+    /// Compare float64 values with less than.
+    LtF64,
+    /// Compare float32 values with less than or equal.
+    LeF32,
+    /// Compare float64 values with less than or equal.
+    LeF64,
+    /// Compare float32 values with greater than.
+    GtF32,
+    /// Compare float64 values with greater than.
+    GtF64,
+    /// Compare float32 values with greater than or equal.
+    GeF32,
+    /// Compare float64 values with greater than or equal.
+    GeF64,
+    /// Execute a wide integer unary operation.
+    UnaryWideInt,
+    /// Negate a signed 32-bit integer.
+    NegI32,
+    /// Negate a signed 64-bit integer.
+    NegI64,
+    /// Invert a 32-bit integer.
+    Not32,
+    /// Invert a 64-bit integer.
+    Not64,
+    /// Negate a float32 value.
+    NegF32,
+    /// Negate a float64 value.
+    NegF64,
+    /// Invert a boolean value.
+    NotBool,
+    /// Execute an elementwise unary operation.
     UnaryElementwise,
-    /// The `unary_float32` opcode.
-    UnaryFloat32,
-    /// The `unary_float64` opcode.
-    UnaryFloat64,
-    /// The `unary_int` opcode.
-    UnaryInt,
-    /// The `unary_uint` opcode.
-    UnaryUint,
-    /// The `unreachable` opcode.
-    Unreachable,
-    /// The `vector_compare` opcode.
-    VectorCompare,
-    /// The `vector_convert` opcode.
-    VectorConvert,
-    /// The `vector_extract` opcode.
-    VectorExtract,
-    /// The `vector_insert` opcode.
-    VectorInsert,
-    /// The `vector_reduce` opcode.
-    VectorReduce,
-    /// The `vector_select` opcode.
-    VectorSelect,
-    /// The `vector_shuffle` opcode.
-    VectorShuffle,
-    /// The `vector_splat` opcode.
-    VectorSplat,
-    /// The `xor_int` opcode.
-    XorInt,
-    /// The `xor_uint` opcode.
-    XorUint,
-    /// The `yield` opcode.
+    /// Cast one value.
+    Cast,
+
+    // ============================================================================
+    // calls
+    // ============================================================================
+    /// Call a known function.
+    Call,
+    /// Invoke a known function with normal and unwind targets.
+    Invoke,
+    /// Call a function pointer.
+    CallIndirect,
+    /// Invoke a function pointer with normal and unwind targets.
+    InvokeIndirect,
+    /// Call a virtual method.
+    CallVirtual,
+    /// Invoke a virtual method with normal and unwind targets.
+    InvokeVirtual,
+    /// Call an interface method.
+    CallInterface,
+    /// Invoke an interface method with normal and unwind targets.
+    InvokeInterface,
+    /// Tail call a known function.
+    TailCall,
+    /// Tail call the current function.
+    TailCallSelf,
+    /// Tail call a function pointer.
+    TailCallIndirect,
+    /// Tail call a virtual method.
+    TailCallVirtual,
+    /// Tail call an interface method.
+    TailCallInterface,
+
+    // ============================================================================
+    // control flow
+    // ============================================================================
+    /// Jump to another block.
+    Jump,
+    /// Branch on one boolean value.
+    BranchBool,
+    /// Branch when 32-bit integer values are equal.
+    BranchEq32,
+    /// Branch when 64-bit integer values are equal.
+    BranchEq64,
+    /// Branch when 32-bit integer values are not equal.
+    BranchNe32,
+    /// Branch when 64-bit integer values are not equal.
+    BranchNe64,
+    /// Branch when a signed 32-bit integer is less than another.
+    BranchLtI32,
+    /// Branch when an unsigned 32-bit integer is less than another.
+    BranchLtU32,
+    /// Branch when a signed 64-bit integer is less than another.
+    BranchLtI64,
+    /// Branch when an unsigned 64-bit integer is less than another.
+    BranchLtU64,
+    /// Branch when a signed 32-bit integer is less than or equal to another.
+    BranchLeI32,
+    /// Branch when an unsigned 32-bit integer is less than or equal to another.
+    BranchLeU32,
+    /// Branch when a signed 64-bit integer is less than or equal to another.
+    BranchLeI64,
+    /// Branch when an unsigned 64-bit integer is less than or equal to another.
+    BranchLeU64,
+    /// Branch when a signed 32-bit integer is greater than another.
+    BranchGtI32,
+    /// Branch when an unsigned 32-bit integer is greater than another.
+    BranchGtU32,
+    /// Branch when a signed 64-bit integer is greater than another.
+    BranchGtI64,
+    /// Branch when an unsigned 64-bit integer is greater than another.
+    BranchGtU64,
+    /// Branch when a signed 32-bit integer is greater than or equal to another.
+    BranchGeI32,
+    /// Branch when an unsigned 32-bit integer is greater than or equal to another.
+    BranchGeU32,
+    /// Branch when a signed 64-bit integer is greater than or equal to another.
+    BranchGeI64,
+    /// Branch when an unsigned 64-bit integer is greater than or equal to another.
+    BranchGeU64,
+    /// Branch when float32 values are equal.
+    BranchEqF32,
+    /// Branch when float64 values are equal.
+    BranchEqF64,
+    /// Branch when float32 values are not equal.
+    BranchNeF32,
+    /// Branch when float64 values are not equal.
+    BranchNeF64,
+    /// Branch when a float32 value is less than another.
+    BranchLtF32,
+    /// Branch when a float64 value is less than another.
+    BranchLtF64,
+    /// Branch when a float32 value is less than or equal to another.
+    BranchLeF32,
+    /// Branch when a float64 value is less than or equal to another.
+    BranchLeF64,
+    /// Branch when a float32 value is greater than another.
+    BranchGtF32,
+    /// Branch when a float64 value is greater than another.
+    BranchGtF64,
+    /// Branch when a float32 value is greater than or equal to another.
+    BranchGeF32,
+    /// Branch when a float64 value is greater than or equal to another.
+    BranchGeF64,
+    /// Switch over 32-bit integers using direct cases.
+    Switch32,
+    /// Switch over 64-bit integers using direct cases.
+    Switch64,
+    /// Switch over wide integers using direct cases.
+    SwitchWideInt,
+    /// Switch over 32-bit integers using a dense table.
+    SwitchTable32,
+    /// Switch over 64-bit integers using a dense table.
+    SwitchTable64,
+    /// Switch over wide integers using a dense table.
+    SwitchTableWideInt,
+    /// Validate one runtime constraint.
+    Check,
+    /// Record an assumed condition.
+    Assume,
+    /// Return from the current function.
+    Return,
+    /// Yield from the current function.
     Yield,
+    /// Throw one value.
+    Throw,
+    /// Trap execution.
+    Trap,
+    /// Mark unreachable execution.
+    Unreachable,
+
+    // ============================================================================
+    // explicit memory effects
+    // ============================================================================
+    /// Record a managed reference write.
+    BarrierWrite,
+    /// Atomically load one word.
+    AtomicLoad,
+    /// Atomically store one word.
+    AtomicStore,
+    /// Atomically compare and exchange one word.
+    AtomicCompareExchange,
+    /// Atomically update one word.
+    AtomicRmw,
+    /// Apply an atomic fence.
+    AtomicFence,
+
+    // ============================================================================
+    // intrinsics
+    // ============================================================================
+    /// Call one intrinsic operation.
+    Intrinsic,
+
+    // ============================================================================
+    // vectors
+    // ============================================================================
+    /// Broadcast a scalar to a vector.
+    VectorSplat,
+    /// Extract one vector element.
+    VectorExtract,
+    /// Insert one vector element.
+    VectorInsert,
+    /// Shuffle vector elements.
+    VectorShuffle,
+    /// Select vector elements.
+    VectorSelect,
+    /// Reduce vector elements.
+    VectorReduce,
+    /// Compare vector elements.
+    VectorCompare,
+    /// Convert vector elements.
+    VectorConvert,
+
+    // ============================================================================
+    // tensors
+    // ============================================================================
+    /// Broadcast a scalar to a tensor.
+    TensorSplat,
+    /// Load one tensor element from a view.
+    TensorLoad,
+    /// Extract one tensor element from a tensor value.
+    TensorExtract,
+    /// Store one tensor element into a view.
+    TensorStore,
+    /// Fill a tensor view.
+    TensorFill,
+    /// Copy tensor elements between views.
+    TensorCopy,
+    /// Reshape a tensor value.
+    TensorReshape,
+    /// Broadcast a tensor value.
+    TensorBroadcast,
+    /// Transpose a tensor value.
+    TensorTranspose,
+    /// Slice a tensor value.
+    TensorSlice,
+    /// Pad a tensor value.
+    TensorPad,
+    /// Concatenate tensor values.
+    TensorConcat,
+    /// Reduce a tensor value.
+    TensorReduce,
+    /// Compute a tensor dot product.
+    TensorDot,
+    /// Compute a tensor convolution.
+    TensorConvolution,
+    /// Gather tensor slices.
+    TensorGather,
+    /// Scatter tensor slices.
+    TensorScatter,
+    /// Compare tensor elements.
+    TensorCompare,
+    /// Select tensor elements.
+    TensorSelect,
+    /// Convert tensor elements.
+    TensorConvert,
+    /// Cast tensor storage.
+    TensorCast,
+    /// Create a tensor view.
+    TensorView,
 }
