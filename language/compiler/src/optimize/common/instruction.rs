@@ -102,7 +102,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::Store { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::AtomicFence { .. }
-        | Instruction::Barrier { .. } => false,
+        | Instruction::BarrierWrite { .. } => false,
 
         // cleanup and drops run user hooks / deallocate
         Instruction::Dispose { .. }
@@ -265,7 +265,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::AtomicCompareExchange { .. }
         | Instruction::AtomicRmw { .. }
         | Instruction::AtomicFence { .. }
-        | Instruction::Barrier { .. } => true,
+        | Instruction::BarrierWrite { .. } => true,
 
         // aggregate updates create new values, but FieldSet/ElementSet don't have
         // side effects if the result is unused (they produce new values, not mutate)
@@ -342,7 +342,7 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::AtomicCompareExchange { .. }
             | Instruction::AtomicRmw { .. }
             | Instruction::AtomicFence { .. }
-            | Instruction::Barrier { .. }
+            | Instruction::BarrierWrite { .. }
             | Instruction::New { .. }
             | Instruction::NewSlice { .. }
             | Instruction::RawAlloc { .. }
@@ -646,14 +646,14 @@ pub fn instruction_substitute_uses(
             memory_scope: *memory_scope,
             semantics: *semantics,
         },
-        mir::Instruction::Barrier {
-            scope,
-            memory_scope,
-            semantics,
-        } => mir::Instruction::Barrier {
-            scope: *scope,
-            memory_scope: *memory_scope,
-            semantics: *semantics,
+        mir::Instruction::BarrierWrite {
+            object,
+            offset,
+            byte_len,
+        } => mir::Instruction::BarrierWrite {
+            object: substitute(object),
+            offset: substitute(offset),
+            byte_len: substitute(byte_len),
         },
         mir::Instruction::Dispose { value } => mir::Instruction::Dispose {
             value: substitute(value),
@@ -1635,14 +1635,14 @@ pub fn instruction_substitute_uses_in_tree(
             memory_scope: *memory_scope,
             semantics: *semantics,
         },
-        mir::Instruction::Barrier {
-            scope,
-            memory_scope,
-            semantics,
-        } => mir::Instruction::Barrier {
-            scope: *scope,
-            memory_scope: *memory_scope,
-            semantics: *semantics,
+        mir::Instruction::BarrierWrite {
+            object,
+            offset,
+            byte_len,
+        } => mir::Instruction::BarrierWrite {
+            object: substitute(*object),
+            offset: substitute(*offset),
+            byte_len: substitute(*byte_len),
         },
         _ => instruction_substitute_uses(instruction, substitutions),
     }
@@ -2778,14 +2778,14 @@ pub fn instruction_map(
             memory_scope: *memory_scope,
             semantics: *semantics,
         },
-        mir::Instruction::Barrier {
-            scope,
-            memory_scope,
-            semantics,
-        } => mir::Instruction::Barrier {
-            scope: *scope,
-            memory_scope: *memory_scope,
-            semantics: *semantics,
+        mir::Instruction::BarrierWrite {
+            object,
+            offset,
+            byte_len,
+        } => mir::Instruction::BarrierWrite {
+            object: remap(*object),
+            offset: remap(*offset),
+            byte_len: remap(*byte_len),
         },
     }
 }
@@ -3539,14 +3539,14 @@ pub fn instruction_map_with_locals(
             memory_scope: *memory_scope,
             semantics: *semantics,
         },
-        mir::Instruction::Barrier {
-            scope,
-            memory_scope,
-            semantics,
-        } => mir::Instruction::Barrier {
-            scope: *scope,
-            memory_scope: *memory_scope,
-            semantics: *semantics,
+        mir::Instruction::BarrierWrite {
+            object,
+            offset,
+            byte_len,
+        } => mir::Instruction::BarrierWrite {
+            object: remap(*object),
+            offset: remap(*offset),
+            byte_len: remap(*byte_len),
         },
     }
 }

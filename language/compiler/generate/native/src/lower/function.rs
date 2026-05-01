@@ -1230,7 +1230,7 @@ impl<'a> FunctionLowerer<'a> {
                 return unsupported(&format!("atomic.rmw.{}", operator.to_str()));
             }
             mir::Instruction::AtomicFence { .. } => return unsupported("atomic.fence"),
-            mir::Instruction::Barrier { .. } => return unsupported("barrier"),
+            mir::Instruction::BarrierWrite { .. } => return unsupported("barrier.write"),
 
             // intrinsic: depends on the specific intrinsic
             mir::Instruction::Intrinsic { intrinsic, .. } => {

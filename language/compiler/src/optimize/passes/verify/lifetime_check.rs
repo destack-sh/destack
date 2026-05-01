@@ -701,7 +701,7 @@ fn apply_instruction_effects(
         | Instruction::TensorCopy { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::AtomicFence { .. }
-        | Instruction::Barrier { .. } => {}
+        | Instruction::BarrierWrite { .. } => {}
 
         // globals are static borrows
         Instruction::GlobalAddr { destination, .. }

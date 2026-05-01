@@ -1109,9 +1109,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.apply_pointer_location(&mut effect, pointer);
                 Self::single_effect(effect)
             }
-            mir::Instruction::AtomicFence { .. } | mir::Instruction::Barrier { .. } => {
+            mir::Instruction::AtomicFence { .. } => {
                 Self::single_effect(MemoryAccessEffect::barrier())
             }
+            mir::Instruction::BarrierWrite { .. } => Self::single_effect(
+                MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
+            ),
             mir::Instruction::LocalGet { local, .. } => {
                 let Some(local) = local.local() else {
                     return Self::single_effect(MemoryAccessEffect::read(
@@ -1829,12 +1832,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::AddressSpaceCast
             | mir::Intrinsic::PointerOffsetFrom
             | mir::Intrinsic::RawEq => SmallVec::new(),
-
-            // garbage collection
-            mir::Intrinsic::WriteBarrier => Self::single_effect(MemoryAccessEffect::read_write(
-                MemoryAccessLocation::Unknown,
-                false,
-            )),
 
             // tensor operations
 

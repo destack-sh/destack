@@ -648,7 +648,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::AtomicCompareExchange { .. }
         | mir::Instruction::AtomicRmw { .. }
         | mir::Instruction::AtomicFence { .. }
-        | mir::Instruction::Barrier { .. }
+        | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }

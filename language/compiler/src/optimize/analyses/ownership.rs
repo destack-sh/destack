@@ -871,7 +871,7 @@ impl OwnershipAnalysis {
             Instruction::Assume { .. } => {}
             Instruction::AtomicLoad { .. }
             | Instruction::AtomicFence { .. }
-            | Instruction::Barrier { .. } => {}
+            | Instruction::BarrierWrite { .. } => {}
         }
     }
 
@@ -1379,7 +1379,7 @@ fn process_instruction(
         // atomic reads and barriers do not consume ownership
         Instruction::AtomicLoad { .. }
         | Instruction::AtomicFence { .. }
-        | Instruction::Barrier { .. } => {}
+        | Instruction::BarrierWrite { .. } => {}
 
         // callable.environment reads the hidden environment pointer
         Instruction::CallableEnvironment { destination } => {

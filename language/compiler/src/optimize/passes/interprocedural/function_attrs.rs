@@ -704,9 +704,14 @@ fn effects_for_instruction(
             effect.nosync = false;
             (effect, mir::CallBehavior::none())
         }
-        mir::Instruction::AtomicFence { .. } | mir::Instruction::Barrier { .. } => {
+        mir::Instruction::AtomicFence { .. } => {
             let mut effect = mir::MemoryEffect::read_write(mir::MemorySpaceSet::ANY);
             effect.nosync = false;
+            (effect, mir::CallBehavior::none())
+        }
+        mir::Instruction::BarrierWrite { .. } => {
+            let mut effect = inaccessible_write_effect();
+            effect.nosync = true;
             (effect, mir::CallBehavior::none())
         }
         mir::Instruction::LocalGet { .. } => {
@@ -829,11 +834,6 @@ fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
         }
         Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => {
             let mut effect = mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY);
-            effect.nosync = true;
-            effect
-        }
-        Intrinsic::WriteBarrier => {
-            let mut effect = inaccessible_write_effect();
             effect.nosync = true;
             effect
         }

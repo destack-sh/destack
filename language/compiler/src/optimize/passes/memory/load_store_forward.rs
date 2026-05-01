@@ -542,18 +542,13 @@ fn process_block(
                 }
             }
 
-            mir::Instruction::Intrinsic { intrinsic, .. } => {
-                // clear on volatile or atomic barriers
-                if is_memory_barrier(*intrinsic) {
-                    available.clear();
-                }
-            }
+            mir::Instruction::Intrinsic { .. } => {}
             mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
             | mir::Instruction::AtomicCompareExchange { .. }
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. }
-            | mir::Instruction::Barrier { .. } => {
+            | mir::Instruction::BarrierWrite { .. } => {
                 available.clear();
             }
 
@@ -627,12 +622,6 @@ fn resolve_trivial_clobber(
 
         return None;
     }
-}
-
-/// Check if an intrinsic acts as a memory barrier.
-fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
-    // match barrier intrinsics
-    matches!(intrinsic, mir::Intrinsic::WriteBarrier)
 }
 
 #[cfg(test)]

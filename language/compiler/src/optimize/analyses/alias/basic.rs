@@ -411,9 +411,8 @@ impl BasicAA {
                     ModRefInfo::MOD_REF
                 }
             }
-            mir::Instruction::AtomicFence { .. } | mir::Instruction::Barrier { .. } => {
-                ModRefInfo::NO_MOD_REF
-            }
+            mir::Instruction::AtomicFence { .. } => ModRefInfo::NO_MOD_REF,
+            mir::Instruction::BarrierWrite { .. } => ModRefInfo::MOD,
 
             mir::Instruction::Call { .. }
             | mir::Instruction::CallVirtual { .. }
@@ -975,9 +974,6 @@ impl BasicAA {
         match intrinsic {
             // memory operations
             Intrinsic::Memcpy | Intrinsic::Memmove | Intrinsic::Memset => ModRefInfo::MOD_REF,
-
-            // GC write barrier
-            Intrinsic::WriteBarrier => ModRefInfo::MOD,
 
             // pure intrinsics
             _ => ModRefInfo::NO_MOD_REF,

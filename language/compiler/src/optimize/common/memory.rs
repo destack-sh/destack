@@ -1011,7 +1011,6 @@ pub fn instruction_has_atomic_ordering(
             | mir::Instruction::AtomicCompareExchange { .. }
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. }
-            | mir::Instruction::Barrier { .. }
     ) {
         return true;
     }
@@ -1034,7 +1033,7 @@ pub fn instruction_requires_exact_access(
     tree: &mir::Tree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
-    // atomic instructions must preserve exact access semantics
+    // ordered instructions must preserve exact access semantics
     if matches!(
         tree.get(instruction),
         mir::Instruction::AtomicLoad { .. }
@@ -1042,7 +1041,7 @@ pub fn instruction_requires_exact_access(
             | mir::Instruction::AtomicCompareExchange { .. }
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. }
-            | mir::Instruction::Barrier { .. }
+            | mir::Instruction::BarrierWrite { .. }
     ) {
         return true;
     }
