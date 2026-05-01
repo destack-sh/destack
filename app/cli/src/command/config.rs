@@ -33,7 +33,7 @@ pub fn run(args: &ConfigArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Config(CommandConfigOptions {
         path: args.path.clone(),
         full: args.full,
@@ -43,7 +43,6 @@ pub fn run(args: &ConfigArgs) -> i32 {
         "config",
         &args.report,
         &args.program,
-        None,
         common,
         payload,
         "config",

@@ -20,7 +20,6 @@ use destack_daemon::protocol::{
     CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
 };
 use destack_session::SessionEventHandler;
-use destack_source::DiagnosticOptions;
 
 /// State for check watch mode.
 struct CheckWatchState {
@@ -165,15 +164,12 @@ fn run_check_via_daemon(
     command_name: &str,
     context: &CheckExecutionContext,
 ) -> i32 {
-    // build diagnostic options for the daemon command
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
     // build the daemon command
     let sources = match resolve_check_sources_or_report(args, command_name) {
         Ok(sources) => sources,
         Err(code) => return code,
     };
-    let (common, payload) = match build_check_command(args, &sources, &diagnostic_options) {
+    let (common, payload) = match build_check_command(args, &sources) {
         Ok(command) => command,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
@@ -181,7 +177,6 @@ fn run_check_via_daemon(
     // execute the daemon command
     let result = match run_root_command_once(
         &args.program,
-        Some(diagnostic_options),
         common,
         payload,
         context.event_handler.clone(),
@@ -258,9 +253,6 @@ where
         Err(code) => return code,
     };
 
-    // build diagnostic options for the daemon command
-    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
     // prepare watch mode output
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
@@ -280,29 +272,25 @@ where
         session,
         &args.program,
         &args.report,
-        diagnostic_options,
         event_handler,
         watch_loop_options,
         &mut watch_state,
         move |_state| on_start(),
         |state, _session| refresh_check_watch_sources(args, state),
         |daemon, root, reporter, state, reason, batch_id, updated, requires_rescan| {
-            let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-
             // build options for the updated sources
-            let (common, payload) =
-                match build_check_command(args, &state.sources, &diagnostic_options) {
-                    Ok(options) => options,
-                    Err(message) => {
-                        let message = watch_error(&message.to_string());
-                        if let Some(reporter) = reporter.as_mut() {
-                            reporter.emit_warning(&message);
-                            return 1;
-                        }
-                        let next_exit = report_error(command_name, &args.report, &message);
-                        return next_exit;
+            let (common, payload) = match build_check_command(args, &state.sources) {
+                Ok(options) => options,
+                Err(message) => {
+                    let message = watch_error(&message.to_string());
+                    if let Some(reporter) = reporter.as_mut() {
+                        reporter.emit_warning(&message);
+                        return 1;
                     }
-                };
+                    let next_exit = report_error(command_name, &args.report, &message);
+                    return next_exit;
+                }
+            };
 
             // run the daemon check command
             let result = match daemon.run_root_command(root, common, payload) {
@@ -508,15 +496,14 @@ fn refresh_check_watch_sources(args: &CheckArgs, state: &mut CheckWatchState) ->
 fn build_check_command(
     args: &CheckArgs,
     sources: &[InputSource],
-    diagnostic_options: &DiagnosticOptions,
 ) -> CliResult<(CommonCommandOptions, CommandPayload)> {
     let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
-    let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+    let common = CommandOptionsBuilder::new(&args.program)
         .inputs(inputs)
         .allow_destack_config_fallback(!args.input.has_input())
         .build();
     let payload = CommandPayload::Check(CommandCheckOptions {
-        lint: !args.no_lint && !args.fix && !args.diff,
+        lint: !args.no_lint,
         lint_options: CommandLintOptions {
             fix: args.fix,
             unsafe_fixes: args.unsafe_fixes,

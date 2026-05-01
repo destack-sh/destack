@@ -26,14 +26,13 @@ pub fn run(args: &CacheArgs) -> i32 {
     }
 
     // build daemon command options
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Cache(CommandCacheOptions);
 
     run_root_payload_command_or_report::<CommandCachePayload, _, _>(
         "cache",
         &args.report,
         &args.program,
-        None,
         common,
         payload,
         "cache",

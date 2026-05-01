@@ -1,6 +1,5 @@
 pub mod compile;
 pub mod diagnostic;
-pub mod fix;
 pub mod format;
 pub mod input;
 pub mod list;

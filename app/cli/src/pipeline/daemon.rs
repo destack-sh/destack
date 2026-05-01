@@ -19,9 +19,7 @@ use destack_daemon::{
 };
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_session::SessionEventHandler;
-use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, File, FileId, FileType, FileWatchStatus,
-};
+use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
 use destack_workspace::config::{OptimizeLevel, RuntimeOptionsJson};
 use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
@@ -40,9 +38,7 @@ use crate::common::{
 };
 use crate::console;
 use crate::error::{CliError, CliResult};
-use crate::pipeline::watch::{
-    WatchBatchSummary, WatchDaemon, WatchMessage, build_daemon_options, watch_roots,
-};
+use crate::pipeline::watch::{WatchBatchSummary, WatchDaemon, WatchMessage, watch_roots};
 
 /// Protocol backed daemon client for CLI flows.
 #[derive(Debug)]
@@ -210,7 +206,7 @@ pub struct CommandOptionsBuilder {
 
 impl CommandOptionsBuilder {
     /// Create a builder seeded with program defaults.
-    pub fn new(program: &ProgramArgs, diagnostic: Option<DiagnosticOptions>) -> Self {
+    pub fn new(program: &ProgramArgs) -> Self {
         // build defaults from program settings
         let options = CommonCommandOptions {
             inputs: Vec::new(),
@@ -222,7 +218,6 @@ impl CommandOptionsBuilder {
             target_overrides: None,
             runtime_overrides: None,
             profile: None,
-            diagnostic,
             env: Vec::new(),
             overrides: config_overrides_from_program(program),
             watch: false,
@@ -941,7 +936,6 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
 /// Run a daemon command with a one-shot client.
 pub fn run_root_command_once(
     program: &ProgramArgs,
-    diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
     payload: CommandPayload,
     event_handler: Option<SessionEventHandler>,
@@ -949,23 +943,13 @@ pub fn run_root_command_once(
     // prepare the repository for a one-shot run
     let repository = program.setup();
 
-    let diagnostic = diagnostic.unwrap_or_default();
-
-    run_root_command_with_repository(
-        repository,
-        program,
-        diagnostic,
-        common,
-        payload,
-        event_handler,
-    )
+    run_root_command_with_repository(repository, program, common, payload, event_handler)
 }
 
 /// Run a daemon command using an existing repository.
 pub fn run_root_command_with_repository(
     repository: Arc<Repository>,
     program: &ProgramArgs,
-    diagnostic: DiagnosticOptions,
     common: CommonCommandOptions,
     payload: CommandPayload,
     event_handler: Option<SessionEventHandler>,
@@ -976,11 +960,9 @@ pub fn run_root_command_with_repository(
         return Err(CliError::message("roots are empty"));
     };
 
-    // build compiler options for the daemon
-    let daemon_options = build_daemon_options(program, diagnostic);
     let daemon = ProtocolDaemonClient::new(
         repository.clone(),
-        daemon_options,
+        program.workers as usize,
         event_handler,
         roots,
         program,
@@ -997,11 +979,10 @@ pub fn run_root_command_or_report(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
-    diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_root_command_once(program, diagnostic, common, payload, None)
+    run_root_command_once(program, common, payload, None)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
@@ -1010,13 +991,11 @@ pub fn run_root_command_with_required_payload_or_report<T: DeserializeOwned>(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
-    diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
     payload: CommandPayload,
     payload_label: &str,
 ) -> Result<(DaemonCommandResult, T, Value), i32> {
-    let result =
-        run_root_command_or_report(command, report_args, program, diagnostic, common, payload)?;
+    let result = run_root_command_or_report(command, report_args, program, common, payload)?;
     let (payload, value) = parse_required_command_payload::<T>(
         command,
         report_args,
@@ -1033,11 +1012,10 @@ pub fn run_root_command_with_repository_or_report(
     report_args: &ReportArgs,
     repository: Arc<Repository>,
     program: &ProgramArgs,
-    diagnostic: DiagnosticOptions,
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_root_command_with_repository(repository, program, diagnostic, common, payload, None)
+    run_root_command_with_repository(repository, program, common, payload, None)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
@@ -1095,7 +1073,6 @@ pub fn run_root_payload_command_or_report<T, JsonFn, TextFn>(
     command: &str,
     report_args: &ReportArgs,
     program: &ProgramArgs,
-    diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
     payload: CommandPayload,
     payload_label: &str,
@@ -1112,7 +1089,6 @@ where
         command,
         report_args,
         program,
-        diagnostic,
         common,
         payload,
         payload_label,

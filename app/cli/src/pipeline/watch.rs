@@ -8,8 +8,8 @@ use destack_daemon::{
 };
 use destack_session::SessionEventHandler;
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, File, FileId, FileType, FileWatchFilter,
-    FileWatchOptions, FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
+    DiagnosticCollection, File, FileId, FileType, FileWatchFilter, FileWatchOptions,
+    FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
 };
 use destack_workspace::Repository;
 
@@ -388,7 +388,6 @@ pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
     repository: Arc<Repository>,
     program: &ProgramArgs,
     report: &ReportArgs,
-    _diagnostic_options: DiagnosticOptions,
     event_handler: Option<SessionEventHandler>,
     watch_loop_options: WatchLoopOptions,
     state: &mut State,

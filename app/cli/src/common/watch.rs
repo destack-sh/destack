@@ -304,8 +304,8 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileType, LabeledSpan, Span,
-        Uri,
+        Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, File, FileType,
+        Span, Uri,
     };
     use serde_json::Value;
 
@@ -356,18 +356,11 @@ mod tests {
         files.insert(file_id, Arc::new(file));
 
         let span = Span::at(file_id, 0, 1);
-        let diagnostic = Diagnostic {
-            code: "E000".to_string(),
-            original_code: None,
-            severity: DiagnosticSeverity::Error,
-            original_severity: None,
-            message: "syntax error".to_string(),
-            file_id,
-            primary_span: LabeledSpan::new(span, "here"),
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        };
+        let diagnostic = Diagnostic::error(
+            "E000",
+            "syntax error",
+            DiagnosticLabel::message(span, "here"),
+        );
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
         let format_options = FormatOptions::default();
         let (output, format_result) = collect_diagnostics_json(

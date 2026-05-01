@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use destack_parser::source_colorizer;
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, PrintOptions,
-    print_diagnostics as print_diagnostics_impl,
+    Diagnostic, DiagnosticCollection, DiagnosticRenderError, DiagnosticSeverity, File, FileId,
+    PrintOptions, print_diagnostics as print_diagnostics_impl,
 };
 use serde::Serialize;
 
@@ -122,13 +122,15 @@ where
     if !options.suppress_diagnostics {
         match options.format {
             DiagnosticFormat::Text => {
-                print_text(
+                if let Err(error) = print_text(
                     file_for_id,
                     &filtered,
                     module_count,
                     options.statistics,
                     line_writer,
-                );
+                ) {
+                    eprintln!("failed to render diagnostics: {error}");
+                }
             }
             DiagnosticFormat::Json => {
                 let output = build_diagnostic_output(
@@ -227,7 +229,8 @@ fn print_text<F>(
     module_count: usize,
     show_statistics: bool,
     line_writer: Option<&LineWriter>,
-) where
+) -> Result<(), DiagnosticRenderError>
+where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
     // build print options
@@ -249,12 +252,14 @@ fn print_text<F>(
     }
 
     // render the diagnostics
-    print_diagnostics_impl(file_for_id, &collection, print_options);
+    print_diagnostics_impl(file_for_id, &collection, print_options)?;
 
     // emit statistics when requested
     if show_statistics && !diagnostics.is_empty() {
         print_statistics(diagnostics, line_writer);
     }
+
+    Ok(())
 }
 
 /// Print diagnostics in JSON format.
@@ -272,14 +277,17 @@ where
 {
     // emit github annotations per diagnostic
     for d in diagnostics {
-        let file = resolve_file(file_for_id, d.file_id);
+        let primary_span = d.primary_span();
+        let file_id = primary_span.file;
+        let file = resolve_file(file_for_id, file_id);
+
         // get_position returns 0 based line and column
         let (line, column) = file
-            .get_position(d.primary_span.span.start)
+            .get_position(primary_span.start)
             .map(|(l, c)| (l + 1, c + 1))
             .unwrap_or((1, 1));
         let (end_line, end_column) = file
-            .get_position(d.primary_span.span.end)
+            .get_position(primary_span.end)
             .map(|(l, c)| (l + 1, c + 1))
             .unwrap_or((1, 1));
 
@@ -350,11 +358,11 @@ fn filter_diagnostics(diagnostics: &DiagnosticCollection, quiet: bool) -> Vec<Di
     if quiet {
         diagnostics
             .iter()
-            .into_iter()
             .filter(|d| d.severity == DiagnosticSeverity::Error)
+            .cloned()
             .collect()
     } else {
-        diagnostics.iter()
+        diagnostics.to_vec()
     }
 }
 
@@ -388,15 +396,17 @@ where
     let json_diagnostics: Vec<DiagnosticJson> = diagnostics
         .iter()
         .map(|d| {
-            let file = resolve_file(file_for_id, d.file_id);
+            let primary_span = d.primary_span();
+            let file_id = primary_span.file;
+            let file = resolve_file(file_for_id, file_id);
 
             // get_position returns 0 based line and column
             let (line, column) = file
-                .get_position(d.primary_span.span.start)
+                .get_position(primary_span.start)
                 .map(|(l, c)| (l + 1, c + 1))
                 .unwrap_or((1, 1));
             let (end_line, end_column) = file
-                .get_position(d.primary_span.span.end)
+                .get_position(primary_span.end)
                 .map(|(l, c)| (l + 1, c + 1))
                 .unwrap_or((1, 1));
 

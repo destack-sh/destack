@@ -55,7 +55,7 @@ pub fn run(args: &TaskArgs) -> i32 {
         },
         None => CommandTaskAction::List,
     };
-    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let common = CommandOptionsBuilder::new(&args.program).build();
     let payload = CommandPayload::Task(CommandTaskOptions {
         action,
         projects: args.projects.clone(),
@@ -66,7 +66,6 @@ pub fn run(args: &TaskArgs) -> i32 {
         "task",
         &args.report,
         &args.program,
-        None,
         common,
         payload,
         "task",

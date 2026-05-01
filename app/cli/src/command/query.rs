@@ -6,14 +6,14 @@ use destack_query::{
     QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist,
     navigation, parse_query_request, query_method, query_methods, refactor,
 };
-use destack_source::{DiagnosticOptions, Uri};
+use destack_source::Uri;
 use serde_json::Value;
 
 use crate::common::ProgramArgs;
 use crate::console;
 use crate::error::CliError;
 use crate::pipeline::daemon::ProtocolDaemonClient;
-use crate::pipeline::watch::{build_daemon_options, watch_roots};
+use crate::pipeline::watch::watch_roots;
 
 /// Arguments for the query command.
 #[derive(Args, Debug, Clone)]
@@ -335,14 +335,18 @@ where
 {
     // initialize the daemon connection
     let session = args.program.setup();
-    let diagnostic_options = DiagnosticOptions::default();
     let roots = watch_roots(&args.program, &session);
     let Some(root) = roots.first().cloned() else {
         return Err("workspace roots are empty".to_string());
     };
-    let daemon_options = build_daemon_options(&args.program, diagnostic_options);
-    let daemon = ProtocolDaemonClient::new(session, daemon_options, None, roots, &args.program)
-        .map_err(|error| error.to_string())?;
+    let daemon = ProtocolDaemonClient::new(
+        session,
+        args.program.workers as usize,
+        None,
+        roots,
+        &args.program,
+    )
+    .map_err(|error| error.to_string())?;
 
     // execute the query handler
     let output = handler(&daemon, &root);
