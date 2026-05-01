@@ -17,12 +17,12 @@ fn test_on_before_binding_allows_hook_callback_deny() {
     // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
-    let world_ref = world.world_ref();
+    let world_scope = world.world_scope();
     let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
-        &world_ref,
+        &world_scope,
         &shared,
         &destack_engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
@@ -41,7 +41,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
             });
 
     // matching binding calls should fail with the callback message
-    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_scope);
     let descriptor = BindingDescriptor::pure("destack.test.hook.block", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_err());
@@ -53,7 +53,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
 
     // unregistering the callback should restore allow behavior
     assert!(worker.hooks.off(callback_id));
-    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_scope);
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
 }
@@ -64,12 +64,12 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
-    let world_ref = world.world_ref();
+    let world_scope = world.world_scope();
     let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
-        &world_ref,
+        &world_scope,
         &shared,
         &destack_engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
@@ -86,7 +86,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
     );
 
     // non-matching binding calls should continue normally
-    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_scope);
     let descriptor = BindingDescriptor::pure("destack.test.hook.allowed", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());
@@ -101,12 +101,12 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
     // create one worker in one shared world
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("hook test world should build");
-    let world_ref = world.world_ref();
+    let world_scope = world.world_scope();
     let shared = super::tests::runtime_shared_heap(&world, &options);
     let worker = Worker::new_in_world(
         Vec::new(),
         &options,
-        &world_ref,
+        &world_scope,
         &shared,
         &destack_engine::StaticSpace::empty(),
         super::tests::TestEngine::default(),
@@ -140,7 +140,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
         });
 
     // matching binding call should dispatch one custom effect invocation
-    let call_context = super::tests::binding_call_context(&worker, &host, &world_ref);
+    let call_context = super::tests::binding_call_context(&worker, &host, &world_scope);
     let descriptor = BindingDescriptor::pure("destack.test.hook.custom.call", "()");
     let result = call_context.on_before_binding(descriptor);
     assert!(result.is_ok());

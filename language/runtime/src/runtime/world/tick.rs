@@ -47,7 +47,7 @@ impl World {
 
     /// Execute one world tick without tracing the outer invocation.
     pub(crate) fn tick_inner(&mut self) -> RuntimeResult<TickOutcome> {
-        let world = self.world_ref();
+        let world = self.world_scope();
 
         // runnable work and ingress
         for runtime in self.runtimes.values_mut() {
@@ -70,7 +70,7 @@ impl World {
         }
 
         // background shared GC still counts as live world work,
-        // but it did not advance on this caller lane
+        // but it did not advance on this caller thread
         if self
             .runtimes
             .values()

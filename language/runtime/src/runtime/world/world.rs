@@ -23,59 +23,14 @@ pub(crate) use super::topology::{
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldRef, WorldResource,
-    WorldResourceId,
+    BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldResource,
+    WorldResourceId, WorldScope,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
 
-impl WorldRef {
-    /// Register one runtime and its primary worker in world topology.
-    pub(crate) fn register_runtime_topology(
-        &self,
-        runtime_id: RuntimeId,
-        runtime_name: String,
-        runtime_labels: BTreeMap<String, String>,
-        primary_worker_id: WorkerId,
-        primary_worker_name: String,
-        primary_worker_labels: BTreeMap<String, String>,
-    ) -> RuntimeResult<()> {
-        self.topology_mut()
-            .add_runtime(
-                runtime_id,
-                runtime_name,
-                runtime_labels,
-                primary_worker_id,
-                primary_worker_name,
-                primary_worker_labels,
-            )
-            .map_err(|message| {
-                RuntimeError::Internal {
-                    message: message.to_string(),
-                }
-                .boxed()
-            })
-    }
-
-    /// Register one worker in one existing runtime.
-    pub(crate) fn register_worker_topology(
-        &self,
-        runtime_id: RuntimeId,
-        worker_id: WorkerId,
-        worker_name: String,
-        worker_labels: BTreeMap<String, String>,
-    ) -> RuntimeResult<()> {
-        self.topology_mut()
-            .add_worker(runtime_id, worker_id, worker_name, worker_labels)
-            .map_err(|message| {
-                RuntimeError::Internal {
-                    message: message.to_string(),
-                }
-                .boxed()
-            })
-    }
-
+impl WorldScope {
     /// Return the current world wall time.
     pub(crate) fn wall(&self) -> Nanos {
         match self.time_mode {
@@ -412,8 +367,8 @@ impl World {
     }
 
     /// Borrow the live branch state.
-    pub(crate) fn world_ref(&mut self) -> WorldRef {
-        WorldRef::new(
+    pub(crate) fn world_scope(&mut self) -> WorldScope {
+        WorldScope::new(
             self.branch_id,
             self.time_mode,
             self.random_mode,
